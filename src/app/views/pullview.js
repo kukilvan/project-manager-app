@@ -342,6 +342,7 @@ export async function openPull(id) {
   function checkScreen() {
     const pts = chosen().sort(comparePoints); const chk = new Set(P.checked || []); const fin = finSet();
     const toDo = pts.filter((p) => chk.has(p.id) && !fin.has(p.id));
+    const selectable = pts.filter((p) => !fin.has(p.id)); const allOn = selectable.length > 0 && selectable.every((p) => chk.has(p.id));
     const row = (p) => {
       const t = pullTotal(P, p.id); const f = fin.has(p.id);
       const cb = h('input', { type: 'checkbox', checked: f || chk.has(p.id), disabled: f, style: { width: '26px', height: '26px', flex: 'none' }, onchange: async (e) => {
@@ -355,6 +356,11 @@ export async function openPull(id) {
     };
     return [
       h('div', { class: 'mut', style: { fontSize: '13px' } }, h('b', {}, 'Протяжка'), ' — отмечайте протянутые. Всё сохраняется сразу.'),
+      selectable.length ? h('div', { class: 'btns', style: { marginTop: '6px' } },
+        h('button', { class: 'sec', onclick: () => {
+          const s = new Set(P.checked || []);
+          if (allOn) selectable.forEach((p) => s.delete(p.id)); else selectable.forEach((p) => s.add(p.id));
+          set({ checked: [...s] }); screen(); } }, allOn ? `☐ Снять все (${selectable.length})` : `☑ Выбрать все (${selectable.length})`)) : null,
       h('div', { class: 'btns', style: { marginTop: '6px' } },
         h('button', { class: 'sec', onclick: () => { set({ screen: 'measure' }); screen(); } }, '🗺 Метраж на плане'),
         h('button', { class: 'sec', onclick: () => { set({ screen: 'select' }); screen(); } }, '➕ Точки')),
