@@ -146,3 +146,18 @@ test('reconcilePull: длину в карточке стёрли или поме
   assert.equal(pullTotal(r2, 'a'), 22);
   assert.equal(reconcilePull(r2, (id) => pts[id]), r2);   // повторно ничего не меняется
 });
+
+test('hasCablesOf: у точки без кабеля метраж не нужен', async () => {
+  const { hasCablesOf } = await import('../src/domain/compose.js');
+  const ctx = { types: new Map([['Камера', { id: 'Камера', defaultCable: 'cat7', defaultCables: 1 }]]), cabinetSettings: [], devices: new Map(), cables: new Map(), catalog: new Map(), doorcfgs: new Map() };
+  assert.equal(hasCablesOf({ id: 'a', typeId: 'Камера' }, ctx), true);
+  assert.equal(hasCablesOf({ id: 'b', typeId: 'Камера', cableOverride: [] }, ctx), false);
+  assert.equal(hasCablesOf({ id: 'c', typeId: 'Камера', cableOverride: [{ cable: 'cat7', count: 2 }] }, ctx), true);
+});
+test('pullStatus: точки без кабеля не мешают', async () => {
+  const { pullStatus, mapToPairs } = await import('../src/domain/pull.js');
+  const pull = { pointIds: ['a', 'b'], meters: mapToPairs({ a: 5 }), kept: [] };
+  assert.equal(pullStatus(pull), 'Частично есть метраж');
+  assert.equal(pullStatus(pull, null, (id) => id === 'a'), 'Есть метраж');
+  assert.equal(pullStatus({ ...pull, finished: ['a'] }, null, (id) => id === 'a'), 'Завершена');
+});

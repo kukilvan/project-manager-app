@@ -36,12 +36,15 @@ export function reconcilePull(pull, pointOf) {
   }
   return changed ? { ...pull, meters: mapToPairs(m), kept: mapToPairs(k) } : pull;
 }
-export function pullStatus(pull, exists) {
+// needs(id) → false для точек без кабеля: метраж им не нужен, в счёт не идут
+export function pullStatus(pull, exists, needs) {
   const all = exists ? ids(pull).filter((id) => exists(id) || (pull?.finished || []).includes(id)) : ids(pull); const fin = new Set(pull?.finished || []);
-  if (fin.size) return all.every((id) => fin.has(id)) ? 'Завершена' : 'Завершена частично';
+  const need = needs ? all.filter(needs) : all;
+  if (fin.size) return need.every((id) => fin.has(id)) ? 'Завершена' : 'Завершена частично';
   if (!all.length) return 'Заготовка';
-  const m = all.filter((id) => isMeasured(pull, id)).length;
-  if (m === all.length) return 'Есть метраж';
+  if (!need.length) return 'Есть метраж';
+  const m = need.filter((id) => isMeasured(pull, id)).length;
+  if (m === need.length) return 'Есть метраж';
   if (m) return 'Частично есть метраж';
   return 'Точки выбраны';
 }

@@ -6,6 +6,7 @@
 // Работа в отчёте отмечается на точку; entry.deviceIds (если есть) — только для этих устройств, entry.cableId — только этот вид кабеля.
 
 import { doorCfgOf } from './doorcfg.js';
+import { cablesCountOf } from './points.js';
 
 const blank = (v) => v === undefined || v === null || v === '';
 const maxDate = (rows) => rows.reduce((m, r) => (r.date && (!m || r.date > m) ? r.date : m), '');
@@ -287,4 +288,11 @@ export function inheritedOfType(ctx, devices = [], cables = []) {
   });
   inheritedFromCables(ctx, cables).forEach((v, w) => { if (!out.has(w)) out.set(w, `${v} точки`); });
   return out;
+}
+
+/** Есть ли у точки кабель (значит, у неё есть что протягивать и мерить). Кабель могли убрать у типа, устройств или у самой точки. */
+export function hasCablesOf(point, ctx) {
+  const comp = compositionOf(point, ctx);
+  if (comp === null && !hasOverride(point)) return cablesCountOf(point, ctx) > 0;   // старая схема
+  return composedCables(point, ctx, comp || []).length > 0;
 }

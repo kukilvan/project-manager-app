@@ -4,7 +4,7 @@ import { h, openModal, toast, confirmDialog, formModal } from '../ui.js';
 import { state, getRepo, currentProject, infoOf, subscribe } from '../store.js';
 import { newId } from '../repo.js';
 import { drawingsOf, drawingTitle, drawingFor, loadDrawing, posKey } from '../drawings.js';
-import { comparePoints, statusColor, workFits } from '../../domain/index.js';
+import { comparePoints, statusColor, workFits, hasCablesOf } from '../../domain/index.js';
 import { pullStatus, pullColor, pullTotal, reconcilePull, isMeasured, nearestPoint, pullTitle, canDeletePull, mergeRemote, pairsToMap, mapToPairs } from '../../domain/pull.js';
 import { createViewer } from './planview.js';
 import { makeWorker } from './tohnitview.js';
@@ -55,7 +55,8 @@ export function openPulls() {
       return { p, hits };
     }).filter((r) => !q || r.hits.length);
     list.replaceChildren(...(rows.length ? rows.map(({ p, hits }) => {
-      const st = pullStatus(p, (id) => state.ctx.points.has(id)); const n = (p.pointIds || []).length; const m = (p.pointIds || []).filter((id) => isMeasured(p, id)).length; const f = (p.finished || []).length;
+      const needs = (id) => { const pt = state.ctx.points.get(id); return !pt || hasCablesOf(pt, state.ctx); };
+      const st = pullStatus(p, (id) => state.ctx.points.has(id), needs); const n = (p.pointIds || []).filter(needs).length; const m = (p.pointIds || []).filter((id) => needs(id) && isMeasured(p, id)).length; const f = (p.finished || []).length;
       const fin = new Set(p.finished || []);
       return h('div', { class: 'card', style: { margin: '6px 0', padding: '10px', cursor: 'pointer', borderInlineStart: `6px solid ${pullColor(st)}` }, onclick: () => openPull(p.id) },
         h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'flex-start' } },
@@ -119,9 +120,10 @@ export async function openPull(id) {
   const ctx = () => state.ctx;
   const sheetPts = () => [...ctx().points.values()].filter((p) => p.pos && drawingFor(p)?.id === d.id);
   const chosen = () => (P.pointIds || []).map((x) => ctx().points.get(x)).filter(Boolean);
+  const needsLen = (p) => hasCablesOf(p, ctx());   // у точки без кабеля метраж не нужен и протягивать нечего
   // фильтр по типу на шаге метража: метраж вводится по одному типу, ближайшая точка подбирается внутри него
   let mType = '';
-  const mchosen = () => chosen().filter((p) => typeMatch(mType, p.typeId));
+  const mchosen = () => chosen().filter((p) => needsLen(p) && typeMatch(mType, p.typeId));
   const meas = (id) => isMeasured(P, id) || finSet().has(id);
   const meters = () => pairsToMap(P.meters); const kept = () => pairsToMap(P.kept);
   // «протянута» в протяжке, но записи о протяжке в отчёте уже нет (удалили) — точка снова не протянута
@@ -286,7 +288,7 @@ export async function openPull(id) {
       const nx = nearestPoint(from, left);
       if (nx) { numpad(nx.id, sk); return; }
       padClose?.(); padClose = null;
-      if (chosen().every((x) => meas(x.id))) { set({ screen: 'check', pad: false }); toast('Метраж у всех точек ✅'); screen(); }
+      if (chosen().every((x) => meas(x.id) || !needsLen(x))) { set({ screen: 'check', pad: false }); toast('Метраж у всех точек ✅'); screen(); }
       else if (mType && mchosen().every((x) => meas(x.id))) { set({ pad: false }); toast(`Все точки этого типа с метражом ✅ Выберите другой тип или сбросьте фильтр`); screen(); }
       else { set({ pad: false }); toast('Остались пропущенные — нажмите их на плане'); screen(); }
     };
@@ -341,18 +343,18 @@ export async function openPull(id) {
   // ---- шаг 4: чеклист «Протяжка» ----
   function checkScreen() {
     const pts = chosen().sort(comparePoints); const chk = new Set(P.checked || []); const fin = finSet();
-    const toDo = pts.filter((p) => chk.has(p.id) && !fin.has(p.id));
-    const selectable = pts.filter((p) => !fin.has(p.id)); const allOn = selectable.length > 0 && selectable.every((p) => chk.has(p.id));
+    const toDo = pts.filter((p) => chk.has(p.id) && !fin.has(p.id) && needsLen(p));
+    const selectable = pts.filter((p) => !fin.has(p.id) && needsLen(p)); const allOn = selectable.length > 0 && selectable.every((p) => chk.has(p.id));
     const row = (p) => {
-      const t = pullTotal(P, p.id); const f = fin.has(p.id);
-      const cb = h('input', { type: 'checkbox', checked: f || chk.has(p.id), disabled: f, style: { width: '26px', height: '26px', flex: 'none' }, onchange: async (e) => {
+      const t = pullTotal(P, p.id); const f = fin.has(p.id); const nc = !f && !needsLen(p);
+      const cb = h('input', { type: 'checkbox', checked: f || (!nc && chk.has(p.id)), disabled: f || nc, style: { width: '26px', height: '26px', flex: 'none' }, onchange: async (e) => {
         const on = e.target.checked;
         if (on && t === 0 && !(await confirmDialog(`${p.label}: «до шкафа» 0 и метраж точки 0 — длина будет 0 м. Всё равно отметить?`, { yes: 'Отметить' }))) { screen(); return; }
         const s = new Set(P.checked || []); if (on) s.add(p.id); else s.delete(p.id); set({ checked: [...s] }); screen(); } });
       return h('label', { class: 'item', style: { display: 'flex', alignItems: 'center', gap: '10px', background: f ? '#e8f8ec' : '' } },
         h('div', { class: 'name', style: { flex: 1 } }, p.label,
-          h('div', { class: 'sub' }, f ? `✅ протянута${P.finishedAt ? ` ${new Date(P.finishedAt).toLocaleDateString('ru-RU')}` : ''}` : lostFin(p.id) ? '⚠ запись о протяжке удалена — отметьте и завершите снова' : pulledBefore(p) ? '⚠ уже протянута раньше' : (t == null ? 'без метража' : kept()[p.id] != null ? 'метраж из карточки' : `${P.base ?? 0} + ${meters()[p.id]}`))),
-        h('b', { style: { whiteSpace: 'nowrap' } }, t == null ? '— м' : `${t} м`), cb);
+          h('div', { class: 'sub' }, nc ? 'нет кабеля — протягивать нечего' : f ? `✅ протянута${P.finishedAt ? ` ${new Date(P.finishedAt).toLocaleDateString('ru-RU')}` : ''}` : lostFin(p.id) ? '⚠ запись о протяжке удалена — отметьте и завершите снова' : pulledBefore(p) ? '⚠ уже протянута раньше' : (t == null ? 'без метража' : kept()[p.id] != null ? 'метраж из карточки' : `${P.base ?? 0} + ${meters()[p.id]}`))),
+        h('b', { style: { whiteSpace: 'nowrap' } }, nc ? '' : t == null ? '— м' : `${t} м`), cb);
     };
     return [
       h('div', { class: 'mut', style: { fontSize: '13px' } }, h('b', {}, 'Протяжка'), ' — отмечайте протянутые. Всё сохраняется сразу.'),
@@ -371,7 +373,7 @@ export async function openPull(id) {
     ];
   }
   async function finish(list) {
-    const nom = list.filter((p) => pullTotal(P, p.id) == null);
+    const nom = list.filter((p) => needsLen(p) && pullTotal(P, p.id) == null);
     if (nom.length && !(await confirmDialog(`У точек без метража: ${nom.length} (${nom.slice(0, 5).map((p) => p.label).join(', ')}${nom.length > 5 ? '…' : ''}). Протяжка запишется без длины. Завершить всё равно?`, { yes: 'Завершить' }))) return;
     const c = state.ctx; const works = [...c.catalog.values()].filter((w) => w.active !== false && w.workType === 'Протяжка');
     const w = works.find((x) => list.every((p) => workFits(p, c, x))) || works.find((x) => workFits(list[0], c, x)) || works[0];
@@ -380,7 +382,7 @@ export async function openPull(id) {
       const fin = new Set([...(P.finished || []), ...ids]);
       const fx = pairsToMap(P.fixed); ids.forEach((id) => { const t = pullTotal(P, id); if (t != null) fx[id] = t; });
       set({ finished: [...fin], fixed: mapToPairs(fx), finishedAt: Date.now() });
-      toast(pullStatus(P, (id) => ctx().points.has(id)) === 'Завершена' ? 'Протяжка завершена ✅' : 'Протяжка завершена частично'); screen();
+      toast(pullStatus(P, (id) => ctx().points.has(id), (id) => { const x = ctx().points.get(id); return !x || needsLen(x); }) === 'Завершена' ? 'Протяжка завершена ✅' : 'Протяжка завершена частично'); screen();
     } });
   }
 
