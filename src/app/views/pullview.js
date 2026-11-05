@@ -123,6 +123,8 @@ export async function openPull(id) {
   const needsLen = (p) => hasCablesOf(p, ctx());   // у точки без кабеля метраж не нужен и протягивать нечего
   // фильтр по типу на шаге метража: метраж вводится по одному типу, ближайшая точка подбирается внутри него
   let mType = '';
+  // путь по точкам в окне метража: «Предыдущая» возвращает назад (и дальше назад); после правки старой точки возвращаемся туда, откуда ушли
+  const hist = []; let origin = null;
   const mchosen = () => chosen().filter((p) => needsLen(p) && typeMatch(mType, p.typeId));
   const meas = (id) => isMeasured(P, id) || finSet().has(id);
   const meters = () => pairsToMap(P.meters); const kept = () => pairsToMap(P.kept);
@@ -151,7 +153,7 @@ export async function openPull(id) {
       if (bd !== 0 || !best) return;
       const group = pool.filter((p) => posKey(p.pos) === posKey(best.pos));
       if (P.screen === 'select') { const on = !selSet().has(best.id); toggle(group, on); if (on && group.some(pulledBefore)) toast(`${best.label}: уже протянута`); screen(); return; }
-      if (P.screen === 'measure') numpad(best.id);
+      if (P.screen === 'measure') { hist.length = 0; origin = null; numpad(best.id); }
     },
     overlay: (g, api) => {
       const s = selSet(); const big = api.view.s > 0.6; const tags = []; const circles = []; const frames = []; const byKey = new Map();
@@ -260,7 +262,7 @@ export async function openPull(id) {
         h('button', { class: 'sec', onclick: () => { set({ screen: 'base' }); screen(); } }, `До шкафа: ${P.base ?? 0} м ✎`)),
       h('div', { class: 'mut', style: { fontSize: '12px', margin: '-2px 0 6px' } }, '«До шкафа» — сколько метров кабеля от шкафа до места, где трасса расходится к точкам (общий для всех участок). Эти метры прибавляются к метражу каждой точки.'),
       h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', margin: '4px 0' } }, ...viewer.zoomBtns(),
-        done < all.length ? h('button', { class: 'sec', onclick: () => { const p = next(); if (p) numpad(p.id); } }, '▶ Следующая') : null,
+        done < all.length ? h('button', { class: 'sec', onclick: () => { const p = next(); if (p) { hist.length = 0; origin = null; numpad(p.id); } } }, '▶ Следующая') : null,
         h('button', { onclick: () => { set({ screen: 'check' }); screen(); } }, '📋 Чеклист →')),
       viewer.el,
     ];
@@ -284,9 +286,11 @@ export async function openPull(id) {
       ...['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((k) => btn(k, () => key(k))), btn('⌫', () => key('⌫')), btn('0', () => key('0')),
       h('button', { type: 'button', style: { fontSize: '20px', padding: '10px 0' }, onclick: () => enter() }, '✓ Ввод'));
     const goNext = (from, sk = skip) => {
+      if (origin && ctx().points.has(origin) && origin !== from.id) { const id = origin; origin = null; hist.push(from.id); numpad(id, sk); return; }
+      origin = null;
       const left = mchosen().filter((x) => !meas(x.id) && !sk.has(x.id) && x.id !== from.id);
       const nx = nearestPoint(from, left);
-      if (nx) { numpad(nx.id, sk); return; }
+      if (nx) { hist.push(from.id); if (hist.length > 80) hist.shift(); numpad(nx.id, sk); return; }
       padClose?.(); padClose = null;
       if (chosen().every((x) => meas(x.id) || !needsLen(x))) { set({ screen: 'check', pad: false }); toast('Метраж у всех точек ✅'); screen(); }
       else if (mType && mchosen().every((x) => meas(x.id))) { set({ pad: false }); toast(`Все точки этого типа с метражом ✅ Выберите другой тип или сбросьте фильтр`); screen(); }
@@ -317,6 +321,11 @@ export async function openPull(id) {
       (card != null && own == null) || kv != null ? h('button', { type: 'button', class: kv != null ? '' : 'sec', style: { width: '100%', marginTop: '6px' }, onclick: keep }, `✓ Оставить из карточки: ${card} м`) : null,
       grid,
       h('div', { style: { display: 'flex', gap: '6px' } },
+        h('button', { type: 'button', class: 'sec', style: { flex: 1 }, disabled: !hist.length, onclick: () => {
+          let id = hist.pop(); while (id === p.id && hist.length) id = hist.pop();
+          if (!id || id === p.id || !ctx().points.has(id)) return;
+          if (!origin) origin = p.id;
+          numpad(id, skip); } }, '⏮ Предыдущая'),
         h('button', { type: 'button', class: 'sec', style: { flex: 1 }, onclick: () => { const sk = new Set([...skip, p.id]); goNext(p, sk); } }, '⏭ Другая'),
         h('button', { type: 'button', class: 'sec', style: { flex: 1 }, onclick: () => { padClose?.(); set({ pad: false }); } }, '🗺 На план')));
     paint();
