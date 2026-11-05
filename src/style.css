@@ -100,6 +100,11 @@ input[type=search] { width: 100%; }
 .card .group { position: static; background: transparent; }
 nav button small { font-size: 11px; }
 html, body { overflow-x: hidden; }
+/* Двойное касание по тексту/цифрам выделяло слово и «увеличивало» его: выделение отключено везде, кроме полей ввода (копирование — кнопками) */
+@media (pointer: coarse) {
+  body, #app, .sheet, .card, pre, table, td, th, div, span, p, li { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  input, textarea, select, [contenteditable], [contenteditable] * { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+}
 .btns button.wide { flex: 1 1 100%; }
 
 /* руководство и подсказки */
