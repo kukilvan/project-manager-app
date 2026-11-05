@@ -13,7 +13,7 @@ import * as store from './app/store.js';
 import { createShell } from './app/shell.js';
 
 import { captureTokenFromUrl } from './app/google.js';
-import { APP_NAME, connection, saveConnection, parseConnect, setAdminEmail, mode, setLocalMode, localUser, isStandalone } from './edition.js';
+import { APP_NAME, connection, saveConnection, parseConnect, setAdminEmail, adminEmail, mode, setLocalMode, localUser, isStandalone } from './edition.js';
 document.title = tr(APP_NAME);
 const popupReturn = captureTokenFromUrl() === 'popup';   // окно входа Google: токен сохранён, само приложение здесь не запускаем
 const BUILD = typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev';
@@ -69,12 +69,18 @@ function showLogin(message = '', busy = false) {
 async function startSession(user) {
   const backend = memoryMode ? createMemoryBackend() : createFirestoreBackend(fb.db, user.uid);
   const repo = createRepo(backend, user);
-  if (!memoryMode && !(await resolveAdmin(repo, user))) return;
+  if (!memoryMode) {
+    // Администратор базы запоминается на устройстве: запуск не ждёт сеть. Проверка идёт в фоне и при расхождении обновит экран.
+    // Только на новом устройстве (запоминать нечего) ждём ответа базы — но не дольше 6 секунд.
+    const cached = readAdmin();
+    if (cached) { setAdminEmail(cached); resolveAdmin(repo, user, true); }
+    else if (!(await Promise.race([resolveAdmin(repo, user), new Promise((r) => setTimeout(() => r(true), 6000))]))) return;
+  }
   if (memoryMode) window.__pzRepo = repo;
   store.start(repo);
   shell = createShell({
     user,
-    onLogout: async () => { if (memoryMode) location.reload(); else await fb.logout(); },
+    onLogout: async () => { if (!memoryMode) await fb.logout(); location.reload(); },
     diag: { build: BUILD, device: DEVICE, standalone, backend: memoryMode ? 'память (тест)' : 'Firestore', cacheMode: fb?.cacheMode ?? '—', userEmail: user.email },
   });
   if (!memoryMode) setTimeout(() => import('./app/migrate.js').then((m) => m.offerMigration(repo, user)).catch((e) => error('Перенос проектов', e)), 2500);
@@ -124,14 +130,23 @@ async function startLocal() {
 }
 
 // Открытая версия: кто администратор базы (первый вошедший становится им сам)
-async function resolveAdmin(repo, user) {
+const adminKey = () => `pm.admin.${connection()?.firebase?.projectId || ''}`;
+const readAdmin = () => { try { return localStorage.getItem(adminKey()) || ''; } catch { return ''; } };
+async function resolveAdmin(repo, user, quiet = false) {
   try {
     const email = String(user.email || '').toLowerCase();
-    setAdminEmail(await repo.claimAdmin(email));
+    const before = adminEmail();
+    const got = await repo.claimAdmin(email);
+    setAdminEmail(got);
+    try { localStorage.setItem(adminKey(), adminEmail()); } catch { /* ok */ }
+    if (adminEmail() !== before) {   // администратор определился (или поменялся): обновить экран и стартовый набор
+      store.notify();
+      import('./app/starter.js').then((m) => m.seedStarterPool()).catch(() => {});
+    }
     return true;
   } catch (e) {
     error('Администратор базы', `${e.code || ''} ${e.message || e}`);
-    if (e.code === 'permission-denied') {
+    if (e.code === 'permission-denied' && !quiet) {
       const { OPEN_RULES, copy } = await import('./app/setup.js');
       app.replaceChildren(h('div', { class: 'wrap' }, h('h1', {}, APP_NAME), h('div', { class: 'card' },
         h('b', {}, 'База не пускает приложение'),
@@ -153,11 +168,18 @@ async function boot() {
     if (g === 'local') { await startLocal(); return; }
   }
   if (memoryMode) { startSession({ uid: 'test-user', displayName: 'Тестовый пользователь', email: new URLSearchParams(location.search).get('memEmail') || 'test@example.com' }); window.__pz = { store, repo: window.__pzRepo }; return; }
-  showMessage('Проверяю вход…');
+  showMessage('Проверяю вход…');   // только на новом устройстве: если здесь уже входили, приложение открывается сразу
   fb = await import('./firebase.js');
   fb.initFirebase();
   fb.watchAuth((user) => {
-    if (user) { if (!shell && !starting) { starting = true; startSession(user).finally(() => { starting = false; }); } } else { store.stop(); showLogin(); }
+    if (user) {
+      if (!shell && !starting) { starting = true; startSession(user).finally(() => { starting = false; }); fb.verifyInBackground(); }
+    } else {
+      store.stop();
+      // сессия закончилась (или вход отозван): без окна входа Google, которое при быстром запуске не подгружалось, — перезапуск
+      if (fb.fast) { fb.forgetSignedIn(); location.reload(); return; }
+      showLogin();
+    }
   });
 }
 if (popupReturn) app.replaceChildren(h('div', { class: 'wrap' }, h('div', { class: 'card' }, '✅ Доступ к Google Диску получен. Это окно можно закрыть.')));

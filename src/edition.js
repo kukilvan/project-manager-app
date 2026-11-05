@@ -39,6 +39,7 @@ export const isStandalone = () => !!(window.navigator.standalone || window.match
 let admin = '';
 export const setAdminEmail = (e) => { admin = String(e || '').toLowerCase(); };
 export const adminEmail = () => admin;
+export const adminKnown = () => !!admin;
 export const isAdminEmail = (e) => isLocal() || (!!admin && String(e || '').toLowerCase() === admin);
 
 // ---------- настройки Firebase из текста, который человек скопировал из консоли ----------

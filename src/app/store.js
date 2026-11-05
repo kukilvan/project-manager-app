@@ -24,6 +24,7 @@ export const nav = { ui: null };
 export const demo = { on: false };   // идёт демо-проект тура (данные в памяти, на сервер не пишутся)   // навигация приложения (ставит оболочка) — для кнопок в окнах
 export const subscribe = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
 const emit = () => listeners.forEach((fn) => fn());
+export const notify = emit;
 const storeKey = () => `pz.currentProject.${repo?.user.uid}`;
 
 function rebuild() {

@@ -2,6 +2,7 @@
 // типы точек, устройства, кабели, работы и конфигурации дверей (копия пула Ивана, src/data/starter-pool.json).
 import starter from '../data/starter-pool.json';
 import { getRepo } from './store.js';
+import { adminKnown } from '../edition.js';
 import { isPoolAdmin, poolReady, poolHasData, onPool } from './pool.js';
 import { toast } from './ui.js';
 import { info } from '../log.js';
@@ -12,7 +13,7 @@ export function seedStarterPool() {
   const kinds = Object.entries(starter.pool || {}).filter(([, list]) => list.length);
   if (!kinds.length) return;
   const tryNow = () => {
-    if (done || !poolReady() || !getRepo()) return;
+    if (done || !poolReady() || !getRepo() || !adminKnown()) return;   // пока администратор не определён, ждём
     done = true; off();
     if (!isPoolAdmin() || poolHasData()) return;
     const ops = kinds.flatMap(([coll, list]) => list.map(({ id, ...data }) => ({ coll, id, data: { ...data, deleted: false } })));
