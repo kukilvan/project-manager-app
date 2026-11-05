@@ -5,7 +5,7 @@ import { h, formModal, confirmDialog, toast } from '../ui.js';
 import { state, liveProjects, archivedProjects, deletedProjects, currentProject, setCurrentProject, getRepo } from '../store.js';
 import { purgeDate } from '../../domain/index.js';
 
-const PROJECT_FIELDS = (configs) => [
+const PROJECT_FIELDS = () => [
   { key: 'name', label: 'Название проекта', required: true, hint: 'Например: Mega Or' },
   { key: 'contractor', label: 'Подрядчик', hint: 'Попадает в шапку отчёта' },
   { key: 'object', label: 'Объект' },
@@ -13,7 +13,6 @@ const PROJECT_FIELDS = (configs) => [
   { key: 'nameHe', label: 'Название (иврит)' },
   { key: 'objectHe', label: 'Объект (иврит)' },
   { key: 'helperHe', label: 'Помощник (иврит)' },
-  ...(configs?.length ? [{ key: 'defaultConfigId', label: 'Конфигурация дверей по умолчанию', type: 'select', options: configs.map((c) => ({ value: c.id, label: c.name })) }] : []),
   { key: 'oneOff', label: 'Разовый выезд (объект указывается в каждом дне)', type: 'checkbox' },
   { key: 'note', label: 'Примечание', type: 'textarea' },
 ];
@@ -21,8 +20,7 @@ const PROJECT_FIELDS = (configs) => [
 export function projectForm(existing, ui) {
   const repo = getRepo();
   const isNew = !existing;
-  const configs = isNew ? [] : state.ctx ? [...state.ctx.configs.values()] : [];
-  const fields = PROJECT_FIELDS(configs);
+  const fields = PROJECT_FIELDS();
   if (!isNew) fields.push({ key: 'active', label: 'Проект активен', type: 'checkbox' });
   formModal({
     title: isNew ? 'Новый проект' : 'Редактировать проект',
@@ -39,7 +37,7 @@ export function projectForm(existing, ui) {
     } }],
     onSubmit: (v) => {
       if (isNew) {
-        const pid = repo.createProject({ ...v, oneOff: !!v.oneOff, defaultConfigId: undefined });
+        const pid = repo.createProject({ ...v, oneOff: !!v.oneOff });
         setCurrentProject(pid, { pending: true });
         ui.go('project'); toast('Проект создан');
       } else {

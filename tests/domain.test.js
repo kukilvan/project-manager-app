@@ -809,3 +809,25 @@ test('словари переводов: шаблоны {} совпадают п
     }
   }
 });
+
+test('дох дня: одинаковые работы суммируются в одну строку', () => {
+  const c2 = { ...cam, id: 'c2', label: '1A-02' }; const c3 = { ...cam, id: 'c3', label: '1A-03' };
+  const d = day('D1', '2026-10-05');
+  // хивут кистона: 1 + 1 + 1 = 3; сиюр: 20 + 15 = 35 мин; запись с другим пояснением — отдельно; с задержкой — отдельно
+  const es = [
+    entry('e1', 'D1', 'Хивут', 'HIV_KEY', ['c1']), entry('e2', 'D1', 'Время', 'T_SIYUR', [], { minutes: 20 }),
+    entry('e3', 'D1', 'Хивут', 'HIV_KEY', ['c2']), entry('e4', 'D1', 'Время', 'T_SIYUR', [], { minutes: 15 }),
+    entry('e5', 'D1', 'Хивут', 'HIV_KEY', ['c3'], { note: 'в подвале' }),
+    entry('e6', 'D1', 'Хивут', 'HIV_KEY', ['c1'], { delayReason: 'нет доступа' }),
+  ];
+  const ctx = scenario([{ ...cam, length: 10 }, c2, c3], [d], es);
+  assert.equal(doh(d, ctx), '05.10.2026\nMegason Mega Or с Марина\n\nХивут кистона 2 шт\n\nСиюр 35 мин\n\nХивут кистона 1 шт. в подвале\n\nХивут кистона 1 шт\nЗадержка: нет доступа');
+});
+
+test('дох дня: протяжка одного кабеля, записанная несколько раз, суммируется', () => {
+  const c2 = { ...cam, id: 'c2', label: '1A-02' }; const c3 = { ...cam, id: 'c3', label: '1A-03' };
+  const d = day('D1', '2026-10-05');
+  const es = [entry('e1', 'D1', 'Протяжка', 'PR_PTS', ['c1'], { cableId: 'cat7' }), entry('e2', 'D1', 'Протяжка', 'PR_PTS', ['c2', 'c3'], { cableId: 'cat7' })];
+  const ctx = scenario([{ ...cam, length: 10 }, c2, c3], [d], es);
+  assert.equal(doh(d, ctx), '05.10.2026\nMegason Mega Or с Марина\n\nПротяжка cat7: 3 точек');
+});

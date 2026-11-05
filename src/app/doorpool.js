@@ -65,7 +65,6 @@ export function deleteDoorCfg(id) {
   const c = allDoorCfgs().get(id);
   if (!c) return { ok: false, reason: 'нет такой' };
   if (c.standard) return { ok: false, reason: 'стандартную удалить нельзя — её можно только открепить' };
-  if (currentProject()?.defaultConfigId === id) return { ok: false, reason: 'она назначена конфигурацией по умолчанию для проекта — сначала смените её в настройках проекта' };
   const n = usageOf(id); if (n) return { ok: false, reason: `она стоит на дверях проекта (${n}) — сначала смените им конфигурацию` };
   const p = currentProject(); const repo = getRepo();
   if (pinsOf().includes(id)) unpin(id);

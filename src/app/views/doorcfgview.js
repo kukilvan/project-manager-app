@@ -128,7 +128,6 @@ export function doorField(key, label, { bulk = false, visible, hint } = {}) {
 export function doorConfigsView() {
   const box = h('div', {});
   const delBtn = (c) => !c.standard ? h('button', { class: 'sec', style: { padding: '2px 10px' }, title: 'Удалить конфигурацию', onclick: async () => {
-            if (currentProject()?.defaultConfigId === c.id) { toast('Нельзя: она назначена по умолчанию для проекта. Смените её в настройках проекта.'); return; }
             if (usageOf(c.id)) { toast(`Нельзя: она стоит на дверях проекта (${usageOf(c.id)}). Сначала смените им конфигурацию.`); return; }
             if (!(await confirmDialog(`Удалить конфигурацию «${c.name}»? Она пропадёт из проекта и (у администратора) из общего пула.`, { yes: 'Удалить', danger: true }))) return;
             const r = deleteDoorCfg(c.id); toast(r.ok ? (r.stays ? 'Убрана из проекта. Из общего пула удаляет только администратор' : 'Удалена') : `Нельзя: ${r.reason}`);

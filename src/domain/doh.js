@@ -75,23 +75,24 @@ export function entryLine(entry, ctx, lang = 'ru') {
   return d ? `${main}${main ? '\n' : ''}${d}` : main;
 }
 
-function workLine(entry, ctx, lang = 'ru') {
+function workLine(entry, ctx, lang = 'ru', sum = null) {
   const he = lang === 'he'; const eng = lang === 'en';
   const work = ctx.catalog.get(entry.workId);
   const name = he ? work?.nameHe : eng ? en(work?.name) : work?.name;
-  const t = tail(entry, ctx, he, eng);
+  const t = tail(sum?.minutes !== undefined ? { ...entry, minutes: sum.minutes } : entry, ctx, he, eng);
   const unit = ctx.units.get(work?.unit);
 
   if (entry.workType === 'Текст') return String(entry.note ?? ''); // свободная строка без цифр
 
   if (isTime(entry, work)) { // «Время» и любые работы в минутах
+    const mins = sum?.minutes ?? entry.minutes ?? '';
     return he
-      ? `${name} ${entry.minutes ?? ''} דקות${t.culprit}${t.note}`
-      : `${name} ${entry.minutes ?? ''} ${eng ? 'min' : 'мин'}${t.culprit}${t.note}`;
+      ? `${name} ${mins} דקות${t.culprit}${t.note}`
+      : `${name} ${mins} ${eng ? 'min' : 'мин'}${t.culprit}${t.note}`;
   }
   if (entry.workType === 'Протяжка') {
     const cable = ctx.cables.get(entry.cableId);
-    const { count, meters } = pullFigures(entry, ctx);
+    const { count, meters } = sum?.pull || pullFigures(entry, ctx);
     const meterMode = cable?.accounting === 'Метры';
     if (he) {
       return `השחלת ${cable?.nameHe ?? entry.cableId ?? ''}: ${count}${meterMode ? ` כבלים, ${meters} מטר` : ' נקודות'}${t.minutes}${t.culprit}${t.note}`;
@@ -100,7 +101,7 @@ function workLine(entry, ctx, lang = 'ru') {
     return `Протяжка ${entry.cableId ?? ''}: ${count}${meterMode ? ` каб., ${meters} м` : ' точек'}${t.minutes}${t.culprit}${t.note}`;
   }
   const bad = entry.result === 'Не работает' ? (he ? ' (לא תקין)' : eng ? ' (not working)' : ' (не работает)') : '';
-  return `${name} ${itogShtuk(entry, ctx)} ${he ? (unit?.he ?? work?.unit) : eng ? en(work?.unit) : work?.unit}${bad}${t.minutes}${t.culprit}${t.note}`;
+  return `${name} ${sum?.shtuk ?? itogShtuk(entry, ctx)} ${he ? (unit?.he ?? work?.unit) : eng ? en(work?.unit) : work?.unit}${bad}${t.minutes}${t.culprit}${t.note}`;
 }
 
 const helperIsSelf = (h) => blank(h) || h === 'сам';
@@ -126,9 +127,34 @@ export function dayEntries(day, ctx) {
     .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
 }
 
+// Одинаковые работы за день пишутся одной строкой с суммой (протяжка cat7 в разных местах: 4 и 8 → 12).
+// «Одинаковые» — та же работа, кабель, результат, пояснение, виновник, минуты; запись с задержкой, со свободным текстом
+// или без работы остаётся отдельной строкой. Для работ во времени (мин) складываются минуты.
+const mergeKey = (e, ctx) => {
+  if (e.workType === 'Текст' || !e.workId && e.workType !== 'Протяжка' || [e.delayReason, e.delayCulprit, e.delayNote, e.delayMinutes].some((v) => !blank(v))) return null;
+  const work = ctx.catalog.get(e.workId); const time = isTime(e, work);
+  return JSON.stringify([e.workType, e.workId, e.cableId ?? '', e.result ?? '', e.culprit ?? '', e.note ?? '', time ? '' : (e.minutes ?? '')]);
+};
+export function dohLines(entries, ctx, lang = 'ru') {
+  const groups = []; const byKey = new Map();
+  for (const e of entries) {
+    const k = mergeKey(e, ctx);
+    if (k !== null && byKey.has(k)) byKey.get(k).list.push(e);
+    else { const g = { list: [e] }; groups.push(g); if (k !== null) byKey.set(k, g); }
+  }
+  return groups.map(({ list }) => {
+    if (list.length === 1) return entryLine(list[0], ctx, lang);
+    const e = list[0]; const work = ctx.catalog.get(e.workId); let sum;
+    if (isTime(e, work)) sum = { minutes: round2(list.reduce((n, x) => n + num(x.minutes), 0)) };
+    else if (e.workType === 'Протяжка') { const f = list.map((x) => pullFigures(x, ctx)); sum = { pull: { count: round2(f.reduce((n, x) => n + x.count, 0)), meters: round2(f.reduce((n, x) => n + x.meters, 0)) } }; }
+    else sum = { shtuk: round2(list.reduce((n, x) => n + itogShtuk(x, ctx), 0)) };
+    return workLine(e, ctx, lang, sum);
+  });
+}
+
 export function doh(day, ctx, lang = 'ru') {
   const { date, place } = headerParts(day, ctx, lang);
-  const lines = dayEntries(day, ctx).map((e) => entryLine(e, ctx, lang)).filter((l) => l !== '');
+  const lines = dohLines(dayEntries(day, ctx), ctx, lang).filter((l) => l !== '');
   const blocks = [`${date}${DOH_FORMAT.headerSep}${place}`, ...lines];
   if (!blank(day.comment)) blocks.push(String(day.comment));
   return blocks.join(DOH_FORMAT.blockSep);
