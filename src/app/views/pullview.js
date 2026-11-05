@@ -282,21 +282,27 @@ export async function openPull(id) {
       if (chosen().every((x) => meas(x.id))) { set({ screen: 'check', pad: false }); toast('Метраж у всех точек ✅'); screen(); }
       else { set({ pad: false }); toast('Остались пропущенные — нажмите их на плане'); }
     };
+    // несколько точек на одной отметке плана (пара «17-18», тройка и т. д.) получают один метраж за раз
+    const grp = () => { const g = chosen().filter((x) => x.id === p.id || (p.pos && x.pos && posKey(x.pos) === posKey(p.pos) && (x.pos.page || 0) === (p.pos.page || 0))); return g.filter((x) => x.id === p.id || !finSet().has(x.id)); };
+    const cardOf = (x) => (x.length !== undefined && x.length !== null && x.length !== '' ? Number(x.length) : null);
     function enter() {
       if (val === '') { toast('Введите метраж'); return; }
-      const v = Math.round(Number(val)); const m = meters(); const k = kept(); m[p.id] = v; delete k[p.id];
+      const v = Math.round(Number(val)); const m = meters(); const k = kept(); const g = grp();
+      g.forEach((x) => { m[x.id] = v; delete k[x.id]; });
       set({ meters: mapToPairs(m), kept: mapToPairs(k) });
-      getRepo().save(currentProject().id, [{ coll: 'points', id: p.id, data: { length: pullTotal(P, p.id) } }]);
+      getRepo().save(currentProject().id, g.map((x) => ({ coll: 'points', id: x.id, data: { length: pullTotal(P, x.id) } })));
       goNext(p);
     }
     function keep() {
-      const m = meters(); const k = kept(); delete m[p.id]; k[p.id] = card;
+      const m = meters(); const k = kept(); const g = grp();
+      g.forEach((x) => { delete m[x.id]; k[x.id] = x.id === p.id ? card : cardOf(x); });
       set({ meters: mapToPairs(m), kept: mapToPairs(k) }); goNext(p);
     }
     const onKey = (e) => { if (/^[0-9]$/.test(e.key)) key(e.key); else if (e.key === 'Backspace') key('⌫'); else if (e.key === 'Enter') enter(); };
     document.addEventListener('keydown', onKey);
     const content = h('div', {},
       p.planName ? h('div', { class: 'mut', style: { fontSize: '13px', marginTop: '-4px' } }, p.planName) : null,
+      grp().length > 1 ? h('div', { class: 'mut', style: { fontSize: '13px' } }, `На этой отметке точек: ${grp().length} — метраж запишется всем (${grp().map((x) => x.label).join(', ')})`) : null,
       cv, disp, sumL,
       (card != null && own == null) || kv != null ? h('button', { type: 'button', class: kv != null ? '' : 'sec', style: { width: '100%', marginTop: '6px' }, onclick: keep }, `✓ Оставить из карточки: ${card} м`) : null,
       grid,
@@ -304,7 +310,7 @@ export async function openPull(id) {
         h('button', { type: 'button', class: 'sec', style: { flex: 1 }, onclick: () => { const sk = new Set([...skip, p.id]); goNext(p, sk); } }, '⏭ Другая'),
         h('button', { type: 'button', class: 'sec', style: { flex: 1 }, onclick: () => { padClose?.(); set({ pad: false }); } }, '🗺 На план')));
     paint();
-    const c = openModal(`📏 ${p.label}${pulledBefore(p) ? ' (уже протянута)' : ''}`, content, { onClose: () => { document.removeEventListener('keydown', onKey); if (padClose === c) padClose = null; } });
+    const gl = grp().map((x) => x.label); const c = openModal(`📏 ${gl.length > 1 ? gl.join(' + ') : p.label}${pulledBefore(p) ? ' (уже протянута)' : ''}`, content, { onClose: () => { document.removeEventListener('keydown', onKey); if (padClose === c) padClose = null; } });
     padClose = c;
     // кусок чертежа вокруг точки
     requestAnimationFrame(async () => {
