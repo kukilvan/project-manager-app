@@ -29,6 +29,8 @@ const platform = (() => { const ua = navigator.userAgent; return /iPhone|iPad|iP
 const DEVICE = `${platform}-${deviceId()}${standalone ? ' (на экране Домой)' : ''}`;
 info(`Запуск, версия ${typeof __VERSION__ !== 'undefined' ? __VERSION__ : 'dev'}, сборка ${BUILD}`); info(`Устройство: ${DEVICE}`); info(`standalone=${standalone}, online=${navigator.onLine}${memoryMode ? ', ТЕСТОВЫЙ РЕЖИМ (память)' : ''}`);
 
+// просим телефон не удалять данные приложения (чертежи, модуль чтения PDF) при нехватке места
+try { navigator.storage?.persist?.().then((ok) => info(`Постоянное хранилище: ${ok ? 'да' : 'нет'}`)).catch(() => {}); } catch { /* ok */ }
 if ('serviceWorker' in navigator) navigator.serviceWorker.ready.then(() => info('Service worker активен')).catch(() => {});
 // Вышла новая версия, а приложение было открыто со старой: подгружаемые части (Протяжки, Точки, мастер…) прежних имён больше нет
 window.addEventListener('vite:preloadError', (e) => {

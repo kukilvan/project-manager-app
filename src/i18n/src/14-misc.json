@@ -482,5 +482,10 @@
 "⏮ Предыдущая": [
 "⏮ Previous",
 "⏮ הקודמת"
-]
+],
+"Открытие плана: {} · файл чертежа с {} {} ({} МБ) · модуль PDF {} · открытие {} · лист {}": ["Plan opened in {} · drawing file from {} {} ({} MB) · PDF module {} · opening {} · sheet {}", "פתיחת התוכנית {} · קובץ השרטוט מ{} {} ({} MB) · מודול PDF {} · פתיחה {} · גיליון {}"],
+"устройства": ["this device", "המכשיר"],
+"Диска": ["Google Drive", "Drive"],
+"Чертёж скачан с Google Диска (раньше на этом устройстве не был)…": ["Drawing downloaded from Google Drive (it was not on this device before)…", "השרטוט הורד מ-Google Drive (לא היה במכשיר הזה)…"],
+"{} с": ["{} s", "{} ש׳"]
 }

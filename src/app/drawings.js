@@ -6,6 +6,7 @@ import { getToken, clearToken, useRedirect, storedTokenValid } from './google.js
 import { newId } from './repo.js';
 import { isLocal } from '../edition.js';
 import { projectFolder, moveInto } from './drivefolders.js';
+import { warn } from '../log.js';
 
 export const DRAWINGS_FOLDER = // старая папка (до папок проектов), только для поиска прежних файлов
   'Полевой журнал — чертежи';
@@ -111,10 +112,14 @@ export async function pushDrawing(entry, buf = null, proj = currentProject()) {
 }
 /** PDF чертежа: с устройства, иначе с Диска (и сохранить на устройстве) */
 export async function loadDrawing(entry) {
-  const local = await cacheGet(entry.id); if (local) return local;
+  const local = await cacheGet(entry.id); if (local) { loadDrawing.from = 'устройства'; return local; }
+  loadDrawing.from = 'Диска';
   if (!entry.fileId) throw new Error('Чертёж загружен с другого устройства и ещё не отправлен на Диск — откройте его там и нажмите «⬆ На Диск»');
   const r = await drive('GET', `${D}/${entry.fileId}?alt=media`, { raw: true });
-  const buf = await r.arrayBuffer(); await cachePut(entry.id, buf); return buf;
+  const buf = await r.arrayBuffer();
+  // копия на устройстве: если с первого раза не записалась (телефон мог отказать), пробуем ещё раз — иначе чертёж качался бы с Диска при каждом открытии
+  if ((await cachePut(entry.id, buf)) === null && (await cachePut(entry.id, buf)) === null) warn('Чертёж не записался на устройство', entry.name);
+  return buf;
 }
 export function removeDrawing(entry) {
   const p = currentProject();

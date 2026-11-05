@@ -13,7 +13,9 @@ self.onmessage = async (e) => {
   const { id, cmd, ...a } = e.data;
   try {
     let res;
-    if (cmd === 'open') {
+    if (cmd === 'warm') {  // заранее загрузить и запустить модуль чтения PDF (пока читается файл чертежа)
+      await loadMupdf(); res = true;
+    } else if (cmd === 'open') {
       const t0 = Date.now(); const mupdf = await loadMupdf();
       const bytes = new Uint8Array(a.data);
       extracted = await extractPdf(bytes.slice());

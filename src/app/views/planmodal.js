@@ -2,6 +2,7 @@
 import { matchesPanelQuery } from '../../domain/rack.js';
 import { pickPdf } from './pdfpick.js';
 import { h, openModal, toast, confirmDialog } from '../ui.js';
+import { info } from '../../log.js';
 import { state, currentProject, infoOf, getRepo, subscribe } from '../store.js';
 import { drawingsOf, drawingTitle, drawingFor, loadDrawing, addDrawing, pushDrawing, removeDrawing, updateDrawing, posKey } from '../drawings.js';
 import { missingStages, comparePoints, nextLabel, combineLabels, sameLabelClash } from '../../domain/index.js';
@@ -130,10 +131,15 @@ export function planModal({ point = null, placeFor = null } = {}) {
   async function show(d) {
     current = d; wk?.stop(); wk = makeWorker(); sel.clear(); selMode = false; temp = null; doorCur = null;
     const status = h('div', { class: 'mut', style: { margin: '6px 0' } }, 'Открываю чертёж…');
-    const holder = h('div', {}); body.replaceChildren(status, holder);
+    const perf = h('div', { class: 'mut', style: { fontSize: '12px', margin: '0 0 4px' } });
+    const holder = h('div', {}); body.replaceChildren(status, perf, holder);
     try {
-      const buf = await loadDrawing(d);
-      const o = await wk.call('openDoc', { data: buf.slice(0) });
+      // модуль чтения PDF грузится и запускается одновременно с чтением файла чертежа
+      const t0 = performance.now(); const warm = wk.call('warm').then(() => performance.now() - t0, () => 0);
+      const buf = await loadDrawing(d); const from = loadDrawing.from || 'устройства'; const t1 = performance.now();
+      if (from === 'Диска') status.textContent = 'Чертёж скачан с Google Диска (раньше на этом устройстве не был)…';
+      const o = await wk.call('openDoc', { data: buf.slice(0) }); const t2 = performance.now();
+      const tw = await warm;
       const offLayers = (() => { try { return JSON.parse(localStorage.getItem(`pz.layers.${d.id}`) || '[]'); } catch { return []; } })();
       if (offLayers.length) await wk.call('setLayers', { off: offLayers });
       const cur = () => drawingsOf().find((x) => x.id === d.id) || d;
@@ -339,7 +345,10 @@ export function planModal({ point = null, placeFor = null } = {}) {
           d.fileId ? null : h('button', { class: 'sec', onclick: async () => { try { toast('Отправляю на Диск…'); await pushDrawing(d); toast('Чертёж на Диске — откроется и на других устройствах'); draw(d.id); } catch (e) { toast(`Не получилось: ${e.message}`); } } }, '⬆ На Диск'),
           h('button', { class: 'sec', onclick: async () => { if (await confirmDialog(`Убрать чертёж «${drawingTitle(d)}» из проекта? Точки останутся, файл на Диске — тоже.`, { yes: 'Убрать', danger: true })) { removeDrawing(d); setTimeout(() => draw(), 300); } } }, '🗑 Убрать чертёж')));
       selBar(); toolBar();
-      await viewer.start();
+      await viewer.start(); const t3 = performance.now();
+      const sec = (a, b) => `${((b - a) / 1000).toFixed(1)} с`;
+      const line = `Открытие плана: ${sec(t0, t3)} · файл чертежа с ${from} ${sec(t0, t1)} (${(buf.byteLength / 1048576).toFixed(1)} МБ) · модуль PDF ${(tw / 1000).toFixed(1)} с · открытие ${sec(t1, t2)} · лист ${sec(t2, t3)}`;
+      perf.textContent = line; info(line);
       const f = focusId && state.ctx.points.get(focusId);
       if (f?.pos && drawingFor(f)?.id === d.id) await viewer.focus(f.pos.x, f.pos.y, f.pos.page || 0);
     } catch (e) { status.textContent = e.message; }
