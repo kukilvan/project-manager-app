@@ -462,5 +462,9 @@
 "На этой отметке точек: {} — метраж запишется всем ({})": [
 "Points on this mark: {} — the length will be saved for all of them ({})",
 "נקודות בסימון הזה: {} — האורך יירשם לכולן ({})"
+],
+"Все точки этого типа с метражом ✅ Выберите другой тип или сбросьте фильтр": [
+"All points of this type have lengths ✅ Choose another type or reset the filter",
+"לכל הנקודות מהסוג הזה יש אורך ✅ בחרו סוג אחר או אפסו את המסנן"
 ]
 }

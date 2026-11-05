@@ -117,6 +117,9 @@ export async function openPull(id) {
   const ctx = () => state.ctx;
   const sheetPts = () => [...ctx().points.values()].filter((p) => p.pos && drawingFor(p)?.id === d.id);
   const chosen = () => (P.pointIds || []).map((x) => ctx().points.get(x)).filter(Boolean);
+  // фильтр по типу на шаге метража: метраж вводится по одному типу, ближайшая точка подбирается внутри него
+  let mType = '';
+  const mchosen = () => chosen().filter((p) => typeMatch(mType, p.typeId));
   const meas = (id) => isMeasured(P, id) || finSet().has(id);
   const meters = () => pairsToMap(P.meters); const kept = () => pairsToMap(P.kept);
   // «протянута» в протяжке, но записи о протяжке в отчёте уже нет (удалили) — точка снова не протянута
@@ -139,7 +142,7 @@ export async function openPull(id) {
   const viewer = createViewer({ wk, pages: o.pages, height: '60vh', dim: () => (P.screen === 'measure' ? 0.35 : 1), rectMode: () => P.screen === 'select' && rectSel,
     onRect: (b, page) => { toggle(visible().filter((p) => (p.pos.page || 0) === page && p.pos.x >= b[0] && p.pos.x <= b[2] && p.pos.y >= b[1] && p.pos.y <= b[3]), true); screen(); },
     onTap: (x, y, page) => {
-      const pool = P.screen === 'measure' ? chosen() : visible();
+      const pool = P.screen === 'measure' ? mchosen() : visible();
       let best = null; let bd = Infinity; for (const p of pool) { if ((p.pos.page || 0) !== page) continue; const dd = hitDist(viewer.view.s, p.pos, x, y); if (dd < bd) { bd = dd; best = p; } }
       if (bd !== 0 || !best) return;
       const group = pool.filter((p) => posKey(p.pos) === posKey(best.pos));
@@ -148,7 +151,7 @@ export async function openPull(id) {
     },
     overlay: (g, api) => {
       const s = selSet(); const big = api.view.s > 0.6; const tags = []; const circles = []; const frames = []; const byKey = new Map();
-      const list = P.screen === 'measure' ? chosen() : visible();
+      const list = P.screen === 'measure' ? mchosen() : visible();
       for (const p of list) {
         if ((p.pos.page || 0) !== api.page) continue;
         let col; let width = big ? 1.5 : 2;
@@ -216,7 +219,7 @@ export async function openPull(id) {
       set({ base: v, screen: 'measure' });
       if (changed) rewriteLengths();
       screen();
-      const next = nearestPoint(null, chosen().filter((p) => !meas(p.id)));
+      const next = nearestPoint(null, mchosen().filter((p) => !meas(p.id)));
       if (next) setTimeout(() => viewer.focus(next.pos.x, next.pos.y, next.pos.page || 0, Math.max(viewer.view.s, 1)), 50);
     };
     inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
@@ -242,12 +245,14 @@ export async function openPull(id) {
 
   // ---- шаг 3: метраж по точкам ----
   function measureScreen() {
-    const all = chosen(); const done = all.filter((p) => meas(p.id)).length;
+    const all = mchosen(); const done = all.filter((p) => meas(p.id)).length;
+    const typeOpts = typeFilterOptions(chosen().map((p) => p.typeId));
     const next = () => { const left = all.filter((p) => !meas(p.id)); const cur = ctx().points.get(P.curId); return nearestPoint(cur, left); };
     return [
       h('div', { class: 'mut', style: { fontSize: '13px' } }, h('b', {}, 'Шаг 3. Метраж'), ' — нажмите выделенную точку. Зелёные — с метражом, оранжевые — без.'),
       h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', margin: '6px 0' } },
         h('b', {}, `Метраж: ${done} из ${all.length}`),
+        typeOpts.length > 1 ? h('select', { onchange: (e) => { mType = e.target.value; screen(); viewer.draw(); } }, h('option', { value: '' }, 'Все типы'), ...typeOpts.map(([v, t]) => h('option', { value: v, selected: v === mType }, t))) : null,
         h('button', { class: 'sec', onclick: () => { set({ screen: 'base' }); screen(); } }, `До шкафа: ${P.base ?? 0} м ✎`)),
       h('div', { class: 'mut', style: { fontSize: '12px', margin: '-2px 0 6px' } }, '«До шкафа» — сколько метров кабеля от шкафа до места, где трасса расходится к точкам (общий для всех участок). Эти метры прибавляются к метражу каждой точки.'),
       h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', margin: '4px 0' } }, ...viewer.zoomBtns(),
@@ -275,12 +280,13 @@ export async function openPull(id) {
       ...['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((k) => btn(k, () => key(k))), btn('⌫', () => key('⌫')), btn('0', () => key('0')),
       h('button', { type: 'button', style: { fontSize: '20px', padding: '10px 0' }, onclick: () => enter() }, '✓ Ввод'));
     const goNext = (from, sk = skip) => {
-      const left = chosen().filter((x) => !meas(x.id) && !sk.has(x.id) && x.id !== from.id);
+      const left = mchosen().filter((x) => !meas(x.id) && !sk.has(x.id) && x.id !== from.id);
       const nx = nearestPoint(from, left);
       if (nx) { numpad(nx.id, sk); return; }
       padClose?.(); padClose = null;
       if (chosen().every((x) => meas(x.id))) { set({ screen: 'check', pad: false }); toast('Метраж у всех точек ✅'); screen(); }
-      else { set({ pad: false }); toast('Остались пропущенные — нажмите их на плане'); }
+      else if (mType && mchosen().every((x) => meas(x.id))) { set({ pad: false }); toast(`Все точки этого типа с метражом ✅ Выберите другой тип или сбросьте фильтр`); screen(); }
+      else { set({ pad: false }); toast('Остались пропущенные — нажмите их на плане'); screen(); }
     };
     // несколько точек на одной отметке плана (пара «17-18», тройка и т. д.) получают один метраж за раз
     const grp = () => { const g = chosen().filter((x) => x.id === p.id || (p.pos && x.pos && posKey(x.pos) === posKey(p.pos) && (x.pos.page || 0) === (p.pos.page || 0))); return g.filter((x) => x.id === p.id || !finSet().has(x.id)); };
