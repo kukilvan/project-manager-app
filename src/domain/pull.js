@@ -21,6 +21,21 @@ export function pullTotal(pull, id) {
   const m = val(pull, 'meters', id); if (m == null) return null;
   return (Number(pull.base) || 0) + Number(m);
 }
+/** Метраж в протяжке и длина в карточке точки должны совпадать. Если длину в карточке стёрли или поменяли после ввода в протяжке,
+ *  правдой считается карточка: стёрта → точка снова «без метража»; изменена → в протяжке «оставлено из карточки» с новым итогом.
+ *  Протянутые (завершённые) точки не трогаем. Возвращает ту же протяжку, если менять нечего. */
+export function reconcilePull(pull, pointOf) {
+  if (!pull) return pull;
+  const fin = new Set(pull.finished || []); const m = pairsToMap(pull.meters); const k = pairsToMap(pull.kept); let changed = false;
+  for (const id of ids(pull)) {
+    if (fin.has(id) || (m[id] == null && k[id] == null)) continue;
+    const pt = pointOf(id); if (!pt) continue;
+    const len = pt.length; const total = pullTotal(pull, id);
+    if (len === undefined || len === null || len === '' || Number.isNaN(Number(len))) { delete m[id]; delete k[id]; changed = true; }
+    else if (Number(len) !== total) { delete m[id]; k[id] = Number(len); changed = true; }
+  }
+  return changed ? { ...pull, meters: mapToPairs(m), kept: mapToPairs(k) } : pull;
+}
 export function pullStatus(pull, exists) {
   const all = exists ? ids(pull).filter((id) => exists(id) || (pull?.finished || []).includes(id)) : ids(pull); const fin = new Set(pull?.finished || []);
   if (fin.size) return all.every((id) => fin.has(id)) ? 'Завершена' : 'Завершена частично';

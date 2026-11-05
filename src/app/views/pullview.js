@@ -5,7 +5,7 @@ import { state, getRepo, currentProject, infoOf, subscribe } from '../store.js';
 import { newId } from '../repo.js';
 import { drawingsOf, drawingTitle, drawingFor, loadDrawing, posKey } from '../drawings.js';
 import { comparePoints, statusColor, workFits } from '../../domain/index.js';
-import { pullStatus, pullColor, pullTotal, isMeasured, nearestPoint, pullTitle, canDeletePull, mergeRemote, pairsToMap, mapToPairs } from '../../domain/pull.js';
+import { pullStatus, pullColor, pullTotal, reconcilePull, isMeasured, nearestPoint, pullTitle, canDeletePull, mergeRemote, pairsToMap, mapToPairs } from '../../domain/pull.js';
 import { createViewer } from './planview.js';
 import { makeWorker } from './tohnitview.js';
 import { outline, placeTags, tagOf, shOf, isText } from './planmodal.js';
@@ -49,7 +49,8 @@ export function openPulls() {
   const list = h('div', {});
   function paint() {
     const ctx = state.ctx; if (!ctx) return;
-    const rows = allPulls().map((p) => {
+    const rows = allPulls().map((p0) => {
+      const p = reconcilePull(p0, (id) => state.ctx.points.get(id));
       const hits = q ? (p.pointIds || []).map((id) => ctx.points.get(id)).filter((x) => x && latinKey(`${x.label} ${x.planName || ''}`).includes(latinKey(q))) : [];
       return { p, hits };
     }).filter((r) => !q || r.hits.length);
@@ -104,6 +105,7 @@ const hitDist = (s, pos, x, y) => { const pad = 2 + 10 / s;
 
 export async function openPull(id) {
   let P = getPull(id); if (!P) { toast('Протяжка не найдена'); return; }
+  { const fixed = reconcilePull(P, (x) => state.ctx.points.get(x)); if (fixed !== P) P = savePull(fixed); }   // длину в карточке меняли/стирали — протяжка подтягивает её
   const d = drawingsOf().find((x) => x.id === P.drawingId);
   const body = h('div', {}, h('div', { class: 'mut' }, 'Открываю чертёж…'));
   let wk = null; let padClose = null;
