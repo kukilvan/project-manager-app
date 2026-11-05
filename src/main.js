@@ -6,6 +6,8 @@ startI18n();
 setNameTranslator(tr);
 import { initKeyboard } from './app/keyboard.js';
 initKeyboard();
+import { initNoDoubleTap } from './app/nodoubletap.js';
+initNoDoubleTap();
 import { info, warn, error } from './log.js';
 import { h, toast } from './app/ui.js';
 import { createRepo, createMemoryBackend, createFirestoreBackend } from './app/repo.js';
