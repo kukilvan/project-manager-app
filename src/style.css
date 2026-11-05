@@ -8,7 +8,7 @@
 /* верхняя панель и полоса состояния iPhone остаются тёмными в любой теме (белый текст статус-бара) */
 :root[data-theme="light"] .topbar { --bg:#0f172a; --card:#1e293b; --line:#334155; --txt:#f1f5f9; --mut:#94a3b8; --inset:#0b1220; --acc:#0ea5e9; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444; --on-acc:#04121c; color: var(--txt); }
 body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); background: #0f172a; z-index: 100; }
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }   /* двойное касание не увеличивает экран (прокрутка и щипок остаются) */
 html, body { margin:0; background:var(--bg); color:var(--txt); font:16px/1.4 -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif; }
 body { padding: env(safe-area-inset-top) env(safe-area-inset-right) calc(64px + env(safe-area-inset-bottom)) env(safe-area-inset-left); min-height:100vh; }
 .wrap { max-width: 640px; margin: 0 auto; padding: 14px 14px 96px; overflow-x: hidden; }
