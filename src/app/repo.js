@@ -199,21 +199,26 @@ function deltaListen(col, key, shape, label, cb, retryDenied = false) {
       cb(snap.docs.map(shape));
     }, onErr(startFull));
   };
-  // экономный режим: кэш телефона + только изменения с прошлой отметки
+  // экономный режим: с сервера — только изменения с прошлой отметки; на экран — вся коллекция из памяти телефона.
+  // Почему так: запрос «изменено после» не видит записи, ещё не дошедшие до сервера (у них нет серверного времени),
+  // и без связи новая работа/запись не появлялась в списках, пока телефон не выгрузит её. Слушатель памяти телефона
+  // (source: 'cache') видит их сразу, а то, что пришло с сервера, тоже попадает в память и показывается им же.
   const startDelta = (meta) => {
-    const map = new Map();
     const q = query(col, where('updatedAtServer', '>', Timestamp.fromMillis(meta.last - DELTA_MARGIN)));
-    unsub = onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
+    let lastSize = 0;
+    const uServer = onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
       tries = 0;
       if (!snap.metadata.fromCache) { tr.ok(); addReads(snap.docChanges().length); }
-      snap.docChanges().forEach((ch) => { if (ch.type === 'removed') map.delete(ch.doc.id); else map.set(ch.doc.id, shape(ch.doc)); });
       const prev = metaGet(key) || meta;
       if (!snap.metadata.fromCache && !snap.metadata.hasPendingWrites) {
-        metaSet(key, { ...prev, last: maxMillis([prev.last, ...snap.docs.map(srvMillis)]), n: Math.max(prev.n || 0, map.size) });
+        metaSet(key, { ...prev, last: maxMillis([prev.last, ...snap.docs.map(srvMillis)]), n: Math.max(prev.n || 0, lastSize) });
       }
-      cb([...map.values()]);
-    }, onErr(() => startDelta(meta)));
-    return map;
+    }, onErr(() => { uLocal(); startDelta(meta); }));
+    const uLocal = onSnapshot(col, { source: 'cache', includeMetadataChanges: true }, (snap) => {
+      lastSize = snap.size;
+      cb(snap.docs.map(shape));
+    }, (e) => error(label, `память телефона: ${e.code || ''} ${e.message || e}`));
+    unsub = () => { uServer(); uLocal(); };
   };
   const start = async () => {
     const meta = metaGet(key);
@@ -222,10 +227,9 @@ function deltaListen(col, key, shape, label, cb, retryDenied = false) {
       const cached = await getDocsFromCache(col);
       if (stopped) return;
       if (decideMode(meta, cached.size) !== 'delta') { startFull(); return; }
-      // сначала сразу показываем всё, что есть в кэше, затем подключаем слушатель изменений
-      const map = startDelta(meta);
-      cached.docs.forEach((d) => map.set(d.id, shape(d)));
-      cb([...map.values()]);
+      // сразу показываем всё, что есть в памяти телефона, затем подключаем слушатели
+      cb(cached.docs.map(shape));
+      startDelta(meta);
     } catch { if (!stopped) startFull(); }
   };
   start();
@@ -251,7 +255,9 @@ export function createFirestoreBackend(db, uid) {
     },
     async loadHistory(pid, since, max) {
       const q = query(collection(db, 'projects', pid, 'history'), where('at', '>=', since), orderBy('at', 'desc'), fbLimit(max));
-      const snap = await getDocs(q); addReads(snap.size);
+      // при слабой связи не ждём сервер дольше 6 с — показываем историю из памяти телефона (там и всё сделанное здесь)
+      const srv = getDocs(q).then((s) => { addReads(s.size); return s; });
+      const snap = await Promise.race([srv, new Promise((r) => setTimeout(() => r(null), 6000))]).catch(() => null) || await getDocsFromCache(q);
       return snap.docs.map((d) => d.data());
     },
     listenInvitations(email, uid, cb) {
