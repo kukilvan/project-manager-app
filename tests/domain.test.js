@@ -95,7 +95,7 @@ test('строки записей RU/HE по формулам Приложени
   assert.equal(entryLine(e, mk(e)), 'Установка таалы 12.5 м');
   assert.equal(itogShtuk(e, mk(e)), 12.5);
   e = entry('e1', 'D1', 'Доп. работа', 'EX_ARON_HIV', [], { quantity: 1, minutes: 90 }); // единица «мин» → строка времени
-  assert.equal(entryLine(e, mk(e)), 'Хивут арона бакары 90 мин'); assert.equal(itogShtuk(e, mk(e)), 0);
+  assert.equal(entryLine(e, mk(e)), 'Хивут арона бакары 1 ч 30 мин'); assert.equal(itogShtuk(e, mk(e)), 0);
   e = entry('e1', 'D1', 'Текст', undefined, [], { note: 'Продолжение протяжки оптики' }); // свободная строка
   assert.equal(entryLine(e, mk(e)), 'Продолжение протяжки оптики');
 });
@@ -830,4 +830,15 @@ test('дох дня: протяжка одного кабеля, записан�
   const es = [entry('e1', 'D1', 'Протяжка', 'PR_PTS', ['c1'], { cableId: 'cat7' }), entry('e2', 'D1', 'Протяжка', 'PR_PTS', ['c2', 'c3'], { cableId: 'cat7' })];
   const ctx = scenario([{ ...cam, length: 10 }, c2, c3], [d], es);
   assert.equal(doh(d, ctx), '05.10.2026\nMegason Mega Or с Марина\n\nПротяжка cat7: 3 точек');
+});
+
+test('дох: минуты складываются в часы и остаток', async () => {
+  const { dur } = await import('../src/domain/doh.js');
+  assert.equal(dur(35), '35 мин'); assert.equal(dur(60), '1 ч'); assert.equal(dur(95), '1 ч 35 мин'); assert.equal(dur(150), '2 ч 30 мин');
+  assert.equal(dur(95, 'he'), 'שעה ו-35 דקות'); assert.equal(dur(120, 'he'), 'שעתיים'); assert.equal(dur(200, 'he'), '3 שעות ו-20 דקות'); assert.equal(dur(40, 'he'), '40 דקות');
+  assert.equal(dur(95, 'en'), '1 h 35 min');
+  // сумма одинаковых работ во времени за день: 50 + 45 = 95 → «1 ч 35 мин»
+  const d = day('D1', '2026-10-05');
+  const es = [entry('e1', 'D1', 'Время', 'T_SIYUR', [], { minutes: 50 }), entry('e2', 'D1', 'Время', 'T_SIYUR', [], { minutes: 45 })];
+  assert.equal(doh(d, scenario([{ ...cam, length: 10 }], [d], es)), '05.10.2026\nMegason Mega Or с Марина\n\nСиюр 1 ч 35 мин');
 });

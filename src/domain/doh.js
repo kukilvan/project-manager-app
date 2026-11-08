@@ -47,8 +47,23 @@ export function pullFigures(entry, ctx) {
   return { count: num(entry.quantity), meters: num(entry.meters) };
 }
 
+/** Время в отчёте: минуты складываются в часы и остаток — 95 → «1 ч 35 мин» (иврит: «שעה ו-35 דקות», англ.: «1 h 35 min»).
+ * В приложении время по-прежнему вводится в минутах. */
+export function dur(min, lang = 'ru') {
+  const n = Number(min); if (blank(min) || !Number.isFinite(n)) return String(min ?? '');
+  const h = Math.floor(n / 60); const m = round2(n - h * 60);
+  if (lang === 'he') {
+    if (!h) return `${m} דקות`;
+    const hs = h === 1 ? 'שעה' : h === 2 ? 'שעתיים' : `${h} שעות`;
+    return m ? `${hs} ו-${m} דקות` : hs;
+  }
+  if (lang === 'en') return h ? `${h} h${m ? ` ${m} min` : ''}` : `${m} min`;
+  return h ? `${h} ч${m ? ` ${m} мин` : ''}` : `${m} мин`;
+}
+const langOf = (he, eng) => (he ? 'he' : eng ? 'en' : 'ru');
+
 const tail = (entry, ctx, he, eng = false) => ({
-  minutes: !blank(entry.minutes) ? (he ? `, ${entry.minutes} דקות` : eng ? `, ${entry.minutes} min` : `, ${entry.minutes} мин`) : '',
+  minutes: !blank(entry.minutes) ? `, ${dur(entry.minutes, langOf(he, eng))}` : '',
   note: !blank(entry.note) ? `. ${entry.note}` : '',
   culprit: !blank(entry.culprit)
     ? ` (${he ? (ctx.culprits.get(entry.culprit)?.he ?? entry.culprit) : eng ? en(entry.culprit) : entry.culprit})` : '',
@@ -62,7 +77,7 @@ export function delayLine(entry, ctx, lang = 'ru') {
   const reason = blank(entry.delayReason) ? '' : loc(entry.delayReason, ctx.delayReasons);
   const culprit = blank(entry.delayCulprit) ? '' : loc(entry.delayCulprit, ctx.culprits);
   const note = blank(entry.delayNote) ? '' : String(entry.delayNote);
-  const mins = blank(entry.delayMinutes) ? '' : (he ? `${entry.delayMinutes} דקות` : eng ? `${entry.delayMinutes} min` : `${entry.delayMinutes} мин`);
+  const mins = blank(entry.delayMinutes) ? '' : dur(entry.delayMinutes, lang);
   const parts = [reason, culprit, note].filter(Boolean);
   if (!parts.length && !mins) return '';
   const head = he ? 'עיכוב' : eng ? 'Delay' : 'Задержка';
@@ -85,10 +100,7 @@ function workLine(entry, ctx, lang = 'ru', sum = null) {
   if (entry.workType === 'Текст') return String(entry.note ?? ''); // свободная строка без цифр
 
   if (isTime(entry, work)) { // «Время» и любые работы в минутах
-    const mins = sum?.minutes ?? entry.minutes ?? '';
-    return he
-      ? `${name} ${mins} דקות${t.culprit}${t.note}`
-      : `${name} ${mins} ${eng ? 'min' : 'мин'}${t.culprit}${t.note}`;
+    return `${[name, dur(sum?.minutes ?? entry.minutes ?? '', langOf(he, eng))].filter(Boolean).join(' ')}${t.culprit}${t.note}`;
   }
   if (entry.workType === 'Протяжка') {
     const cable = ctx.cables.get(entry.cableId);
