@@ -69,7 +69,31 @@ export function tasksOf(point, ctx, comp = compositionOf(point, ctx)) {
     const work = ctx.catalog.get(workId); if (!work || fromParts.has(workId)) return;  // уже есть у устройства/кабеля точки
     tasks.push({ key: `*|${workId}`, stage: work.workType, deviceId: null, workId, qty: 1 });
   });
-  return tasks;
+  return applyOwnWorks(tasks, point, ctx, cablesTotalOf(point, ctx, comp));
+}
+
+// ---------- свой набор работ точки ----------
+// point.ownWorks: [{ workId, qty, per? }] — поверх того, что приходит от типа, устройств и кабелей:
+// работа добавляется, если её нет; количество заменяет посчитанное по составу; qty 0 — работа у точки убрана;
+// per: 'cable' — qty на каждый кабель точки (у двойного бакара 2 кабеля → 2 штуки, у одинарного — 1).
+export const OWN_STAGES = ['Хивут', 'Установка', 'Проверка', 'Шилют'];
+export const ownWorksOf = (point) => (Array.isArray(point?.ownWorks) ? point.ownWorks : [])
+  .filter((x) => x && !blank(x.workId) && Number(x.qty) >= 0);
+export const cablesTotalOf = (point, ctx, comp = compositionOf(point, ctx)) => composedCables(point, ctx, comp || []).reduce((n, c) => n + c.count, 0);
+export const ownQty = (own, cablesTotal) => (own.per === 'cable' ? Number(own.qty) * cablesTotal : Number(own.qty));
+function applyOwnWorks(tasks, point, ctx, cablesTotal) {
+  const own = ownWorksOf(point); if (!own.length) return tasks;
+  let out = tasks;
+  own.forEach((o) => {
+    const work = ctx.catalog.get(o.workId); if (!work || !OWN_STAGES.includes(work.workType)) return;
+    const cur = out.filter((t) => t.workId === o.workId);
+    out = out.filter((t) => t.workId !== o.workId);
+    const qty = ownQty(o, cablesTotal); if (!(qty > 0)) return;
+    // работа одного устройства остаётся за ним (галочки устройств в отчёте), иначе — на всю точку
+    const one = cur.length === 1 ? cur[0] : null;
+    out.push({ key: one ? one.key : `+|${o.workId}`, stage: work.workType, deviceId: one ? one.deviceId : null, workId: o.workId, qty, own: true });
+  });
+  return out;
 }
 
 // Кабели точки по видам: [{ cable, count }]
@@ -211,6 +235,7 @@ export function workFits(point, ctx, work) {
   // протяжка — любая точка из устройств; перетяжка/перенос — если отмечен этот тип или работа отмечена для всех стандартных типов
   if (work.workType === 'Протяжка') return (work.forTypes || []).length > 0;
   if (PULL_LIKE.includes(work.workType)) return (work.forTypes || []).includes(point.typeId) || ALL_STD.every((t) => (work.forTypes || []).includes(t));
+  if (ownWorksOf(point).some((o) => o.workId === work.id && !(Number(o.qty) > 0))) return false;   // убрана у точки
   return (work.forTypes || []).includes(point.typeId) || tasksOf(point, ctx, comp).some((t) => t.workId === work.id);
 }
 // Работа выбирается по точкам (а не количеством)

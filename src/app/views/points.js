@@ -19,6 +19,7 @@ import { typeMatch, typeFilterOptions, typeFilterValid } from '../typegroups.js'
 import { latinKey } from '../../domain/index.js';
 import { cfgMatch, cfgFilterOptions, cfgFilterValid } from '../cfgfilter.js';
 import { planModal } from './planmodal.js';
+import { ownWorksField, ownWorksData, ownWorksText } from './ownworks.js';
 import { choosePoint } from './pointchooser.js';
 import { printedPortsOf, panelText, panelOf, parsePanelPorts, panelOccupancy, rackPortsOf, matchesPanelQuery, fmtPanelPort, slotKey, subsOf, subNameOf, blockedOf } from '../../domain/rack.js';
 
@@ -150,6 +151,9 @@ async function usageOf(ids) {
 }
 const pullsText = (u) => (u.pulls.length ? ` Точки лежат в незавершённых протяжках: ${u.pulls.slice(0, 3).join(', ')}${u.pulls.length > 3 ? '…' : ''}.` : '');
 
+// Точка, какой она станет после сохранения формы (для поля «Работы на точках»)
+const formPoint = (point, v) => ({ ...(point || { id: '__new' }), label: v.label, cabinet: v.cabinet, typeId: v.typeId, configId: isDoorType(v.typeId) ? v.configId : undefined,
+  ...(doorCfgSet(v) ? { devices: null, cables: null, cableOverride: null } : { ...compData(v.typeId, v.comp), cableOverride: v.cableOverride ?? null }) });
 export function pointForm(point, { onDone } = {}) {
   const repo = getRepo(); const pid = currentProject().id;
   const fields = [
@@ -160,6 +164,7 @@ export function pointForm(point, { onDone } = {}) {
     doorField('configId', 'Конфигурация двери', { visible: (v) => isDoorType(v.typeId), hint: 'Состав двери и её кабели. Закреплённые — в «Ещё → Конфигурации дверей».' }),
     compField(point),
     { ...cablesField(point), visible: (v) => !!v.typeId && !doorCfgSet(v) },
+    { ...ownWorksField({ pointsOf: (v) => (v.typeId ? [formPoint(point, v)] : []), sig: (v) => [v.typeId, v.comp, v.cableOverride, v.configId] }), visible: (v) => composedType(v.typeId) },
     { key: 'length', label: 'Длина (м на 1 кабель)', type: 'number' },
     { key: 'port', label: 'Порт в свитче' },
     { key: 'panelText', label: 'Порт в панели', hint: 'U панели и порт 1–24, например U38-05. Точке с двумя кабелями cat7 — два порта через запятую: U38-05, U38-06. Если шкаф из нескольких секций — с названием секции: CCTV1-B U38-05' },
@@ -216,6 +221,7 @@ export function pointForm(point, { onDone } = {}) {
         label, planName: v.planName, cabinet: v.cabinet, floor: v.floor, typeId: v.typeId, length: v.length,
         configId: isDoorType(v.typeId) ? (ensureDoorCfg(v.configId) || null) : undefined, port: v.port, serial, mac, delayReasonId: v.delayReasonId, note: v.note,
         ...(doorCfgSet(v) ? { devices: null, cables: null, cableOverride: null } : { ...compData(v.typeId, v.comp), cableOverride: v.cableOverride ?? null }),
+        ...(ownWorksData(formPoint(point, v), v.ownWorks) !== undefined ? { ownWorks: ownWorksData(formPoint(point, v), v.ownWorks) } : {}),
       } }]);
       const need = rackPortsOf({ ...(point || {}), typeId: v.typeId, cableOverride: v.cableOverride ?? null, ...compData(v.typeId, v.comp) }, state.ctx);
       toast(panel.length && panel.length !== need ? `Сохранено. Внимание: портов в панели ${panel.length}, а кабелей cat7 у точки ${need}` : point ? 'Сохранено' : 'Точка добавлена'); onDone?.();
@@ -336,6 +342,7 @@ export function pointCard(startPoint, { fromPlan = false } = {}) {
       ['Этаж', p.floor ? `Этаж ${p.floor}` : ''], ['Шкаф', p.cabinet ? `Шкаф ${p.cabinet}` : ''],
       ['Тип', p.typeId], ['Конфигурация', (doorCfgOf(p, ctx) && doorChips(doorCfgOf(p, ctx))) || ''], ['Имя на плане', p.planName], ['Кабели', `${info.cableList?.length ? cablesText(info.cableList) : info.cable || ''}${Array.isArray(p.cableOverride) ? ' (свои у точки)' : ''}`],
       ['Длина', hasLen ? `${p.length} м на 1 кабель${info.metrage ? ` (всего ${Math.round(info.metrage * 100) / 100} м)` : ''}` : ''],
+      ['Свои работы', ownWorksText(p)],
       ['Порт в панели', panelText(p, proj)], ['Порт в свитче', p.port], ['Серийный номер', p.serial], ['MAC', p.mac], ['Причина задержки', p.delayReasonId], ['Примечание', p.note],
     ].filter(([, v]) => v);
     const left = leftTasksOf(p);
@@ -363,7 +370,7 @@ export function pointCard(startPoint, { fromPlan = false } = {}) {
         } }, p.pos.icon ? '🖼 Убрать значок типа' : '🖼 Нарисовать значок типа') : null),
       // работы по точке: сверху — что ещё не сделано (цвет по этапу), ниже — сделанное зелёным (дата, кто, правка)
       h('div', { class: 'group', style: { padding: '12px 0 6px' } }, `Работы: осталось ${left.length} · сделано ${rows.length}`),
-      left.length ? h('div', {}, left.map((t) => h('div', { class: `wk todo ${t.chip || ''}` }, h('b', {}, t.label), h('span', { class: 'wk-st' }, 'осталось')))) : h('div', { class: 'wk done' }, h('b', {}, '✅ Всё сделано')),
+      left.length ? h('div', {}, left.map((t) => h('div', { class: `wk todo ${t.chip || ''}` }, h('b', {}, `${t.label}${t.qty > 1 ? ` ×${t.qty}` : ''}`), h('span', { class: 'wk-st' }, 'осталось')))) : h('div', { class: 'wk done' }, h('b', {}, '✅ Всё сделано')),
       ...rows.map((r) => {
         const who = whoIs(proj, r.by); const bad = r.result === 'Не работает';
         return h('div', { class: `wk ${bad ? 'bad' : 'done'}` }, h('b', {}, `${bad ? '✖' : '✔'} ${r.work}`),
@@ -382,7 +389,7 @@ function leftTasksOf(point) {
   if (info.composed) {
     info.tasks.filter((t) => !t.done).forEach((t) => {
       if (t.stage === 'Протяжка') add(`p:${t.cable}`, `Протяжка ${t.cable}`, 'pul');
-      else { const w = ctx.catalog.get(t.workId); add(`w:${t.workId}`, w?.name || t.workId, { 'Хивут': 'hiv', 'Установка': 'ins', 'Проверка': 'chk' }[t.stage] || ''); }
+      else { const w = ctx.catalog.get(t.workId); add(`w:${t.workId}`, w?.name || t.workId, { 'Хивут': 'hiv', 'Установка': 'ins', 'Проверка': 'chk' }[t.stage] || ''); out.get(`w:${t.workId}`).qty = (out.get(`w:${t.workId}`).qty || 0) + t.qty; }
     });
   } else {
     const type = ctx.types.get(point.typeId); const has = (st) => !type?.stages || type.stages.includes(st);
@@ -438,7 +445,7 @@ export function remainingModal() {
           const cb = h('input', { type: 'checkbox', checked: chosen.has(point.id), style: { width: '22px', height: '22px', flex: 'none' }, onclick: (e) => e.stopPropagation(), onchange: () => { cb.checked ? chosen.add(point.id) : chosen.delete(point.id); fill(); } });
           return h('div', { class: 'rem-row', onclick: () => { cb.checked = !cb.checked; cb.checked ? chosen.add(point.id) : chosen.delete(point.id); fill(); } }, cb,
             h('div', { class: 'rem-name' }, h('b', { onclick: (e) => { e.stopPropagation(); close(); setTimeout(() => pointCard(point), 60); }, style: { textDecoration: 'underline dotted' } }, point.label), h('span', {}, `${point.typeId}${point.planName ? ` · ${point.planName}` : ''}`)),
-            h('div', { class: 'rem-chips' }, left.map((t) => h('span', { class: `chip ${t.chip}`, style: t.key === fWork ? { outline: '2px solid var(--txt)' } : {} }, t.label))));
+            h('div', { class: 'rem-chips' }, left.map((t) => h('span', { class: `chip ${t.chip}`, style: t.key === fWork ? { outline: '2px solid var(--txt)' } : {} }, `${t.label}${t.qty > 1 ? ` ×${t.qty}` : ''}`))));
         }),
       ])) : '');
     const nl = listBox.querySelector('.rem-list'); if (nl) nl.scrollTop = keep.list; if (sb) sb.scrollTop = keep.sheet;
@@ -502,6 +509,13 @@ export function renameForm(ids, done) {
   calc();
 }
 
+// Точка, какой она станет после группового изменения типа и кабелей (для поля «Работы на точках»)
+const bulkPoint = (v) => (pt) => {
+  const x = { ...pt };
+  if (v.typeId) Object.assign(x, { typeId: v.typeId, devices: null, cables: null, cableOverride: null });
+  if (v.setCables) x.cableOverride = cableOverrideFor(v.cables, state.ctx, x.typeId, x.cabinet, currentProject().id);
+  return x;
+};
 export function bulkEditForm(ids, done) {
   const repo = getRepo(); const pid = currentProject().id;
   formModal({
@@ -514,6 +528,7 @@ export function bulkEditForm(ids, done) {
         const first = state.ctx.points.get(ids[0]); const p = cablesPicker({ typeId: first?.typeId || '', cabinet: first?.cabinet || '', compact: true });
         return { el: p.el, update: (v) => { if (v.typeId) p.setType(v.typeId); }, get: () => p.get() };
       } },
+      ownWorksField({ pointsOf: (v) => ids.map((id) => state.ctx.points.get(id)).filter(Boolean).map(bulkPoint(v)), sig: (v) => [v.typeId, v.setCables, v.setCables ? v.cables : null] }),
       { key: 'length', label: 'Длина (м на 1 кабель)', type: 'number', hint: 'Пусто — не менять' },
       { key: 'clearLength', label: 'Стереть длину', type: 'checkbox', visible: (v) => v.length === undefined },
       { key: 'delayReasonId', label: 'Причина задержки', type: 'select', options: [{ value: '__clear', label: '✖ Убрать причину' }, ...reasonOptions()], emptyLabel: 'Не менять' },
@@ -524,7 +539,7 @@ export function bulkEditForm(ids, done) {
       { key: 'noteAdd', label: 'Добавить к примечанию', type: 'textarea', hint: 'Допишется к примечанию каждой точки (старое не стирается)' },
     ],
     onSubmit: async (v) => {
-      if (!v.cabinet && !v.floor && !v.typeId && !v.setCables && v.length === undefined && !v.clearLength && !v.delayReasonId && !v.noteAdd && !v.configId && v.portFrom === undefined && !v.clearPort) { toast('Ничего не выбрано для изменения'); return false; }
+      if (!v.cabinet && !v.floor && !v.typeId && !v.setCables && v.length === undefined && !v.clearLength && !v.delayReasonId && !v.noteAdd && !v.configId && v.portFrom === undefined && !v.clearPort && !v.ownWorks?.size) { toast('Ничего не выбрано для изменения'); return false; }
       if (v.cabinet) {   // в шкафу не должно появиться двух точек с одним обозначением
         const sel = ids.map((id) => state.ctx.points.get(id)).filter(Boolean); const seenL = new Set();
         const bad = sel.find((pt) => { if (seenL.has(pt.label)) return true; seenL.add(pt.label); return [...state.ctx.points.values()].some((x) => !ids.includes(x.id) && sameLabelClash(x, { label: pt.label, cabinet: v.cabinet })); });
@@ -575,6 +590,7 @@ export function bulkEditForm(ids, done) {
         if (v.configId && isDoorType(data.typeId || pt?.typeId)) { data.configId = v.configId === '__clear' ? null : ensureDoorCfg(v.configId); if (isDoorCfg(state.ctx.configs.get(data.configId) || allDoorCfgs().get(data.configId))) { data.devices = null; data.cables = null; data.cableOverride = null; } }
         if (v.noteAdd) data.note = [String(pt?.note || '').trim(), v.noteAdd].filter(Boolean).join('\n');
         if (v.setCables) { const p = state.ctx.points.get(id); data.cableOverride = cableOverrideFor(v.cables, state.ctx, data.typeId || p?.typeId, data.cabinet || p?.cabinet, pid); }
+        if (pt) { const ow = ownWorksData({ ...pt, ...data }, v.ownWorks); if (ow !== undefined) data.ownWorks = ow; }
         return { coll: 'points', id, data };
       });
       repo.save(pid, ops); toast(`Изменено точек: ${ids.length}`); done();
