@@ -82,3 +82,23 @@ test('одинаковые точки: оставить одинарные — �
   assert.equal(pullFigures(data.entries.find((e) => e.id === 'e4'), ctx).count, 2);
   assert.ok(data.journal.some((r) => r.id === 'e4_a') && data.journal.some((r) => r.id === 'e4_b') && !data.journal.some((r) => r.pointId === 'd'));
 });
+
+test('одинаковые точки: одинарные на одной отметке подряд, двойной нет — первая становится двойной', () => {
+  const data = project();
+  // убрать двойную: остались FC/B05 + FC/B06 на одной отметке
+  data.points = data.points.filter((p) => p.id !== 'd');
+  const pos = { sheet: 'n.pdf', page: 0, x: 100, y: 50, w: 30, h: 6 };
+  data.points.find((p) => p.id === 'a').pos = pos; data.points.find((p) => p.id === 'b').pos = { ...pos };
+  data.points.find((p) => p.id === 'x').pos = { ...pos, y: 80 };   // FC/B07 — на другой отметке, не в группе
+  let ctx = buildContext(data);
+  const before = Object.fromEntries(data.entries.map((e) => [e.id, e.workType === 'Протяжка' ? JSON.stringify(pullFigures(e, ctx)) : itogShtuk(e, ctx)]));
+  const gs = findSameGroups([...ctx.points.values()]);
+  assert.equal(gs.length, 1); assert.equal(gs[0].double, null); assert.equal(gs[0].newLabel, 'FC/B05-06');
+  const pv = previewMerge(gs[0], 'double', data, ctx);
+  assert.deepEqual(pv.kept, ['a']); assert.deepEqual(pv.removed, ['b']);
+  apply(data, mergeOps(gs[0], 'double', pv, data, ctx)); ctx = buildContext(data);
+  const a = ctx.points.get('a'); assert.equal(a.label, 'FC/B05-06'); assert.deepEqual(a.cableOverride, [{ cable: 'cat7', count: 2 }]);
+  assert.ok(!ctx.points.has('b'));
+  const after = Object.fromEntries(data.entries.map((e) => [e.id, e.workType === 'Протяжка' ? JSON.stringify(pullFigures(e, ctx)) : itogShtuk(e, ctx)]));
+  assert.deepEqual(after, before);   // в т. ч. запись e2, где была только FC/B05 (1 кабель)
+});

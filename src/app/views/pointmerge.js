@@ -26,9 +26,10 @@ export function mergeModal({ onDone } = {}) {
     const card = (r) => {
       const { g, pv } = r;
       const ask = pv.entries.filter((x) => x.before !== x.after || x.unexpected);
-      const cb = h('input', { type: 'checkbox', checked: r.on, onchange: (e) => { r.on = e.target.checked; upd(); } });
-      const keepTxt = mode === 'double' ? g.double.label : g.singles.map((s) => s.label).join(' + ');
-      const goneTxt = mode === 'double' ? g.singles.map((s) => s.label).join(' + ') : g.double.label;
+      const cb = h('input', { type: 'checkbox', checked: r.on, onchange: (e) => { r.on = e.target.checked; r.off = !r.on; upd(); } });
+      // двойной точки нет (одинарные стоят на одной отметке подряд) — первая одинарная станет двойной
+      const keepTxt = !g.double ? g.newLabel : mode === 'double' ? g.double.label : g.singles.map((s) => s.label).join(' + ');
+      const goneTxt = !g.double ? `${g.singles.map((s) => s.label).join(' + ')} (станет двойной)` : mode === 'double' ? g.singles.map((s) => s.label).join(' + ') : g.double.label;
       return h('div', { class: 'card', style: { margin: '6px 0', padding: '8px' } },
         h('label', { class: 'pickrow', style: { margin: 0 } }, cb, h('span', {}, h('b', {}, keepTxt), h('span', { class: 'mut' }, ` ← ${goneTxt}`))),
         h('div', { class: 'mut', style: { fontSize: '13px' } }, pv.entries.length ? `Работ перейдёт: ${pv.entries.filter((x) => x.transfer).length}` : 'Работ нет'),
@@ -38,8 +39,11 @@ export function mergeModal({ onDone } = {}) {
           x.before !== x.after && mode === 'double' ? h('label', { class: 'pickrow', style: { margin: '2px 0' } }, h('input', { type: 'checkbox', checked: x.keepCount, onchange: (e) => { x.keepCount = e.target.checked; } }), h('span', {}, `Сохранить в отчёте как было (${x.before} ${unit(x)})`)) : null)),
         ...pv.notes.map((n) => h('div', { class: 'mut', style: { fontSize: '13px', marginTop: '4px' } }, `• ${n}`)));
     };
-    const withQ = rows.filter((r) => r.pv.entries.some((x) => x.before !== x.after || x.unexpected) || r.pv.notes.length);
-    const noQ = rows.filter((r) => !withQ.includes(r));
+    // «оставлять одинарные» — группам без двойной точки делать нечего (они и так одинарные)
+    const act = rows.filter((r) => mode === 'double' || r.g.double);
+    rows.forEach((r) => { if (!act.includes(r)) r.on = false; else if (r.off === undefined) r.on = true; });
+    const withQ = act.filter((r) => r.pv.entries.some((x) => x.before !== x.after || x.unexpected) || r.pv.notes.length);
+    const noQ = act.filter((r) => !withQ.includes(r));
     list.replaceChildren(...[
       withQ.length ? h('div', { class: 'group', style: { margin: '10px 2px 4px' } }, `С вопросами: ${withQ.length}`) : null,
       ...withQ.map(card),

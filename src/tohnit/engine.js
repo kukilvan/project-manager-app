@@ -51,6 +51,24 @@ export function mergeSpans(spans) {
   return out;
 }
 
+// Несколько обозначений одним текстом в PDF («FC/B09-10 FC/B11-12» — две соседние подписи одним объектом):
+// каждое — отдельной подписью, место — по доле символов. Только если все части похожи на обозначения точек
+// (буквы, цифры и «/» или «-»), чтобы «EL 560», «RACK 75/110» и т. п. не дробились.
+const RUN_PART = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[/-])[A-Za-z0-9][A-Za-z0-9\-./]{3,22}$/;
+export function splitLabelRuns(spans) {
+  const out = [];
+  for (const s of spans) {
+    const t = String(s.t || ''); const parts = t.trim().split(/\s+/);
+    if (parts.length < 2 || !parts.every((x) => RUN_PART.test(x)) || s.font?.startsWith?.('аннотация')) { out.push(s); continue; }
+    const L = t.length; const vert = (s.y1 - s.y0) > (s.x1 - s.x0) * 1.5; let at = 0;
+    for (const w of parts) {
+      const i = t.indexOf(w, at); at = i + w.length; const a = i / L; const b = (i + w.length) / L;
+      out.push(vert ? { ...s, t: w, y0: s.y0 + a * (s.y1 - s.y0), y1: s.y0 + b * (s.y1 - s.y0) } : { ...s, t: w, x0: s.x0 + a * (s.x1 - s.x0), x1: s.x0 + b * (s.x1 - s.x0) });
+    }
+  }
+  return out;
+}
+
 // Слои-мусор: серые (архитектура «в подложке»), штриховки, рамки колонн, сетка осей. Слои систем не трогаем.
 const CLUTTER_STRONG = /KOTERET|HATCH|GRID|AXIS|COLUMN|ZIRIM/i;
 const SYSTEM_LAYERS = /CCTV|CTV|CAM|ACC|ACS|COMM|TEL|DATA|ALR|ALARM|INT|SEC|BITACHON|LOW|WIFI|AP\b|FIBER|TV/i;
@@ -81,7 +99,7 @@ export function scanPages(pages) {
     const spans = pageTxt.concat(pg.spans.filter((a) => a.font.startsWith('аннотация') && !dup(a)));
     const grid = new Map(); const gk = (x, y) => `${Math.floor(x / 50)},${Math.floor(y / 50)}`;
     for (const f of pg.fills) for (let gx = Math.floor(f[0] / 50); gx <= Math.floor(f[2] / 50); gx++) for (let gy = Math.floor(f[1] / 50); gy <= Math.floor(f[3] / 50); gy++) { const k = `${gx},${gy}`; if (!grid.has(k)) grid.set(k, []); grid.get(k).push(f); }
-    for (const s of mergeSpans(spans)) {
+    for (const s of splitLabelRuns(mergeSpans(spans))) {
       s.page = pi;
       if (s.t.length <= 6) {
         const [cx, cy] = ctr(s); const inside = (grid.get(gk(cx, cy)) || []).filter((f) => f[0] <= cx && cx <= f[2] && f[1] <= cy && cy <= f[3]);

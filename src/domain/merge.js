@@ -26,7 +26,37 @@ export function findSameGroups(points) {
     }
     if (singles.length === hi - lo + 1) out.push({ double: d, singles });
   }
-  return out.sort((x, y) => String(x.double.label).localeCompare(String(y.double.label), 'ru', { numeric: true }));
+  // одинарные на одной отметке подряд (FC/B09 + FC/B10 стоят на надписи «FC/B09-10»), а двойной точки нет — сделать двойную
+  const used = new Set(out.flatMap((g) => g.singles.map((x) => x.id)));
+  const mark = new Map();
+  for (const p of live) {
+    if (used.has(p.id) || !p.pos) continue;
+    const m = String(p.label || '').match(/^(.*?)(\d+)$/); if (!m) continue;
+    const k = `${p.cabinet || ''}|${p.pos.sheet || ''}|${p.pos.page || 0}|${Math.round(p.pos.x)}|${Math.round(p.pos.y)}|${m[1]}|${p.typeId || ''}`;
+    if (!mark.has(k)) mark.set(k, []); mark.get(k).push({ p, pre: m[1], n: Number(m[2]), w: m[2].length });
+  }
+  for (const list of mark.values()) {
+    if (list.length < 2 || list.length > 8) continue;
+    list.sort((a, b) => a.n - b.n);
+    if (!list.every((x, i) => i === 0 || x.n === list[i - 1].n + 1)) continue;
+    const { pre, w } = list[0]; const lo = list[0].n; const hi = list[list.length - 1].n;
+    const newLabel = `${pre}${String(lo).padStart(w, '0')}-${String(hi).padStart(w, '0')}`;
+    if (by.has(key(list[0].p.cabinet, newLabel))) continue;
+    out.push({ double: null, singles: list.map((x) => x.p), newLabel });
+  }
+  const name = (g) => (g.double ? g.double.label : g.newLabel);
+  return out.sort((x, y) => String(name(x)).localeCompare(String(name(y)), 'ru', { numeric: true }));
+}
+
+/** Кабели двойной точки, собранной из одинарных: сумма кабелей одинарных (у каждой своё «cat7×1») или по типу */
+function summedCables(singles) {
+  if (!singles.every((x) => Array.isArray(x.cableOverride) && x.cableOverride.length)) return null;
+  const m = new Map(); singles.forEach((x) => x.cableOverride.forEach((c) => m.set(c.cable, (m.get(c.cable) || 0) + (Number(c.count) || 0))));
+  return [...m.entries()].map(([cable, count]) => ({ cable, count }));
+}
+/** Что поменяется у точки, которая станет двойной (если двойной точки ещё нет) */
+export function newDoublePatch(group) {
+  return group.double ? null : { label: group.newLabel, cableOverride: summedCables(group.singles) };
 }
 
 /** Одинарные точки проекта для двойного обозначения («FC/B05-06» → [FC/B05, FC/B06]) или null */
@@ -55,19 +85,23 @@ export function countIn(e, id, ctx) {
  * → { kept: [ids], removed: [ids], entries: [{ id, label, before, after, unexpected, transfer: true, keepCount }], notes: [строки] }
  */
 export function previewMerge(group, mode, data, ctx) {
-  const kept = mode === 'double' ? [group.double.id] : group.singles.map((s) => s.id);
-  const removed = mode === 'double' ? group.singles.map((s) => s.id) : [group.double.id];
+  const make = !group.double;   // двойной нет — первая одинарная становится двойной
+  const kept = make ? [group.singles[0].id] : mode === 'double' ? [group.double.id] : group.singles.map((s) => s.id);
+  const removed = make ? group.singles.slice(1).map((s) => s.id) : mode === 'double' ? group.singles.map((s) => s.id) : [group.double.id];
+  const patch = newDoublePatch(group);
+  // количество «после» считается уже с новым названием и кабелями оставляемой точки
+  const ctxA = patch ? { ...ctx, points: new Map(ctx.points).set(kept[0], { ...ctx.points.get(kept[0]), ...patch, cableOverride: patch.cableOverride ?? undefined }) } : ctx;
   const all = new Set([...kept, ...removed]);
   const entries = [];
   for (const e of data.entries) {
-    const ids = e.pointIds || []; if (!ids.some((id) => removed.includes(id))) continue;
+    const ids = e.pointIds || []; if (!ids.some((id) => removed.includes(id) || (patch && id === kept[0]))) continue;
     const day = ctx.days.get(e.dayId);
     const work = ctx.catalog.get(e.workId);
     const before = ids.filter((id) => all.has(id)).reduce((n, id) => n + countIn(e, id, ctx), 0);
-    const after = kept.reduce((n, id) => n + countIn({ ...e, portQty: (e.portQty || []).filter((q) => q.id !== id) }, id, ctx), 0);
+    const after = kept.reduce((n, id) => n + countIn({ ...e, portQty: (e.portQty || []).filter((q) => q.id !== id) }, id, ctxA), 0);
     // работа «чужая» для оставляемой точки: у неё нет такой задачи (протяжка — всегда своя)
-    const unexpected = !isPull(e) && !!work && !['Время', 'Текст'].includes(e.workType) && kept.every((id) => { const p = ctx.points.get(id); return p && compositionOf(p, ctx) && taskQty(p, ctx, e) === null; });
-    entries.push({ id: e.id, date: day?.date || '', name: work?.name || e.workType, workType: e.workType, before, after, unexpected, transfer: true, keepCount: before !== after && mode === 'double' });
+    const unexpected = !isPull(e) && !!work && !['Время', 'Текст'].includes(e.workType) && kept.every((id) => { const p = ctxA.points.get(id); return p && compositionOf(p, ctxA) && taskQty(p, ctxA, e) === null; });
+    entries.push({ id: e.id, date: day?.date || '', name: work?.name || e.workType, workType: e.workType, before, after, unexpected, transfer: true, keepCount: before !== after && (mode === 'double' || make) });
   }
   const notes = [];
   const pts = (ids) => ids.map((id) => ctx.points.get(id)).filter(Boolean);
@@ -83,7 +117,7 @@ export function previewMerge(group, mode, data, ctx) {
       if (n && n < inPull.length) notes.push(`протяжка: ${k === 'finished' ? 'протянута' : 'отмечена'} только часть одинарных — у ${mode === 'double' ? 'двойной' : 'одинарных'} отметки не будет`);
     }
   }
-  return { kept, removed, entries, notes };
+  return { kept, removed, entries, notes, patch };
 }
 
 /**
@@ -98,7 +132,7 @@ export function mergeOps(group, mode, pv, data, ctx) {
   const transferred = new Set();
   // записи дохa
   for (const e of data.entries) {
-    const ids = e.pointIds || []; if (!ids.some((id) => rem.has(id))) continue;
+    const ids = e.pointIds || []; if (!ids.some((id) => rem.has(id) || (pv.patch && id === kept[0]))) continue;
     const c = choice.get(e.id) || { transfer: true };
     let portQty = (e.portQty || []).filter((q) => !rem.has(q.id));
     let pointIds;
@@ -148,6 +182,7 @@ export function mergeOps(group, mode, pv, data, ctx) {
   const src = removed.map((id) => ctx.points.get(id)).filter(Boolean);
   for (const kid of kept) {
     const k = ctx.points.get(kid); if (!k) continue; const patch = {};
+    if (pv.patch && kid === kept[0]) { patch.label = pv.patch.label; patch.cableOverride = pv.patch.cableOverride; }
     const lens = src.map((p) => p.length).filter((v) => !blank(v)).map(Number);
     if (blank(k.length) && lens.length) patch.length = Math.max(...lens);
     for (const f of ['panel', 'port', 'mac', 'serial', 'configId', 'delayReasonId']) { if (blank(k[f])) { const v = src.map((p) => p[f]).find((x) => !blank(x)); if (!blank(v)) patch[f] = v; } }
