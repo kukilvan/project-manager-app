@@ -4,7 +4,7 @@ import { pickPdf } from './pdfpick.js';
 import { h, openModal, toast, confirmDialog } from '../ui.js';
 import { info } from '../../log.js';
 import { state, currentProject, infoOf, getRepo, subscribe } from '../store.js';
-import { drawingsOf, drawingTitle, drawingFor, loadDrawing, addDrawing, pushDrawing, removeDrawing, updateDrawing, posKey } from '../drawings.js';
+import { drawingsOf, drawingTitle, drawingFor, loadDrawing, addDrawing, pushDrawing, removeDrawing, updateDrawing, patchDrawings, posKey } from '../drawings.js';
 import { missingStages, comparePoints, nextLabel, combineLabels, sameLabelClash } from '../../domain/index.js';
 import { newId } from '../repo.js';
 import { typePicker } from './tohnitview.js';
@@ -122,7 +122,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
         const fl = [...state.ctx.points.values()].find((p) => p.pos?.sheet === (alias || f.name))?.floor || '';
         let d = await addDrawing(buf, { name: f.name, floor: fl, pages: o.pages, fileId: r.fileId || null }).catch((e) => { toast(`Чертёж сохранён на этом устройстве, на Диск — не получилось: ${e.message}`); return null; });
         d = d || drawingsOf().find((x) => x.name === f.name);
-        if (alias && d) { const p = currentProject(); getRepo().saveProject(p.id, { drawings: (p.drawings || []).map((x) => (x.id === d.id ? { ...x, aliases: [...new Set([...(x.aliases || []), alias])] } : x)) }); }
+        if (alias && d) updateDrawing(d.id, (x) => ({ aliases: [...new Set([...(x.aliases || []), alias])] }));
         toast('Чертёж добавлен'); setTimeout(() => draw(d?.id), 300);
         if (d && state.ctx.points.size) linkPoints(d, buf, { onDone: () => draw(d.id) }).catch((e) => toast(`Связать точки не получилось: ${e.message}`));
       } catch (e) { toast(`Не получилось: ${e.message}`); }
@@ -602,7 +602,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
       h('div', { class: 'mut' }, 'Впишите удобное название (пусто — как имя файла). Стрелками — порядок в списке чертежей. Имя файла остаётся: по нему приложение узнаёт этот же файл при повторном добавлении.'),
       list, h('div', { class: 'btns' }, h('button', { onclick: () => {
         const p = currentProject(); const pos = new Map(rows.map((r, i) => [r.d.id, { order: i, title: r.inp.value.trim() }]));
-        getRepo().saveProject(p.id, { drawings: (p.drawings || []).map((d) => (pos.has(d.id) ? { ...d, ...pos.get(d.id) } : d)) });
+        patchDrawings(p.id, (list) => list.map((d) => (pos.has(d.id) ? { ...d, ...pos.get(d.id) } : d)));
         c(); toast('Сохранено'); setTimeout(() => draw(current?.id), 300);
       } }, 'Сохранить'))), { sticky: true });
   }

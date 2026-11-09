@@ -1,7 +1,7 @@
 // Чертежи проекта (PDF тохнитов) для плана в приложении: файл на Google Диске (папка «Менеджер проектов — чертежи», доступ участникам
 // проекта на чтение) + копия на устройстве (IndexedDB), чтобы план открывался без интернета. В проекте — список project.drawings:
 // [{ id, name, floor, pages:[{w,h}], fileId?, size, addedAt, addedBy }]. Точка привязана к чертежу по pos.sheet === name.
-import { getRepo, currentProject } from './store.js';
+import { getRepo, currentProject, state } from './store.js';
 import { getToken, clearToken, useRedirect, storedTokenValid } from './google.js';
 import { newId } from './repo.js';
 import { isLocal } from '../edition.js';
@@ -84,6 +84,19 @@ export async function shareDrawing(fileId, p = currentProject()) {
   }
 }
 
+/**
+ * Единственный способ поменять список чертежей проекта. Список берётся самый свежий (в том числе только что изменённый
+ * на этом телефоне), а результат сразу кладётся в память. Раньше запись «на Диск отправлено» через несколько секунд после
+ * добавления чертежа брала список, каким он был ДО добавления, и новый чертёж из проекта пропадал.
+ */
+export function patchDrawings(pid, fn) {
+  const p = state.projects.find((x) => x.id === pid); if (!p) return null;
+  const list = fn([...(p.drawings || [])]);
+  getRepo().saveProject(pid, { drawings: list });
+  p.drawings = list;   // следующие чтения видят изменение сразу, не дожидаясь ответа базы
+  return list;
+}
+
 /** Сохранить чертёж в проект: сразу копия на устройстве и запись в проекте, потом — на Диск (если не вышло, можно повторить) */
 export async function addDrawing(buf, { name, floor = '', pages = [], push = true, fileId = null }) {
   const p = currentProject(); const repo = getRepo();
@@ -93,8 +106,7 @@ export async function addDrawing(buf, { name, floor = '', pages = [], push = tru
   // fileId — чертёж взят с Google Диска: новую копию не загружаем
   const entry = { ...(old || {}), id, name, floor: floor || old?.floor || '', pages, size: buf.byteLength, addedAt: new Date().toISOString(), addedBy: repo.user?.email || '', fileId: fileId || old?.fileId || null };
   if (fileId && !mem()) shareDrawing(fileId, p).catch(() => {});
-  const list = [...(p.drawings || []).filter((d) => d.id !== id), entry];
-  repo.saveProject(p.id, { drawings: list });
+  patchDrawings(p.id, (list) => [...list.filter((d) => d.id !== id), entry]);
   // на iPhone вход в Google уводит со страницы — отправим на Диск позже (кнопка «⬆ На Диск» в плане), если доступа ещё нет
   // на устройстве (без базы) чертёж хранится в телефоне, на Диск — только кнопкой «⬆ На Диск»
   if (!entry.fileId && push && !isLocal() && (!useRedirect() || storedTokenValid())) return pushDrawing(entry, buf);
@@ -109,12 +121,11 @@ export async function addDrawingVersion(buf, oldD, fields) {
   const id = `DR_${newId(6)}`; await cachePut(id, buf);
   const entry = { id, size: buf.byteLength, addedAt: new Date().toISOString(), addedBy: repo.user?.email || '', fileId: null, ...fields };
   if (entry.fileId && !mem()) shareDrawing(entry.fileId, p).catch(() => {});
-  const sorted = drawingsOf(p); const at = sorted.findIndex((d) => d.id === oldD.id);
+  const sorted = drawingsOf(currentProject()); const at = Math.max(0, sorted.findIndex((d) => d.id === oldD.id));
   const order = [...sorted.slice(0, at), entry, ...sorted.slice(at)];
   const oldTitle = /\(старая версия\)$/.test(drawingTitle(oldD)) ? oldD.title : `${drawingTitle(oldD).replace(/\.pdf$/i, '')} (старая версия)`;
   const pos = new Map(order.map((d, i) => [d.id, i]));
-  const list = [...(p.drawings || []).map((d) => (pos.has(d.id) ? { ...d, order: pos.get(d.id), ...(d.id === oldD.id ? { title: oldTitle } : {}) } : d)), { ...entry, order: pos.get(id) }];
-  repo.saveProject(p.id, { drawings: list });
+  patchDrawings(p.id, (list) => [...list.map((d) => (pos.has(d.id) ? { ...d, order: pos.get(d.id), ...(d.id === oldD.id ? { title: oldTitle } : {}) } : d)), { ...entry, order: pos.get(id) }]);
   if (!entry.fileId && !isLocal() && (!useRedirect() || storedTokenValid())) pushDrawing({ ...entry, order: pos.get(id) }, buf).catch((e) => warn('Новая версия чертежа: на Диск не отправилась', e.message));
   return { ...entry, order: pos.get(id) };
 }
@@ -125,8 +136,8 @@ export async function pushDrawing(entry, buf = null, proj = currentProject()) {
   const data = buf || await cacheGet(entry.id); if (!data) throw new Error('Файла чертежа нет на этом устройстве');
   const fileId = await uploadPdf(entry.name, data, proj);
   await shareDrawing(fileId, proj);
-  const p = proj;
-  getRepo().saveProject(p.id, { drawings: (p.drawings || []).map((d) => (d.id === entry.id ? { ...d, fileId } : d)) });
+  // список — на момент окончания отправки (за эти секунды в проект могли добавить чертёж или поменять другие)
+  patchDrawings(proj.id, (list) => list.map((d) => (d.id === entry.id ? { ...d, fileId } : d)));
   return { ...entry, fileId };
 }
 /** PDF чертежа: с устройства, иначе с Диска (и сохранить на устройстве) */
@@ -141,14 +152,12 @@ export async function loadDrawing(entry) {
   return buf;
 }
 export function removeDrawing(entry) {
-  const p = currentProject();
-  getRepo().saveProject(p.id, { drawings: (p.drawings || []).filter((d) => d.id !== entry.id) });
+  patchDrawings(currentProject().id, (list) => list.filter((d) => d.id !== entry.id));
 }
 
 /** Поменять запись чертежа в проекте (patch — объект или функция от старой записи) */
 export function updateDrawing(id, patch) {
-  const p = currentProject();
-  getRepo().saveProject(p.id, { drawings: (p.drawings || []).map((d) => (d.id === id ? { ...d, ...(typeof patch === 'function' ? patch(d) : patch) } : d)) });
+  patchDrawings(currentProject().id, (list) => list.map((d) => (d.id === id ? { ...d, ...(typeof patch === 'function' ? patch(d) : patch) } : d)));
 }
 // Подписи на чертеже, которые не связаны с точками проекта («Не размеченые») и скрытые человеком — хранятся в записи чертежа
 export const posKey = (pos) => `${pos.page || 0}|${Math.round(pos.x)}|${Math.round(pos.y)}`;
