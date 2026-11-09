@@ -22,3 +22,4 @@ export * from './doorcfg.js';
 export * from './pull.js';
 export * from './latin.js';
 export * from './sheetfit.js';
+export * from './merge.js';

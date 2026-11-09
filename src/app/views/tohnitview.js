@@ -11,6 +11,7 @@ import { ruleEditor } from './catalogview.js';
 import { cablesPicker } from './cablespick.js';
 import { iconsPicker } from './planpick.js';
 import { addDrawing, drawingFor, drawingsOf, drawingTitle, loadDrawing, updateDrawing } from '../drawings.js';
+import { singlesOf } from '../../domain/merge.js';
 
 // кабели рядом с выбором типа: видны, когда выбран настоящий тип
 export function cablesFor(onChange) {
@@ -161,7 +162,8 @@ export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = n
         if (!iconPts().length && r.data.points.every((p) => mine(p)) && !unplaced.length) { toast('Новых точек нет — все уже на чертеже'); markScanned(drawing); onDone?.(); close(); return; }
       }
       const keep = r.learned.filter((e) => remember.has(e.cluster) && e.type !== UNSORTED_TYPE).map(({ project: _p, ...e }) => e);  // запоминается для всех проектов
-      out.replaceChildren(importPreview({ ...r.data, points: [...r.data.points, ...iconPts()] }, fileName, async () => {
+      const skip = new Set(skipDoubles ? doublesWithSingles(r) : []);
+      out.replaceChildren(importPreview({ ...r.data, points: [...r.data.points.filter((p) => !skip.has(p)), ...iconPts()] }, fileName, async () => {
         try { const n = await saveLearned(keep); if (n) toast(`Запомнено правил: ${n}`); } catch { /* не страшно */ }
         if (drawing) markScanned(drawing);
         if (keepPdf.checked && theFile && !drawing) {  // чертёж — в проект: план и «📍 На чертеже»
@@ -172,6 +174,8 @@ export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = n
             .catch((e) => toast(`Чертёж сохранён на этом устройстве; на Диск — не получилось: ${e.message}`));
         }
         onDone?.(); close();
+        // после добавления: одинаковые точки в разном виде — предложить объединить
+        setTimeout(() => import('./pointmerge.js').then((m) => { if (m.sameGroups().length) m.mergeModal(); }).catch(() => {}), 1500);
       }));
     } }, `Дальше → проверить и добавить (${pts.length})`);
     out.replaceChildren(...[
@@ -179,6 +183,7 @@ export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = n
         h('div', { style: { fontSize: '14px', marginTop: '6px' } }, Object.entries(byType).sort((a, b) => b[1] - a[1]).map(([t, n]) => h('div', {}, `${t}: ${n}`))),
         r.hiddenLayers.length ? h('div', { class: 'mut', style: { marginTop: '6px' } }, `Скрыто слоёв-мусора: ${r.hiddenLayers.length}`) : null),
       r.questions.length ? h('div', {}, h('b', { class: 'l-warn' }, `Вопросы (${r.questions.length}) — ответьте и нажмите «Разобрать с ответами»`), qBox, h('div', { class: 'btns' }, again)) : null,
+      dupBox(r),
       h('div', { class: 'card', style: { margin: '10px 0' } }, h('b', {}, '🔎 Значки без номеров'),
         h('div', { class: 'mut', style: { margin: '4px 0' } }, iconGroups.length ? `Добавлено: ${iconGroups.map((gr) => `${gr.typeId} ${gr.points.length}`).join(', ')}` : 'Если точки на чертеже — только значки (без подписей), отметьте их на плане: нажали на значок → нашлись такие же → номера по порядку.'),
         h('div', { class: 'btns' }, iconsBtn)),
@@ -186,6 +191,20 @@ export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = n
       h('div', { class: 'btns' }, next)].filter(Boolean));
     lastNext = next;
     if (iconsOnly && !autoIcons) { autoIcons = true; openIcons(); }
+  }
+
+  // двойные на чертеже, которые в проекте записаны одинарными (FC/B05-06 ↔ FC/B05 + FC/B06)
+  let skipDoubles = false;
+  const doublesWithSingles = (r) => { const all = [...state.ctx.points.values()]; return r.data.points.filter((p) => !all.some((x) => x.label === p.label && (x.cabinet || '') === (p.cabinet || '')) && singlesOf(p.label, p.cabinet, all)); };
+  function dupBox(r) {
+    const list = doublesWithSingles(r); if (!list.length) return null;
+    const all = [...state.ctx.points.values()];
+    const cb = h('input', { type: 'checkbox', checked: skipDoubles, onchange: (e) => { skipDoubles = e.target.checked; } });
+    return h('div', { class: 'card', style: { margin: '10px 0' } },
+      h('b', { class: 'l-warn' }, `Одинаковые точки в разном виде: ${list.length}`),
+      h('div', { style: { margin: '4px 0', fontSize: '14px' } }, `На чертеже — двойные, в проекте эти же точки записаны одинарными: ${list.slice(0, 4).map((p) => `${p.label} = ${singlesOf(p.label, p.cabinet, all).map((x) => x.label).join(' + ')}`).join('; ')}${list.length > 4 ? '…' : ''}`),
+      h('div', { class: 'mut', style: { fontSize: '13px' } }, 'После добавления приложение предложит объединить их: выбрать, какой вид оставить, и перенести работы на оставляемые точки.'),
+      h('label', { class: 'pickrow', style: { margin: '6px 0 0' } }, cb, h('span', {}, 'Не добавлять такие двойные — оставить одинарные, как в проекте')));
   }
 
   async function load(buf) {

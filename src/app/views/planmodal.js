@@ -12,6 +12,7 @@ import { cablesPicker } from './cablespick.js';
 import { addWorkForPoints } from './doh.js';
 import { makeWorker, pointsFromDrawing } from './tohnitview.js';
 import { newVersion, reviewOf, reviewModal } from './planversion.js';
+import { sameGroups, mergeModal } from './pointmerge.js';
 import { createViewer } from './planview.js';
 import { exportNumberedPdf, publishNumbered } from './plannumbers.js';
 import { linkPoints } from './planlink.js';
@@ -351,6 +352,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
           h('button', { class: 'sec', onclick: () => pointsFromDrawing({ drawing: d, buf }) }, '✏️ Редактировать'),
           h('button', { class: 'sec', onclick: () => pointsFromDrawing({ drawing: d, buf, iconsOnly: true, onDone: () => draw(d.id) }) }, '🔎 Значки без номеров'),
           h('button', { class: 'sec', onclick: () => newVersion(cur(), { onDone: (id) => setTimeout(() => draw(id), 300) }) }, '🔄 Новая версия чертежа'),
+          (() => { const n = sameGroups().length; return n ? h('button', { onclick: () => mergeModal({ onDone: () => setTimeout(() => draw(d.id), 300) }) }, `🔀 Одинаковые точки: ${n}`) : null; })(),
           d.fileId ? null : h('button', { class: 'sec', onclick: async () => { try { toast('Отправляю на Диск…'); await pushDrawing(d); toast('Чертёж на Диске — откроется и на других устройствах'); draw(d.id); } catch (e) { toast(`Не получилось: ${e.message}`); } } }, '⬆ На Диск'),
           h('button', { class: 'sec', onclick: async () => { if (await confirmDialog(`Убрать чертёж «${drawingTitle(d)}» из проекта? Точки останутся, файл на Диске — тоже.`, { yes: 'Убрать', danger: true })) { removeDrawing(d); setTimeout(() => draw(), 300); } } }, '🗑 Убрать чертёж')));
       selBar(); toolBar();

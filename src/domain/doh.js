@@ -36,7 +36,9 @@ export function itogShtuk(entry, ctx) {
 
 export function pullFigures(entry, ctx) {
   const pts = entryPoints(entry, ctx);
-  const cablesIn = (p) => taskQty(p, ctx, entry) ?? cableCountFor(p, ctx, entry.cableId);
+  // portQty — сколько кабелей точки в этой записи, если не все (например, после объединения одинарных точек в двойную)
+  const portsOf = (p) => (Array.isArray(entry.portQty) ? entry.portQty.find((q) => q && q.id === p.id)?.v : undefined);
+  const cablesIn = (p) => portsOf(p) ?? taskQty(p, ctx, entry) ?? cableCountFor(p, ctx, entry.cableId);
   if (pts.length) {
     return {
       // только кабели вида этой записи (у точки их может быть несколько видов)
