@@ -1,5 +1,5 @@
 // Доступ к Google Диску и Таблицам от имени пользователя (по кнопке, нужно отдельное согласие).
-import { GoogleAuthProvider, reauthenticateWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, reauthenticateWithPopup, browserPopupRedirectResolver } from 'firebase/auth';
 import * as fbm from '../firebase.js';
 const auth = { get currentUser() { return fbm.auth?.currentUser || null; } };
 
@@ -59,7 +59,9 @@ export async function getToken(action = 'managers') {
   FULL.forEach((s) => provider.addScope(s));
   // без prompt: 'consent' — если доступ уже дан, Google не показывает экран согласия, окно закрывается само
   provider.setCustomParameters({ login_hint: auth.currentUser?.email || '' });
-  const res = await reauthenticateWithPopup(auth.currentUser, provider);
+  // окно входа Google передаётся явно: при быстром запуске (без сети на старте) оно не подключается заранее,
+  // и без него Firebase отвечает «auth/argument-error»
+  const res = await reauthenticateWithPopup(auth.currentUser, provider, browserPopupRedirectResolver);
   const token = GoogleAuthProvider.credentialFromResult(res)?.accessToken;
   if (!token) throw new Error('Google не выдал разрешение на Диск и Таблицы');
   cached = { token, exp: Date.now() + 55 * 60 * 1000 };  // токен Google живёт час
