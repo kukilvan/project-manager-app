@@ -4,7 +4,8 @@
 // количество в отчёте (по умолчанию сохраняется как было), работа, которой у оставляемой точки нет, разные метры.
 import { h, openModal, toast, confirmDialog } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
-import { findSameGroups, previewMerge, mergeOps } from '../../domain/merge.js';
+import { findSameGroups, previewMerge, mergeOps, cablesMismatch } from '../../domain/merge.js';
+import { cableListOf } from '../../domain/points.js';
 import { info } from '../../log.js';
 
 const liveOf = (c) => (state.data[c] || []).filter((x) => !x.deleted);
@@ -75,4 +76,27 @@ export function mergeModal({ onDone } = {}) {
     h('div', { class: 'mut' }, 'Одна и та же точка записана в проекте по-разному: двойной (FC/B05-06) и одинарными (FC/B05 + FC/B06) — например, старый разбор тохнита делил двойные на одинарные. Выберите, какой вид оставить: работы перейдут на оставляемые точки, лишние точки уберутся.'),
     h('label', { class: 'field' }, h('span', {}, 'Какой вид оставить'), modeSel),
     list, h('div', { class: 'btns' }, go, h('button', { class: 'sec', onclick: () => close() }, 'Отмена'))), { sticky: true });
+}
+
+// «🔌 Кабели не по номеру»: одинарная точка сети — 1 кабель, двойная — 2…; у точек без своего значения число кабелей
+// бралось по типу (у бакара — 2), и одинарные считались двойными. Свои значения (исключения) не трогаются.
+export const cablesToFix = () => (state.ctx ? cablesMismatch([...state.ctx.points.values()], state.ctx) : []);
+export function cablesFixModal({ onDone } = {}) {
+  const list = cablesToFix(); if (!list.length) { toast('Все точки с кабелями по номеру'); return; }
+  const ctx = state.ctx;
+  const now = (p) => cableListOf(p, ctx).map((c) => `${c.cable}×${c.count}`).join(' + ');
+  const ids = new Set(list.map((x) => x.p.id));
+  const touched = liveOf('entries').filter((e) => e.workType === 'Протяжка' && (e.pointIds || []).some((id) => ids.has(id)));
+  const rows = list.map((x) => ({ ...x, on: true })).sort((a, b) => a.p.label.localeCompare(b.p.label, undefined, { numeric: true }));
+  const go = h('button', { onclick: async () => {
+    const chosen = rows.filter((r) => r.on); if (!chosen.length) return;
+    getRepo().save(currentProject().id, chosen.map((r) => ({ coll: 'points', id: r.p.id, data: { cableOverride: r.want } })));
+    info(`Кабели по номеру: исправлено ${chosen.length}`); toast(`Исправлено точек: ${chosen.length}`); c(); onDone?.();
+  } }, `🔌 Исправить (${rows.length})`);
+  const c = openModal('🔌 Кабели не по номеру точки', h('div', {},
+    h('div', { class: 'mut' }, 'Одинарная точка — 1 кабель, двойная (B05-06) — 2, тройная — 3. У этих точек своего числа кабелей нет, и оно взято по типу. Точки, где число кабелей задано вручную (исключения), здесь не показываются.'),
+    touched.length ? h('div', { class: 'l-warn', style: { margin: '6px 0' } }, `В отчётах протяжки изменится число кабелей и метраж у записей: ${touched.length}.`) : null,
+    ...rows.map((r) => h('label', { class: 'pickrow', style: { margin: '4px 0' } }, h('input', { type: 'checkbox', checked: true, onchange: (e) => { r.on = e.target.checked; go.textContent = `🔌 Исправить (${rows.filter((x) => x.on).length})`; } }),
+      h('span', {}, h('b', {}, r.p.label), ` — ${now(r.p)} → ${r.want.map((w) => `${w.cable}×${w.count}`).join(' + ')}`))),
+    h('div', { class: 'btns' }, go, h('button', { class: 'sec', onclick: () => c() }, 'Отмена'))), { sticky: true });
 }

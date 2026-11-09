@@ -5,6 +5,7 @@
 // Ничего не заменяет: существующие точки (то же обозначение) пропускаются; новые типы и устройства из файла создаются, если их нет.
 import { addBundleOps } from './typelib.js';
 import { cableOverrideFor } from './status.js';
+import { cablesByLabel } from './merge.js';
 export const POINTS_FORMAT = 'polevoy-points-1';
 // Служебный тип для точек «разобрать потом»: не показывается в справочнике типов и не уходит в общий пул
 export const UNSORTED_TYPE = 'Не разобрано';
@@ -91,11 +92,16 @@ export function pointsImportOps(plan, newId, data) {
   plan.newTypes.forEach((t) => ops.push({ coll: 'types', id: s(t.id), data: { nameHe: t.nameHe || '', devices: t.devices || [], cables: t.cables || [], workIds: t.workIds || [] } }));
   if (plan.ctx) (plan.poolTypes || []).forEach((b) => addBundleOps(plan.ctx, b, ops)); // тип из общего пула — вместе с устройствами, кабелями, работами
   (plan.blankTypes || []).forEach((id) => ops.push({ coll: 'types', id, data: { nameHe: '', devices: [], cables: [], workIds: [], ...(id === UNSORTED_TYPE ? { system: true } : {}) } }));
+  // для «кабелей по номеру» — типы проекта вместе с теми, что придут из файла и общего пула
+  const lctx = plan.ctx && { ...plan.ctx, types: new Map([...plan.ctx.types, ...(plan.poolTypes || []).map((b) => [b.type.id, b.type]), ...(plan.newTypes || []).map((t) => [s(t.id), t])]) };
   plan.add.forEach((p) => ops.push({ coll: 'points', id: newId(), data: {
     label: p.label, typeId: p.typeId, cabinet: p.cabinet || undefined, floor: p.floor || undefined, planName: p.planName || undefined, note: p.note || undefined,
     ...(Array.isArray(p.devices) ? { devices: p.devices } : {}), ...(Array.isArray(p.cables) ? { cables: p.cables } : {}),
     ...(posOf(p, data) ? { pos: posOf(p, data) } : {}),
-    ...(Array.isArray(p.cableOverride) && (!plan.ctx || cableOverrideFor(p.cableOverride, plan.ctx, p.typeId, p.cabinet)) ? { cableOverride: p.cableOverride } : {}),
+    ...(Array.isArray(p.cableOverride) && (!plan.ctx || cableOverrideFor(p.cableOverride, plan.ctx, p.typeId, p.cabinet)) ? { cableOverride: p.cableOverride }
+      // кабели по номеру: одинарная точка сети — 1 кабель, двойная — 2… (если своих кабелей у точки нет)
+      : !Array.isArray(p.cableOverride) && !Array.isArray(p.cables) && !Array.isArray(p.devices) && lctx && cablesByLabel({ label: p.label, typeId: p.typeId, cabinet: p.cabinet }, lctx)
+        ? { cableOverride: cablesByLabel({ label: p.label, typeId: p.typeId, cabinet: p.cabinet }, lctx) } : {}),
   } }));
   return ops;
 }

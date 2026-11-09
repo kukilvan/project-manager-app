@@ -102,3 +102,31 @@ test('одинаковые точки: одинарные на одной отм
   const after = Object.fromEntries(data.entries.map((e) => [e.id, e.workType === 'Протяжка' ? JSON.stringify(pullFigures(e, ctx)) : itogShtuk(e, ctx)]));
   assert.deepEqual(after, before);   // в т. ч. запись e2, где была только FC/B05 (1 кабель)
 });
+
+test('кабели по номеру: одинарная точка сети — 1, двойная — 2, тройная — 3; свои значения и не сеть — не трогаются', async () => {
+  const { cablesByLabel, cablesMismatch, planPointsImport, pointsImportOps } = await import('../src/domain/index.js');
+  const data = project();
+  data.types = [{ id: 'T', defaultCable: 'cat7', defaultCables: 2 }, { id: 'DOOR', defaultCable: '6005', defaultCables: 3 }];
+  data.points.push({ id: 's', label: 'FC/B29', typeId: 'T', cabinet: 'FC' }, { id: 't', label: 'FC/B40-42', typeId: 'T', cabinet: 'FC' }, { id: 'dr', label: 'FC/D-01.1', typeId: 'DOOR', cabinet: 'FC' });
+  const ctx = buildContext(data);
+  assert.deepEqual(cablesByLabel(ctx.points.get('s'), ctx), [{ cable: 'cat7', count: 1 }]);
+  assert.deepEqual(cablesByLabel(ctx.points.get('t'), ctx), [{ cable: 'cat7', count: 3 }]);
+  assert.equal(cablesByLabel(ctx.points.get('d'), ctx), null);   // FC/B05-06 — 2, как у типа
+  assert.equal(cablesByLabel(ctx.points.get('a'), ctx), null);   // своё cat7×1
+  assert.equal(cablesByLabel(ctx.points.get('dr'), ctx), null);  // дверь: 6005×3 — не по номеру
+  assert.deepEqual(cablesMismatch([...ctx.points.values()], ctx).map((x) => x.p.id).sort(), ['s', 't', 'y']);
+  // разбор/импорт: новым одинарным сразу 1 кабель
+  const plan = planPointsImport(ctx, { points: [{ label: 'FC/B60', typeId: 'T', cabinet: 'FC' }, { label: 'FC/B61-62', typeId: 'T', cabinet: 'FC' }] });
+  const ops = pointsImportOps(plan, (() => { let i = 0; return () => `n${i++}`; })(), {});
+  assert.deepEqual(ops.map((o) => o.data.cableOverride ?? null), [[{ cable: 'cat7', count: 1 }], null]);
+});
+
+test('кабели по номеру: тип бакара приходит из общего пула (новый проект) — одинарной всё равно 1 кабель', async () => {
+  const { planPointsImport, pointsImportOps } = await import('../src/domain/index.js');
+  const data = project(); data.types = [];
+  const ctx = buildContext(data);
+  const pool = new Map([['Бакар', { type: { id: 'Бакар', defaultCable: 'cat7', defaultCables: 2 }, devices: [], cables: [], works: [] }]]);
+  const plan = planPointsImport(ctx, { points: [{ label: 'FC/B70', typeId: 'Бакар', cabinet: 'FC' }, { label: 'FC/B71-72', typeId: 'Бакар', cabinet: 'FC' }] }, pool);
+  const ops = pointsImportOps(plan, (() => { let i = 0; return () => `n${i++}`; })(), {}).filter((o) => o.coll === 'points');
+  assert.deepEqual(ops.map((o) => o.data.cableOverride ?? null), [[{ cable: 'cat7', count: 1 }], null]);
+});

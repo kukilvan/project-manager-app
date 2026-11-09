@@ -1,7 +1,7 @@
 // Точки: форма точки, генератор пачкой, карточка точки с историей, вкладка «Точки».
 import { h, formModal, openModal, confirmDialog, toast, qtyList, attachShortcuts } from '../ui.js';
 import { nav, state, getRepo, pointsSorted, infoOf, currentProject } from '../store.js';
-import { generateLabels, generatedTotal, MAX_GENERATED, parseSuffixes, comparePoints, renameLabel, renameIssue, sameLabelClash, labelKey, inheritedFromCables, usesConfig, missingStages, hasDeviceId, normalizeMac, findDuplicate , findSameGroups } from '../../domain/index.js';
+import { generateLabels, generatedTotal, MAX_GENERATED, parseSuffixes, comparePoints, renameLabel, renameIssue, sameLabelClash, labelKey, inheritedFromCables, usesConfig, missingStages, hasDeviceId, normalizeMac, findDuplicate , findSameGroups, cablesMismatch } from '../../domain/index.js';
 import { scanDevice } from '../scan.js';
 import { statusClass } from './project.js';
 import { hint } from './guide.js';
@@ -654,6 +654,7 @@ export function meterView(ui) {
       h('button', { class: 'sec', onclick: () => planModal() }, '🗺 План'),
       h('button', { class: 'sec', onclick: () => import('./pullview.js').then((m) => m.openPulls()) }, '🧵 Протяжки'),
       h('button', { class: 'wide sec', onclick: () => remainingModal() }, '🧾 Что осталось'),
+      (() => { const n = cablesMismatch([...state.ctx.points.values()], state.ctx).length; return n ? h('button', { class: 'wide', onclick: () => import('./pointmerge.js').then((m) => m.cablesFixModal()) }, `🔌 Кабели не по номеру точки: ${n} — исправить`) : null; })(),
       (() => { const n = findSameGroups([...state.ctx.points.values()]).length; return n ? h('button', { class: 'wide', onclick: () => import('./pointmerge.js').then((m) => m.mergeModal()) }, `🔀 Одинаковые точки в разном виде: ${n} — объединить`) : null; })(),
       total.some((p) => p.typeId === UNSORTED_TYPE) ? h('button', { class: 'wide', onclick: () => unsortedModal(ui) }, `❓ Точки без типа: ${total.filter((p) => p.typeId === UNSORTED_TYPE).length} — разобрать`) : null),
     h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '10px 2px' } },

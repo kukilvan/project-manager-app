@@ -3,7 +3,8 @@
 // какой вид оставить, куда перейдут работы (записи дохa, журнал, протяжки), что не сходится (количество в отчёте,
 // работа, которой у оставляемой точки нет, разные метры).
 import { itogShtuk, pullFigures } from './doh.js';
-import { taskQty, compositionOf } from './compose.js';
+import { taskQty, compositionOf, isPortCable } from './compose.js';
+import { cableListOf } from './points.js';
 
 const RANGE = /^(.*?)(\d+)-(\d+)$/;
 const blank = (v) => v === undefined || v === null || v === '';
@@ -193,3 +194,21 @@ export function mergeOps(group, mode, pv, data, ctx) {
   removed.forEach((id) => remove.push({ coll: 'points', id }));
   return { ops, remove };
 }
+
+/**
+ * Кабели по номеру точки (точки сети: один вид кабеля cat7): одинарная — 1 кабель, двойная «B05-06» — 2, тройная — 3…
+ * Возвращает cableOverride, который нужно поставить, или null (совпадает с типом, своё уже задано, не точка сети).
+ * Своё значение у точки (cableOverride) — исключение, его не трогаем.
+ */
+export function cablesByLabel(point, ctx) {
+  if (Array.isArray(point.cableOverride) && point.cableOverride.length) return null;
+  if (!ctx.types.has(point.typeId)) return null;
+  const list = cableListOf({ ...point, cableOverride: undefined }, ctx);
+  if (list.length !== 1 || !isPortCable(list[0].cable)) return null;
+  const m = String(point.label || '').match(RANGE);
+  const n = m ? Number(m[3]) - Number(m[2]) + 1 : 1;
+  if (!(n >= 1 && n <= 8) || n === list[0].count) return null;
+  return [{ cable: list[0].cable, count: n }];
+}
+/** Точки проекта, у которых число кабелей не совпадает с номером (без своего значения) */
+export const cablesMismatch = (points, ctx) => points.filter((p) => !p.deleted).map((p) => ({ p, want: cablesByLabel(p, ctx) })).filter((x) => x.want);
