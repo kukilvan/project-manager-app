@@ -100,6 +100,25 @@ export async function addDrawing(buf, { name, floor = '', pages = [], push = tru
   if (!entry.fileId && push && !isLocal() && (!useRedirect() || storedTokenValid())) return pushDrawing(entry, buf);
   return entry;
 }
+/**
+ * Новая версия чертежа: новая запись чертежа ставится в списке перед старой, старая остаётся (название — «… (старая версия)»).
+ * Всё — одной записью в проект (несколько записей подряд могли бы затереть друг друга).
+ */
+export async function addDrawingVersion(buf, oldD, fields) {
+  const p = currentProject(); const repo = getRepo();
+  const id = `DR_${newId(6)}`; await cachePut(id, buf);
+  const entry = { id, size: buf.byteLength, addedAt: new Date().toISOString(), addedBy: repo.user?.email || '', fileId: null, ...fields };
+  if (entry.fileId && !mem()) shareDrawing(entry.fileId, p).catch(() => {});
+  const sorted = drawingsOf(p); const at = sorted.findIndex((d) => d.id === oldD.id);
+  const order = [...sorted.slice(0, at), entry, ...sorted.slice(at)];
+  const oldTitle = /\(старая версия\)$/.test(drawingTitle(oldD)) ? oldD.title : `${drawingTitle(oldD).replace(/\.pdf$/i, '')} (старая версия)`;
+  const pos = new Map(order.map((d, i) => [d.id, i]));
+  const list = [...(p.drawings || []).map((d) => (pos.has(d.id) ? { ...d, order: pos.get(d.id), ...(d.id === oldD.id ? { title: oldTitle } : {}) } : d)), { ...entry, order: pos.get(id) }];
+  repo.saveProject(p.id, { drawings: list });
+  if (!entry.fileId && !isLocal() && (!useRedirect() || storedTokenValid())) pushDrawing({ ...entry, order: pos.get(id) }, buf).catch((e) => warn('Новая версия чертежа: на Диск не отправилась', e.message));
+  return { ...entry, order: pos.get(id) };
+}
+
 /** Отправить на Диск чертёж, который пока только на этом устройстве */
 export async function pushDrawing(entry, buf = null, proj = currentProject()) {
   if (mem()) return entry;

@@ -11,6 +11,7 @@ import { typePicker } from './tohnitview.js';
 import { cablesPicker } from './cablespick.js';
 import { addWorkForPoints } from './doh.js';
 import { makeWorker, pointsFromDrawing } from './tohnitview.js';
+import { newVersion, reviewOf, reviewModal } from './planversion.js';
 import { createViewer } from './planview.js';
 import { exportNumberedPdf, publishNumbered } from './plannumbers.js';
 import { linkPoints } from './planlink.js';
@@ -194,6 +195,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
             }
           }
           placeTags(g, api, tags.filter((t) => !t.textPos || t.need), circles, frames);
+          const rv = reviewOf(cur()); if (rv.length) { g.setLineDash([4, 3]); for (const x of rv) { const p = state.ctx.points.get(x.id); if (p?.pos && (p.pos.page || 0) === api.page) outline(g, api, p.pos, '#ff9500', { width: 2.5, pad: 3 + 4 / api.view.s }); } g.setLineDash([]); }
           const f = focusId && state.ctx.points.get(focusId);
           if (f?.pos && (f.pos.page || 0) === api.page && drawingFor(f)?.id === d.id) { outline(g, api, f.pos, '#e0007a', { width: 3, pad: 1.5 + 4 / api.view.s }); }
           if (tool === 'doors') for (const p of doorPts()) { if ((p.pos.page || 0) !== api.page || p.id === doorCur) continue; outline(g, api, p.pos, doorCfgOf(p, state.ctx) ? '#34c759' : doorSkip.has(p.id) ? '#8e8e93' : '#ff9500', { width: 3, pad: 1.5 + 3 / api.view.s }); }
@@ -325,7 +327,12 @@ export function planModal({ point = null, placeFor = null } = {}) {
       const bar = h('div', { class: 'card', style: { display: 'none', margin: '6px 0', padding: '8px', gap: '8px', flexWrap: 'wrap', alignItems: 'center' } });
       const layersBtn = h('button', { class: 'sec', onclick: () => layersModal(d) }, '🗂 Слои чертежа');
       const dimBtn = h('button', { class: 'sec', onclick: () => { dimDrawing = !dimDrawing; dimBtn.textContent = dimDrawing ? '🌕 Чертёж ярче' : '🌗 Чертёж бледнее'; viewer.draw(); } }, dimDrawing ? '🌕 Чертёж ярче' : '🌗 Чертёж бледнее');
+      // после «Новой версии чертежа»: точки, которые надо проверить (сдвинуты на новом листе, нет на нём, значок не на месте)
+      const revBtn = h('button', { style: { display: 'none', background: '#ff9500' }, onclick: () => reviewModal(cur(), {
+        onFocus: (id) => { const p = state.ctx.points.get(id); focusId = id; if (p?.pos) viewer.focus(p.pos.x, p.pos.y, p.pos.page || 0); viewer.draw(); },
+        onChange: () => setTimeout(() => { updateInfo(); viewer.draw(); }, 300) }) });
       updateInfo = () => {
+        const nr = reviewOf(cur()).length; revBtn.style.display = nr ? '' : 'none'; revBtn.textContent = `⚠ Проверить после новой версии (${nr})`;
         const n = sheetPts(d).length;
         status.textContent = `${drawingTitle(d)}${d.title ? ` (файл ${d.name})` : ''}${d.floor ? ` · этаж ${d.floor}` : ''} · точек на чертеже: ${n}${unl().length ? ` · не размеченых: ${unl().length}` : ''}`;
         const ou = typeSel.querySelector(`option[value="${UNL}"]`); if (ou) ou.textContent = `❔ Не размеченые (${unl().length})`;
@@ -334,7 +341,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
       updateInfo();
       holder.replaceChildren(
         h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '0 0 6px' } }, search, typeSel, cfgSel, cabSel, stageSel),
-        h('div', { class: 'btns', style: { marginTop: 0 } }, ...viewer.zoomBtns(), selBtn, doorBtn, addBtn, iconBtn, dimBtn, layersBtn), bar, tbar, viewer.el, doorBar,
+        h('div', { class: 'btns', style: { marginTop: 0 } }, revBtn, ...viewer.zoomBtns(), selBtn, doorBtn, addBtn, iconBtn, dimBtn, layersBtn), bar, tbar, viewer.el, doorBar,
         h('div', { style: { display: 'flex', gap: '12px', flexWrap: 'wrap', margin: '6px 2px', fontSize: '13px' } }, ...STATUS_COLORS.map(([c, t]) => h('span', {}, h('span', { style: { color: c } }, '■ '), t))),
         h('div', { class: 'btns' },
           h('button', { class: 'sec', onclick: () => linkPoints(d, buf, { onDone: () => draw(d.id) }).catch((e) => toast(e.message)) }, '🔗 Связать точки'),
@@ -342,6 +349,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
           h('button', { class: 'sec', title: cur().numberedAt ? `На Диске с ${new Date(cur().numberedAt).toLocaleString('ru-RU')}` : '', onclick: async () => { if (!cur().fileId) { toast('Сначала «⬆ На Диск» — исходный чертёж'); return; } try { await publishNumbered(cur(), buf); } catch (e) { toast(`Не получилось: ${e.message}`); } } }, cur().numberedFileId ? '☁️ Обновить на Диске сейчас' : '☁️ PDF с номерами на Диск'),
           h('button', { class: 'sec', onclick: () => pointsFromDrawing({ drawing: d, buf }) }, '✏️ Редактировать'),
           h('button', { class: 'sec', onclick: () => pointsFromDrawing({ drawing: d, buf, iconsOnly: true, onDone: () => draw(d.id) }) }, '🔎 Значки без номеров'),
+          h('button', { class: 'sec', onclick: () => newVersion(cur(), { onDone: (id) => setTimeout(() => draw(id), 300) }) }, '🔄 Новая версия чертежа'),
           d.fileId ? null : h('button', { class: 'sec', onclick: async () => { try { toast('Отправляю на Диск…'); await pushDrawing(d); toast('Чертёж на Диске — откроется и на других устройствах'); draw(d.id); } catch (e) { toast(`Не получилось: ${e.message}`); } } }, '⬆ На Диск'),
           h('button', { class: 'sec', onclick: async () => { if (await confirmDialog(`Убрать чертёж «${drawingTitle(d)}» из проекта? Точки останутся, файл на Диске — тоже.`, { yes: 'Убрать', danger: true })) { removeDrawing(d); setTimeout(() => draw(), 300); } } }, '🗑 Убрать чертёж')));
       selBar(); toolBar();

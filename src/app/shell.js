@@ -24,6 +24,8 @@ import { makeWorker } from './views/tohnitview.js';
 import { assignOnPlan } from './views/planassign.js';
 // для проверок в браузере (как window.__pz)
 if (typeof window !== 'undefined') window.__pzPlanTools = { assignOnPlan, makeWorker };
+// тестовый режим (?mem=1): доступ к данным для проверок в браузере
+if (typeof window !== 'undefined' && new URLSearchParams(location.search).has('mem')) window.__pzTest = { state, getRepo, currentProject, setCurrentProject };
 import { themeLabel, setTheme, nextTheme } from './theme.js';
 import { projectView, updateManagerTable, updateTable, backupNow, organizeDrive } from './views/project.js';
 import { meterView } from './views/points.js';

@@ -99,8 +99,8 @@ export function iconsPicker({ wk, pages, floor = '', sheet = '', groups = [], on
     addBtn.textContent = `✔ ${editing ? 'Сохранить' : 'Добавить'} точек: ${n}`; addBtn.disabled = !n;
     list.replaceChildren(...done.map((gr, i) => h('div', { class: 'item' },
       h('div', { class: 'name', style: { color: COLORS[i % COLORS.length] } }, `${gr.typeId}: ${gr.points.length} шт. (${gr.points[0]?.label}…${gr.points[gr.points.length - 1]?.label})`, h('div', { class: 'sub' }, gr.what)),
-      h('button', { class: 'sec', style: { padding: '4px 10px' }, onclick: () => editGroup(i) }, '✏️'),
-      h('button', { class: 'sec', style: { padding: '4px 10px' }, onclick: () => { done.splice(i, 1); refresh(); } }, '✖'))));
+      gr.locked ? h('span', { class: 'mut', style: { fontSize: '12px' } }, '🔒 номера сохраняются') : h('button', { class: 'sec', style: { padding: '4px 10px' }, onclick: () => editGroup(i) }, '✏️'),
+      gr.locked ? null : h('button', { class: 'sec', style: { padding: '4px 10px' }, onclick: () => { done.splice(i, 1); refresh(); } }, '✖'))));
     const total = done.reduce((s, gr) => s + gr.points.length, 0);
     finish.textContent = `Готово (${total} точек)`;
     drawAll();
@@ -146,7 +146,7 @@ export function iconsPicker({ wk, pages, floor = '', sheet = '', groups = [], on
       if (!r || !r.items.length) { info.textContent = 'Здесь значка не нашлось — увеличьте и нажмите точно на значок (или «➕ Вручную»).'; return; }
       // уже добавленные места не предлагаем второй раз
       const taken = done.flatMap((gr) => gr.points.map((p) => p.pos));
-      r.items = r.items.filter((it) => !taken.some((p) => (p.page || 0) === (it.page || 0) && Math.hypot(p.x - it.x, p.y - it.y) < 2));
+      r.items = r.items.filter((it) => !taken.some((p) => (p.page || 0) === (it.page || 0) && Math.hypot(p.x - it.x, p.y - it.y) < Math.max(2, Math.min(it.w || 0, it.h || 0) / 2)));  // уже есть точка (в т. ч. перенесённая с прежней версии чертежа)
       if (!r.items.length) { info.textContent = 'Все такие значки уже добавлены.'; return; }
       if (found && !editing) { // добавить к текущему виду (например, тот же тип другим значком)
         const add = r.items.filter((it) => !found.items.some((f) => Math.hypot(f.x - it.x, f.y - it.y) < 2)); found.items.push(...add);

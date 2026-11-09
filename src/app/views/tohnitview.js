@@ -66,7 +66,7 @@ function iconGroupsOf(drawing) {
 }
 
 // drawing + buf — правка уже сохранённого чертежа (из «🗺 План» → «✏️ Редактировать»): без выбора файла; значки — уже отмеченные
-export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = null, onDone = null, iconsOnly = false } = {}) {  // iconsOnly: сразу окно «Значки без номеров», после «Готово» — применить  // file: { name, buf, fileId } — уже выбранный PDF
+export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = null, onDone = null, iconsOnly = false, lockIcons = false } = {}) {  // lockIcons: уже отмеченные значки не правятся (после «Новой версии чертежа» — номера сохраняются)  // iconsOnly: сразу окно «Значки без номеров», после «Готово» — применить  // file: { name, buf, fileId } — уже выбранный PDF
   const input = h('input', { type: 'file', accept: '.pdf,application/pdf', style: { display: 'none' } });
   const floorIn = h('input', { placeholder: 'Этаж (например 0, -3.50)' });
   const status = h('div', { class: 'mut', style: { margin: '6px 0' } });
@@ -194,7 +194,7 @@ export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = n
     try {
       wk?.stop(); wk = makeWorker();
       const o = await wk.call('open', { data: buf }, [buf]);
-      pagesInfo = o.pages; iconGroups = drawing ? iconGroupsOf(drawing) : [];
+      pagesInfo = o.pages; iconGroups = drawing ? iconGroupsOf(drawing).map((g) => (lockIcons ? { ...g, locked: true } : g)) : [];
       status.textContent = `Прочитано за ${(o.ms / 1000).toFixed(1)} с, листов: ${o.pages.length}`;
       await parse();
     } catch (e) { status.textContent = `Не получилось прочитать: ${e.message}`; showMain(); }

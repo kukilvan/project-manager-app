@@ -21,3 +21,4 @@ export * from './rack.js';
 export * from './doorcfg.js';
 export * from './pull.js';
 export * from './latin.js';
+export * from './sheetfit.js';

@@ -56,6 +56,11 @@ self.onmessage = async (e) => {
       scanned ??= scanPages(extracted.pages).spans;
       res = scanned.filter((s) => !String(s.c || '').startsWith('sym:') && s.t.trim().length <= 30 && (labelish(s.t.trim()) || /\d/.test(s.t)))
         .map((s) => ({ label: s.t.trim(), pos: { page: s.page || 0, x: +((s.x0 + s.x1) / 2).toFixed(1), y: +((s.y0 + s.y1) / 2).toFixed(1), w: +(s.x1 - s.x0).toFixed(1), h: +(s.y1 - s.y0).toFixed(1) } }));
+    } else if (cmd === 'spans') {  // все короткие надписи листа (новая версия чертежа: сопоставить старый и новый лист)
+      await ensureExtracted();
+      scanned ??= scanPages(extracted.pages).spans;
+      res = { pages: extracted.pages.map((p) => ({ w: p.w, h: p.h })), spans: scanned.filter((s) => !String(s.c || '').startsWith('sym:') && s.t.trim() && s.t.trim().length <= 40)
+        .map((s) => ({ t: s.t.trim(), page: s.page || 0, x: +((s.x0 + s.x1) / 2).toFixed(2), y: +((s.y0 + s.y1) / 2).toFixed(2), w: +(s.x1 - s.x0).toFixed(2), h: +(s.y1 - s.y0).toFixed(2) })) };
     } else if (cmd === 'layers') {  // слои чертежа (AutoCAD): [{ name, on }]
       const pdf = doc.asPDF?.() || doc; res = [];
       try { for (let i = 0; i < pdf.countLayers(); i++) res.push({ name: pdf.getLayerName(i), on: pdf.isLayerVisible(i) }); } catch { /* без слоёв */ }
