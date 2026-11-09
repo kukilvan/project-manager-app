@@ -111,7 +111,7 @@ function preview(ctx) {
   const doubt = plan.filter((x) => REVIEW.includes(x.kind) || x.kind === 'nofit');
   const listBox = doubt.length ? h('details', { style: { margin: '6px 0' } }, h('summary', {}, `Требуют проверки: ${doubt.length}`),
     ...doubt.map((x) => h('div', { class: 'item', onclick: () => { if (x.pos && (x.pos.page || 0) === pageNow()) vN.focus(x.pos.x, x.pos.y, x.pos.page || 0); } },
-      h('div', { class: 'name' }, x.label || '(без номера)', h('div', { class: 'sub', style: { color: KIND[x.kind][1] } }, `${KIND[x.kind][0]}${x.under ? ` (значок «${x.under}»)` : ''}${x.kind === 'moved' && x.d ? ` — на ${Math.round(x.d)} ед. старого листа` : ''}`))))) : null;
+      h('div', { class: 'name' }, x.label || '(без номера)', h('div', { class: 'sub', style: { color: KIND[x.kind][1] } }, `${KIND[x.kind][0]}${x.under ? ` (значок «${x.under}»)` : ''}${x.kind === 'moved' && x.d ? ` — на ${Math.round(x.d)} ед. старого листа` : ''}${x.newLabel ? ` — на её месте теперь «${x.newLabel}»` : ''}`))))) : null;
   const go = h('button', { disabled: !movable.length, onclick: () => apply(ctx, plan) }, `✔ Перенести точки (${movable.length})`);
   const manual = h('button', { class: 'sec', onclick: async () => {
     const pages = [...new Set(pts.map((p) => p.pos.page || 0))];
@@ -131,7 +131,7 @@ async function apply(ctx, plan) {
   status.textContent = 'Сохраняю…'; body.replaceChildren();
   try {
     const hidden = (oldD.hidden || []).map((m) => { const f = fits.get(m.pos?.page || 0); return f && m.pos ? { ...m, pos: movePos(m.pos, f, sheet, f.newPage) } : null; }).filter(Boolean);
-    const review = plan.filter((x) => REVIEW.includes(x.kind)).map((x) => ({ id: x.id, label: x.label || '', kind: x.kind, ...(x.to ? { to: x.to } : {}), ...(x.under ? { under: x.under } : {}) }));
+    const review = plan.filter((x) => REVIEW.includes(x.kind)).map((x) => ({ id: x.id, label: x.label || '', kind: x.kind, ...(x.to ? { to: x.to } : {}), ...(x.under ? { under: x.under } : {}), ...(x.newLabel ? { newLabel: x.newLabel } : {}) }));
     const entry = await addDrawingVersion(r.buf, oldD, { name: sheet.name, title: oldD.title || '', floor: oldD.floor || '', pages: sN.pages, fileId: r.fileId || null,
       hidden, review, versionOf: { id: oldD.id, name: oldD.name, at: new Date().toISOString() } });
     // точки — после чертежа (иначе на мгновение они ссылались бы на чертёж, которого ещё нет)
@@ -159,7 +159,7 @@ export function reviewOf(d) {
   return (d?.review || []).filter((x) => { const p = state.ctx.points.get(x.id); return p && p.pos && drawingFor(p)?.id === d.id; });
 }
 
-export function reviewModal(d, { onFocus, onChange } = {}) {
+export function reviewModal(d, { onFocus, onChange, onOpen } = {}) {
   const list = h('div', {});
   const drop = (id) => updateDrawing(d.id, (x) => ({ review: (x.review || []).filter((y) => y.id !== id) }));
   const saveP = (id, data) => getRepo().save(currentProject().id, [{ coll: 'points', id, data }]);
@@ -168,9 +168,10 @@ export function reviewModal(d, { onFocus, onChange } = {}) {
     list.replaceChildren(...items.map((x) => {
       const done = (fn) => () => { fn(); drop(x.id); items = items.filter((y) => y !== x); paint(); onChange?.(); if (!items.length) c(); };
       return h('div', { class: 'card', style: { margin: '6px 0', padding: '8px' } },
-        h('div', {}, h('b', {}, x.label || '(без номера)'), ' — ', h('span', { style: { color: KIND[x.kind]?.[1] } }, KIND[x.kind]?.[0] || x.kind), x.under ? ` (значок «${x.under}»)` : ''),
+        h('div', {}, h('b', {}, x.label || '(без номера)'), ' — ', h('span', { style: { color: KIND[x.kind]?.[1] } }, KIND[x.kind]?.[0] || x.kind), x.under ? ` (значок «${x.under}»)` : '', x.newLabel ? ` — на её месте теперь «${x.newLabel}» (похоже, переименовали; если приложение уже добавило «${x.newLabel}» новой точкой — это дубликат)` : ''),
         h('div', { class: 'btns', style: { marginTop: '6px' } },
           h('button', { class: 'sec', onclick: () => { c(); onFocus?.(x.id, x.to || null); } }, '👁 Показать'),
+          x.newLabel && onOpen ? h('button', { class: 'sec', onclick: () => { c(); onOpen(x.id); } }, '✏️ Карточка точки') : null,
           x.to ? h('button', { onclick: done(() => saveP(x.id, { pos: x.to })) }, '↪ На новое место') : null,
           h('button', { class: 'sec', onclick: done(() => {}) }, '✔ Оставить'),
           x.kind === 'missing' ? h('button', { class: 'sec', onclick: done(() => saveP(x.id, { pos: null })) }, '🚫 Снять с плана') : null));

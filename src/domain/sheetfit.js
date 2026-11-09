@@ -143,6 +143,7 @@ export function planMove(points, fits, oldSpans0, newSpans0, sheet) {
   const byText = new Map(); for (const s of newSpans) { const k = norm(s.t); if (!byText.has(k)) byText.set(k, []); byText.get(k).push(s); }
   const oldByPage = new Map(); for (const s of oldSpans) { const pg = s.page || 0; if (!oldByPage.has(pg)) oldByPage.set(pg, []); oldByPage.get(pg).push(s); }
   const used = new Set();   // занятые надписи нового листа (две отметки не прилипают к одной)
+  const newCount = new Map(); for (const sp of newSpans) { const k = norm(sp.t); newCount.set(k, (newCount.get(k) || 0) + 1); }
   const r1 = (v) => +(+v).toFixed(1);
 
   function classify(p) {
@@ -158,6 +159,10 @@ export function planMove(points, fits, oldSpans0, newSpans0, sheet) {
       const m = pick(byText.get(lab));
       if (m && !m.far) { used.add(m.s); return { kind: 'ok', pos: snapTo(m.s) }; }
       if (m) return { kind: 'moved', pos, to: snapTo(m.s), d: +(m.d / sc).toFixed(1) };
+      // на этом месте на новом листе — другое обозначение (точку переименовали: FA/C-62 → FC/C-62)
+      const other = newSpans.filter((sp) => (sp.page || 0) === f.newPage && !used.has(sp) && usable(norm(sp.t)) && norm(sp.t) !== lab && (newCount.get(norm(sp.t)) || 0) === 1 && dist(sp, pos) <= near)
+        .sort((a, b) => dist(a, pos) - dist(b, pos))[0];
+      if (other) return { kind: 'missing', pos: snapTo(other), newLabel: norm(other.t) };
       return { kind: 'missing', pos };
     }
     // 2) что было под точкой на старом листе (надпись значка: CR, WIFI, BRFC…)

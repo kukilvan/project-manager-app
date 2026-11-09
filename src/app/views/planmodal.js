@@ -330,6 +330,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
       // после «Новой версии чертежа»: точки, которые надо проверить (сдвинуты на новом листе, нет на нём, значок не на месте)
       const revBtn = h('button', { style: { display: 'none', background: '#ff9500' }, onclick: () => reviewModal(cur(), {
         onFocus: (id) => { const p = state.ctx.points.get(id); focusId = id; if (p?.pos) viewer.focus(p.pos.x, p.pos.y, p.pos.page || 0); viewer.draw(); },
+        onOpen: (id) => { const p = state.ctx.points.get(id); if (p) openCard?.(p); },
         onChange: () => setTimeout(() => { updateInfo(); viewer.draw(); }, 300) }) });
       updateInfo = () => {
         const nr = reviewOf(cur()).length; revBtn.style.display = nr ? '' : 'none'; revBtn.textContent = `⚠ Проверить после новой версии (${nr})`;

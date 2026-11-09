@@ -105,3 +105,12 @@ test('новая версия чертежа: точка, подписанная
   assert.equal(plan[0].kind, 'ok'); assert.equal(plan[0].pos.x, 150);
   assert.equal(offSheet([{ pos: { page: 0, x: 1200, y: 10 } }, { pos: { page: 0, x: 10, y: 10 } }, { kind: 'nofit' }], [{ w: 1000, h: 800 }]), 1);
 });
+
+test('новая версия чертежа: номер точки на новом листе заменён другим на том же месте — подсказка нового названия', () => {
+  const { old, neu } = sheets();
+  const i = neu.findIndex((s) => s.t === 'FA/C-07'); neu[i] = { ...neu[i], t: 'FC/C-07' };
+  const fits = fitSheets(uniquePairs(old, neu), [{ w: 2863, h: 1757 }]);
+  const s7 = old.find((x) => x.t === 'FA/C-07');
+  const plan = planMove([{ id: 'p7', label: 'FA/C-07', pos: { page: 0, x: s7.x, y: s7.y, w: s7.w, h: s7.h } }], fits, old, neu, { name: 'n.pdf', pages: [{ w: 2863, h: 1757 }] });
+  assert.equal(plan[0].kind, 'missing'); assert.equal(plan[0].newLabel, 'FC/C-07');
+});
