@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-10 — Ticket 1.3: app core documented («Тикет 1.3»)
+
+- All 35 modules of `src/app/` (with `tour/`), `src/main.js` (no header before), `src/edition.js`, `src/firebase.js`, `src/log.js` and `src/i18n/index.js` have an English header (first sentence = the code-map line; `repo.js` also a Contents list) and every Russian comment translated (359 comments); the seven entries removed from both `PENDING` lists. Commit `e5a5f8f`, branch `claude/s01-ticket-03`; deploy of `main` succeeded.
+- Proof: `node tools/same-code.mjs --expect tools/code-map.mjs --expect tools/ru-comments.mjs` — code identical without comments (the two tools differ only by the removed `PENDING` entries), built site byte-identical (28 files); 158/158 tests; `code-map --check` exit 0. The JSON dictionaries of `src/i18n/` untouched.
+- Comments that no longer matched the code were rewritten to say what it does (no bug found, no `KNOWN_ISSUES.md` entry): `drawings.js` named an old Drive folder (files now sit in the project's «Чертежи» folder), `shell.js` called the pending-send badge «⏳ N» (it shows «⬆ N»), `store.js` has two comments on one line (the second belongs to `nav`, kept in place), the first of two comments above the Drive placement in `managers.js` was older than the code under it. Cyrillic examples inside comments are in «…» (e.g. «С108» in `repo.js`).
+
 ## 2026-11-10 — Ticket 1.2: `src/domain/` documented («Тикет 1.2»)
 
 - All 30 modules of `src/domain/` have an English header comment (first sentence = the module's line in `docs/code-map.md`) and every Russian comment translated (409 comments); `src/domain/` removed from both `PENDING` lists. Commit `464c2a3`, branch `claude/s01-ticket-02`.
