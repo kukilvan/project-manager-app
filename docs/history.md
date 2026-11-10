@@ -2,6 +2,11 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-10 — Stage 1 slicing («Тикеты 1»)
+
+- Nine tickets in `.scratch/01-code-docs/issues/` accepted (01 tools, 02 domain, 03 app core, 04–06 views, 07 drawings/scripts/config, 08 tests and Python, 09 architecture and strict checks). Branch `claude/s01-tickets`. Ticket files stay `open` until their own sessions.
+- Found while slicing: the two Russian comment lines inserted by `src/domain/openrules.js` are string literals, so ticket 07 translates them (a string change); `same-code` check 1 lists `openrules.js` as an expected exception and the build differs only in the setup chunk with the open rules text. Noted in spec section 11, tickets 02 and 07.
+
 ## 2026-11-10 — Stage 1 spec («Спека 1»)
 
 - `.scratch/01-code-docs/spec.md` accepted. Branch `claude/s01-spec`.

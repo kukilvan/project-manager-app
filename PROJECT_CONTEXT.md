@@ -4,14 +4,14 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 ## Next step
 
-«Тикеты 1» — slicing of stage 1 «Code documentation»: one file per ticket in `.scratch/01-code-docs/issues/` from `.scratch/01-code-docs/spec.md`, section 14 (9 tickets; `PENDING` lists of section 9 and the stage self-check of section 10 go into each ticket). Model: Sonnet 5.5, effort high (`docs/models.md`).
+«Тикет 1.1» — ticket 01 of stage 1 «Code documentation»: the three tools (`tools/code-map.mjs`, `tools/ru-comments.mjs`, `tools/same-code.mjs`), KI-1, KI-2, docs; file `.scratch/01-code-docs/issues/01-tools.md`. Model: Opus 5.5, effort high (`docs/models.md`: complex ticket).
 
 Quick fixes «Правка: …» may come at any time; they do not change this step.
 
 ## State
 
 - Version 1.2.0 live at https://kukilvan.github.io/project-manager-app/; everything up to commit `2966523` checked by the owner on the phone (branch `rollback-2026-11-09b`; rollback point before stage 1: `rollback-2026-11-10`, same code). No code in flight.
-- Stage 1: description and spec accepted 2026-11-10 — all Russian comments translated in this stage; 9 tickets; every ticket proves «only comments changed, built site byte-identical» with `tools/same-code.mjs` (ticket 01) and goes live without waiting for «Работает»; the owner checks once after the stage review.
+- Stage 1: description, spec and slicing accepted 2026-11-10 — all Russian comments translated in this stage; 9 tickets in `.scratch/01-code-docs/issues/` (01 tools, 02 domain, 03 app core, 04–06 views, 07 drawings/scripts/config, 08 tests and Python, 09 architecture and strict checks); every ticket proves «only comments changed, built site byte-identical» with `tools/same-code.mjs` (ticket 01) and goes live without waiting for «Работает»; the owner checks once after the stage review.
 - 2026-11-10: project moved onto this workflow (`docs/history.md`); `HANDOFF.md` split into these docs and removed (original at commit `44ac16d`).
 - Tests: 144, 141 pass on the owner's Windows PC (KI-1, KI-2); all pass on the Linux deploy.
 - The owner's NAS arrives 2026-11-11 without disks; its setup is a separate project. This app hands it requirements in stage 2.
