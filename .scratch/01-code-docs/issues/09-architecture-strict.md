@@ -23,7 +23,7 @@ The last ticket: the hand-written architecture part of `docs/code-map.md`, writt
 
 - Both tools have no `PENDING` and no pending code paths; `node tools/code-map.mjs --check` and `node tools/ru-comments.mjs` exit 0 on the whole repo.
 - `docs/code-map.md` has the architecture section (≤ 10,000 bytes in all) and a full module list.
-- `node tools/same-code.mjs` exits 0; the changed-file list shows only the expected exceptions of spec 10: the two tools and the test; the built site is byte-identical.
+- `node tools/same-code.mjs --expect tools/code-map.mjs --expect tools/ru-comments.mjs --expect tests/code-docs.test.js` exits 0 (spec 6.2, `--expect` added in ticket 01); the changed-file list shows only the expected exceptions of spec 10: the two tools and the test; the built site is byte-identical.
 - `npm test` and `npm run build` pass; the deploy of `main` succeeded.
 
 ## Tests to add

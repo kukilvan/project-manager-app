@@ -1,9 +1,10 @@
-// Перевод интерфейса: проверка tr() на типичных строках (значки, кавычки в названиях, числа в скобках, шаблоны).
+// Checks UI translation (src/i18n/index.js): tr() on typical strings — icons, quotes in names, numbers in brackets, templates.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const root = new URL('../src/i18n/', import.meta.url);
 async function load(lang) {
@@ -14,7 +15,7 @@ async function load(lang) {
     .replace("import he from './he.json';", `const he = ${read('he.json')};`);
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'i18n-')), `i18n-${lang}.mjs`);
   fs.writeFileSync(file, src);
-  return import(file);
+  return import(pathToFileURL(file).href);
 }
 
 test('i18n: английский', async () => {

@@ -24,7 +24,7 @@ One rule per item: the rule, why, how it is checked. Reviews check against this 
 
 **Why.** Every spec, ticket and review session reads the code map. A hand-written map drifts from the code; a built one stays short and true, and a comment next to the code is edited together with the code.
 
-**Checked.** The code-map test (stage 1): the committed map equals the built one, every module has a header, no first sentence is over 200 characters.
+**Checked.** `tests/code-docs.test.js` and `node tools/code-map.mjs --check`: the committed map equals the built one, every module has an English header (except the paths still in `PENDING` during stage 1), no first sentence is over 200 characters.
 
 ## 4. Domain logic is pure and tested
 
@@ -73,3 +73,19 @@ One rule per item: the rule, why, how it is checked. Reviews check against this 
 **Why.** Both bugs happened and are easy to repeat.
 
 **Checked.** Review of new views.
+
+## 10. Comments are in English
+
+**Rule.** Code comments (JS, CSS, Python, YAML, Firestore rules) are written in English. Cyrillic in a comment only inside `«…»`, for UI text or data (`// the «Точки» tab`). Strings stay as they are: UI texts, event-log lines, test names, Russian data.
+
+**Why.** One language for every session that reads the code; a mixed codebase costs more to read and search.
+
+**Checked.** `tests/code-docs.test.js` (through `tools/ru-comments.mjs`): every Russian comment of the scope is in a path still listed in `PENDING` (stage 1 empties the list).
+
+## 11. A comment-only change keeps the built site identical
+
+**Rule.** A change meant to touch only comments and docs is proved with `node tools/same-code.mjs`: check 1 — the code of every changed file is the same without comments; check 2 — the base commit and the working tree build into byte-identical sites. Code changes a ticket intends are named with `--expect <path>`; the built site is never excused.
+
+**Why.** Comment and doc changes then need no browser walk and cannot break the live site.
+
+**Checked.** The tool in the self-check of every such change.

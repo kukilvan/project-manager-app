@@ -80,6 +80,14 @@ The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. 
 
 **Delta read** (code: `updatedAtServer`, `src/domain/sync.js`) — reading only changes since the last load; a full read on Saturdays.
 
+## Development
+
+**Header comment** — the leading comment of a module (`//` lines or one `/* … */` block); its first sentence says what the module holds and is the module's line in the code map.
+
+**Code map** (code: `docs/code-map.md`) — what lives where; its module list is built from the header comments by `tools/code-map.mjs`, never edited by hand.
+
+**Same-code check** (code: `tools/same-code.mjs`) — proof that a change touched only comments: the code of every changed file is the same without comments, and the built site is byte-identical.
+
 ## Trade words
 
 | Word | Meaning |

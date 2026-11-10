@@ -1,0 +1,2 @@
+firestore.rules text eol=lf
+firestore.open.rules text eol=lf

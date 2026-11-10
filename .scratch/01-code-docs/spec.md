@@ -110,6 +110,8 @@ Behaviour as in `docs/formats.md`, "Code map", plus:
 
 Exit codes: 0 — same; 1 — code or built site differs; 2 — the tool could not run (git, build error).
 
+Added in ticket 01: `--expect <path>` (repeatable; a folder entry matches the files directly in it) names a code change the ticket intends — the expected exceptions of section 10 (ticket 01: `--expect tools/ --expect tests/code-docs.test.js --expect tests/i18n.test.js`; ticket 07: `--expect src/domain/openrules.js`; ticket 09: the two tools and the test). They are listed for reading and do not fail check 1; check 2 is never excused. Without it the expected exceptions could not pass with exit 0.
+
 ### 6.3 Commands a ticket uses
 
 - Regenerate open rules (PowerShell, project folder): `node --input-type=module -e "import fs from 'node:fs'; import { openRules } from './src/domain/openrules.js'; fs.writeFileSync('firestore.open.rules', openRules(fs.readFileSync('firestore.rules', 'utf8')))"`
@@ -157,7 +159,7 @@ Ticket 01 fills both lists with every path below; each later ticket deletes its 
 | Ticket | Entries removed from `PENDING` (code map / Russian comments) |
 |---|---|
 | 02 domain | `src/domain/` |
-| 03 app core | `src/app/`, `src/main.js`, `src/edition.js`, `src/firebase.js`, `src/log.js`, `src/i18n/` |
+| 03 app core | `src/app/`, `src/app/tour/`, `src/main.js`, `src/edition.js`, `src/firebase.js`, `src/log.js`, `src/i18n/` |
 | 04 views 1 | `src/app/views/` files: `points racks pullview racktable pointmerge pointsfile pointchooser cablespick doorchips doorcfgview ownworks latinfix` |
 | 05 views 2 | `planmodal tohnitview planversion planpick planlink planview planassign plannumbers pdfpick import guide` |
 | 06 views 3 | `doh settings wizard catalogview project poolview shilutsettings managersfolder tables todos sheetslist history manualsview members journal projects month log` |

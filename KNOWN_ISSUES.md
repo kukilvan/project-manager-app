@@ -13,8 +13,8 @@ Bugs decided not to fix now, and rare cases where the app can go wrong (source d
 
 | ID | Title | Where | Status | Fix in |
 |---|---|---|---|---|
-| KI-1 | i18n tests import a Windows path without `file://` | `tests/i18n.test.js` | open | stage 1 |
-| KI-2 | open-rules test fails on CRLF checkout | `tests/domain.test.js`, `src/domain/openrules.js` | open | stage 1 |
+| KI-1 | i18n tests import a Windows path without `file://` | `tests/i18n.test.js` | fixed | stage 1, ticket 1.1 |
+| KI-2 | open-rules test fails on CRLF checkout | `tests/domain.test.js`, `src/domain/openrules.js` | fixed | stage 1, ticket 1.1 |
 
 ## Entries
 
@@ -37,7 +37,7 @@ Entry format:
 - What's wrong: `import()` gets a plain absolute path; on Windows Node needs a `file://` URL (`pathToFileURL`).
 - How to reproduce: `npm test` on Windows → «i18n: английский» and «i18n: иврит» fail with `ERR_UNSUPPORTED_ESM_URL_SCHEME`, protocol `c:`.
 - Likelihood / impact: always on Windows; test-only, the app and the Linux deploy are unaffected.
-- Status: open
+- Status: fixed (test: «i18n: английский», «i18n: иврит» pass on Windows) — 2026-11-10, ticket 1.1: the test imports `pathToFileURL(file).href`.
 - Found: 2026-11-10, adoption (first run on the owner's PC).
 
 ## KI-2. open-rules test fails on CRLF checkout
@@ -46,5 +46,5 @@ Entry format:
 - What's wrong: with `core.autocrlf=true` the rules files are checked out with CRLF; git stores them with LF and there is no `.gitattributes`; `openRules` inserts its own lines joined with `\n`, so the generated text mixes CRLF and LF and differs from the CRLF `firestore.open.rules` (cause confirmed 2026-11-10, stage 1 description).
 - How to reproduce: `npm test` on Windows with `core.autocrlf=true` → that test fails.
 - Likelihood / impact: always on this PC; test-only, the deploy runs on Linux with LF.
-- Status: open
+- Status: fixed (test: «правила открытой версии: без вшитой почты, администратор из meta/admin» passes on Windows) — 2026-11-10, ticket 1.1: `.gitattributes` keeps both rules files LF on every checkout.
 - Found: 2026-11-10, adoption.

@@ -12,11 +12,11 @@ English headers and comments for `src/app/*.js` (files directly in the folder, n
 
 ## What to do
 
-1. List the work: `node tools/ru-comments.mjs src/app/ src/main.js src/edition.js src/firebase.js src/log.js src/i18n/`.
+1. List the work: `node tools/ru-comments.mjs src/app/ src/app/tour/ src/main.js src/edition.js src/firebase.js src/log.js src/i18n/`. `src/app/tour/` (4 files) was missing from the spec table; ticket 01 added it to both `PENDING` lists and it belongs here.
 2. For each file: read it, write the header (first sentence ≤ 200 characters; say what it talks to — storage, `localStorage` keys, Firestore, Drive, Sheets, who calls it; `Contents` for files of 30 KB or more, e.g. `repo.js`), translate every Russian comment by meaning (spec 4). `src/main.js` has no header today: write one.
 3. `src/i18n/`: the JS files only. The JSON files (`en.json`, `he.json`, `src/*.json`) are strings, not comments, and stay as they are.
 4. Words of `CONTEXT.md`. Wrong comments: say what the code does, add a `KNOWN_ISSUES.md` entry if it looks like a bug. Never change code.
-5. Remove from both `PENDING` lists: `src/app/`, `src/main.js`, `src/edition.js`, `src/firebase.js`, `src/log.js`, `src/i18n/`.
+5. Remove from both `PENDING` lists: `src/app/`, `src/app/tour/`, `src/main.js`, `src/edition.js`, `src/firebase.js`, `src/log.js`, `src/i18n/`.
 6. `node tools/code-map.mjs` to refresh `docs/code-map.md`.
 
 ## Done when

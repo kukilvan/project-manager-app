@@ -30,7 +30,7 @@ English headers and comments for `src/tohnit/`, `scripts/`, `src/style.css`, `vi
 
 - `node tools/ru-comments.mjs <the paths above>` prints none; the entries are gone from both `PENDING` lists.
 - `node tools/code-map.mjs --check` exits 0; every module of `src/tohnit/` and `scripts/` has a real English sentence in the map.
-- `node tools/same-code.mjs`: the only expected report beyond comment-only files is `src/domain/openrules.js` (two translated string literals, read and confirmed); the rules files are comment-only; the built site differs from the base only in the setup chunk that carries the open rules text (spec 6.2, 11), nothing else.
+- `node tools/same-code.mjs --expect src/domain/openrules.js` (spec 6.2, added in ticket 01): the only expected report beyond comment-only files is `src/domain/openrules.js` (two translated string literals, read and confirmed); the rules files are comment-only; the built site differs from the base only in the setup chunk that carries the open rules text (spec 6.2, 11), nothing else.
 - `npm test` and `npm run build` pass; the deploy of `main` succeeded.
 
 ## Tests to add

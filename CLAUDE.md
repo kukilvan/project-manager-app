@@ -19,12 +19,13 @@ Offline-first PWA for low-voltage installers in Israel: project points, drawings
 Owner's shell: PowerShell, in the project folder. Node.js 22+.
 
 - Install dependencies: `npm ci`
-- Tests: `npm test` (node:test; known Windows failures in `PROJECT_CONTEXT.md`)
+- Tests: `npm test` (node:test)
 - Build: `npm run build` (output `dist/`)
 - Start locally: `npx vite preview --port 4176` after a build, open `http://localhost:4176/project-manager-app/?mem=1` (test mode, `docs/workflow.md`); stop: Ctrl+C in that window
 - Dev server with reload: `npm run dev`
 - Translations after adding UI strings: `node scripts/i18n-build.mjs`
-- Code map: stage 1 adds the command (`tools/code-map.mjs`)
+- Code map: `node tools/code-map.mjs` (check only: `--check`)
+- Only comments changed: `node tools/same-code.mjs`
 - Deploy: push to `main`; watch it: `gh run list --workflow pages.yml --limit 1`
 
 ## Agent skills
