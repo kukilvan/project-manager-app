@@ -188,6 +188,7 @@ After the deploy the ticket session marks the ticket `accepted`, updates `PROJEC
 - **The pool bot commits `src/data/starter-pool.json` to `main` mid-ticket:** not code, `same-code` lists it as "not compared"; the merge base moves only when the ticket rebases, and the self-check runs after the rebase.
 - **The worktree or junction is left after a crash:** the next run removes a stale worktree of its own (`git worktree prune` and a fixed temp name under the OS temp folder) before creating a new one.
 - **Template literal with CRLF in a file checked out on Windows:** JS normalises it to LF; both trees are checked out the same way, so the comparison is fair.
+- **Slicing note (ticket 07):** the two Russian comment lines that `src/domain/openrules.js` inserts are string literals there, so translating them is a string change: `same-code` check 1 lists `openrules.js` as changed in ticket 07 (expected exception, checked by reading), and the built site differs only in the setup chunk with the open rules text.
 - **`firestore.rules` comment-only change:** `same-code` check 1 proves it; the build then compares with the new open rules copied into the base, so the only real change of the site — the comment text the wizard copies — is the one intended. Databases already set up need nothing (probe check, section 1).
 
 ## 12. What the owner checks (once, after the stage review)
