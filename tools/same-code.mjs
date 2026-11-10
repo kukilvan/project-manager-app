@@ -29,9 +29,10 @@ function jsTokens(text) {
   const tokens = [];
   acorn.parse(text, { ecmaVersion: 'latest', sourceType: 'module', allowHashBang: true, onToken: tokens });
   let prevEnd = 0;
-  return tokens.map((t) => {
+  return tokens.map((t, i) => {
     const v = t.value && typeof t.value === 'object' && 'pattern' in t.value ? `/${t.value.pattern}/${t.value.flags}` : String(t.value);
-    const key = `${t.type.label} ${typeof t.value} ${v}${LINE_BREAK.test(text.slice(prevEnd, t.start)) ? ' (line break before)' : ''}`;
+    // The first token has no statement before it, so a line break (a header comment added above it) cannot change the code.
+    const key = `${t.type.label} ${typeof t.value} ${v}${i > 0 && LINE_BREAK.test(text.slice(prevEnd, t.start)) ? ' (line break before)' : ''}`;
     prevEnd = t.end;
     return { key, line: lineOf(text, t.start) };
   });

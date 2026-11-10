@@ -1,9 +1,10 @@
-// Точки из устройств (составная модель).
-// Кабель (cables) — вид кабеля и работы, которых требует каждый кабель (cat7: хивут кистона, хивут в шкафу, проверка, шилют).
-// Устройство (devices) — кабели (0..n видов с количеством) + свои работы (установка авизара и т. п.).
-// Тип точки (types) — состав по умолчанию: devices: [{ deviceId, count }] + работы на всю точку (workIds, например проверка двери).
-// Точка может иметь свой состав (point.devices). Тип без поля devices работает по старой схеме (status.js).
-// Работа в отчёте отмечается на точку; entry.deviceIds (если есть) — только для этих устройств, entry.cableId — только этот вид кабеля.
+// Composition of points from devices (the composite model): tasks, stages and statuses of a point computed from cables, devices and its type.
+// Cable (cables) — the cable kind and the works every cable requires (cat7: keystone termination, termination in the rack, checking, port labels).
+// Device (devices) — cables (0..n kinds with counts) + its own works (installing a door accessory etc.).
+// Point type (types) — the default composition: devices: [{ deviceId, count }] + works for the whole point (workIds, e.g. checking a door).
+// A point may have its own composition (point.devices). A type without the devices field works the old way (status.js).
+// A work in a report is marked on a point; entry.deviceIds (if present) — only for those devices, entry.cableId — only that cable kind.
+// Built on doorcfg.js and points.js; used by status.js, doh.js, merge.js and ownworks.js.
 
 import { doorCfgOf } from './doorcfg.js';
 import { cablesCountOf } from './points.js';
@@ -13,28 +14,28 @@ const maxDate = (rows) => rows.reduce((m, r) => (r.date && (!m || r.date > m) ? 
 export const STAGES = ['Протяжка', 'Хивут', 'Установка', 'Проверка', 'Шилют'];
 
 export const isComposedType = (type) => Array.isArray(type?.devices) || (Array.isArray(type?.cables) && type.cables.length > 0);
-// Состав точки: свой или из типа; null — старая схема
+// The point's composition: its own or from the type; null — the old scheme
 export function compositionOf(point, ctx) {
   const type = ctx.types.get(point.typeId);
   if (Array.isArray(point.devices)) return point.devices;
-  const cfg = doorCfgOf(point, ctx); if (cfg) return cfg.devices;   // дверь с конфигурацией: состав из неё
+  const cfg = doorCfgOf(point, ctx); if (cfg) return cfg.devices;   // a door with a configuration: the composition comes from it
   return isComposedType(type) ? (type.devices || []) : null;
 }
 const cleanList = (list) => (Array.isArray(list) ? list : [])
   .filter((c) => c && !blank(c.cable) && Number(c.count) > 0).map((c) => ({ cable: String(c.cable), count: Number(c.count) }));
-// Кабели самой точки (не устройств): например, дверь, где 4 авизара сидят на одном кабеле. Свои у точки или из типа.
+// Cables of the point itself (not of its devices): for example a door where 4 door accessories sit on one cable. The point's own or from the type.
 export const POINT_CABLES = '#';
 export function pointCablesOf(point, ctx) {
   const type = ctx.types.get(point.typeId);
   return cleanList(Array.isArray(point.cables) ? point.cables : type?.cables);
 }
-// Устройства точки как список [{ deviceId, count, dev }] + «кабели точки» как устройство '#'
-// point.cableOverride: [{ cable, count }] — свои кабели точки целиком (вместо кабелей устройств и типа), например «RJ45 X2» = 2 кабеля
+// The point's devices as a list [{ deviceId, count, dev }] + the «point's cables» as the device '#'
+// point.cableOverride: [{ cable, count }] — the point's own cables as a whole (instead of the devices' and the type's cables), e.g. «RJ45 X2» = 2 cables
 const hasOverride = (point) => Array.isArray(point?.cableOverride);
 function partsOf(point, ctx, comp) {
-  // у двери с конфигурацией кабели — из конфигурации (на всю дверь), а не от устройств
+  // for a door with a configuration the cables come from the configuration (for the whole door), not from the devices
   const cfgCables = !hasOverride(point) && !Array.isArray(point.devices) ? doorCfgOf(point, ctx)?.cables : null;
-  // у точки устройство может быть изменено: свои кабели (cables) и/или работы (workIds) вместо заданных в «Устройствах»
+  // a point's device may be changed: its own cables (cables) and/or works (workIds) instead of those set in «Устройства»
   const parts = (comp || []).map((e) => {
     const base = ctx.devices?.get(e.deviceId);
     const dev = base && { ...base, cables: Array.isArray(e.cables) ? e.cables : base.cables, workIds: Array.isArray(e.workIds) ? e.workIds : base.workIds };
@@ -46,18 +47,18 @@ function partsOf(point, ctx, comp) {
 }
 export const partName = (ctx, deviceId) => (deviceId === POINT_CABLES ? 'Кабели точки' : ctx.devices?.get(deviceId)?.name || deviceId);
 
-// Задачи точки: [{ key, stage, deviceId, cable?, workId?, qty }]
+// The point's tasks: [{ key, stage, deviceId, cable?, workId?, qty }]
 export function tasksOf(point, ctx, comp = compositionOf(point, ctx)) {
   const type = ctx.types.get(point.typeId);
   const tasks = [];
   partsOf(point, ctx, comp).forEach(({ deviceId, count: n, dev }) => {
-    const workQty = new Map(); // workId → количество (кабельные работы — на каждый кабель)
+    const workQty = new Map(); // workId → quantity (cable works — per cable)
     const addWork = (w, q) => workQty.set(w, (workQty.get(w) || 0) + q);
     cleanList(dev.cables).forEach((c) => {
       tasks.push({ key: `${deviceId}|pull|${c.cable}`, stage: 'Протяжка', deviceId, cable: c.cable, qty: n * c.count });
       (ctx.cables.get(c.cable)?.workIds || []).forEach((w) => addWork(w, n * c.count));
     });
-    // работа устройства, которая уже приходит от его кабеля, — не второй раз (нижний уровень главнее)
+    // a device work that already comes from its cable is not counted a second time (the lower level wins)
     (dev.workIds || []).forEach((w) => { if (!workQty.has(w)) addWork(w, n); });
     workQty.forEach((qty, workId) => {
       const work = ctx.catalog.get(workId); if (!work) return;
@@ -66,16 +67,16 @@ export function tasksOf(point, ctx, comp = compositionOf(point, ctx)) {
   });
   const fromParts = new Set(tasks.map((t) => t.workId).filter(Boolean));
   (type?.workIds || []).forEach((workId) => {
-    const work = ctx.catalog.get(workId); if (!work || fromParts.has(workId)) return;  // уже есть у устройства/кабеля точки
+    const work = ctx.catalog.get(workId); if (!work || fromParts.has(workId)) return;  // the point's device/cable already has it
     tasks.push({ key: `*|${workId}`, stage: work.workType, deviceId: null, workId, qty: 1 });
   });
   return applyOwnWorks(tasks, point, ctx, cablesTotalOf(point, ctx, comp));
 }
 
-// ---------- свой набор работ точки ----------
-// point.ownWorks: [{ workId, qty, per? }] — поверх того, что приходит от типа, устройств и кабелей:
-// работа добавляется, если её нет; количество заменяет посчитанное по составу; qty 0 — работа у точки убрана;
-// per: 'cable' — qty на каждый кабель точки (у двойного бакара 2 кабеля → 2 штуки, у одинарного — 1).
+// ---------- the point's own set of works ----------
+// point.ownWorks: [{ workId, qty, per? }] — on top of what comes from the type, devices and cables:
+// a work is added if it is missing; the quantity replaces the one computed from the composition; qty 0 — the work is removed from the point;
+// per: 'cable' — qty per cable of the point (a double controller has 2 cables → 2 pieces, a single one — 1).
 export const OWN_STAGES = ['Хивут', 'Установка', 'Проверка', 'Шилют'];
 export const ownWorksOf = (point) => (Array.isArray(point?.ownWorks) ? point.ownWorks : [])
   .filter((x) => x && !blank(x.workId) && Number(x.qty) >= 0);
@@ -89,14 +90,14 @@ function applyOwnWorks(tasks, point, ctx, cablesTotal) {
     const cur = out.filter((t) => t.workId === o.workId);
     out = out.filter((t) => t.workId !== o.workId);
     const qty = ownQty(o, cablesTotal); if (!(qty > 0)) return;
-    // работа одного устройства остаётся за ним (галочки устройств в отчёте), иначе — на всю точку
+    // a work of a single device stays with it (the devices' ticks in the report), otherwise it is for the whole point
     const one = cur.length === 1 ? cur[0] : null;
     out.push({ key: one ? one.key : `+|${o.workId}`, stage: work.workType, deviceId: one ? one.deviceId : null, workId: o.workId, qty, own: true });
   });
   return out;
 }
 
-// Кабели точки по видам: [{ cable, count }]
+// The point's cables by kind: [{ cable, count }]
 export function composedCables(point, ctx, comp = compositionOf(point, ctx)) {
   const out = [];
   partsOf(point, ctx, comp).forEach(({ count, dev }) => {
@@ -110,7 +111,7 @@ export function composedCables(point, ctx, comp = compositionOf(point, ctx)) {
 }
 
 const forDevice = (row, deviceId) => !row.deviceIds?.length || deviceId === null || row.deviceIds.includes(deviceId);
-// Строки журнала, закрывающие задачу
+// Journal rows that close a task
 export function rowsForTask(task, rows, kinds) {
   if (task.stage === 'Протяжка' && task.cable) {
     return rows.filter((r) => r.action === 'Протяжка' && forDevice(r, task.deviceId)
@@ -119,7 +120,7 @@ export function rowsForTask(task, rows, kinds) {
   return rows.filter((r) => r.workId === task.workId && forDevice(r, task.deviceId));
 }
 
-// Шилют по портам: строки с числом портов (кнопка «Поклеил» на части портов) закрывают задачу, только когда набралось по числу портов cat7
+// Port labels by ports: rows with a number of ports (the «Поклеил» button on some of the ports) close the task only when the number of cat7 ports is reached
 export const isPortCable = (id) => /cat\s*-?\s*7/i.test(String(id || ''));
 export function doneByPorts(task, hit, cableList) {
   if (task.stage !== 'Шилют') return true;
@@ -128,7 +129,7 @@ export function doneByPorts(task, hit, cableList) {
   const total = (cableList || []).filter((c) => isPortCable(c.cable)).reduce((n, c) => n + c.count, 0);
   return !total || part.reduce((n, r) => n + Number(r.ports || 0), 0) >= total;
 }
-// Сводка составной точки в том же виде, что pointInfo старой схемы (+ tasks, stages)
+// Summary of a composite point in the same form as pointInfo of the old scheme (+ tasks, stages)
 export function composedInfo(point, ctx, comp) {
   const rows = ctx.journalByPoint.get(point.id) || [];
   const cableList = composedCables(point, ctx, comp);
@@ -179,7 +180,7 @@ export function composedInfo(point, ctx, comp) {
   };
 }
 
-// Сколько единиц работы даёт запись на точку (для отчёта): по задачам точки; null — точка старой схемы или задачи нет
+// How many units of work an entry gives on a point (for the report): by the point's tasks; null — the point is of the old scheme or there is no task
 export function taskQty(point, ctx, entry) {
   const comp = compositionOf(point, ctx); if (!comp) return null;
   const tasks = tasksOf(point, ctx, comp);
@@ -191,7 +192,7 @@ export function taskQty(point, ctx, entry) {
   return list.length ? list.reduce((n, t) => n + t.qty, 0) : null;
 }
 
-// Устройства точки, к которым относится работа (для галочек в отчёте): [{ deviceId, name }]
+// The point's devices the work applies to (for the ticks in the report): [{ deviceId, name }]
 export function devicesForWork(points, ctx, workId, workType, { onlyOpen = false } = {}) {
   const pick = (open) => {
     const seen = new Map();
@@ -205,12 +206,12 @@ export function devicesForWork(points, ctx, workId, workType, { onlyOpen = false
     });
     return [...seen.entries()].map(([deviceId, name]) => ({ deviceId, name }));
   };
-  // onlyOpen: только устройства, по которым работа ещё не сделана (если таких нет — все, например для повторной проверки)
+  // onlyOpen: only the devices on which the work is not done yet (if there are none — all of them, e.g. for a repeated check)
   const list = onlyOpen ? pick(true) : [];
   return list.length ? list : pick(false);
 }
 
-// Чего не хватает составной точке: [{ stage, items: [название устройства или работы] }]
+// What a composite point lacks: [{ stage, items: [device or work name] }]
 export function missingDetails(info, ctx) {
   const by = new Map();
   info.tasks.filter((t) => !t.done).forEach((t) => {
@@ -224,35 +225,35 @@ export function missingDetails(info, ctx) {
   return [...by.entries()].sort((a, b) => ord(a[0]) - ord(b[0])).map(([stage, items]) => ({ stage, items }));
 }
 
-// ---------- работа с отчётом ----------
+// ---------- working with the report ----------
 const PULL_LIKE = ['Протяжка', 'Перетяжка', 'Перенос'];
 const ALL_STD = ['Камера', 'Дверь', 'Галай', 'Вайфай', 'Бакар', 'Точка', 'TV', 'Оптика', 'Другое'];
-// Подходит ли работа точке: старая схема — по «Для каких типов точек»; из устройств — если работа есть в её задачах
+// Whether a work fits the point: the old scheme — by «Для каких типов точек»; from devices — if the work is among its tasks
 export function workFits(point, ctx, work) {
   if (!work) return false;
   const comp = compositionOf(point, ctx);
   if (!comp) return (work.forTypes || []).includes(point.typeId);
-  // протяжка — любая точка из устройств; перетяжка/перенос — если отмечен этот тип или работа отмечена для всех стандартных типов
+  // a pull — any point made of devices; re-pull/move — if this type is ticked or the work is ticked for all standard types
   if (work.workType === 'Протяжка') return (work.forTypes || []).length > 0;
   if (PULL_LIKE.includes(work.workType)) return (work.forTypes || []).includes(point.typeId) || ALL_STD.every((t) => (work.forTypes || []).includes(t));
-  if (ownWorksOf(point).some((o) => o.workId === work.id && !(Number(o.qty) > 0))) return false;   // убрана у точки
+  if (ownWorksOf(point).some((o) => o.workId === work.id && !(Number(o.qty) > 0))) return false;   // removed from the point
   return (work.forTypes || []).includes(point.typeId) || tasksOf(point, ctx, comp).some((t) => t.workId === work.id);
 }
-// Работа выбирается по точкам (а не количеством)
+// The work is chosen by points (not by quantity)
 export function workUsesPoints(work, ctx) {
   if (!work) return false;
   if ((work.forTypes || []).length) return true;
   return [...ctx.points.values()].some((p) => compositionOf(p, ctx) && workFits(p, ctx, work));
 }
-// Несделанные задачи точки по работе (с учётом галочек устройств); null — точка старой схемы
+// The point's open tasks for a work (taking the devices' ticks into account); null — the point is of the old scheme
 export function openTasksFor(point, ctx, work, deviceIds) {
   const comp = compositionOf(point, ctx); if (!comp) return null;
   return composedInfo(point, ctx, comp).tasks.filter((t) => !t.done
     && (work.workType === 'Протяжка' ? t.stage === 'Протяжка' : t.workId === work.id)
     && (!deviceIds?.length || t.deviceId === null || deviceIds.includes(t.deviceId)));
 }
-// Протяжка по точкам: по записи на каждый вид кабеля, только то, что ещё не протянуто.
-// mainCable(point) — кабель точки старой схемы. → { groups: [[cableId, pointIds]], done: [метки уже протянутых] }
+// Pull by points: one entry per cable kind, only what is not pulled yet.
+// mainCable(point) — the cable of an old-scheme point. → { groups: [[cableId, pointIds]], done: [labels of those already pulled] }
 export function pullGroups(points, ctx, deviceIds, mainCable) {
   const m = new Map(); const done = [];
   const add = (cable, id) => { const k = cable || ''; if (!m.has(k)) m.set(k, []); if (!m.get(k).includes(id)) m.get(k).push(id); };
@@ -265,7 +266,7 @@ export function pullGroups(points, ctx, deviceIds, mainCable) {
   return { groups: [...m.entries()].map(([c, ids]) => [c || undefined, ids]), done };
 }
 
-// ---------- проверка справочников на противоречия ----------
+// ---------- check of the reference lists for contradictions ----------
 // → [{ level: 'error' | 'warn' | 'info', text }]
 export function auditRefs(ctx) {
   const out = []; const W = (id) => ctx.catalog.get(id)?.name || id;
@@ -298,7 +299,7 @@ export function auditRefs(ctx) {
   return out;
 }
 
-// Работы, которые уже приходят с нижнего уровня (для серых галочек и для очистки повторов): Map workId → откуда
+// Works that already come from the lower level (for the grey ticks and for removing duplicates): Map workId → where from
 export function inheritedFromCables(ctx, cables = []) {
   const out = new Map();
   (cables || []).forEach((c) => (ctx.cables.get(c.cable)?.workIds || []).forEach((w) => { if (!out.has(w)) out.set(w, `кабель «${c.cable}»`); }));
@@ -315,9 +316,9 @@ export function inheritedOfType(ctx, devices = [], cables = []) {
   return out;
 }
 
-/** Есть ли у точки кабель (значит, у неё есть что протягивать и мерить). Кабель могли убрать у типа, устройств или у самой точки. */
+/** Whether the point has a cable (so it has something to pull and measure). The cable may have been removed from the type, the devices or the point itself. */
 export function hasCablesOf(point, ctx) {
   const comp = compositionOf(point, ctx);
-  if (comp === null && !hasOverride(point)) return cablesCountOf(point, ctx) > 0;   // старая схема
+  if (comp === null && !hasOverride(point)) return cablesCountOf(point, ctx) > 0;   // old scheme
   return composedCables(point, ctx, comp || []).length > 0;
 }

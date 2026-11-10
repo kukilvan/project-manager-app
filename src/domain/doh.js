@@ -1,21 +1,22 @@
-// Текст «отчёта» (отчёт за день) на русском, иврите и английском (раздел 3.5, Приложение А).
-// Английские названия работ, кабелей, единиц и т. п. берутся из словаря интерфейса (setNameTranslator).
+// Text of the daily report («дох») in Russian, Hebrew and English (section 3.5, Appendix A).
+// English names of works, cables, units etc. come from the interface dictionary (setNameTranslator).
+// Built on points.js and compose.js; month.js, merge.js, export.js and the report views reuse its figures.
 import { round2, cableCountFor } from './points.js';
 import { taskQty } from './compose.js';
 
-// Формат отчёта как в настоящих дохах Ивана (WhatsApp): дата, на следующей строке объект и помощник,
-// затем каждая работа отдельным абзацем. Однострочная шапка (дата объект помощник) — для месячного списка.
+// Report format as in Ivan's real daily reports (WhatsApp): the date, on the next line the project and the helper,
+// then each work as a separate paragraph. The one-line header (date project helper) is for the month list.
 export const DOH_FORMAT = { headerSep: '\n', blockSep: '\n\n', oneLineSep: ' ' };
 
 let trName = (s) => s;
-/** Перевод названий для английского отчёта (по-русски хранится в данных) */
+/** Translation of names for the English report (Russian is what the data stores) */
 export const setNameTranslator = (fn) => { trName = fn || ((s) => s); };
 const en = (s) => (blank(s) ? s : trName(String(s)));
 
 const blank = (v) => v === undefined || v === null || v === '';
 const num = (v) => (blank(v) ? 0 : Number(v));
 
-export function dateText(iso) { // 'YYYY-MM-DD' → 'ДД.ММ.ГГГГ'
+export function dateText(iso) { // 'YYYY-MM-DD' → 'DD.MM.YYYY'
   const [y, m, d] = String(iso).split('-');
   return `${d}.${m}.${y}`;
 }
@@ -23,25 +24,25 @@ export function dateText(iso) { // 'YYYY-MM-DD' → 'ДД.ММ.ГГГГ'
 const isTime = (entry, work) => entry.workType === 'Время' || work?.unit === 'мин';
 const entryPoints = (entry, ctx) => (entry.pointIds || []).map((id) => ctx.points.get(id)).filter(Boolean);
 
-// «Итог шт»: сколько единиц работы (0 для времени)
+// «Итог шт» (total pieces): how many units of work (0 for time)
 export function itogShtuk(entry, ctx) {
   const work = ctx.catalog.get(entry.workId);
   if (isTime(entry, work)) return 0;
   const pts = entryPoints(entry, ctx);
-  // точка из устройств: столько единиц, сколько задач этой работы (две двери с двумя коре — 4); иначе 1 на точку
-  const portsOf = (p) => (Array.isArray(entry.portQty) ? entry.portQty.find((q) => q && q.id === p.id)?.v : undefined);   // шилют части портов точки
+  // a point made of devices: as many units as this work has tasks (two doors with two readers — 4); otherwise 1 per point
+  const portsOf = (p) => (Array.isArray(entry.portQty) ? entry.portQty.find((q) => q && q.id === p.id)?.v : undefined);   // port labels on some of the point's ports
   const base = pts.length ? pts.reduce((n, p) => n + (portsOf(p) ?? taskQty(p, ctx, entry) ?? 1), 0) : num(entry.quantity);
   return round2(base * (blank(work?.multiplier) ? 1 : Number(work.multiplier)));
 }
 
 export function pullFigures(entry, ctx) {
   const pts = entryPoints(entry, ctx);
-  // portQty — сколько кабелей точки в этой записи, если не все (например, после объединения одинарных точек в двойную)
+  // portQty — how many of the point's cables are in this entry, if not all (for example after merging singles into a double)
   const portsOf = (p) => (Array.isArray(entry.portQty) ? entry.portQty.find((q) => q && q.id === p.id)?.v : undefined);
   const cablesIn = (p) => portsOf(p) ?? taskQty(p, ctx, entry) ?? cableCountFor(p, ctx, entry.cableId);
   if (pts.length) {
     return {
-      // только кабели вида этой записи (у точки их может быть несколько видов)
+      // only cables of this entry's kind (a point may have several kinds)
       count: round2(pts.reduce((s, p) => s + cablesIn(p), 0)),
       meters: round2(pts.reduce((s, p) => s + (Number(p.length) || 0) * cablesIn(p), 0)),
     };
@@ -49,8 +50,8 @@ export function pullFigures(entry, ctx) {
   return { count: num(entry.quantity), meters: num(entry.meters) };
 }
 
-/** Время в отчёте: минуты складываются в часы и остаток — 95 → «1 ч 35 мин» (иврит: «שעה ו-35 דקות», англ.: «1 h 35 min»).
- * В приложении время по-прежнему вводится в минутах. */
+/** Time in the report: minutes are folded into hours and a remainder — 95 → «1 ч 35 мин» (Hebrew: «שעה ו-35 דקות», English: «1 h 35 min»).
+ * In the app time is still entered in minutes. */
 export function dur(min, lang = 'ru') {
   const n = Number(min); if (blank(min) || !Number.isFinite(n)) return String(min ?? '');
   const h = Math.floor(n / 60); const m = round2(n - h * 60);
@@ -71,7 +72,7 @@ const tail = (entry, ctx, he, eng = false) => ({
     ? ` (${he ? (ctx.culprits.get(entry.culprit)?.he ?? entry.culprit) : eng ? en(entry.culprit) : entry.culprit})` : '',
 });
 
-// Задержка к работе: «Задержка: нет доступа, Электрики, ждали ключ — 40 мин» (иврит: «עיכוב: …»). Пусто, если ничего не указано.
+// Delay on a work: «Задержка: нет доступа, Электрики, ждали ключ — 40 мин» (Hebrew: «עיכוב: …»). Empty if nothing is given.
 export function delayLine(entry, ctx, lang = 'ru') {
   if (!entry || entry.workType === 'Текст') return '';
   const he = lang === 'he'; const eng = lang === 'en';
@@ -86,7 +87,7 @@ export function delayLine(entry, ctx, lang = 'ru') {
   return `${head}: ${parts.join(', ')}${parts.length && mins ? ' — ' : ''}${mins}`;
 }
 
-/** Строка работы и сразу под ней — задержка (если есть) */
+/** The work line and right under it the delay (if any) */
 export function entryLine(entry, ctx, lang = 'ru') {
   const main = workLine(entry, ctx, lang); const d = delayLine(entry, ctx, lang);
   return d ? `${main}${main ? '\n' : ''}${d}` : main;
@@ -99,9 +100,9 @@ function workLine(entry, ctx, lang = 'ru', sum = null) {
   const t = tail(sum?.minutes !== undefined ? { ...entry, minutes: sum.minutes } : entry, ctx, he, eng);
   const unit = ctx.units.get(work?.unit);
 
-  if (entry.workType === 'Текст') return String(entry.note ?? ''); // свободная строка без цифр
+  if (entry.workType === 'Текст') return String(entry.note ?? ''); // a free line without figures
 
-  if (isTime(entry, work)) { // «Время» и любые работы в минутах
+  if (isTime(entry, work)) { // «Время» and any works measured in minutes
     return `${[name, dur(sum?.minutes ?? entry.minutes ?? '', langOf(he, eng))].filter(Boolean).join(' ')}${t.culprit}${t.note}`;
   }
   if (entry.workType === 'Протяжка') {
@@ -130,7 +131,7 @@ function headerParts(day, ctx, lang) {
   return { date: dateText(day.date), place: `${where ?? ''}${who}` };
 }
 
-// Однострочная шапка «ДД.ММ.ГГГГ Подрядчик Объект сам/с Помощником» (месячный список)
+// One-line header «DD.MM.YYYY Contractor Project alone/with Helper» (month list)
 export function dohHeader(day, ctx, lang = 'ru') {
   const { date, place } = headerParts(day, ctx, lang);
   return `${date}${DOH_FORMAT.oneLineSep}${place}`;
@@ -141,9 +142,9 @@ export function dayEntries(day, ctx) {
     .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
 }
 
-// Одинаковые работы за день пишутся одной строкой с суммой (протяжка cat7 в разных местах: 4 и 8 → 12).
-// «Одинаковые» — та же работа, кабель, результат, пояснение, виновник, минуты; запись с задержкой, со свободным текстом
-// или без работы остаётся отдельной строкой. Для работ во времени (мин) складываются минуты.
+// Identical works of a day are written as one line with the sum (a cat7 pull in different places: 4 and 8 → 12).
+// «Identical» — the same work, cable, result, note, culprit, minutes; an entry with a delay, with free text
+// or without a work stays a separate line. For works measured in time (min) the minutes are added up.
 const mergeKey = (e, ctx) => {
   if (e.workType === 'Текст' || !e.workId && e.workType !== 'Протяжка' || [e.delayReason, e.delayCulprit, e.delayNote, e.delayMinutes].some((v) => !blank(v))) return null;
   const work = ctx.catalog.get(e.workId); const time = isTime(e, work);
@@ -174,7 +175,7 @@ export function doh(day, ctx, lang = 'ru') {
   return blocks.join(DOH_FORMAT.blockSep);
 }
 
-// Две первые строки отчёта: дата и место работы (для списка рабочих дней месяца)
+// The first two lines of the report: the date and the place of work (for the month's list of working days)
 export function dohTop(day, ctx, lang = 'ru') {
   const { date, place } = headerParts(day, ctx, lang);
   return `${date}${DOH_FORMAT.headerSep}${place}`;

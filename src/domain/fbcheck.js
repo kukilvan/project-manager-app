@@ -1,5 +1,6 @@
-// Проверки мастера настройки своей базы — без входа, по открытым адресам Google с ключом из настроек (apiKey).
-// Каждая возвращает { ok, msg } — msg объясняет человеку, что не так и что сделать. fetchFn подменяется в тестах.
+// Checks of the own-database setup wizard: no sign-in, only public Google endpoints with the key from the settings (apiKey).
+// Each returns { ok, msg }; msg tells a person what is wrong and what to do. fetchFn is replaced in tests.
+// Used by src/app/setup.js and tests/domain.test.js.
 const IDT = 'https://identitytoolkit.googleapis.com/v1';
 async function call(fetchFn, url, init) {
   try {
@@ -10,7 +11,7 @@ async function call(fetchFn, url, init) {
 }
 const net = (r) => r.status === 0 && { ok: false, msg: 'Нет связи с Google. Проверьте интернет и нажмите «Проверить» ещё раз.' };
 
-/** Шаг 1: настройки вставлены верно (ключ рабочий) */
+/** Step 1: the settings were pasted correctly (the key works) */
 export async function checkConfig(cfg, fetchFn = fetch) {
   const r = await call(fetchFn, `${IDT}/projects?key=${encodeURIComponent(cfg.apiKey)}`);
   if (net(r)) return net(r);
@@ -19,7 +20,7 @@ export async function checkConfig(cfg, fetchFn = fetch) {
   return { ok: false, msg: `Google ответил: ${r.err || r.status}. Проверьте, что скопирован весь блок firebaseConfig.` };
 }
 
-/** Шаг 2: вход через Google включён */
+/** Step 2: Google sign-in is enabled */
 export async function checkGoogle(cfg, continueUri, fetchFn = fetch) {
   const r = await call(fetchFn, `${IDT}/accounts:createAuthUri?key=${encodeURIComponent(cfg.apiKey)}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'google.com', continueUri }),
@@ -31,7 +32,7 @@ export async function checkGoogle(cfg, continueUri, fetchFn = fetch) {
   return { ok: false, msg: `Google ответил: ${r.err || r.status}` };
 }
 
-/** Шаг 3: адрес приложения в списке разрешённых доменов */
+/** Step 3: the app address is in the list of allowed domains */
 export async function checkDomain(cfg, host, fetchFn = fetch) {
   const r = await call(fetchFn, `${IDT}/projects?key=${encodeURIComponent(cfg.apiKey)}`);
   if (net(r)) return net(r);
@@ -41,7 +42,7 @@ export async function checkDomain(cfg, host, fetchFn = fetch) {
     : { ok: false, msg: `Домен ${host} не добавлен. Сейчас разрешены: ${list.join(', ') || 'никакие'}.` };
 }
 
-/** Шаги 4–5: база создана и правила вставлены (пустой документ meta/probe по правилам читается всеми) */
+/** Steps 4–5: the database exists and the rules are pasted (the empty document meta/probe is readable by everyone under the rules) */
 export async function checkFirestore(cfg, fetchFn = fetch) {
   const r = await call(fetchFn, `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(cfg.projectId)}/databases/(default)/documents/meta/probe?key=${encodeURIComponent(cfg.apiKey)}`);
   if (net(r)) return { db: net(r), rules: net(r) };

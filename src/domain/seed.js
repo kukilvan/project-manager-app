@@ -1,9 +1,9 @@
-// Начальные справочники для нового проекта (раздел 4 описания функционала).
-// Цены не переносятся. Справочники лежат внутри проекта, чтобы все участники видели одно и то же.
+// Starting reference lists for a new project: work catalog, point types, cables, devices, units, culprits and delay reasons (section 4 of the functional description).
+// Prices are not carried over. The lists live inside the project so that all members see the same. typelib.js and doorcfg.js read them from here.
 
 const ALL = 'Камера,Дверь,Галай,Вайфай,Бакар,Точка,TV,Оптика,Другое';
 
-// id | работа RU | работа HE | тип работы | единица | для типов точек ('*' = все, '' = без точек) | компонент двери (1/0)
+// id | work RU | work HE | work type | unit | for point types ('*' = all, '' = no points) | door component (1/0)
 const CATALOG_ROWS = `
 PR_PTS|Протяжка по точкам|השחלת כבלים|Протяжка|по кабелю|*|0
 PR_MAN|Протяжка без точек|השחלת כבלים|Протяжка|по кабелю||0
@@ -72,7 +72,7 @@ export const CATALOG = CATALOG_ROWS.split('\n').map((line) => {
   };
 });
 
-// Этапы типов точек: Протяжка / Хивут / Установка / Проверка / Шилют
+// Stages of the point types: «Протяжка» / «Хивут» / «Установка» / «Проверка» / «Шилют»
 export const POINT_TYPES = [
   { id: 'Камера', nameHe: 'מצלמה', defaultCable: 'cat7', defaultCables: 1, stages: ['Протяжка', 'Хивут', 'Установка', 'Проверка', 'Шилют'], isDoor: false },
   { id: 'Дверь', nameHe: 'דלת', defaultCable: '6005', defaultCables: 3, stages: ['Протяжка', 'Хивут', 'Установка', 'Проверка'], isDoor: true },
@@ -85,14 +85,14 @@ export const POINT_TYPES = [
   { id: 'Другое', nameHe: 'אחר', defaultCable: 'cat7', defaultCables: 1, stages: ['Протяжка', 'Хивут', 'Проверка'], isDoor: false },
 ];
 
-// accounting: 'Точки' — в отчёт считаются точки, 'Метры' — кабели и метры
+// accounting: «Точки» — the report counts points, «Метры» — cables and metres
 export const CABLES = [
   { id: 'cat7', nameHe: 'כבל CAT7', accounting: 'Точки', workIds: ['HIV_KEY', 'HIV_DEV', 'CHK_FLUKE', 'SHL'] },
   { id: '6005', nameHe: 'כבל 6005', accounting: 'Метры', workIds: ['HIV_DEV'] },
   { id: 'Оптика', nameHe: 'סיב אופטי', accounting: 'Метры', workIds: ['HIV_DEV'] },
 ];
 
-// Устройства (составляющие точек): кабели + работы авизара. id | RU | HE | кабели (кабель*кол-во через +) | работы
+// Devices (the parts points are made of): cables + the door accessory's works. id | RU | HE | cables (cable*count joined by +) | works
 const DEVICE_ROWS = `
 DV_CAM|Камера|מצלמה|cat7*1|INS_CAM
 DV_AP|Вайфай (аксэспоинт)|אקסס פוינט|cat7*1|INS_AP
@@ -119,7 +119,7 @@ export const DEVICES = DEVICE_ROWS.split('\n').map((line) => {
     workIds: works ? works.split(',') : [] };
 });
 
-// Состав типов точек по умолчанию (новая схема): тип → устройства и работы на всю точку
+// Default composition of the point types (new scheme): type → devices and works for the whole point
 export const TYPE_DEVICES = {
   'Камера': [['DV_CAM']], 'Дверь': [['DV_KORE'], ['DV_MANUL'], ['DV_MAGNIT']], 'Галай': [['DV_GALAI']], 'Вайфай': [['DV_AP']],
   'Бакар': [['DV_BAKAR']], 'Точка': [['DV_POINT']], 'TV': [['DV_TV']], 'Оптика': [['DV_FIBER']], 'Другое': [['DV_POINT']],
@@ -131,18 +131,18 @@ const NEW_TYPES = [
   { id: 'Лахцан птиха', nameHe: 'לחצן פתיחה' }, { id: 'Тревожная кнопка', nameHe: 'לחצן מצוקה' },
 ];
 const compose = (t) => ({ ...t, devices: (TYPE_DEVICES[t.id] || []).map(([deviceId, count = 1]) => ({ deviceId, count })), workIds: TYPE_WORKS[t.id] || [] });
-// Типы для нового проекта: все в новой схеме
+// Types for a new project: all in the new scheme
 export const composedTypes = (types) => [...types, ...NEW_TYPES.filter((n) => !types.some((t) => t.id === n.id))].map(compose);
 
-// Чего не хватает проекту из стандартной библиотеки (не трогая того, что уже есть): операции записи
-// Чего не хватает проекту из стандартной библиотеки: только то, чего в проекте никогда не было (удалённое Иваном не возвращается).
-// Ссылки на удалённые работы/кабели/устройства из библиотечных записей убираются.
+// What the project lacks from the standard library (not touching what already exists): write operations
+// What the project lacks from the standard library: only what the project never had (what Ivan deleted does not come back).
+// References to deleted works/cables/devices are removed from library records.
 export function libraryOps(ctx, known) {
   const ever = (coll, id) => (known?.[coll] ? known[coll].has(id) : ctx[coll].has(id));
   const ops = [];
   const add = (coll, id, data) => ops.push({ coll, id, data });
   const has = (coll, id) => ctx[coll].has(id) || ops.some((o) => o.coll === coll && o.id === id);
-  // работы — только те, что нужны новым устройствам, и только если их никогда не было
+  // works — only those needed by the new devices, and only if they never existed
   const needWorks = new Set(DEVICES.filter((d) => !ever('devices', d.id)).flatMap((d) => d.workIds));
   CABLES.forEach((c) => c.workIds.forEach((w) => needWorks.add(w)));
   CATALOG.filter((w) => needWorks.has(w.id) && !ever('catalog', w.id)).forEach((w) => add('catalog', w.id, w));

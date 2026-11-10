@@ -122,6 +122,8 @@ test('same-code: per-file comparison', () => {
   assert.equal(sameCode('src/a.js', 'const a = `x\ny`;\nf(a);\n', 'const a = `x\r\ny`;\r\nf(a);\r\n'), true);
   // a block comment that loses its line break can change automatic semicolon insertion
   assert.equal(sameCode('src/a.js', 'function f() { return /* a\n */ 1; }\n', 'function f() { return /* b */ 1; }\n'), false);
+  // a header comment added above the first token is not a code change (no statement before it)
+  assert.equal(sameCode('src/a.js', "export * from './b.js';\n", "// Re-exports b.\n\nexport * from './b.js';\n"), true);
   assert.equal(sameCode('src/style.css', '/* тема */\n.a { color: red; }\n', '/* theme,\n   two lines */\n.a { color: red; }  \n'), true);
   assert.equal(sameCode('src/style.css', '.a { color: red; }\n', '.a { color: blue; }\n'), false);
   assert.equal(sameCode('tools/a.py', 'def f():\n    """Док."""\n    return 1  # раз\n', 'def f():\n    """Doc,\n    two lines."""\n    return 1  # one\n'), true);

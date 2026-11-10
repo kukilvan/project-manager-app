@@ -1,33 +1,34 @@
-// «Что осталось»: точки, на которых ещё не сделан хивут, установка или проверка (с учётом этапов типа точки).
+// «What is left»: points where termination, installation or checking is not done yet (taking the point type's stages into account).
+// Built on pointInfo from status.js; pure.
 import { pointInfo } from './status.js';
 import { comparePoints } from './points.js';
 
 export const REMAIN_STAGES = ['Дотянуть', 'Хивут', 'Установка', 'Проверка'];
 
-// Каких этапов не хватает точке («Дотянуть» — протянута только часть кабелей)
+// Which stages a point still lacks («Дотянуть» — only some of its cables are pulled)
 export function missingStages(point, ctx) {
   const type = ctx.types.get(point.typeId);
   const stages = type?.stages;
   const has = (s) => !stages || stages.includes(s);
   const info = pointInfo(point, ctx);
-  if (info.composed) { // точка из устройств: по задачам
+  if (info.composed) { // a point made of devices: by tasks
     const st = info.stageStats; const o = [];
     if (st['Протяжка'].done && !info.pulled) o.push('Дотянуть');
     if (st['Хивут'].total && !info.hived) o.push('Хивут');
     if (st['Установка'].total && info.install !== 'Установлено') o.push('Установка');
-    if (st['Проверка'].total && (!info.checked || info.checkResult === 'Не работает')) o.push('Проверка');  // неисправная — проверить заново
+    if (st['Проверка'].total && (!info.checked || info.checkResult === 'Не работает')) o.push('Проверка');  // faulty — check again
     return o;
   }
   const out = [];
-  // протянуты не все виды кабеля (например, 6005 есть, а cat7 ещё нет)
+  // not all cable kinds are pulled (e.g. 6005 is there, cat7 is not yet)
   if (has('Протяжка') && !info.pulled && info.pullDone) out.push('Дотянуть');
   if (has('Хивут') && !info.hived) out.push('Хивут');
   if (has('Установка') && info.install !== 'Установлено') out.push('Установка');
-  if (has('Проверка') && (!info.checked || info.checkResult === 'Не работает')) out.push('Проверка');  // неисправная — проверить заново
+  if (has('Проверка') && (!info.checked || info.checkResult === 'Не работает')) out.push('Проверка');  // faulty — check again
   return out;
 }
 
-// Группы по шкафам: [{ cabinet, items: [{ point, missing }] }] — только точки, где чего-то не хватает
+// Groups by rack: [{ cabinet, items: [{ point, missing }] }] — only points that lack something
 export function remaining(ctx) {
   const by = new Map();
   [...ctx.points.values()].sort(comparePoints).forEach((point) => {
@@ -41,7 +42,7 @@ export function remaining(ctx) {
     .map(([cabinet, items]) => ({ cabinet, items }));
 }
 
-// Точка полностью завершена: сделаны все этапы её типа (протяжка, хивут, установка если нужна, проверка без неисправности, шилют)
+// A point is fully finished: every stage of its type is done (pull, termination, installation if needed, checking with no fault, port labels)
 export function isFinished(point, ctx) {
   const type = ctx.types.get(point.typeId);
   const stages = type?.stages || ['Протяжка', 'Хивут', 'Установка', 'Проверка', 'Шилют'];
@@ -54,7 +55,7 @@ export function isFinished(point, ctx) {
   return stages.every((s) => ok[s] !== false);
 }
 
-// Готовность по шкафам: [{ cabinet, done, total }]
+// Readiness by rack: [{ cabinet, done, total }]
 export function readinessByCabinet(ctx) {
   const by = new Map();
   [...ctx.points.values()].forEach((p) => {

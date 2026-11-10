@@ -1,7 +1,8 @@
-// Инструкции в руководстве: фото схем, PDF, таблицы. Запись: { id, title, section, fileId, fileName, mime, size, addedBy, addedAt, deleted }
+// Manuals of the guide: photos of diagrams, PDFs, tables. A record is { id, title, section, fileId, fileName, mime, size, addedBy, addedAt, deleted }.
+// Holds the section list and the visibility, grouping and filtering helpers; used by src/app/shell.js and the manuals view.
 export const MANUAL_SECTIONS = ['Замки и двери', 'Хивут', 'Проверка', 'Установка', 'Шилют', 'Камеры и WiFi', 'Другое'];
 
-/** 'image' | 'pdf' | 'other' — по типу файла или расширению */
+/** 'image' | 'pdf' | 'other' — by file type or extension */
 export function manualKind(m) {
   const mime = String(m?.mime || '').toLowerCase(); const name = String(m?.fileName || '').toLowerCase();
   if (mime.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|bmp)$/.test(name)) return 'image';
@@ -10,12 +11,12 @@ export function manualKind(m) {
 }
 export const manualIcon = (m) => ({ image: '🖼', pdf: '📄', other: '📎' })[manualKind(m)];
 
-/** Что показывать этому человеку: не удалённые; без файла на Диске — только тому, кто добавил (ему ещё нужно отправить на Диск) */
+/** What to show this person: not deleted; one without a file on Drive only to whoever added it (they still need to send it to Drive) */
 export function visibleManuals(list, myEmail = '') {
   const me = String(myEmail).toLowerCase();
   return (list || []).filter((m) => !m.deleted && (m.fileId || String(m.addedBy || '').toLowerCase() === me));
 }
-/** Фильтр по словам (в названии, разделе, имени файла) и группы по разделам; разделы — в порядке MANUAL_SECTIONS, свои — после, внутри — по названию */
+/** Filter by words (in title, section, file name) and groups by section; sections in MANUAL_SECTIONS order, custom ones after, by title within a section */
 export function groupManuals(list, query = '') {
   const words = String(query).toLowerCase().split(/\s+/).filter(Boolean);
   const items = list.filter((m) => { const s = `${m.title} ${m.section} ${m.fileName}`.toLowerCase(); return words.every((w) => s.includes(w)); });

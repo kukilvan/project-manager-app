@@ -1,21 +1,22 @@
-// Кириллица ↔ латиница в названиях точек: буквы-двойники (С108 кириллицей → C108 латиницей), поиск без учёта раскладки,
-// быстрый ввод («тв » → «TV »), как T9.
+// Cyrillic ↔ Latin in point names: look-alike letters, layout-independent search and quick-input shortcuts.
+// Look-alikes: «С108» typed in Cyrillic becomes C108 in Latin. Quick input («тв » → «TV ») works like T9.
+// Used by src/app/ui.js; pure.
 const LOOK = { 'А': 'A', 'В': 'B', 'Е': 'E', 'К': 'K', 'М': 'M', 'Н': 'H', 'О': 'O', 'Р': 'P', 'С': 'C', 'Т': 'T', 'У': 'Y', 'Х': 'X',
   'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'у': 'y', 'х': 'x' };
 const CYR = /[Ѐ-ӿ]/;
 
-/** Название с буквами-двойниками → латиница. Если в названии есть настоящая русская буква без двойника (Щит, Б12) — не трогаем */
+/** A name with look-alike letters → Latin. If the name holds a genuine Russian letter without a look-alike («Щит», «Б12»), it is left alone */
 export function fixLatin(s) {
   if (typeof s !== 'string' || !CYR.test(s)) return s;
   for (const ch of s) if (CYR.test(ch) && !(ch in LOOK)) return s;
   return [...s].map((ch) => LOOK[ch] || ch).join('');
 }
-/** Ключ для поиска: без регистра, двойники сведены к латинице (в любом слове) */
+/** Search key: case-insensitive, look-alikes folded to Latin (in any word) */
 export const latinKey = (s) => [...String(s ?? '').toLowerCase()].map((ch) => LOOK[ch] || LOOK[ch.toUpperCase()]?.toLowerCase() || ch).join('');
-/** Есть ли у названия кириллица, которую можно исправить */
+/** Whether the name has Cyrillic that can be fixed */
 export const needsFix = (s) => typeof s === 'string' && fixLatin(s) !== s;
 
-/** Шкаф: если такой уже есть (с точностью до раскладки) — берём существующее написание, иначе исправляем */
+/** Rack: if one already exists (up to the keyboard layout), take the existing spelling, otherwise fix it */
 export function fixCabinet(c, existing) {
   if (typeof c !== 'string' || !c) return c;
   if (existing.has(c)) return c;
@@ -23,7 +24,7 @@ export function fixCabinet(c, existing) {
   return fixLatin(c);
 }
 
-// быстрый ввод
+// quick input
 export const DEFAULT_SHORTCUTS = [['тв', 'TV'], ['кам', 'CAM'], ['ап', 'AP'], ['инт', 'INT'], ['ср', 'CR'], ['дв', 'DR'], ['г', 'G'], ['д', 'D']];
 export const shortcutsToText = (list) => list.map(([k, v]) => `${k} = ${v}`).join('\n');
 export function shortcutsFromText(text) {
@@ -32,8 +33,8 @@ export function shortcutsFromText(text) {
 }
 const LETTER = /[A-Za-zЀ-ӿ]/;
 /**
- * Только что набран символ ch в позиции caret-1. Если до него целое слово из букв, совпавшее с ключом, — заменить на значение.
- * → { text, caret, from, to } или null
+ * The character ch was just typed at position caret-1. If a whole word of letters before it matches a key, replace it with the value.
+ * → { text, caret, from, to } or null
  */
 export function expandShortcut(text, caret, dict) {
   if (caret < 2) return null;

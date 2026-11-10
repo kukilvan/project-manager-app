@@ -1,15 +1,16 @@
-// Свой набор работ на выбранных точках (окно «Изменить» точки или группы точек): что сейчас требуется, и что записать в точку.
+// The own set of works on selected points (the point's or a group's «Изменить» window): what is required now and what to write into the point.
+// Built on compose.js; used by the points view.
 import { compositionOf, tasksOf, ownWorksOf, cablesTotalOf, OWN_STAGES } from './compose.js';
 
 const sumQty = (tasks, workId) => tasks.filter((t) => t.workId === workId).reduce((n, t) => n + t.qty, 0);
-/** Сколько работы у точки по составу (без своего набора) */
+/** How much work the point has by composition (without its own set) */
 export const baseQtyOf = (point, ctx, workId) => sumQty(tasksOf({ ...point, ownWorks: undefined }, ctx), workId);
 
 /**
- * Работы выбранных точек (кроме протяжки): [{ workId, name, workType, have, min, max, own, perCable, removed }]
- * have — у скольких точек работа сейчас требуется; min/max — количество на точку (среди тех, у кого есть);
- * own — у скольких задано своё; perCable — у скольких своё «на каждый кабель»; removed — у скольких убрана.
- * skipped — точки старой схемы (тип без состава): у них своего набора работ нет.
+ * Works of the selected points (except the pull): [{ workId, name, workType, have, min, max, own, perCable, removed }]
+ * have — on how many points the work is currently required; min/max — quantity per point (among those that have it);
+ * own — on how many it is set explicitly; perCable — on how many the own value is «per cable»; removed — on how many it is removed.
+ * skipped — legacy points (type without a composition): they have no own set of works.
  */
 export function worksSummary(points, ctx) {
   const rows = new Map(); const ok = []; const skipped = [];
@@ -41,9 +42,9 @@ export function worksSummary(points, ctx) {
 }
 
 /**
- * Что записать в point.ownWorks после изменений: changes — Map workId → { op: 'set', qty, per } | { op: 'remove' } | { op: 'reset' }.
- * set — количество (на точку или на каждый кабель), работа добавится, если её нет; remove — убрать работу у точки;
- * reset — как по составу (своё значение стирается). → массив или null (своего набора нет).
+ * What to write into point.ownWorks after the changes: changes — Map workId → { op: 'set', qty, per } | { op: 'remove' } | { op: 'reset' }.
+ * set — quantity (per point or per cable), the work is added if it is missing; remove — remove the work from the point;
+ * reset — as by composition (the own value is erased). → an array or null (no own set).
  */
 export function ownWorksPatch(point, ctx, changes) {
   const list = ownWorksOf(point).filter((o) => !changes.has(o.workId)).map((o) => ({ ...o }));
@@ -53,12 +54,12 @@ export function ownWorksPatch(point, ctx, changes) {
     const qty = ch.op === 'remove' ? 0 : Number(ch.qty);
     if (!(qty >= 0)) return;
     if (qty === 0) { if (base > 0) list.push({ workId, qty: 0 }); return; }
-    if (ch.per !== 'cable' && qty === base) return;            // как по составу — своё не нужно
+    if (ch.per !== 'cable' && qty === base) return;            // as by composition — no own value needed
     list.push({ workId, qty, ...(ch.per === 'cable' ? { per: 'cable' } : {}) });
   });
   return list.length ? list : null;
 }
-/** Сколько получится у точки после изменений (для подсказки) */
+/** How much the point will have after the changes (for the hint) */
 export const qtyAfter = (point, ctx, workId, ch) => {
   const own = ownWorksPatch(point, ctx, new Map([[workId, ch]]));
   return sumQty(tasksOf({ ...point, ownWorks: own }, ctx), workId);

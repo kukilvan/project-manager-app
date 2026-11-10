@@ -1,3 +1,6 @@
+// Re-exports the pure domain modules as one import point for the app.
+// fbcheck.js, openrules.js and shilutsheet.js are not re-exported: callers import them directly.
+
 export * from './seed.js';
 export * from './points.js';
 export * from './context.js';

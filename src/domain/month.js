@@ -1,4 +1,5 @@
-// Месячный отчёт: сумма всех дохов месяца (RU) и «דוח חודשי» на иврите (раздел 5.2 ТЗ).
+// Month report: the sum of all daily reports of a month (RU) and «דוח חודשי» in Hebrew (section 5.2 of the technical specification).
+// Built from the daily-report parts of doh.js; the employer bills by it. Pure.
 import { round2 } from './points.js';
 import { doh, dohTop, dohHeader, dayEntries, itogShtuk, pullFigures } from './doh.js';
 
@@ -16,7 +17,7 @@ export const monthTitle = (ym, lang = 'ru') => {
   return `${(lang === 'he' ? MONTHS_HE : MONTHS_RU)[m - 1]} ${y}`;
 };
 
-// «Отчёты» + все отчёты месяца подряд (как файл Отчёты.txt для начальника)
+// «Отчёты» + all reports of the month in a row (like the «Отчёты.txt» file for the boss)
 export function monthReportRu(ctx, ym) {
   const days = monthDays(ctx, ym);
   return ['Дохот', ...days.map((d) => doh(d, ctx, 'ru'))].join('\n\n\n');
@@ -44,7 +45,7 @@ export function monthSummary(ctx, ym) {
   return { days: days.length, minutes, hours: round2(minutes / 60), works: [...works.values()], pulls: [...pulls.values()] };
 }
 
-// Месячный отчёт на иврите: часы, список дней (отчёт HE), количества, протяжка по кабелям
+// Month report in Hebrew: hours, list of days (HE report), quantities, pulls by cable
 export function monthReportHe(ctx, ym) {
   const s = monthSummary(ctx, ym); const days = monthDays(ctx, ym);
   const lines = [`דוח חודשי – ${monthTitle(ym, 'he')}`, `סה"כ שעות: ${s.hours}`, '', ...days.flatMap((d) => [doh(d, ctx, 'he'), ''])];
@@ -53,7 +54,7 @@ export function monthReportHe(ctx, ym) {
   return lines.join('\n').trim();
 }
 
-// Список рабочих дней месяца по ВСЕМ проектам: «Рабочие дни за <месяц>» + шапка каждого отчёта (дата и место)
+// List of the month's working days over ALL projects: «Рабочие дни за <month>» + the header of each report (date and place)
 export function workdaysList(days, projects, ym) {
   const ctx = { projects: new Map(projects.map((p) => [p.id, p])) };
   return days.filter((d) => !d.deleted && String(d.date).startsWith(ym) && ctx.projects.has(d.projectId))
@@ -66,7 +67,7 @@ export function workdaysReport(days, projects, ym) {
   return { count: blocks.length, text: [`Рабочие дни за ${MONTHS_RU[m - 1].toLowerCase()} ${y}`, ...blocks].join('\n\n') };
 }
 
-// Простои за месяц по виновникам: записи, где указан виновник (с минутами или без). Сначала самые долгие.
+// Downtime of the month by culprit: entries that name a culprit (with minutes or without). Longest first.
 export function downtimeByCulprit(ctx, ym) {
   const groups = new Map();
   monthDays(ctx, ym).forEach((d) => dayEntries(d, ctx).forEach((e) => {
@@ -77,9 +78,9 @@ export function downtimeByCulprit(ctx, ym) {
       g.items.push({ date: d.date, work: ctx.catalog.get(e.workId)?.name ?? e.workType, minutes: mins, note });
       groups.set(culprit, g);
     };
-    // прежние записи: виновник и время у самой работы
+    // older entries: culprit and time on the work itself
     if (!blank(e.culprit)) add(e.culprit, blank(e.minutes) ? 0 : Number(e.minutes), e.note ?? '');
-    // задержка к работе: свой виновник, причина, комментарий и время
+    // delay on the work: its own culprit, reason, comment and time
     const dm = blank(e.delayMinutes) ? 0 : Number(e.delayMinutes);
     if (!blank(e.delayCulprit) || dm) add(blank(e.delayCulprit) ? 'Без виновника' : e.delayCulprit, dm, [e.delayReason, e.delayNote].filter((x) => !blank(x)).join(', '));
   }));

@@ -1,4 +1,5 @@
-// Выгрузка всего проекта в Excel: листы значениями (без формул). Чистая функция — файл собирает приложение.
+// Export of a whole project to Excel: sheets with values only (no formulas). A pure function; the app builds the file.
+// Built on the management-sheet columns of report.js and the pull figures of doh.js.
 import { COLUMNS, buildReport } from './report.js';
 import { pullFigures, itogShtuk } from './doh.js';
 
@@ -6,17 +7,17 @@ const blank = (v) => v === undefined || v === null || v === '';
 const s = (v) => (blank(v) ? '' : v);
 const byDate = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
 
-// Возвращает [{ name, rows: [[…]], widths: [число символов…] }]; первая строка каждого листа — заголовки
+// Returns [{ name, rows: [[…]], widths: [number of characters…] }]; the first row of each sheet is the headers
 export function exportSheets(project, ctx, { nameOf = (u) => s(u) } = {}) {
   const sheets = [];
 
-  // 1. Точки: все столбцы
+  // 1. Points: all columns
   const table = { id: 'x', name: 'x', main: false, lang: 'ru', cabinets: [], types: [], statuses: [], layout: 'one', summary: false, columns: COLUMNS.map((c) => c.id) };
   const rep = buildReport(project, ctx, table, { nameOf });
   const sh = rep.sheets[0];
   sheets.push({ name: 'Точки', rows: sh.rows.slice(sh.headerRow), widths: sh.cols.map((c) => Math.round(c.width / 7)) });
 
-  // 2. Журнал по точкам: что и когда сделано на каждой точке
+  // 2. Journal by points: what was done on each point and when
   const jr = [];
   ctx.journalByPoint.forEach((rows, pid) => {
     const p = ctx.points.get(pid); if (!p) return;
@@ -30,7 +31,7 @@ export function exportSheets(project, ctx, { nameOf = (u) => s(u) } = {}) {
     widths: [12, 16, 10, 14, 12, 28, 14, 18, 10],
   });
 
-  // 3. Дни и работы (то, из чего собирается дохот)
+  // 3. Days and works (what the daily reports are built from)
   const days = [...ctx.days.values()].sort(byDate);
   const er = [];
   days.forEach((d) => {
@@ -51,7 +52,7 @@ export function exportSheets(project, ctx, { nameOf = (u) => s(u) } = {}) {
     widths: [12, 18, 12, 12, 26, 30, 11, 9, 9, 9, 16, 12, 30, 24, 18, 16, 24, 10],
   });
 
-  // 4. Справочники
+  // 4. Reference lists
   const ref = [['Справочник', 'Название', 'Иврит', 'Прочее']];
   ctx.types.forEach((t) => ref.push(['Тип точек', t.id, s(t.nameHe), (t.stages || []).join(' → ')]));
   ctx.cables.forEach((c) => ref.push(['Кабель', c.id, s(c.nameHe), s(c.accounting)]));

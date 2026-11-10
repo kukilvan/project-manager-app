@@ -1,6 +1,7 @@
-// Общий пул (одна база на всех): типы точек, устройства, кабели, работы. Управляет только администратор базы (первый вошедший).
-// Проект держит свою копию взятого из пула — изменения пула взятое не меняют (только «удалить и взять заново»).
-// Новое и изменённое в проектах приложение само отправляет администратору во «входящие» (pool_inbox).
+// Shared pool (one database for everyone): point types, devices, cables and works; fingerprints, dependencies, inbox candidates and change lists.
+// Only the database admin (the first user to sign in) manages it. A project keeps its own copy of what it took from the pool — changes to the pool do not change what was taken (only «delete and take again»).
+// New and changed things in projects are sent by the app itself to the admin's inbox (pool_inbox).
+// Built on typelib.js and pointsimport.js; used by the pool, wizard and points-file views and src/app/starter.js.
 import { bare, bundleFrom } from './typelib.js';
 import { isSystemType } from './pointsimport.js';
 
@@ -9,7 +10,7 @@ export const POOL_TITLES = { types: 'Типы точек', devices: 'Устро�
 
 const stable = (v) => (Array.isArray(v) ? `[${v.map(stable).join(',')}]` : v && typeof v === 'object'
   ? `{${Object.keys(v).filter((k) => v[k] !== undefined && v[k] !== null && v[k] !== '' && k !== 'id').sort().map((k) => `${k}:${stable(v[k])}`).join(',')}}` : JSON.stringify(v ?? null));
-/** Отпечаток содержимого (без служебных полей) — для «изменилось ли» */
+/** Fingerprint of the content (without service fields) — to tell whether it changed */
 export function poolHash(item) {
   const s = stable(bare(item)); let h = 2166136261;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -17,7 +18,7 @@ export function poolHash(item) {
 }
 export const poolMaps = (pool) => Object.fromEntries(POOL_KINDS.map((k) => [k, pool?.[k] instanceof Map ? pool[k] : new Map((pool?.[k] || []).map((x) => [x.id, x]))]));
 
-/** Без чего элемент не работает: { devices, cables, catalog } (копии без служебных полей) */
+/** What an item cannot work without: { devices, cables, catalog } (copies without service fields) */
 export function depsOf(maps, kind, id) {
   if (kind === 'types') { const b = bundleFrom(maps, id); return b ? { devices: b.devices, cables: b.cables, catalog: b.catalog } : { devices: [], cables: [], catalog: [] }; }
   const out = { devices: [], cables: [], catalog: [] };
@@ -29,7 +30,7 @@ export function depsOf(maps, kind, id) {
   return out;
 }
 
-/** Операции «взять из пула в проект»: элемент и всё, без чего он не работает. Что в проекте уже есть — не трогается. */
+/** Operations «take from the pool into the project»: the item and everything it cannot work without. What the project already has is not touched. */
 export function takeFromPoolOps(ctx, maps, kind, id, ops = []) {
   const has = (coll, x) => ctx[coll].has(x) || ops.some((o) => o.coll === coll && o.id === x);
   const put = (coll, x) => { if (x && !has(coll, x.id)) ops.push({ coll, id: x.id, data: { ...bare(x), deleted: false } }); };
@@ -39,9 +40,9 @@ export function takeFromPoolOps(ctx, maps, kind, id, ops = []) {
   return ops;
 }
 
-/** Отпечаток элемента вместе с частями (изменилась работа внутри типа — изменился и тип) */
+/** Fingerprint of an item together with its parts (a work inside a type changed — the type changed too) */
 export const deepHash = (maps, kind, id) => { const x = maps[kind].get(id); return x ? poolHash({ item: bare(x), deps: depsOf(maps, kind, id) }) : ''; };
-/** Что из проекта стоит показать администратору: нет в пуле или отличается от пула (сам элемент или его части) */
+/** What of the project is worth showing to the admin: not in the pool, or different from the pool (the item itself or its parts) */
 export function inboxCandidates(ctx, maps) {
   const out = [];
   const projMaps = { types: ctx.types, devices: ctx.devices, cables: ctx.cables, catalog: ctx.catalog };
@@ -56,22 +57,22 @@ export function inboxCandidates(ctx, maps) {
   return out;
 }
 
-/** Что поменялось в элементе (для «изменён»): список полей */
+/** What changed in an item (for «changed»): a list of fields */
 export function changedFields(a = {}, b = {}) {
   const keys = new Set([...Object.keys(bare(a)), ...Object.keys(bare(b))]); keys.delete('id');
   return [...keys].filter((k) => stable(a[k]) !== stable(b[k]));
 }
 
-// ---- понятный список изменений относительно пула ----
+// ---- a readable list of changes against the pool ----
 const KIND_ONE = { types: 'Тип', devices: 'Устройство', cables: 'Кабель', catalog: 'Работа' };
 const NEW_ONE = { types: 'Новый тип', devices: 'Новое устройство', cables: 'Новый кабель', catalog: 'Новая работа' };
 const FIELD = { name: 'Название', nameHe: 'Иврит', group: 'Группа', workType: 'Тип работы', unit: 'Единица', accounting: 'Учёт протяжки', scanId: 'Серийник/MAC',
   active: 'Активна', defaultCable: 'Кабель по умолчанию', defaultCables: 'Кабелей на точку', stages: 'Этапы' };
 const show = (v) => (v === undefined || v === null || v === '' ? '—' : Array.isArray(v) ? (v.length ? v.join(', ') : '—') : v === true ? 'да' : v === false ? 'нет' : String(v));
 
-/** Имя элемента по картам (кандидат + пул) */
+/** The item's name by the maps (candidate + pool) */
 const nameIn = (maps, kind, id) => { const x = maps[kind]?.get(id); return x ? (kind === 'types' || kind === 'cables' ? x.id : x.name || x.id) : id; };
-// поля одного элемента: строки «что стало иначе» (nm — имена из карт)
+// fields of one item: lines «what became different» (nm — names from the maps)
 export function fieldChanges(kind, a = {}, b = {}, maps) {
   const out = []; const nm = (k, id) => nameIn(maps, k, id);
   const listDiff = (label, xa = [], xb = [], fmt) => {
@@ -99,7 +100,7 @@ const describeNew = (kind, x, maps) => {
   if (kind === 'devices') return `${(x.cables || []).map((c) => `${c.cable}×${c.count}`).join(' + ') || 'без кабеля'}${(x.workIds || []).length ? `; работы: ${x.workIds.map((w) => nm('catalog', w)).join(', ')}` : ''}`;
   return (x.devices || []).map((d) => `${nm('devices', d.deviceId)} ×${d.count}`).join(' + ') || '—';
 };
-/** Части кандидата, которых в пуле нет или которые отличаются: [{ kind, item, isNew }] */
+/** The candidate's parts that are not in the pool or differ from it: [{ kind, item, isNew }] */
 export function changedParts(cand, maps) {
   const out = [];
   ['catalog', 'cables', 'devices'].forEach((k) => (cand.deps?.[k] || []).forEach((x) => {
@@ -108,7 +109,7 @@ export function changedParts(cand, maps) {
   }));
   return out;
 }
-/** Все изменения кандидата относительно пула словами (сам элемент + его части) */
+/** All changes of a candidate against the pool in words (the item itself + its parts) */
 export function candidateChanges(cand, maps) {
   const lists = Object.fromEntries(POOL_KINDS.map((k) => [k, new Map(maps[k])]));
   ['catalog', 'cables', 'devices'].forEach((k) => (cand.deps?.[k] || []).forEach((x) => lists[k].set(x.id, x)));
@@ -124,14 +125,14 @@ export function candidateChanges(cand, maps) {
   });
   return out;
 }
-// Какие кандидаты «накрыты» кандидатом уровнем выше (тип включает свои устройства, кабели, работы — их принимают вместе с ним)
+// Which candidates are «covered» by a candidate one level up (a type includes its devices, cables and works — they are accepted together with it)
 const LEVEL = { types: 3, devices: 2, cables: 1, catalog: 0 };
 export function coveredBy(cand, others) {
   return others.find((o) => o !== cand && o.owner?.uid === cand.owner?.uid && LEVEL[o.kind] > LEVEL[cand.kind]
     && (o.deps?.[cand.kind] || []).some((x) => x.id === cand.itemId && poolHash(x) === poolHash(cand.item))) || null;
 }
 
-/** Где используется элемент справочника проекта: [{ label, n }] (устройство, кабель, работа) */
+/** Where a project reference item is used: [{ label, n }] (device, cable, work) */
 export function usesOf(ctx, coll, id) {
   const out = [];
   const add = (label, n) => { if (n) out.push({ label, n }); };

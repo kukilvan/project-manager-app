@@ -1,13 +1,14 @@
-// Конфигурации дверей (новая схема): тип точки один — «Дверь», разновидность задаётся конфигурацией.
-// Конфигурация = состав (устройства с количеством) + кабели двери (вид × количество, отдельно от устройств:
-// у двери часто коробка, где 2–3 кабеля расходятся на все устройства). Название собирается само из состава.
-// id конфигурации — отпечаток состава: одинаковые двери в разных проектах = одна конфигурация в общем пуле.
-// Хранение: общий пул (pool_doorcfg) + копия в проекте (configs) для тех, что используются или закреплены.
-// Старые конфигурации ({ name, components: [работы] }) продолжают работать по-старому.
+// Door configurations (new scheme): there is one point type, «Дверь», and the kind of door is set by its configuration.
+// A configuration = composition (devices with counts) + the door's cables (kind × count, separate from the devices:
+//   a door often has a box where 2–3 cables fan out to all the devices). The name is built from the composition by itself.
+// The configuration id is a fingerprint of the composition: identical doors in different projects are one configuration in the shared pool.
+// Storage: the shared pool (pool_doorcfg) + a copy in the project (configs) for those that are used or pinned.
+// Old configurations ({ name, components: [works] }) keep working the old way.
+// Built on seed.js; used by compose.js and report.js.
 
 import { DEVICES, CATALOG, CABLES } from './seed.js';
 
-// Части двери: порядок — как в окне выбора и в названии
+// Door parts: the order is the same as in the picker window and in the name
 export const DOOR_PARTS = [
   { key: 'lock', name: 'Запирание', one: true, max: 2, hint: 'только одно на дверь' },
   { key: 'reader', name: 'Считыватель', max: 2 },
@@ -17,7 +18,7 @@ export const DOOR_PARTS = [
 ];
 export const DOOR_PART_NAMES = Object.fromEntries(DOOR_PARTS.map((p) => [p.key, p.name]));
 
-// Роль устройства для правил и коротких названий: по id стандартной библиотеки или по названию
+// Role of a device for the rules and short names: by the id of the standard library or by the name
 const ROLE_BY_ID = { DV_EMAG: 'em', DV_MANUL: 'mh', DV_KORE: 'kore', DV_BIO: 'bio', DV_LPTIHA: 'ptiha', DV_LNIPUTZ: 'niputz', DV_MAGNIT: 'magnit', DV_INT: 'intercom', DV_KEYB: 'keyb' };
 export function doorRole(dev) {
   if (!dev) return '';
@@ -37,7 +38,7 @@ export function doorRole(dev) {
   return '';
 }
 const PART_BY_ROLE = { em: 'lock', mh: 'lock', kore: 'reader', bio: 'reader', keyb: 'reader', ptiha: 'button', niputz: 'button', magnit: 'sensor', intercom: 'extra', tsofar: 'extra' };
-/** Часть двери устройства: своя (поле doorPart в «Устройствах»), по роли или '' (не для двери). 'none' — явно не для двери */
+/** The device's door part: its own (the doorPart field in «Устройства»), by role, or '' (not for a door). 'none' — explicitly not for a door */
 export function doorPartOf(dev) {
   if (!dev) return '';
   if (dev.doorPart === 'none') return '';
@@ -48,7 +49,7 @@ const SHORT = { em: 'ЭМ', mh: 'МХ', kore: 'коре', bio: 'коре био�
 const PLURAL = { магнит: 'магнита' };
 export const doorShortOf = (dev) => String(dev?.short || SHORT[doorRole(dev)] || dev?.name || dev?.id || '?').trim();
 
-/** Устройства проекта, которые бывают на двери, по частям: { lock: [dev…], … } */
+/** The project's devices that can be on a door, by part: { lock: [dev…], … } */
 export function doorDevices(ctx) {
   const out = Object.fromEntries(DOOR_PARTS.map((p) => [p.key, []]));
   [...(ctx.devices?.values() || [])].filter((d) => !d.deleted).forEach((d) => { const k = doorPartOf(d); if (k) out[k].push(d); });
@@ -60,10 +61,10 @@ export function doorDevices(ctx) {
 const clean = (list, key) => (Array.isArray(list) ? list : []).filter((x) => x && x[key] && Number(x.count) > 0).map((x) => ({ [key]: String(x[key]), count: Math.round(Number(x.count)) }));
 
 /**
- * Правила при изменении количества устройства (подсказки — потом всё можно поменять руками).
- * sel: Map deviceId → count. Возвращает новый Map.
- * - запирание только одного вида; с ним магнит индикация (если датчика нет); ЭМ → птиха, нипуц и коре (если считывателя нет)
- * - 2 считывателя → без птихи
+ * Rules when a device's count changes (hints — everything can be changed by hand afterwards).
+ * sel: Map deviceId → count. Returns a new Map.
+ * - only one kind of lock; with it a magnet indicator (if there is no sensor); an electromagnet → «птиха», «нипуц» and a reader (if there is no reader)
+ * - 2 readers → no «птиха»
  */
 export function applyDoorRules(ctx, sel, changedId, count) {
   const out = new Map(sel); const devOf = (id) => ctx.devices.get(id);
@@ -71,11 +72,11 @@ export function applyDoorRules(ctx, sel, changedId, count) {
   out.set(changedId, count);
   const dev = devOf(changedId); const part = doorPartOf(dev); const role = doorRole(dev);
   const total = (k) => [...out].filter(([id]) => doorPartOf(devOf(id)) === k).reduce((n, [, c]) => n + c, 0);
-  const wasLock = part === 'lock' && (sel.get(changedId) || 0) > 0;   // замок уже стоял — недостающее заново не добавляем
+  const wasLock = part === 'lock' && (sel.get(changedId) || 0) > 0;   // the lock was already there — what is missing is not added again
   if (part === 'lock' && count > 0) {
     [...out.keys()].forEach((id) => { if (id !== changedId && doorPartOf(devOf(id)) === 'lock') out.set(id, 0); });
-    if (wasLock) { /* только смена количества */ } else {
-    if (!total('sensor')) { const d = byRole('magnit'); if (d) out.set(d.id, 1); }   // магнит индикация — по умолчанию 1
+    if (wasLock) { /* only a count change */ } else {
+    if (!total('sensor')) { const d = byRole('magnit'); if (d) out.set(d.id, 1); }   // magnet indicator — 1 by default
     if (role === 'em') {
       ['ptiha', 'niputz'].forEach((r) => { const d = byRole(r); if (d && !out.get(d.id)) out.set(d.id, 1); });
       if (!total('reader')) { const d = byRole('kore'); if (d) out.set(d.id, 1); }
@@ -87,7 +88,7 @@ export function applyDoorRules(ctx, sel, changedId, count) {
   return out;
 }
 
-/** Кабели двери по составу (подставляются сами, можно поменять): ЭМ — 6005×2, МХ — 6005×3; биометри и интерком — +cat7; цофар — +6005 */
+/** Door cables by composition (filled in automatically, can be changed): «ЭМ» — 6005×2, «МХ» — 6005×3; biometric and intercom — +cat7; «цофар» — +6005 */
 export function autoDoorCables(ctx, devices) {
   let c6005 = 0; let cat7 = 0; let lock = ''; let lockN = 0;
   clean(devices, 'deviceId').forEach(({ deviceId, count }) => {
@@ -100,7 +101,7 @@ export function autoDoorCables(ctx, devices) {
   return [{ cable: '6005', count: c6005 }, { cable: 'cat7', count: cat7 }].filter((x) => x.count > 0);
 }
 
-// порядок устройств в конфигурации и названии: по частям, внутри — по роли/названию
+// order of devices in the configuration and the name: by part, within a part by role/name
 function sortDevices(ctx, devices) {
   const parts = doorDevices(ctx); const rank = new Map(); let i = 0;
   DOOR_PARTS.forEach((p) => parts[p.key].forEach((d) => rank.set(d.id, i++)));
@@ -110,13 +111,13 @@ const CABLE_ORDER = ['6005', 'cat7'];
 const sortCables = (cables) => clean(cables, 'cable').sort((a, b) => ((CABLE_ORDER.indexOf(a.cable) + 1 || 99) - (CABLE_ORDER.indexOf(b.cable) + 1 || 99)) || a.cable.localeCompare(b.cable));
 
 function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); }
-/** id конфигурации по составу (одинаковый состав → один id) */
+/** Configuration id by composition (the same composition → the same id) */
 export function doorCfgId(devices, cables) {
   const d = clean(devices, 'deviceId').sort((a, b) => a.deviceId.localeCompare(b.deviceId)).map((x) => `${x.deviceId}*${x.count}`).join('+');
   const c = clean(cables, 'cable').sort((a, b) => a.cable.localeCompare(b.cable)).map((x) => `${x.cable}*${x.count}`).join('+');
   return `DC_${hash(`${d}|${c}`)}`;
 }
-/** Название: «ЭМ · коре · птиха · нипуц · магнит · 6005×2» */
+/** Name: «ЭМ · коре · птиха · нипуц · магнит · 6005×2» */
 export function doorCfgName(ctx, devices, cables) {
   const parts = sortDevices(ctx, devices).map(({ deviceId, count }) => {
     const s = doorShortOf(ctx.devices.get(deviceId) || { id: deviceId });
@@ -125,20 +126,20 @@ export function doorCfgName(ctx, devices, cables) {
   const cab = sortCables(cables).map((c) => `${c.cable}×${c.count}`).join(' + ');
   return [...parts, cab].filter(Boolean).join(' · ') || 'пустая дверь';
 }
-/** Коротко для списков и плана: ЭМ / МХ */
+/** Short form for lists and the plan: «ЭМ» / «МХ» */
 export function doorCfgShort(ctx, cfg) {
   if (!isDoorCfg(cfg)) return '';
   const lock = cfg.devices.map((x) => ctx.devices.get(x.deviceId)).find((d) => doorPartOf(d) === 'lock' || ['em', 'mh'].includes(doorRole(d)));
   return lock ? doorShortOf(lock) : '';
 }
 export const isDoorCfg = (cfg) => !!cfg && Array.isArray(cfg.devices);
-/** Конфигурация (полная запись) из состава */
+/** A configuration (the full record) from a composition */
 export function makeDoorCfg(ctx, devices, cables) {
   const d = sortDevices(ctx, devices); const c = sortCables(cables);
   return { id: doorCfgId(d, c), name: doorCfgName(ctx, d, c), devices: d, cables: c, kind: 'door' };
 }
 
-/** Стандартные: ЭМ (коре, птиха, нипуц, магнит, 6005×2) и МХ (коре, магнит, 6005×3) — из устройств проекта */
+/** Standard ones: «ЭМ» (reader, «птиха», «нипуц», magnet, 6005×2) and «МХ» (reader, magnet, 6005×3) — from the project's devices */
 export function standardDoorCfgs(ctx) {
   const byRole = (r) => [...ctx.devices.values()].find((d) => !d.deleted && doorPartOf(d) && doorRole(d) === r);
   const pick = (roles) => roles.map(byRole);
@@ -148,16 +149,16 @@ export function standardDoorCfgs(ctx) {
   if (mh.every(Boolean)) { const devs = mh.map((d) => ({ deviceId: d.id, count: 1 })); out.push({ ...makeDoorCfg(ctx, devs, autoDoorCables(ctx, devs)), standard: true }); }
   return out;
 }
-/** Закреплённые в проекте (порядок важен): project.doorPins или, если не задано, стандартные */
+/** Pinned in the project (the order matters): project.doorPins or, if not set, the standard ones */
 export const doorPinsOf = (project, ctx) => (Array.isArray(project?.doorPins) ? project.doorPins : standardDoorCfgs(ctx).map((c) => c.id));
 
-/** Конфигурация двери точки (новая схема) или null */
+/** The point's door configuration (new scheme) or null */
 export function doorCfgOf(point, ctx) {
   const cfg = point?.configId ? ctx.configs?.get(point.configId) : null;
   return isDoorCfg(cfg) && !cfg.deleted ? cfg : null;
 }
 
-/** Стандартные устройства двери из библиотеки, которых нет в проекте (с их работами и кабелями): операции записи */
+/** Standard door devices from the library that the project lacks (with their works and cables): write operations */
 export function doorLibraryOps(ctx) {
   const ops = []; const has = (coll, id) => ctx[coll].has(id) || ops.some((o) => o.coll === coll && o.id === id);
   const roles = new Set(['em', 'mh', 'kore', 'bio', 'ptiha', 'niputz', 'magnit', 'intercom']);
@@ -173,11 +174,11 @@ export function doorLibraryOps(ctx) {
   return ops;
 }
 
-// ---- читаемость названий: цвет по части двери (или свой цвет устройства), плашки ----
+// ---- readable names: colour by door part (or the device's own colour), badges ----
 export const DOOR_ROLE_COLORS = { em: '#e5484d', mh: '#2f7cf6' };
 export const DOOR_PART_COLORS = { lock: '#e5484d', reader: '#9b5cf6', button: '#f08c00', sensor: '#0fa5a0', extra: '#e0479e' };
 export const doorColorOf = (dev) => (dev?.color || DOOR_ROLE_COLORS[doorRole(dev)] || DOOR_PART_COLORS[doorPartOf(dev)] || '#8e8e93');
-/** Части названия для отрисовки плашками: { items: [{ text, count, color, lock }], cables: [{ cable, count }] } */
+/** Parts of the name for drawing as badges: { items: [{ text, count, color, lock }], cables: [{ cable, count }] } */
 export function doorTokens(ctx, cfg) {
   if (!isDoorCfg(cfg)) return { items: [], cables: [] };
   const items = sortDevices(ctx, cfg.devices).map(({ deviceId, count }) => {
@@ -186,7 +187,7 @@ export function doorTokens(ctx, cfg) {
   });
   return { items, cables: sortCables(cfg.cables) };
 }
-/** Цвет короткого обозначения (ЭМ/МХ) двери */
+/** Colour of the door's short label («ЭМ»/«МХ») */
 export function doorShortColor(ctx, cfg) {
   if (!isDoorCfg(cfg)) return '';
   const lock = cfg.devices.map((x) => ctx.devices.get(x.deviceId)).find((d) => doorPartOf(d) === 'lock' || ['em', 'mh'].includes(doorRole(d)));

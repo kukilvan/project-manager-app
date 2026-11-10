@@ -1,24 +1,25 @@
-// Точки: естественная сортировка, кабели и метраж (разделы 3.4, 3.8, Приложение А).
+// Points: natural sorting, cables and metrage (sections 3.4, 3.8, Appendix A).
+// Basic helpers that most domain modules build on (status, composition, reports, import) and the points views call; pure.
 
 const pad = (s, n) => String(s).padStart(n, '0');
 const blank = (v) => v === undefined || v === null || v === '';
 export const round2 = (x) => Math.round((Number(x) + Number.EPSILON) * 100) / 100;
 
-// «Сорт»: последнее число из обозначения (EXTRACTNUMBERS + ABS), 0 если чисел нет.
+// «Sort»: the last number of the label (EXTRACTNUMBERS + ABS), 0 if there are no numbers.
 export function sortNumber(label) {
   const nums = String(label ?? '').match(/\d+(?:\.\d+)?/g);
   return nums ? Number(nums[nums.length - 1]) : 0;
 }
 
-// «Ключ точки» = <до первого "-"> | <буквы перед номером> | <целая часть номера, 5 цифр> | <дробная часть, 3 цифры>
-// Для «1A-01-02»: код точки = «01-02», номер берём как ведущее число кода.
-// ДОПУЩЕНИЕ: в описании не сказано, как брать номер из кода вида «01-02»; берём ведущее число (1).
+// «Point key» = <before the first "-"> | <letters before the number> | <integer part of the number, 5 digits> | <fractional part, 3 digits>
+// For «1A-01-02»: the point code is «01-02», the number is taken as the leading number of the code.
+// ASSUMPTION: the description does not say how to take the number from a code like «01-02»; the leading number (1) is taken.
 export function pointKey(label) {
   const s = String(label ?? '');
   const dash = s.indexOf('-');
   const prefix = dash >= 0 ? s.slice(0, dash) : '';
   const code = dash >= 0 ? s.slice(dash + 1) : s;
-  const lead = /^\D*/.exec(code)[0]; // начальные нецифровые символы
+  const lead = /^\D*/.exec(code)[0]; // leading non-digit characters
   const rest = code.slice(lead.length);
   const m = /^(\d+)(?:\.(\d+))?/.exec(rest);
   const whole = m ? m[1] : '0';
@@ -26,8 +27,8 @@ export function pointKey(label) {
   return `${prefix}|${lead}|${pad(whole, 5)}|${pad(frac.slice(0, 3), 3)}`;
 }
 
-// Естественное сравнение обозначений: числа внутри сравниваются как числа в любом месте (D2/2 < D2/10, GA1/C-9 < GA1/C-10, 07.In-3 < 07.In-12)
-// Разделители («-», «/», «_», «.», пробел) и ведущие нули не влияют: «1A/01-02» < «1A-09-10», «AP-3» = «AP03» по порядку.
+// Natural comparison of labels: numbers inside are compared as numbers anywhere (D2/2 < D2/10, GA1/C-9 < GA1/C-10, 07.In-3 < 07.In-12)
+// Separators («-», «/», «_», «.», space) and leading zeros do not matter: «1A/01-02» < «1A-09-10», «AP-3» = «AP03» in order.
 const natCollator = new Intl.Collator('ru', { numeric: true, sensitivity: 'base' });
 const labelTokens = (x) => (String(x ?? '').match(/\d+|[^\d\s\-/_.\\|,:;]+/g) || []).map((t) => (/^\d+$/.test(t) ? Number(t) : t));
 export function compareLabels(x, y) {
@@ -43,24 +44,24 @@ export function compareLabels(x, y) {
   return natCollator.compare(String(x ?? ''), String(y ?? '')) || (String(x ?? '') < String(y ?? '') ? -1 : String(x ?? '') > String(y ?? '') ? 1 : 0);
 }
 
-// Сравнение точек: шкаф → тип → обозначение (естественно, по числам).
+// Comparison of points: rack → type → label (natural, by numbers).
 export function comparePoints(a, b) {
   return compareLabels(a.cabinet ?? '', b.cabinet ?? '') || compareLabels(a.typeId ?? '', b.typeId ?? '') || compareLabels(a.label, b.label);
 }
 
-// Кабели точки. Основной кабель и их число: настройка шкафа (проект + шкаф + тип), иначе значения типа точки.
-// Дополнительные кабели других видов (extraCables: [{ cable, count }]) — например, интерком: 6005×1 + cat7×1.
+// Cables of a point. The main cable and its count: the rack setting (project + rack + type), otherwise the point type's values.
+// Extra cables of other kinds (extraCables: [{ cable, count }]) — e.g. an intercom: 6005×1 + cat7×1.
 const settingOf = (point, ctx, pred) => ctx.cabinetSettings.find((x) => x.projectId === point.projectId && x.cabinet === point.cabinet
   && x.typeId === point.typeId && pred(x));
 const cleanList = (list) => (Array.isArray(list) ? list : [])
   .filter((c) => c && !blank(c.cable) && Number(c.count) > 0).map((c) => ({ cable: String(c.cable), count: Number(c.count) }));
-const own = (point) => (Array.isArray(point?.cableOverride) ? cleanList(point.cableOverride) : null);  // свои кабели точки целиком
+const own = (point) => (Array.isArray(point?.cableOverride) ? cleanList(point.cableOverride) : null);  // the point's own cables as a whole
 export function cableOf(point, ctx) {
   const o = own(point); if (o) return o[0]?.cable;
   const s = settingOf(point, ctx, (x) => !blank(x.cable));
   return s ? s.cable : ctx.types.get(point.typeId)?.defaultCable;
 }
-// Число кабелей основного вида
+// Count of cables of the main kind
 export function mainCablesCountOf(point, ctx) {
   const o = own(point); if (o) return o[0]?.count ?? 0;
   const s = settingOf(point, ctx, (x) => !blank(x.cables));
@@ -71,7 +72,7 @@ export function extraCablesOf(point, ctx) {
   const s = settingOf(point, ctx, (x) => Array.isArray(x.extraCables));
   return cleanList(s ? s.extraCables : ctx.types.get(point.typeId)?.extraCables);
 }
-// Все кабели точки по видам: [{ cable, count }], первый — основной; одинаковые виды складываются
+// All cables of a point by kind: [{ cable, count }], the first is the main one; equal kinds are added up
 export function cableListOf(point, ctx) {
   const out = [];
   const add = (cable, count) => {
@@ -83,9 +84,9 @@ export function cableListOf(point, ctx) {
   extraCablesOf(point, ctx).forEach((c) => add(c.cable, c.count));
   return out;
 }
-// Всего кабелей у точки (всех видов)
+// Total cables of the point (all kinds)
 export const cablesCountOf = (point, ctx) => cableListOf(point, ctx).reduce((n, c) => n + c.count, 0) || mainCablesCountOf(point, ctx);
-// Сколько кабелей вида cableId у точки; вид не указан или не найден — основной (как раньше)
+// How many cables of kind cableId the point has; kind not given or not found — the main one (as before)
 export function cableCountFor(point, ctx, cableId) {
   const list = cableListOf(point, ctx);
   const x = !blank(cableId) && list.find((c) => c.cable === cableId);
@@ -101,11 +102,11 @@ export function parseCables(text) {
   });
   return { list: out, bad };
 }
-// Метраж = длина на 1 кабель × число кабелей (всех видов); без длины — 0
+// Metrage = length per 1 cable × number of cables (all kinds); no length — 0
 export const metrageOf = (point, ctx) => round2((Number(point.length) || 0) * cablesCountOf(point, ctx));
 
-// Название следующей точки: последняя (по номеру) точка этого типа в этом шкафу + 1 в том же формате.
-// Пары «17-18» → «19-20»; ведущие нули сохраняются (C-083 → C-084); нет таких точек — ''.
+// Label of the next point: the last (by number) point of this type in this rack + 1 in the same format.
+// Pairs «17-18» → «19-20»; leading zeros are kept (C-083 → C-084); no such points — ''.
 export function nextLabel(points, typeId, cabinet = '') {
   const same = [...points].filter((p) => p.typeId === typeId && (p.cabinet || '') === (cabinet || '') && !/#\d+$/.test(p.label)).sort((a, b) => compareLabels(a.label, b.label));
   const last = same[same.length - 1]?.label; if (!last) return '';
@@ -122,7 +123,7 @@ export function nextLabel(points, typeId, cabinet = '') {
   return next;
 }
 
-// Подпись нескольких точек на одной отметке плана: по порядку (TV13, TV14 … TV19) — «TV13-19»; вразнобой — каждая отдельно, по порядку
+// Caption for several points on one plan mark: in sequence (TV13, TV14 … TV19) — «TV13-19»; scattered — each separately, in order
 export function combineLabels(labels) {
   const ls = [...new Set(labels)].sort((a, b) => compareLabels(a, b));
   if (ls.length < 2) return ls;
@@ -134,8 +135,7 @@ export function combineLabels(labels) {
   return ls;
 }
 
-// Групповое переименование: заменить/убрать текст (в начале, в конце или везде), сдвинуть номер, добавить в начало/конец.
-// Номер — последнее число; пара «17-18» сдвигается целиком. Ведущие нули сохраняются.
+// Replaces/removes text (at the start, at the end or anywhere): the first step of the group rename (renameLabel).
 function replaced(label, { find = '', replace = '', where = 'any' } = {}) {
   let s = String(label);
   if (find) {
@@ -145,7 +145,7 @@ function replaced(label, { find = '', replace = '', where = 'any' } = {}) {
   }
   return s;
 }
-// Сдвиг номера: пара «17-18» двигается целиком; возвращает { text, nums } — новая строка и новые значения номера(ов)
+// Number shift: a pair «17-18» moves as a whole; returns { text, nums } — the new string and the new number value(s)
 function shifted(s, n) {
   const pad = (v, w) => (v < 0 ? String(v) : String(v).padStart(w, '0'));
   const pair = s.match(/^(.*?)(\d+)([-_/])(\d+)(\D*)$/);
@@ -157,8 +157,8 @@ function shifted(s, n) {
   if (m) { const a = +m[2] + n; return { text: `${m[1]}${pad(a, m[2].length)}${m[3]}`, nums: [a] }; }
   return { text: s, nums: [] };
 }
-// Групповое переименование: заменить/убрать текст (в начале, в конце или везде), сдвинуть номер, добавить в начало/конец.
-// Номер — последнее число; пара «17-18» сдвигается целиком. Ведущие нули сохраняются.
+// Group rename: replace/remove text (at the start, at the end or anywhere), shift the number, add to the start/end.
+// The number is the last number; a pair «17-18» shifts as a whole. Leading zeros are kept.
 export function renameLabel(label, op = {}) {
   const { shift = 0, prefix = '', suffix = '' } = op;
   let s = replaced(label, op);
@@ -166,14 +166,14 @@ export function renameLabel(label, op = {}) {
   if (n) s = shifted(s, n).text;
   return `${prefix}${s}${suffix}`;
 }
-// Проблема сдвига: 'negative' — номер стал бы отрицательным (нельзя), 'zero' — станет нулём (предупредить), '' — всё в порядке
+// Shift problem: 'negative' — the number would become negative (not allowed), 'zero' — it becomes zero (warn), '' — all fine
 export function renameIssue(label, op = {}) {
   const n = Math.trunc(Number(op.shift) || 0); if (!n) return '';
   const { nums } = shifted(replaced(label, op), n);
   return nums.some((v) => v < 0) ? 'negative' : nums.some((v) => v === 0) ? 'zero' : '';
 }
 
-// Название «занято» только внутри одного шкафа: одинаковые названия в разных шкафах допустимы, а если шкаф есть только у одной
-// из точек — тоже. Две точки без шкафа считаются одним местом (иначе повторная загрузка файла дублировала бы точки).
+// A label is «taken» only within one rack: equal labels in different racks are allowed, and so when only one of the points has a rack.
+// Two points without a rack count as one place (otherwise loading a file again would duplicate the points).
 export const sameLabelClash = (a, b) => !!a && !!b && a.label === b.label && (a.cabinet || '') === (b.cabinet || '');
 export const labelKey = (label, cabinet) => `${cabinet || ''}\u0000${label}`;

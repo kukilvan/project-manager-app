@@ -1,7 +1,7 @@
-// Одна и та же точка, записанная по-разному: двойная «FC/B05-06» и одинарные «FC/B05» + «FC/B06» (старый разбор тохнита
-// делил двойные на одинарные, новый — оставляет двойными). Здесь: найти такие группы и посчитать объединение —
-// какой вид оставить, куда перейдут работы (записи дохa, журнал, протяжки), что не сходится (количество в отчёте,
-// работа, которой у оставляемой точки нет, разные метры).
+// Point merge: the same point recorded in two ways — a double «FC/B05-06» and singles «FC/B05» + «FC/B06» (the old drawing parsing split doubles into singles, the new one keeps them double).
+// This module finds such groups and works out the merge: which form to keep, where the works go (daily report entries, journal, pulls),
+// and what does not add up (the quantity in the report, a work the kept point lacks, different metres).
+// Built on doh.js, compose.js and points.js; used by pointsimport.js and the point merge and drawing views.
 import { itogShtuk, pullFigures } from './doh.js';
 import { taskQty, compositionOf, isPortCable } from './compose.js';
 import { cableListOf } from './points.js';
@@ -9,7 +9,7 @@ import { cableListOf } from './points.js';
 const RANGE = /^(.*?)(\d+)-(\d+)$/;
 const blank = (v) => v === undefined || v === null || v === '';
 
-/** Группы: двойная (тройная…) точка и все её одинарные в том же шкафу. points — живые точки. */
+/** Groups: a double (triple…) point and all its singles in the same rack. points — the live points. */
 export function findSameGroups(points) {
   const live = points.filter((p) => !p.deleted);
   const key = (cab, label) => `${cab || ''}\u0000${label}`;
@@ -27,7 +27,7 @@ export function findSameGroups(points) {
     }
     if (singles.length === hi - lo + 1) out.push({ double: d, singles });
   }
-  // одинарные на одной отметке подряд (FC/B09 + FC/B10 стоят на надписи «FC/B09-10»), а двойной точки нет — сделать двойную
+  // singles in a row on one mark (FC/B09 + FC/B10 sit under the caption «FC/B09-10») and there is no double point — make one
   const used = new Set(out.flatMap((g) => g.singles.map((x) => x.id)));
   const mark = new Map();
   for (const p of live) {
@@ -49,18 +49,18 @@ export function findSameGroups(points) {
   return out.sort((x, y) => String(name(x)).localeCompare(String(name(y)), 'ru', { numeric: true }));
 }
 
-/** Кабели двойной точки, собранной из одинарных: сумма кабелей одинарных (у каждой своё «cat7×1») или по типу */
+/** Cables of a double point assembled from singles: the sum of the singles' cables (each has its own «cat7×1») or by type */
 function summedCables(singles) {
   if (!singles.every((x) => Array.isArray(x.cableOverride) && x.cableOverride.length)) return null;
   const m = new Map(); singles.forEach((x) => x.cableOverride.forEach((c) => m.set(c.cable, (m.get(c.cable) || 0) + (Number(c.count) || 0))));
   return [...m.entries()].map(([cable, count]) => ({ cable, count }));
 }
-/** Что поменяется у точки, которая станет двойной (если двойной точки ещё нет) */
+/** What changes on the point that becomes double (if there is no double point yet) */
 export function newDoublePatch(group) {
   return group.double ? null : { label: group.newLabel, cableOverride: summedCables(group.singles) };
 }
 
-/** Одинарные точки проекта для двойного обозначения («FC/B05-06» → [FC/B05, FC/B06]) или null */
+/** The project's single points for a double label («FC/B05-06» → [FC/B05, FC/B06]) or null */
 export function singlesOf(label, cabinet, points) {
   const m = String(label || '').match(RANGE); if (!m) return null;
   const [, pre, a, b] = m; const lo = Number(a); const hi = Number(b); if (!(hi > lo) || hi - lo > 7) return null;
@@ -74,23 +74,23 @@ export function singlesOf(label, cabinet, points) {
 
 const isPull = (e) => e.workType === 'Протяжка';
 const portsOf = (e, id) => (Array.isArray(e.portQty) ? e.portQty.find((q) => q && q.id === id)?.v : undefined);
-/** Сколько единиц даёт точка в записи (кабелей — для протяжки, штук — для остальных) */
+/** How many units the point gives in an entry (cables — for a pull, pieces — for the rest) */
 export function countIn(e, id, ctx) {
   const one = { ...e, pointIds: [id] };
   return isPull(e) ? pullFigures(one, ctx).count : itogShtuk(one, ctx);
 }
 
 /**
- * Что будет при объединении группы. mode: 'double' — оставить двойную, одинарные убрать; 'singles' — наоборот.
- * data: { entries, journal, pulls } — живые записи проекта. ctx — контекст (точки, справочники).
- * → { kept: [ids], removed: [ids], entries: [{ id, label, before, after, unexpected, transfer: true, keepCount }], notes: [строки] }
+ * What happens when the group is merged. mode: 'double' — keep the double, remove the singles; 'singles' — the opposite.
+ * data: { entries, journal, pulls } — the project's live records. ctx — the context (points, reference lists).
+ * → { kept: [ids], removed: [ids], entries: [{ id, label, before, after, unexpected, transfer: true, keepCount }], notes: [strings] }
  */
 export function previewMerge(group, mode, data, ctx) {
-  const make = !group.double;   // двойной нет — первая одинарная становится двойной
+  const make = !group.double;   // there is no double — the first single becomes the double
   const kept = make ? [group.singles[0].id] : mode === 'double' ? [group.double.id] : group.singles.map((s) => s.id);
   const removed = make ? group.singles.slice(1).map((s) => s.id) : mode === 'double' ? group.singles.map((s) => s.id) : [group.double.id];
   const patch = newDoublePatch(group);
-  // количество «после» считается уже с новым названием и кабелями оставляемой точки
+  // the «after» quantity is already counted with the new name and cables of the kept point
   const ctxA = patch ? { ...ctx, points: new Map(ctx.points).set(kept[0], { ...ctx.points.get(kept[0]), ...patch, cableOverride: patch.cableOverride ?? undefined }) } : ctx;
   const all = new Set([...kept, ...removed]);
   const entries = [];
@@ -100,7 +100,7 @@ export function previewMerge(group, mode, data, ctx) {
     const work = ctx.catalog.get(e.workId);
     const before = ids.filter((id) => all.has(id)).reduce((n, id) => n + countIn(e, id, ctx), 0);
     const after = kept.reduce((n, id) => n + countIn({ ...e, portQty: (e.portQty || []).filter((q) => q.id !== id) }, id, ctxA), 0);
-    // работа «чужая» для оставляемой точки: у неё нет такой задачи (протяжка — всегда своя)
+    // the work is «foreign» to the kept point: it has no such task (a pull is always its own)
     const unexpected = !isPull(e) && !!work && !['Время', 'Текст'].includes(e.workType) && kept.every((id) => { const p = ctxA.points.get(id); return p && compositionOf(p, ctxA) && taskQty(p, ctxA, e) === null; });
     entries.push({ id: e.id, date: day?.date || '', name: work?.name || e.workType, workType: e.workType, before, after, unexpected, transfer: true, keepCount: before !== after && (mode === 'double' || make) });
   }
@@ -122,7 +122,7 @@ export function previewMerge(group, mode, data, ctx) {
 }
 
 /**
- * Операции записи для объединения (после того как человек посмотрел preview и, может быть, поменял transfer/keepCount).
+ * Write operations for the merge (after the person has looked at the preview and maybe changed transfer/keepCount).
  * → { ops: [{ coll, id, data }], remove: [{ coll, id }] }
  */
 export function mergeOps(group, mode, pv, data, ctx) {
@@ -131,7 +131,7 @@ export function mergeOps(group, mode, pv, data, ctx) {
   const choice = new Map(pv.entries.map((x) => [x.id, x]));
   const replace = (ids) => { const out = []; ids.forEach((id) => { const list = rem.has(id) ? kept : [id]; list.forEach((k) => { if (!out.includes(k)) out.push(k); }); }); return out; };
   const transferred = new Set();
-  // записи дохa
+  // daily report entries
   for (const e of data.entries) {
     const ids = e.pointIds || []; if (!ids.some((id) => rem.has(id) || (pv.patch && id === kept[0]))) continue;
     const c = choice.get(e.id) || { transfer: true };
@@ -139,7 +139,7 @@ export function mergeOps(group, mode, pv, data, ctx) {
     let pointIds;
     if (c.transfer) {
       pointIds = replace(ids); transferred.add(e.id);
-      // сохранить количество, как было в отчёте: у оставляемой точки — столько же единиц, сколько давали убранные
+      // keep the quantity as it was in the report: the kept point gets as many units as the removed ones gave
       if (c.keepCount && c.before !== c.after && kept.length === 1) {
         const k = kept[0]; const others = ids.filter((id) => rem.has(id) || id === k);
         const v = others.reduce((n, id) => n + countIn(e, id, ctx), 0);
@@ -150,7 +150,7 @@ export function mergeOps(group, mode, pv, data, ctx) {
     if (portQty.length || (e.portQty || []).length) data1.portQty = portQty;
     ops.push({ coll: 'entries', id: e.id, data: data1 });
   }
-  // журнал: строки убираемых точек → оставляемым
+  // journal: the removed points' rows → the kept ones
   const have = new Set(data.journal.map((r) => r.id));
   for (const r of data.journal) {
     if (!rem.has(r.pointId)) continue;
@@ -161,7 +161,7 @@ export function mergeOps(group, mode, pv, data, ctx) {
     }
     remove.push({ coll: 'journal', id: r.id });
   }
-  // протяжки
+  // pulls
   for (const pl of data.pulls) {
     if (!(pl.pointIds || []).some((id) => rem.has(id))) continue;
     const upd = { pointIds: replace(pl.pointIds) };
@@ -179,7 +179,7 @@ export function mergeOps(group, mode, pv, data, ctx) {
     }
     ops.push({ coll: 'pulls', id: pl.id, data: upd });
   }
-  // поля точки: чего нет у оставляемой — берём у убираемых
+  // point fields: what the kept point lacks is taken from the removed ones
   const src = removed.map((id) => ctx.points.get(id)).filter(Boolean);
   for (const kid of kept) {
     const k = ctx.points.get(kid); if (!k) continue; const patch = {};
@@ -196,9 +196,9 @@ export function mergeOps(group, mode, pv, data, ctx) {
 }
 
 /**
- * Кабели по номеру точки (точки сети: один вид кабеля cat7): одинарная — 1 кабель, двойная «B05-06» — 2, тройная — 3…
- * Возвращает cableOverride, который нужно поставить, или null (совпадает с типом, своё уже задано, не точка сети).
- * Своё значение у точки (cableOverride) — исключение, его не трогаем.
+ * Cables by point number (network points: one cable kind, cat7): a single — 1 cable, a double «B05-06» — 2, a triple — 3…
+ * Returns the cableOverride to set, or null (it matches the type, an own value is already set, not a network point).
+ * A point's own value (cableOverride) is an exception and is not touched.
  */
 export function cablesByLabel(point, ctx) {
   if (Array.isArray(point.cableOverride) && point.cableOverride.length) return null;
@@ -210,5 +210,5 @@ export function cablesByLabel(point, ctx) {
   if (!(n >= 1 && n <= 8) || n === list[0].count) return null;
   return [{ cable: list[0].cable, count: n }];
 }
-/** Точки проекта, у которых число кабелей не совпадает с номером (без своего значения) */
+/** The project's points whose number of cables does not match the label (without an own value) */
 export const cablesMismatch = (points, ctx) => points.filter((p) => !p.deleted).map((p) => ({ p, want: cablesByLabel(p, ctx) })).filter((x) => x.want);

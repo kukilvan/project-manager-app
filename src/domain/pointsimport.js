@@ -1,13 +1,14 @@
-// Добавление точек из файла (например, после разбора тохнита). Формат:
-// { format: 'polevoy-points-1', source?, floor?, sheet?: { pdf, pages: [{ w, h }] },
+// Adds points from a file (for example after a drawing is parsed): parses it, plans the import and builds the write operations.
+// Format: { format: 'polevoy-points-1', source?, floor?, sheet?: { pdf, pages: [{ w, h }] },
 //   points: [{ label, typeId, planName?, cabinet?, floor?, note?, devices?, cables?, pos?: { page, x, y, w, h } }],
 //   types?: [{ id, nameHe, devices, cables, workIds }], devices?: [{ id, name, nameHe, cables, workIds }] }
-// Ничего не заменяет: существующие точки (то же обозначение) пропускаются; новые типы и устройства из файла создаются, если их нет.
+// Replaces nothing: existing points (the same label) are skipped; new types and devices from the file are created if missing.
+// Built on typelib.js, status.js and merge.js; used by pool.js.
 import { addBundleOps } from './typelib.js';
 import { cableOverrideFor } from './status.js';
 import { cablesByLabel } from './merge.js';
 export const POINTS_FORMAT = 'polevoy-points-1';
-// Служебный тип для точек «разобрать потом»: не показывается в справочнике типов и не уходит в общий пул
+// System type for «sort out later» points: not shown in the type reference list and not sent to the shared pool
 export const UNSORTED_TYPE = 'Не разобрано';
 export const isSystemType = (t) => !!t && (t.system === true || t.id === UNSORTED_TYPE);
 const s = (v) => (v === undefined || v === null ? '' : String(v).trim());
@@ -20,7 +21,7 @@ export function parsePointsFile(text) {
   return data;
 }
 
-// Подозрительные обозначения: не похожи на номер точки
+// Suspicious labels: do not look like a point number
 export function labelProblems(label) {
   const out = [];
   if (!label) return ['пустое обозначение'];
@@ -33,17 +34,17 @@ export function labelProblems(label) {
   return out;
 }
 
-// pool — общий пул типов (Map id → комплект): тип, которого нет ни в проекте, ни в файле, берётся оттуда;
-// нет и там — создаётся пустой тип с этим названием (состав потом настраивается в «Типах точек»)
-// requireCabinet: точки без шкафа не добавляются, а попадают в noCabinet (приложение просит указать им шкаф)
+// pool — the shared pool of types (Map id → bundle): a type that is neither in the project nor in the file is taken from there;
+// not there either — an empty type with this name is created (its composition is set up later in «Типы точек»)
+// requireCabinet: points without a rack are not added but go to noCabinet (the app asks for a rack for them)
 export function planPointsImport(ctx, data, pool = new Map(), { requireCabinet = false } = {}) {
   const fileTypes = new Map((data.types || []).map((t) => [s(t.id), t]));
   const fileDevices = new Map((data.devices || []).map((d) => [s(d.id), d]));
-  // одинаковые обозначения допустимы в разных шкафах (и в шкафу + без шкафа): «уже есть» — только то же обозначение в том же шкафу
+  // equal labels are allowed in different racks (and in a rack + without a rack): «already exists» only means the same label in the same rack
   const key = (p) => `${p.cabinet || ''}\u0000${p.label}`;
   const have = new Map([...ctx.points.values()].map((p) => [key(p), p]));
   const cabsOf = new Map(); [...ctx.points.values()].forEach((p) => { if (!cabsOf.has(p.label)) cabsOf.set(p.label, new Set()); cabsOf.get(p.label).add(p.cabinet || ''); });
-  const alsoIn = new Map();   // точка к добавлению → в каких шкафах такое обозначение уже есть
+  const alsoIn = new Map();   // point to add → the racks in which such a label already exists
   const seen = new Set();
   const add = []; const skipped = []; const errors = []; const warnings = []; const noCabinet = [];
   const fromPool = new Map(); const blank = new Set();
@@ -73,7 +74,7 @@ export function planPointsImport(ctx, data, pool = new Map(), { requireCabinet =
   return { add, skipped, errors, warnings, newTypes, newDevices, byType, poolTypes, blankTypes, alsoIn, noCabinet, ctx };
 }
 
-// Место точки на листе чертежа (для будущего плана в приложении): pt PDF от левого верхнего угла + размер листа и имя файла
+// Position of a point on the drawing sheet (for the future plan in the app): PDF pt from the top-left corner + sheet size and file name
 export function posOf(p, data) {
   const q = p.pos; const n = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
   if (!q || n(q.x) === null || n(q.y) === null) return undefined;
@@ -85,21 +86,21 @@ export function posOf(p, data) {
   return out;
 }
 
-// Операции записи (после предпросмотра)
+// Write operations (after the preview)
 export function pointsImportOps(plan, newId, data) {
   const ops = [];
   plan.newDevices.forEach((d) => ops.push({ coll: 'devices', id: s(d.id), data: { name: d.name || d.id, nameHe: d.nameHe || '', cables: d.cables || [], workIds: d.workIds || [] } }));
   plan.newTypes.forEach((t) => ops.push({ coll: 'types', id: s(t.id), data: { nameHe: t.nameHe || '', devices: t.devices || [], cables: t.cables || [], workIds: t.workIds || [] } }));
-  if (plan.ctx) (plan.poolTypes || []).forEach((b) => addBundleOps(plan.ctx, b, ops)); // тип из общего пула — вместе с устройствами, кабелями, работами
+  if (plan.ctx) (plan.poolTypes || []).forEach((b) => addBundleOps(plan.ctx, b, ops)); // a type from the shared pool — together with devices, cables, works
   (plan.blankTypes || []).forEach((id) => ops.push({ coll: 'types', id, data: { nameHe: '', devices: [], cables: [], workIds: [], ...(id === UNSORTED_TYPE ? { system: true } : {}) } }));
-  // для «кабелей по номеру» — типы проекта вместе с теми, что придут из файла и общего пула
+  // for «cables by label» — the project's types together with those that come from the file and the shared pool
   const lctx = plan.ctx && { ...plan.ctx, types: new Map([...plan.ctx.types, ...(plan.poolTypes || []).map((b) => [b.type.id, b.type]), ...(plan.newTypes || []).map((t) => [s(t.id), t])]) };
   plan.add.forEach((p) => ops.push({ coll: 'points', id: newId(), data: {
     label: p.label, typeId: p.typeId, cabinet: p.cabinet || undefined, floor: p.floor || undefined, planName: p.planName || undefined, note: p.note || undefined,
     ...(Array.isArray(p.devices) ? { devices: p.devices } : {}), ...(Array.isArray(p.cables) ? { cables: p.cables } : {}),
     ...(posOf(p, data) ? { pos: posOf(p, data) } : {}),
     ...(Array.isArray(p.cableOverride) && (!plan.ctx || cableOverrideFor(p.cableOverride, plan.ctx, p.typeId, p.cabinet)) ? { cableOverride: p.cableOverride }
-      // кабели по номеру: одинарная точка сети — 1 кабель, двойная — 2… (если своих кабелей у точки нет)
+      // cables by label: a single network point — 1 cable, a double one — 2… (if the point has no cables of its own)
       : !Array.isArray(p.cableOverride) && !Array.isArray(p.cables) && !Array.isArray(p.devices) && lctx && cablesByLabel({ label: p.label, typeId: p.typeId, cabinet: p.cabinet }, lctx)
         ? { cableOverride: cablesByLabel({ label: p.label, typeId: p.typeId, cabinet: p.cabinet }, lctx) } : {}),
   } }));

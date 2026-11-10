@@ -1,5 +1,6 @@
-// Правила базы для открытой версии получаются из правил своей версии (firestore.rules), чтобы они никогда не расходились:
-// почта администратора не вшита, а берётся из документа meta/admin, который первый вошедший создаёт один раз.
+// Derives the open-version Firestore rules from firestore.rules, so the two files never diverge.
+// The admin e-mail is not hard-coded: it is read from the document meta/admin, which the first user to sign in creates once.
+// Used to regenerate firestore.open.rules and checked by tests/domain.test.js.
 const ADMIN_LINE = /function poolAdmin\(\) \{[^\n]*\}/;
 export function openRules(rules) {
   if (!ADMIN_LINE.test(rules)) throw new Error('В firestore.rules не найдена функция poolAdmin()');

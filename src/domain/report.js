@@ -1,6 +1,7 @@
-// Таблицы для руководства: профили (что показывать) и сборка листов значениями, без формул.
-// Профиль: { id, name, main, lang: 'he'|'ru', cabinets: [], types: [], statuses: [], columns: [id…], layout: 'one'|'perCabinet', summary }
-// Пустой список шкафов/типов/статусов = «все».
+// Management sheets: profiles (what to show) and building the sheets with values only, no formulas.
+// Profile: { id, name, main, lang: 'he'|'ru', cabinets: [], types: [], statuses: [], columns: [id…], layout: 'one'|'perCabinet', summary }
+// An empty list of racks/types/statuses = «all».
+// Built on points.js, status.js, doorcfg.js, managers.js and rack.js; export.js reuses it for the Excel export.
 import { comparePoints, cableListOf, cablesCountOf, metrageOf } from './points.js';
 import { pointInfo, usesConfig } from './status.js';
 import { doorCfgOf } from './doorcfg.js';
@@ -9,7 +10,7 @@ import { panelText } from './rack.js';
 
 export const NO_CABINET = '__none';
 
-// kind: text | num | status | stage (дата этапа). stage — название этапа типа точки; он может отсутствовать у типа («—»)
+// kind: text | num | status | stage (the stage's date). stage — the name of a point-type stage; a type may lack it («—»)
 export const COLUMNS = [
   { id: 'label', ru: 'Обозначение', he: 'נקודה', w: 140 },
   { id: 'planName', ru: 'Имя в плане', he: 'שם בתוכנית', w: 150 },
@@ -37,7 +38,7 @@ export const COLUMNS = [
 ];
 const colById = new Map(COLUMNS.map((c) => [c.id, c]));
 
-// Статусы точки (для фильтра) и их подписи в таблице. Иврит прежний (его видели руководители), новые подписи — на проверку.
+// Point statuses (for the filter) and their captions in the table. The Hebrew is the old one (the managers have seen it), the new captions are to be checked.
 export const STATUS_KEYS = ['Новая', 'Посчитана', 'Частично протянута', 'Протянута', 'Захивучена', 'Частично установлена', 'Установлена', 'Проверена', 'Неисправна'];
 const STATUS_HE = { 'Новая': 'טרם נמשך', 'Посчитана': 'טרם נמשך', 'Протянута': 'נמשך', 'Захивучена': 'חווט', 'Установлена': 'הותקן', 'Проверена': 'נבדק', 'Неисправна': 'תקלה' };
 export const statusKeyOf = (info) => (info.status.startsWith('Установлено ') ? 'Частично установлена'
@@ -58,7 +59,7 @@ const T = {
   },
 };
 
-// ---------- профили ----------
+// ---------- profiles ----------
 export const defaultTables = () => [
   { id: 't_main', name: 'Для руководства', main: true, lang: 'he', cabinets: [], types: [], statuses: [], layout: 'one', summary: true,
     columns: ['label', 'planName', 'type', 'cabinet', 'floor', 'cable', 'pulled', 'hived', 'installed', 'checked'] },
@@ -66,18 +67,18 @@ export const defaultTables = () => [
     columns: ['label', 'planName', 'cabinet', 'floor', 'type', 'cable', 'cables', 'length', 'port', 'config', 'delay', 'status',
       'pulled', 'hived', 'installed', 'checked', 'checkResult', 'shilut', 'lastBy', 'note'] },
 ];
-// Старый столбец «метраж» слит со столбцом «длина»: в сохранённых профилях заменяем и убираем дубли
+// The old «метраж» column is merged into the «длина» column: in saved profiles it is replaced and duplicates are removed
 const fixColumns = (t) => ({ ...t, columns: [...new Set((t.columns || []).map((c) => (c === 'metrage' ? 'length' : c)))] });
 export const tablesOf = (project) => (project?.tables?.length ? project.tables.map(fixColumns) : defaultTables());
 export const mainTable = (project) => { const t = tablesOf(project); return t.find((x) => x.main) || t[0]; };
-// Новый список профилей с изменениями одного (patch); основной всегда ровно один
+// A new list of profiles with the changes to one of them (patch); there is always exactly one main profile
 export function withTable(project, id, patch) {
   const list = tablesOf(project).map((t) => (t.id === id ? { ...t, ...patch } : t));
   if (patch.main) list.forEach((t) => { t.main = t.id === id; });
   return list;
 }
 
-// ---------- сборка ----------
+// ---------- building ----------
 const safeSheet = (s) => String(s).replace(/[[\]*?:/\\]/g, '_').slice(0, 90) || '_';
 const s = (v) => (v === undefined || v === null ? '' : v);
 
@@ -93,15 +94,15 @@ export function fileTitle(project, table) {
   return `${d} – ${table.name}`;
 }
 
-// Этапы типа точек (как заданы в типе)
+// Stages of a point type (as set in the type)
 const stagesOf = (type) => (type ? [...(type.stages || [])] : null);
 
 
-// версия оформления: при её смене таблицы перестраиваются, даже если данные те же
+// layout version: when it changes the tables are rebuilt even if the data is the same
 const STYLE_V = 3;
 const COLORS = { green: '#C6E5C9', grey: '#EFEFEF', pink: '#FCE8E8', orange: '#FFE0B2', red: '#F4B6B6', yellow: '#FFF2B3' };
 
-// Значения одной ячейки
+// Values of one cell
 function cellOf(col, point, info, ctx, project, lang, nameOf) {
   const type = ctx.types.get(point.typeId);
   switch (col.id) {
@@ -137,7 +138,7 @@ function cellOf(col, point, info, ctx, project, lang, nameOf) {
       return nameOf ? nameOf(last.by) : '';
     }
     default: {
-      // этапы: «—» если у типа нет такого этапа, пусто если ещё не сделан, иначе дата
+      // stages: «—» if the type has no such stage, empty if not done yet, otherwise the date
       const stages = info.composed ? info.stages : stagesOf(type);
       if (stages && !stages.includes(col.stage)) return '—';
       if (col.id === 'installed') {
@@ -154,7 +155,7 @@ function cellOf(col, point, info, ctx, project, lang, nameOf) {
   }
 }
 
-// Правила подсветки (без формул в ячейках): колонка → условие → цвет
+// Highlight rules (no formulas in cells): column → condition → colour
 function rulesFor(cols, lang) {
   const rules = [];
   cols.forEach((c, i) => {
@@ -177,7 +178,7 @@ function rulesFor(cols, lang) {
   return rules;
 }
 
-// Цвет «информационных» столбцов строки по общему статусу точки (статус-столбец красится своими правилами)
+// Colour of the row's «informational» columns by the point's overall status (the status column is coloured by its own rules)
 const ROW_COLOR = { 'Неисправна': COLORS.red, 'Проверена': COLORS.green, 'Установлена': COLORS.green, 'Частично установлена': COLORS.orange,
   'Захивучена': COLORS.yellow, 'Протянута': COLORS.yellow, 'Частично протянута': COLORS.orange };
 function pointsFor(project, ctx, table, nameOf) {
@@ -206,7 +207,7 @@ function sheetOf(title, items, project, ctx, table, cols, nameOf) {
     rowColors: items.map(({ info }) => ROW_COLOR[statusKeyOf(info)] || '') };
 }
 
-// Возвращает { title, sheets, hash, pointCount, colCount } для записи в Google Таблицу
+// Returns { title, sheets, hash, pointCount, colCount } for writing to a Google Sheet
 export function buildReport(project, ctx, table, { nameOf } = {}) {
   const lang = table.lang === 'ru' ? 'ru' : 'he';
   const cols = (table.columns || []).map((id) => colById.get(id)).filter(Boolean);

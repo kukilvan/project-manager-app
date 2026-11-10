@@ -117,36 +117,36 @@ Vanilla JS PWA built by Vite (`vite-plugin-pwa`, service worker `autoUpdate`), n
 - `src/app/views/todos.js` — (no English header yet)
 - `src/app/views/tohnitview.js` — (no English header yet)
 - `src/app/views/wizard.js` — (no English header yet)
-- `src/domain/compose.js` — (no English header yet)
-- `src/domain/context.js` — (no English header yet)
-- `src/domain/deviceid.js` — (no English header yet)
-- `src/domain/doh.js` — (no English header yet)
-- `src/domain/doorcfg.js` — (no English header yet)
-- `src/domain/export.js` — (no English header yet)
-- `src/domain/fbcheck.js` — (no English header yet)
-- `src/domain/generator.js` — (no English header yet)
-- `src/domain/index.js` — (no English header yet)
-- `src/domain/latin.js` — (no English header yet)
-- `src/domain/managers.js` — (no English header yet)
-- `src/domain/manuals.js` — (no English header yet)
-- `src/domain/merge.js` — (no English header yet)
-- `src/domain/month.js` — (no English header yet)
-- `src/domain/openrules.js` — (no English header yet)
-- `src/domain/ownworks.js` — (no English header yet)
-- `src/domain/plan.js` — (no English header yet)
-- `src/domain/points.js` — (no English header yet)
-- `src/domain/pointsimport.js` — (no English header yet)
-- `src/domain/pool.js` — (no English header yet)
-- `src/domain/pull.js` — (no English header yet)
-- `src/domain/rack.js` — (no English header yet)
-- `src/domain/remaining.js` — (no English header yet)
-- `src/domain/report.js` — (no English header yet)
-- `src/domain/seed.js` — (no English header yet)
-- `src/domain/sheetfit.js` — (no English header yet)
-- `src/domain/shilutsheet.js` — (no English header yet)
-- `src/domain/status.js` — (no English header yet)
-- `src/domain/sync.js` — (no English header yet)
-- `src/domain/typelib.js` — (no English header yet)
+- `src/domain/compose.js` — Composition of points from devices (the composite model): tasks, stages and statuses of a point computed from cables, devices and its type.
+- `src/domain/context.js` — Builds the calculation context: lookup indexes over a project's data.
+- `src/domain/deviceid.js` — Serial number and MAC address of a device: parses scanned barcodes and QR codes, normalises the values and finds duplicates.
+- `src/domain/doh.js` — Text of the daily report («дох») in Russian, Hebrew and English (section 3.5, Appendix A).
+- `src/domain/doorcfg.js` — Door configurations (new scheme): there is one point type, «Дверь», and the kind of door is set by its configuration.
+- `src/domain/export.js` — Export of a whole project to Excel: sheets with values only (no formulas).
+- `src/domain/fbcheck.js` — Checks of the own-database setup wizard: no sign-in, only public Google endpoints with the key from the settings (apiKey).
+- `src/domain/generator.js` — Batch point generator (section 2.4): prefix + number (+ «-» and the next number for a pair) (+ suffix).
+- `src/domain/index.js` — Re-exports the pure domain modules as one import point for the app. fbcheck.js, openrules.js and shilutsheet.js are not re-exported: callers import them directly.
+- `src/domain/latin.js` — Cyrillic ↔ Latin in point names: look-alike letters, layout-independent search and quick-input shortcuts.
+- `src/domain/managers.js` — Small shared helpers of the management sheets: file names, dates for Google Sheets and the data hash.
+- `src/domain/manuals.js` — Manuals of the guide: photos of diagrams, PDFs, tables.
+- `src/domain/merge.js` — Point merge: the same point recorded in two ways — a double «FC/B05-06» and singles «FC/B05» + «FC/B06» (the old drawing parsing split doubles into singles, the new one keeps them double).
+- `src/domain/month.js` — Month report: the sum of all daily reports of a month (RU) and «דוח חודשי» in Hebrew (section 5.2 of the technical specification).
+- `src/domain/openrules.js` — Derives the open-version Firestore rules from firestore.rules, so the two files never diverge.
+- `src/domain/ownworks.js` — The own set of works on selected points (the point's or a group's «Изменить» window): what is required now and what to write into the point.
+- `src/domain/plan.js` — Drawing plan, the part shared by the app and the server: status colour, the drawing's points for the «PDF с номерами», and a fingerprint to tell whether it changed.
+- `src/domain/points.js` — Points: natural sorting, cables and metrage (sections 3.4, 3.8, Appendix A).
+- `src/domain/pointsimport.js` — Adds points from a file (for example after a drawing is parsed): parses it, plans the import and builds the write operations.
+- `src/domain/pool.js` — Shared pool (one database for everyone): point types, devices, cables and works; fingerprints, dependencies, inbox candidates and change lists.
+- `src/domain/pull.js` — Cable pulls («Протяжки»): choose points on the plan → «до шкафа» (to the rack) → metres per point → checklist → finish (written into the daily report).
+- `src/domain/rack.js` — Racks and port labels: panel ports of cat7 points, the rack plan, automatic port assignment, label colours and caption texts.
+- `src/domain/remaining.js` — «What is left»: points where termination, installation or checking is not done yet (taking the point type's stages into account).
+- `src/domain/report.js` — Management sheets: profiles (what to show) and building the sheets with values only, no formulas.
+- `src/domain/seed.js` — Starting reference lists for a new project: work catalog, point types, cables, devices, units, culprits and delay reasons (section 4 of the functional description).
+- `src/domain/sheetfit.js` — New drawing version («тохнит»): moving points from the old sheet to the new one when the new sheet has another size, a different crop or another scale.
+- `src/domain/shilutsheet.js` — Rack table for Google Drive: a «rack plan» sheet for each rack (section) and a common sheet of port labels.
+- `src/domain/status.js` — Point statuses, installation and completeness (sections 3.1–3.3, Appendix A): pointInfo and the cable helpers around it.
+- `src/domain/sync.js` — Pure decisions about reading from and writing to Firestore, made without touching the network: delta or full read, retention of deleted records, rejected writes, the daily write limit.
+- `src/domain/typelib.js` — Shared pool of point types: the standard types + «my pool» (types saved from any project; kept in the personal settings).
 - `src/edition.js` — (no English header yet)
 - `src/firebase.js` — (no English header yet)
 - `src/i18n/index.js` — (no English header yet)
