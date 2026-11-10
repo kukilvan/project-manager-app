@@ -2,6 +2,13 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-10 — Ticket 1.1: tools, KI-1, KI-2 («Тикет 1.1»)
+
+- New `tools/code-map.mjs` (module list of `docs/code-map.md`, `--check`), `tools/ru-comments.mjs` (Russian comments; `PENDING` per ticket), `tools/same-code.mjs` (per-file code compare + byte-for-byte build compare in a git worktree with a `node_modules` junction); `tests/code-docs.test.js` (14 tests). Commit `036d628`, branch `claude/s01-ticket-01`.
+- Decisions beyond the spec: `same-code --expect <path>` names intended code changes (the expected exceptions of spec 10 could not exit 0 otherwise; spec 6.2 and tickets 07, 09 updated); JS token compare also records whether a line break precedes each token (ASI); the base worktree gets the working tree's `.gitattributes` before checkout, otherwise KI-2 line endings made the setup chunk differ on Windows; `src/app/tour/` was missing from the spec table — added to both `PENDING` lists and to ticket 03.
+- Baseline: 1,751 Russian comments in 144 files (the spec's 1,565 counted JS only, guillemets included). KI-1 and KI-2 fixed; tests 158/158 on Windows. The `tests/i18n.test.js` header translated.
+- Coding standards 3 (checked), 10 (comments in English), 11 (same-code check); `CLAUDE.md` Run; `CONTEXT.md` Development.
+
 ## 2026-11-10 — Stage 1 slicing («Тикеты 1»)
 
 - Nine tickets in `.scratch/01-code-docs/issues/` accepted (01 tools, 02 domain, 03 app core, 04–06 views, 07 drawings/scripts/config, 08 tests and Python, 09 architecture and strict checks). Branch `claude/s01-tickets`. Ticket files stay `open` until their own sessions.
