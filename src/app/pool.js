@@ -1,5 +1,6 @@
-// Общий пул в приложении: слушает пул (все пользователи), входящие (только администратор пула)
-// и отправляет администратору новое/изменённое из текущего проекта.
+// The shared pool inside the app: listens to the pool (all users) and to the inbox (pool administrator only),
+// and sends the administrator what is new or changed in the current project.
+// Reads and writes through the repo (`listenPool`, `listenInbox`, `setInbox`); pool logic comes from src/domain; `pz.poolSent` in localStorage remembers what was already sent.
 import { state, getRepo, subscribe, currentProject, demo } from './store.js';
 import { isAdminEmail } from '../edition.js';
 import { POOL_KINDS, poolMaps, inboxCandidates, deepHash, bundleFrom, coveredBy, candidateChanges } from '../domain/index.js';
@@ -13,7 +14,7 @@ export const onPool = (fn) => { subs.add(fn); return () => subs.delete(fn); };
 const emit = () => subs.forEach((f) => { try { f(); } catch { /* ok */ } });
 export const isPoolAdmin = () => isAdminEmail(getRepo()?.user?.email);
 export const poolReady = () => loaded.size === POOL_KINDS.length;
-// Пул реально скачан на телефон (а не пустой из-за того, что связи ещё не было ни разу)
+// The pool was really downloaded to the phone (not empty just because there has been no connection yet)
 export const poolHasData = () => POOL_KINDS.some((k) => pool[k].size > 0);
 
 let started = false; let timer = null;
@@ -25,7 +26,7 @@ export function startPool() {
 }
 function schedule() { clearTimeout(timer); timer = setTimeout(pushCandidates, 4000); }
 
-// новое/изменённое в текущем проекте → во входящие администратора (один раз на версию; пока пул пуст — не шлём)
+// new or changed in the current project → the administrator's inbox (once per version; while the pool is empty nothing is sent)
 const sentKey = 'pz.poolSent';
 function pushCandidates() {
   try {
@@ -46,12 +47,12 @@ function pushCandidates() {
   } catch (e) { console.warn('pool push', e); }
 }
 
-// Входящие по разделу: новые (без решения), изменённые после решения, отклонённые
-// открыт: в пуле нет или есть отличия (по отпечатку; на всякий случай — и по списку изменений, чтобы старые записи без отличий не висели)
+// Inbox by section: new (no decision yet), changed after a decision, rejected
+// open: absent from the pool or different (by hash; also by the list of changes, just in case, so old entries without differences do not hang around)
 const openItem = (x) => { const m = poolMaps(pool); if (!m[x.kind]?.get(x.itemId)) return true; if (deepHash(m, x.kind, x.itemId) === x.hash) return false; return candidateChanges(x, m).length > 0; };
 const decided = (x) => x.status && x.seenHash === x.hash;
 export function inboxOf(kind) {
-  // часть (работа, кабель, устройство), которая входит в открытый кандидат уровнем выше, принимается вместе с ним — отдельно не показываем
+  // a part (work, cable, device) that belongs to an open candidate one level up is accepted together with it — not shown separately
   const open = inbox.filter((x) => openItem(x) && !decided(x));
   const live = inbox.filter((x) => x.kind === kind && openItem(x) && !(!decided(x) && coveredBy(x, open)));
   return {
@@ -62,7 +63,7 @@ export function inboxOf(kind) {
 }
 export const inboxCount = (kind) => (isPoolAdmin() ? inboxOf(kind).fresh.length : 0);
 
-// Комплекты типов из пула (для импорта точек из файла: незнакомый тип можно взять из пула)
+// Type bundles from the pool (for importing points from a file: an unknown type can be taken from the pool)
 export function poolBundles() {
   const maps = poolMaps(pool); const m = new Map();
   maps.types.forEach((t, id) => { const b = bundleFrom(maps, id); if (b) m.set(id, { ...b, source: 'pool' }); });

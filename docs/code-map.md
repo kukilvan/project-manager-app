@@ -46,36 +46,36 @@ Vanilla JS PWA built by Vite (`vite-plugin-pwa`, service worker `autoUpdate`), n
 - `scripts/server-tables.mjs` — (no English header yet)
 - `scripts/starter-from-backup.mjs` — (no English header yet)
 - `scripts/tohnit-eval.mjs` — (no English header yet)
-- `src/app/backup.js` — (no English header yet)
-- `src/app/cfgfilter.js` — (no English header yet)
-- `src/app/doorpool.js` — (no English header yet)
-- `src/app/drawings.js` — (no English header yet)
-- `src/app/drivefolders.js` — (no English header yet)
-- `src/app/excel.js` — (no English header yet)
-- `src/app/google.js` — (no English header yet)
-- `src/app/keyboard.js` — (no English header yet)
-- `src/app/localdb.js` — (no English header yet)
-- `src/app/managers.js` — (no English header yet)
-- `src/app/manuals.js` — (no English header yet)
-- `src/app/migrate.js` — (no English header yet)
-- `src/app/nodoubletap.js` — (no English header yet)
-- `src/app/pool.js` — (no English header yet)
-- `src/app/racksheet.js` — (no English header yet)
-- `src/app/racktablecore.js` — (no English header yet)
-- `src/app/repo.js` — (no English header yet)
-- `src/app/scan.js` — (no English header yet)
-- `src/app/setup.js` — (no English header yet)
-- `src/app/shell.js` — (no English header yet)
-- `src/app/start.js` — (no English header yet)
-- `src/app/starter.js` — (no English header yet)
-- `src/app/store.js` — (no English header yet)
-- `src/app/theme.js` — (no English header yet)
-- `src/app/tour/demo.js` — (no English header yet)
-- `src/app/tour/engine.js` — (no English header yet)
-- `src/app/tour/index.js` — (no English header yet)
-- `src/app/tour/topics.js` — (no English header yet)
-- `src/app/typegroups.js` — (no English header yet)
-- `src/app/ui.js` — (no English header yet)
+- `src/app/backup.js` — Backs a project up to Google Drive: one JSON file per project and day, in the format the «Импорт данных» screen reads (`polevoy-import-1`).
+- `src/app/cfgfilter.js` — Filter of points by door configuration for lists and the plan: «Без запирания», «Без конфигурации» and each configuration with its point count.
+- `src/app/doorpool.js` — The shared pool of door configurations (pool_doorcfg): a new kind of door gets there by itself (any member writes it), only the pool administrator deletes.
+- `src/app/drawings.js` — Project drawings (PDF plans) for the plan in the app: a file on Google Drive plus a copy on the device, so the plan opens offline.
+- `src/app/drivefolders.js` — The app's folders on Google Drive: «Менеджер проектов» → the project folder → «Чертежи», «Резервные копии»; sheets go into the project folder.
+- `src/app/excel.js` — Exports a project to .xlsx and saves it on the phone (on iPhone through the «Поделиться» → «Сохранить в Файлы» menu).
+- `src/app/google.js` — Access to Google Drive and Sheets on the user's behalf (on a button press, a separate consent is needed): tokens, sign-in flows and the Drive/Sheets api object.
+- `src/app/keyboard.js` — Keeps input windows visible above the iPhone on-screen keyboard, which covers the page instead of shrinking it.
+- `src/app/localdb.js` — On-device storage for the «на этом телефоне» mode: every document lives in IndexedDB (`pm-local`), a working copy in memory.
+- `src/app/managers.js` — Management sheets: the app itself creates a Google Sheet (no template) and writes the ready values into it.
+- `src/app/manuals.js` — Manuals for the guide (diagrams, wiring photos, tables, PDFs), shared by all projects.
+- `src/app/migrate.js` — Moves projects from the «на устройстве» mode into the Firebase database (after setting up one's own database or joining by invitation).
+- `src/app/nodoubletap.js` — Stops a double tap from zooming the screen on iPhone (app opened from the home-screen icon).
+- `src/app/pool.js` — The shared pool inside the app: listens to the pool (all users) and to the inbox (pool administrator only), and sends the administrator what is new or changed in the current project.
+- `src/app/racksheet.js` — Formats and writes the rack sheets into a Google Sheet (values go straight into cells, no links between sheets).
+- `src/app/racktablecore.js` — The «תכנון ארונות ושילוט» management sheet (rack plans + labels): the part shared by the app and the night server job.
+- `src/app/repo.js` — Project data repository: one interface over a Firestore backend and an in-memory backend, plus the shared layer that stamps author and time, writes history and soft-deletes.
+- `src/app/scan.js` — Barcode and QR scanner for a serial number / MAC: the live camera or a photo from the gallery.
+- `src/app/setup.js` — The «своя база Firebase» wizard: one step at a time, with «Открыть страницу» and «Проверить» buttons; the draft is kept on the device.
+- `src/app/shell.js` — The shell: top bar, bottom bar of 5 tabs, the menu, screen switching, and the status badges (waiting to send, waiting to read, rejected by the server).
+- `src/app/start.js` — First launch of a clean app: welcome → home-screen icon (on a phone) → «Как будете работать»: on this device (no setup) or one's own Firebase database (the wizard), or joining by an invitation link.
+- `src/app/starter.js` — Seeds a new database (open edition) with the starter set of the shared pool on the administrator's first sign-in.
+- `src/app/store.js` — Application state: the user's projects, the data of the current project and the calculation context.
+- `src/app/theme.js` — Colour theme: dark (default), light or follow the phone; applies it to the page and remembers the choice.
+- `src/app/tour/demo.js` — Demo project for the tour, kept in a separate in-memory store: real data is not touched and nothing goes to the server.
+- `src/app/tour/engine.js` — Tour engine: a dimmed screen with a «window» around the target element, a caption and a «Далее» button.
+- `src/app/tour/index.js` — App tour: starting it (whole or by topics), the offer at the first project, and the short guide for those who create a project.
+- `src/app/tour/topics.js` — Tour topics: the step lists (title, text, target element) for each topic, built for the current UI by `buildTopics`.
+- `src/app/typegroups.js` — Shared groups of point types (e.g. «Дверь» holds every door type with its own devices and cables) for type filters.
+- `src/app/ui.js` — Small interface helpers: element creation (`h`), popup windows and forms, confirmation dialog, toast notifications.
 - `src/app/views/cablespick.js` — (no English header yet)
 - `src/app/views/catalogview.js` — (no English header yet)
 - `src/app/views/doh.js` — (no English header yet)
@@ -147,11 +147,11 @@ Vanilla JS PWA built by Vite (`vite-plugin-pwa`, service worker `autoUpdate`), n
 - `src/domain/status.js` — Point statuses, installation and completeness (sections 3.1–3.3, Appendix A): pointInfo and the cable helpers around it.
 - `src/domain/sync.js` — Pure decisions about reading from and writing to Firestore, made without touching the network: delta or full read, retention of deleted records, rejected writes, the daily write limit.
 - `src/domain/typelib.js` — Shared pool of point types: the standard types + «my pool» (types saved from any project; kept in the personal settings).
-- `src/edition.js` — (no English header yet)
-- `src/firebase.js` — (no English header yet)
-- `src/i18n/index.js` — (no English header yet)
-- `src/log.js` — (no English header yet)
-- `src/main.js` — (no English header yet)
+- `src/edition.js` — Connection to the database, the work mode (Firebase or on this device) and the pool administrator.
+- `src/firebase.js` — Firebase connection: Google sign-in and a Firestore database with a persistent offline cache.
+- `src/i18n/index.js` — Interface languages: Russian (the source), English, Hebrew (right to left), and the translation layer over the screen.
+- `src/log.js` — Event log for debugging: kept in memory and in localStorage (`pz.log.v1`, the last 300 lines).
+- `src/main.js` — App entry point: starts the language, theme and device helpers, decides what to show (the first-launch screens, the on-device mode or the Firebase sign-in) and starts the shell.
 - `src/tohnit/engine.js` — (no English header yet)
 - `src/tohnit/extract.js` — (no English header yet)
 - `src/tohnit/hefont.js` — (no English header yet)

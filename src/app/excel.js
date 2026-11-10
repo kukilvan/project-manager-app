@@ -1,9 +1,10 @@
-// Выгрузка проекта в .xlsx и сохранение на телефон (на iPhone — через меню «Поделиться» → «Сохранить в Файлы»).
+// Exports a project to .xlsx and saves it on the phone (on iPhone through the «Поделиться» → «Сохранить в Файлы» menu).
+// The sheets come from src/domain (`exportSheets`); the file is written in the browser with write-excel-file, no server involved.
 import { state, currentProject } from './store.js';
 import { exportSheets, exportFileName } from '../domain/index.js';
 import { memberNameByUid } from './views/members.js';
 import { toast } from './ui.js';
-import { tr } from '../i18n/index.js';   // файл — на языке приложения (заголовки, листы, названия работ)
+import { tr } from '../i18n/index.js';   // the file is in the app language (headers, sheets, work names)
 
 let busy = false;
 export async function exportExcel() {

@@ -1,12 +1,13 @@
-// Таблицы для руководства: приложение само создаёт Google Таблицу (без шаблона) и записывает готовые значения.
+// Management sheets: the app itself creates a Google Sheet (no template) and writes the ready values into it.
+// The report content comes from src/domain (`buildReport`); the Sheets api object is passed in (`realApi` of google.js in the app, the server job's own one in scripts/server-tables-lib.mjs).
 import { buildReport } from '../domain/index.js';
 
-// «#fff» и «#ffffff» — одинаково (короткая запись раньше давала красный)
+// «#fff» and «#ffffff» mean the same (the short form used to come out red)
 const rgb = (hex) => { let h = String(hex || '#000000').replace('#', ''); if (h.length === 3) h = [...h].map((c) => c + c).join(''); const n = (i) => (parseInt(h.slice(i, i + 2), 16) || 0) / 255; return { red: n(0), green: n(2), blue: n(4) }; };
 const colLetter = (n) => { let s = ''; let x = n + 1; while (x > 0) { const m = (x - 1) % 26; s = String.fromCharCode(65 + m) + s; x = Math.floor((x - 1) / 26); } return s; };
 const esc = (t) => String(t).replace(/'/g, "''");
 
-// Запросы оформления одного листа: ширины, шапка, даты, подсветка, фильтр
+// Formatting requests for one sheet: widths, header, dates, highlighting, filter
 export function sheetRequests(sheetId, sh) {
   const out = []; const nCols = sh.cols.length; const first = sh.headerRow + 1; const lastRow = Math.max(sh.rows.length, first + 1);
   const range = (r0, r1, c0, c1) => ({ sheetId, startRowIndex: r0, endRowIndex: r1, startColumnIndex: c0, endColumnIndex: c1 });
@@ -25,7 +26,7 @@ export function sheetRequests(sheetId, sh) {
     if (c.kind === 'stage') out.push({ repeatCell: { range: range(first, lastRow, i, i + 1), cell: { userEnteredFormat: { numberFormat: { type: 'DATE', pattern: 'dd/mm/yyyy' }, horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(numberFormat,horizontalAlignment)' } });
     else if (c.kind === 'num' || c.kind === 'status') out.push({ repeatCell: { range: range(first, lastRow, i, i + 1), cell: { userEnteredFormat: { horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat.horizontalAlignment' } });
   });
-  // цвет информационных столбцов по статусу точки: подряд идущие строки одного цвета — одним запросом
+  // colour of the information columns by point status: consecutive rows of one colour go in one request
   const infoCols = []; sh.cols.forEach((c, i) => { if (c.kind !== 'stage' && c.kind !== 'status' && c.id !== 'checkResult') infoCols.push(i); });
   const groups = []; infoCols.forEach((i) => { const g = groups[groups.length - 1]; if (g && g[1] === i) g[1] = i + 1; else groups.push([i, i + 1]); });
   const rc = sh.rowColors || [];
@@ -34,8 +35,8 @@ export function sheetRequests(sheetId, sh) {
     if (rc[i]) groups.forEach(([c0, c1]) => out.push({ repeatCell: { range: range(first + i, first + j, c0, c1), cell: { userEnteredFormat: { backgroundColor: rgb(rc[i]) } }, fields: 'userEnteredFormat.backgroundColor' } }));
     i = j;
   }
-  // подсветка: условное форматирование (в ячейках только значения)
-  const rowNo = first + 1; // номер первой строки данных в A1
+  // highlighting: conditional formatting (cells hold values only)
+  const rowNo = first + 1; // number of the first data row in A1 notation
   sh.rules.forEach((r) => {
     const cell = `${colLetter(r.col)}${rowNo}`;
     const cond = r.kind === 'number' ? { type: 'CUSTOM_FORMULA', values: [{ userEnteredValue: `=ISNUMBER(${cell})` }] }
@@ -48,7 +49,7 @@ export function sheetRequests(sheetId, sh) {
   return out;
 }
 
-// Пересобирает все листы файла: добавляет новые, удаляет старые (в одном запросе), затем пишет значения
+// Rebuilds all sheets of the file: adds the new ones, deletes the old ones (in one request), then writes the values
 export async function rebuildSheets(api, fileId, sheets) {
   const old = await api.sheetsOf(fileId);
   const base = 100000 + Math.floor(Math.random() * 800000);
@@ -63,7 +64,7 @@ export async function rebuildSheets(api, fileId, sheets) {
   await api.write(fileId, sheets.map((sh) => ({ range: `'${esc(sh.title)}'!A1`, values: sh.rows })));
 }
 
-// Обновляет одну таблицу проекта. Возвращает { patch, link, changed, message }: patch — поля профиля для сохранения
+// Updates one sheet of the project. Returns { patch, link, changed, message }: patch — profile fields to save
 export async function syncTable(api, project, ctx, table, { force = false, uid = '', nameOf, noCreate = false, shareWith = '' } = {}) {
   const rep = buildReport(project, ctx, table, { nameOf });
   const patch = {};
@@ -72,19 +73,19 @@ export async function syncTable(api, project, ctx, table, { force = false, uid =
   let file = fileId ? await api.fileInfo(fileId) : null;
   if (!file && noCreate) throw new Error('Сервер не видит файл таблицы: откройте её для сервера кнопкой «Обновить» в приложении');
   if (!file && fileId && table.by && uid && table.by !== uid) {
-    // файл создал другой участник: у вас к нему нет доступа — новый не создаём, чтобы не подменить ссылку
+    // the file was created by another member: you have no access — do not create a new one, so the link is not replaced
     { const who = nameOf?.(table.by); throw new Error(`Эту таблицу создал${who ? ` ${who}` : ' другой участник проекта'}, у вас нет к ней доступа. Обновить её может только он.`); }
   }
   if (!file) { file = await api.create(rep.title); fileId = file.id; oldHash = ''; if (uid) patch.by = uid; }
   if (uid && !table.by && !patch.by) patch.by = uid;
-  // таблица — в папке проекта на Диске (один раз; сервер не перекладывает)
-  // в папке «Для руководства», если отмечено (общая ссылка руководству), иначе — в папке проекта
+  // the sheet goes into a Drive folder (once; the server does not move files)
+  // into «Для руководства» if marked (a shared link for management), otherwise into the project folder
   const kind = table.inFolder ? 'managers' : '';
   if (api.placeIn && ((table.placedKind ?? '') !== kind || !table.placed || patch.by)) { try { await api.placeIn(fileId, project, kind); patch.placed = true; patch.placedKind = kind; } catch (e) { console.warn('placeIn', e); } }
   const link = `https://docs.google.com/spreadsheets/d/${fileId}/edit`;
   if (fileId !== table.fileId) patch.fileId = fileId;
   if (link !== table.link) patch.link = link;
-  // открываем файл для сервисного аккаунта (ночное автообновление): один раз на адрес
+  // share the file with the service account (night auto-update): once per address
   if (shareWith && api.share && table.sharedWith !== shareWith) { try { await api.share(fileId, shareWith); patch.sharedWith = shareWith; } catch (e) { console.warn('share', e); } }
   let changed = false;
   try {
@@ -93,7 +94,7 @@ export async function syncTable(api, project, ctx, table, { force = false, uid =
       patch.hash = rep.hash; changed = true;
     }
     if (file.name !== rep.title) await api.rename(fileId, rep.title);
-  } catch (e) { e.patch = patch; throw e; } // файл уже создан: запоминаем его, чтобы следующая попытка не плодила новые
+  } catch (e) { e.patch = patch; throw e; } // the file is already created: remember it so the next attempt does not create more
   patch.syncedAt = new Date().toISOString();
   return { patch, link, changed, rep, message: changed ? `Таблица «${table.name}» обновлена: точек ${rep.pointCount}, столбцов ${rep.colCount}` : `Таблица «${table.name}»: данные не менялись, она актуальна` };
 }

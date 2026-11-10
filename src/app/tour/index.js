@@ -1,4 +1,6 @@
-// Тур по приложению: запуск (весь или по темам), предложение при первом проекте, короткое руководство для создающих проект.
+// App tour: starting it (whole or by topics), the offer at the first project, and the short guide for those who create a project.
+// Runs the steps of topics.js with engine.js on the demo project of demo.js; remembers `pz.tourSeen.<uid>`, `pz.tourOffered.<uid>`,
+// `pz.creatorGuide.<uid>` in localStorage and the same flags in the user's prefs (repo `saveUserPrefs`). Called from the shell.
 import { h, openModal, toast } from '../ui.js';
 import { state, getRepo, demo, ready, liveProjects } from '../store.js';
 import { enterDemo, exitDemo, realRepo } from './demo.js';
@@ -9,10 +11,10 @@ export { tourActive };
 export const topicList = (ui) => buildTopics(ui).map(({ id, icon, title, steps }) => ({ id, icon, title, n: steps.length }));
 
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
-const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* нет доступа */ } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* no access */ } };
 const uidKey = (name) => `pz.${name}.${(realRepo() || getRepo())?.user?.uid}`;
 
-/** ids: массив тем или 'all' */
+/** ids: an array of topics or 'all' */
 export async function startTour(ui, ids = 'all') {
   if (tourActive()) return;
   const all = buildTopics(ui);
@@ -20,7 +22,7 @@ export async function startTour(ui, ids = 'all') {
   if (!chosen.length) return;
   enterDemo();
   ui.go('project');
-  // ждём, пока демо-проект загрузится
+  // wait until the demo project is loaded
   for (let i = 0; i < 40 && !ready(); i++) await new Promise((r) => setTimeout(r, 100));
   const steps = chosen.flatMap((t) => t.steps);
   runSteps(steps, {
@@ -35,7 +37,7 @@ export async function startTour(ui, ids = 'all') {
   });
 }
 
-/** Предложение пройти тур, когда в аккаунте появился первый проект */
+/** Offer to take the tour when the account gets its first project */
 let offered = false;
 export function maybeOfferTour(ui) {
   if (offered || demo.on || !ready() || tourActive()) return;
@@ -55,7 +57,7 @@ export function maybeOfferTour(ui) {
   }, 1800);
 }
 
-/** Короткое руководство для создающего проект — один раз, перед мастером */
+/** Short guide for the one creating a project — once, before the wizard */
 export function withCreatorGuide(fn) {
   const key = uidKey('creatorGuide');
   if (demo.on || lsGet(key) || getRepo()?.prefs?.creatorGuideSeen) { fn(); return; }

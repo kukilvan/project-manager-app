@@ -1,10 +1,11 @@
-// Оформление и запись листов шкафов в Google Таблицу (значения пишутся прямо в ячейки, без ссылок между листами).
-// «#fff» и «#ffffff» — одинаково (короткая запись раньше давала красный)
+// Formats and writes the rack sheets into a Google Sheet (values go straight into cells, no links between sheets).
+// Sheet descriptions come from src/domain/shilutsheet.js; racktablecore.js calls `rebuildRackSheets` with the Sheets api object.
+// «#fff» and «#ffffff» mean the same (the short form used to come out red)
 const rgb = (hex) => { let h = String(hex || '#000000').replace('#', ''); if (h.length === 3) h = [...h].map((c) => c + c).join(''); const n = (i) => (parseInt(h.slice(i, i + 2), 16) || 0) / 255; return { red: n(0), green: n(2), blue: n(4) }; };
 const esc = (t) => String(t).replace(/'/g, "''");
 const LINE = { style: 'SOLID', color: rgb('#8a8a8a') };
 
-// один repeatCell: стиль { bg, fg, bold, size, halign, valign, clip }
+// one repeatCell: style { bg, fg, bold, size, halign, valign, clip }
 function fmt(sheetId, r0, r1, c0, c1, st) {
   const f = {}; const fields = [];
   if (st.bg) { f.backgroundColor = rgb(st.bg); fields.push('backgroundColor'); }
@@ -21,7 +22,7 @@ function fmt(sheetId, r0, r1, c0, c1, st) {
 const box = (sheetId, r0, r1, c0, c1) => ({ updateBorders: { range: { sheetId, startRowIndex: r0, endRowIndex: r1, startColumnIndex: c0, endColumnIndex: c1 },
   top: LINE, bottom: LINE, left: LINE, right: LINE, innerHorizontal: LINE, innerVertical: LINE } });
 
-// Запросы оформления одного листа (описание листа — из domain/shilutsheet.js)
+// Formatting requests for one sheet (the sheet description comes from domain/shilutsheet.js)
 export function rackSheetRequests(sheetId, sh) {
   const out = [];
   sh.widths.forEach((px, i) => out.push({ updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: i, endIndex: i + 1 }, properties: { pixelSize: px }, fields: 'pixelSize' } }));
@@ -43,7 +44,7 @@ export function rackSheetRequests(sheetId, sh) {
   return out;
 }
 
-// Пересобирает все листы файла: добавляет новые, удаляет старые, затем пишет значения
+// Rebuilds all sheets of the file: adds the new ones, deletes the old ones, then writes the values
 export async function rebuildRackSheets(api, fileId, sheets) {
   const old = await api.sheetsOf(fileId);
   const base = 200000 + Math.floor(Math.random() * 700000);

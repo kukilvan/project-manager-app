@@ -1,5 +1,5 @@
-// Хранение на устройстве (режим «на этом телефоне»): все документы в IndexedDB, в памяти — копия для работы.
-// Снаружи это обычное хранилище для repo.js (createMemoryBackend с записью на устройство).
+// On-device storage for the «на этом телефоне» mode: every document lives in IndexedDB (`pm-local`), a working copy in memory.
+// To repo.js it looks like an ordinary backend (`createMemoryBackend` that also writes to the device); migrate.js reads it back.
 import { createMemoryBackend } from './repo.js';
 import { info, error } from '../log.js';
 
@@ -17,7 +17,7 @@ const all = (db) => new Promise((res, rej) => {
   cur.onerror = () => rej(cur.error);
 });
 
-// Ключи: P|<pid> — проект, D|<pid>|<coll>|<key> — документ, S — личные настройки
+// Keys: P|<pid> — project, D|<pid>|<coll>|<key> — document, S — personal settings
 export async function createLocalBackend() {
   const db = await openDb();
   const rows = await all(db);
@@ -28,7 +28,7 @@ export async function createLocalBackend() {
     else if (k.startsWith('D|')) { const [, pid, coll, ...rest] = k.split('|'); initial.docs.push({ pid, coll, key: rest.join('|'), doc: v }); }
   }
   info(`Данные на устройстве: проектов ${initial.projects.length}, записей ${initial.docs.length}`);
-  // записи копятся и уходят одной транзакцией (много изменений за раз — одна запись на диск)
+  // writes pile up and go in one transaction (many changes at once — one write to disk)
   let queue = new Map(); let timer = null;
   const flush = () => {
     timer = null; if (!queue.size) return;
@@ -46,11 +46,11 @@ export async function createLocalBackend() {
     putProject: (p) => q(`P|${p.id}`, JSON.parse(JSON.stringify(p))),
     putSettings: (s) => q('S', JSON.parse(JSON.stringify(s))),
   };
-  try { await navigator.storage?.persist?.(); } catch { /* не страшно */ }
+  try { await navigator.storage?.persist?.(); } catch { /* harmless */ }
   return createMemoryBackend({ initial, persist, kind: 'local' });
 }
 
-/** Всё содержимое устройства (для переноса в базу Firebase) */
+/** Everything stored on the device (for moving it to the Firebase database) */
 export async function localSnapshot() {
   const db = await openDb(); return all(db);
 }

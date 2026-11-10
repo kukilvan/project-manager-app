@@ -1,11 +1,12 @@
-// Мелкие помощники интерфейса: создание элементов, всплывающие формы, подтверждение, уведомления.
+// Small interface helpers: element creation (`h`), popup windows and forms, confirmation dialog, toast notifications.
+// Pure DOM with no storage or network; every screen imports it, and the shortcut expansion logic comes from src/domain/latin.js.
 import { expandShortcut } from '../domain/latin.js';
-// быстрый ввод латиницей (T9): «тв » → «TV ». Список берётся у приложения (setShortcutsProvider)
+// quick entry in Latin letters (T9): «тв » → «TV ». The list is taken from the app (setShortcutsProvider)
 let shortcuts = () => [];
 export const setShortcutsProvider = (fn) => { shortcuts = fn; };
 const SEP = /[^A-Za-z\u0400-\u04FF]/;
 export function attachShortcuts(inp) {
-  let skip = false; let conv = null;   // стёр результат вручную — следующий раз это слово не заменяется
+  let skip = false; let conv = null;   // the result was erased by hand — the word is not replaced next time
   inp.addEventListener('input', (e) => {
     const t = e.inputType || '';
     if (t.startsWith('delete')) { const c = inp.selectionStart; if (conv && c >= conv.from && c <= conv.to + 1) skip = true; return; }
@@ -37,20 +38,20 @@ export function h(tag, props = {}, ...kids) {
   return el;
 }
 
-// ---- всплывающее окно (снизу, как на телефоне) ----
+// ---- popup window (from the bottom, as on a phone) ----
 let modalRoot = null;
 function root() {
   if (!modalRoot) { modalRoot = h('div', { id: 'modal-root' }); document.body.appendChild(modalRoot); }
   return modalRoot;
 }
 const mousePc = () => { try { return matchMedia('(hover: hover) and (pointer: fine)').matches; } catch { return false; } };
-export function openModal(title, content, { onClose, sticky = false, wide = false } = {}) {  // sticky: клик мимо окна не закрывает (долгая работа внутри)
+export function openModal(title, content, { onClose, sticky = false, wide = false } = {}) {  // sticky: a click outside the window does not close it (long work inside)
   const sheet = h('div', { class: 'sheet', role: 'dialog', style: wide ? { maxWidth: '1200px' } : {} },
     h('div', { class: 'sheet-head' }, h('b', {}, title), h('button', { class: 'x', type: 'button', onclick: () => close() }, '✕')),
     h('div', { class: 'sheet-body' }, content));
-  // на компьютере (мышь) клик мимо окна его не закрывает — только ✕; на телефоне как раньше
+  // on a computer (mouse) a click outside does not close the window — only ✕ does; on a phone it works as before
   const back = h('div', { class: 'backdrop', onclick: (e) => { if (e.target === back && !sticky && !mousePc()) close(); } }, sheet);
-  // колесо мыши сбоку от окна прокручивает само окно, а не страницу под ним
+  // the mouse wheel beside the window scrolls the window itself, not the page under it
   back.addEventListener('wheel', (e) => {
     const body = sheet.querySelector('.sheet-body'); if (body?.contains(e.target)) return;
     e.preventDefault();
@@ -69,7 +70,7 @@ export function openModal(title, content, { onClose, sticky = false, wide = fals
   return close;
 }
 
-// ---- форма по описанию полей ----
+// ---- a form built from a description of fields ----
 // fields: [{key,label,type: text|number|textarea|select|checkbox|date, options:[{value,label}], required, hint, placeholder, visible(values)}]
 export function formModal({ title, fields, values = {}, submitLabel = 'Сохранить', extra = [], preview, onSubmit }) {
   const inputs = {};
@@ -86,7 +87,7 @@ export function formModal({ title, fields, values = {}, submitLabel = 'Сохр�
     });
     return out;
   };
-  // зависимые списки: варианты считаются по текущим значениям других полей
+  // dependent lists: the options are computed from the current values of other fields
   const fillOptions = (f, v) => {
     const el = inputs[f.key]; const opts = f.optionsFn(v) || [];
     const sig = JSON.stringify(opts.map((o) => o.value));
@@ -100,7 +101,7 @@ export function formModal({ title, fields, values = {}, submitLabel = 'Сохр�
   };
   const previewBox = preview ? h('div', { class: 'preview' }) : null;
   const refresh = () => {
-    // сначала зависимые списки (по порядку полей), потом видимость по свежим значениям
+    // dependent lists first (in field order), then visibility by the fresh values
     fields.forEach((f) => { if (f.optionsFn && f.type === 'select') fillOptions(f, read()); });
     const v = read();
     fields.forEach((f) => {
@@ -155,12 +156,12 @@ export function formModal({ title, fields, values = {}, submitLabel = 'Сохр�
   close.set = (key, value) => { const el = inputs[key]; if (el && !customs[key]) { el.value = value ?? ''; refresh(); } };
   refresh();
   const first = form.querySelector('input[type=text], textarea');
-  // автофокус в первое поле, только если пользователь ещё не успел нажать в другое
+  // autofocus on the first field, only if the user has not yet tapped another one
   if (first && !first.value) setTimeout(() => { if (!form.contains(document.activeElement)) first.focus(); }, 50);
   return close;
 }
 
-// ---- подтверждение (свой диалог вместо window.confirm) ----
+// ---- confirmation (our own dialog instead of window.confirm) ----
 export function confirmDialog(message, { yes = 'Да', no = 'Отмена', danger = false } = {}) {
   return new Promise((resolve) => {
     let done = false;
@@ -180,9 +181,9 @@ export function toast(message) {
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 2400);
 }
 
-// ---- список «вариант × количество» (кабели устройства, устройства в типе точки) ----
-// options: [{value,label}]; get() → [{ value, count }]; пустой список допустим
-// onCreate(add): «🆕 Новое…» — открыть форму создания; add({value,label}) добавит вариант и строку ×1
+// ---- a list of «option × quantity» (a device's cables, the devices in a point type) ----
+// options: [{value,label}]; get() → [{ value, count }]; an empty list is allowed
+// onCreate(add): «🆕 Новое…» — open the creation form; add({value,label}) adds the option and a ×1 row
 export function qtyList(options, { addLabel = '➕ Добавить', empty = 'Пусто', onChange, onCreate, createLabel = '🆕 Создать новое' } = {}) {
   let rows = [];
   const box = h('div', { class: 'qtylist' });

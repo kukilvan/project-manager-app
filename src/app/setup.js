@@ -1,10 +1,12 @@
-// Мастер «своя база Firebase»: по одному шагу, у каждого — кнопка «Открыть страницу» (сразу нужная страница консоли вашего проекта)
-// и «Проверить» (приложение само спрашивает у Google, что сделано, и объясняет, что не так). Черновик хранится на устройстве.
+// The «своя база Firebase» wizard: one step at a time, with «Открыть страницу» and «Проверить» buttons; the draft is kept on the device.
+// «Открыть страницу» goes straight to the right page of your project's console; «Проверить» asks Google what is done and explains what is wrong.
+// The draft lives in localStorage `pm.setupDraft`.
+// Checks come from src/domain/fbcheck.js; also holds the connection modal (`connectionModal`) and the rules text the wizard copies. Opened by main.js and the shell menu.
 import { h, toast } from './ui.js';
 import qrcode from 'qrcode-generator';
 import { APP_NAME, parseFirebaseConfig, saveConnection, connection, connectLink, isMobile, setLocalMode } from '../edition.js';
 import { checkConfig, checkGoogle, checkDomain, checkFirestore } from '../domain/fbcheck.js';
-import OPEN_RULES from '../../firestore.open.rules?raw';   // = openRules(firestore.rules), сверяется тестом
+import OPEN_RULES from '../../firestore.open.rules?raw';   // = openRules(firestore.rules), compared by a test
 
 export { OPEN_RULES };
 export const siteUrl = () => `${location.origin}${location.pathname}`;
@@ -16,7 +18,7 @@ export async function copy(text, what = 'Скопировано') {
   }
 }
 
-/** QR-код ссылки (svg) */
+/** QR code of a link (svg) */
 export function qr(text, size = 200) {
   const q = qrcode(0, 'L'); q.addData(text); q.make();
   const el = h('div', { style: { background: '#fff', padding: '8px', borderRadius: '10px', width: `${size}px`, margin: '8px auto' } });
@@ -37,7 +39,7 @@ export function setupView({ onDone, onBack }) {
   const open = (url) => window.open(url, '_blank', 'noopener');
   const result = (r) => h('div', { style: { margin: '8px 0', padding: '8px 10px', borderRadius: '10px', background: 'var(--inset)', color: r.ok ? 'var(--ok, #22c55e)' : 'var(--err)' } }, `${r.ok ? '✅' : '❌'} ${r.msg}`);
 
-  // Шаги: title, text[], url (открыть), check (async → {ok,msg}), extra (узлы)
+  // Steps: title, text[], url (to open), check (async → {ok,msg}), extra (nodes)
   const STEPS = [
     {
       title: 'Проект и настройки подключения',
@@ -50,7 +52,7 @@ export function setupView({ onDone, onBack }) {
       extra: () => {
         const ta = h('textarea', { rows: 6, placeholder: 'const firebaseConfig = {\n  apiKey: "…",\n  authDomain: "…",\n  projectId: "…",\n  …\n};', style: { width: '100%' } });
         ta.value = d.cfg ? JSON.stringify(d.cfg, null, 1) : '';
-        ta.addEventListener('change', () => { try { d.cfg = parseFirebaseConfig(ta.value); saveDraft(d); } catch { /* проверит кнопка */ } });
+        ta.addEventListener('change', () => { try { d.cfg = parseFirebaseConfig(ta.value); saveDraft(d); } catch { /* the button will check it */ } });
         ta.dataset.cfg = '1';
         return [ta];
       },
@@ -207,7 +209,7 @@ export async function connectionModal(onLogout) {
     } }, '🔌 Отключиться от базы'))));
 }
 
-/** Мастер своей базы поверх приложения (из режима «на устройстве»): после входа проекты с устройства предложат перенести */
+/** The wizard for one's own database over the app (from the «на устройстве» mode): after sign-in the projects on the device are offered for moving */
 export function openWizardScreen() {
   const app = document.getElementById('app');
   app.replaceChildren(setupView({ onDone: () => location.replace(location.pathname), onBack: () => location.reload() }));

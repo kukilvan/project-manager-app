@@ -1,4 +1,6 @@
-// Состояние приложения: проекты пользователя, данные текущего проекта и контекст расчётов.
+// Application state: the user's projects, the data of the current project and the calculation context.
+// Subscribes to the repo (repo.js listeners, cache-first) and rebuilds `state.ctx` with `buildContext` from src/domain; every screen reads from here.
+// The current project id is remembered in localStorage `pz.currentProject.<uid>`.
 import { COLLECTIONS, ownPendingCount } from './repo.js';
 import { buildContext, pointInfo, comparePoints } from '../domain/index.js';
 import { info } from '../log.js';
@@ -11,7 +13,7 @@ let rebuildTimer = null;
 const infoCache = new WeakMap();
 let unsubInvites = null;
 let unsubPrefs = null;
-let unsubAllDays = new Map(); // дни всех проектов (для вкладки «Месяц»)
+let unsubAllDays = new Map(); // days of all projects (for the «Месяц» tab)
 const allDaysByProject = new Map();
 
 export const state = {
@@ -21,7 +23,7 @@ export const state = {
 };
 
 export const nav = { ui: null };
-export const demo = { on: false };   // идёт демо-проект тура (данные в памяти, на сервер не пишутся)   // навигация приложения (ставит оболочка) — для кнопок в окнах
+export const demo = { on: false };   // the tour's demo project is running (data in memory, not written to the server)   // app navigation (set by the shell) — for buttons in windows
 export const subscribe = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
 const emit = () => listeners.forEach((fn) => fn());
 export const notify = emit;
@@ -36,7 +38,7 @@ function rebuild() {
   }, 0);
 }
 
-// Сколько записей ещё не отправлено на сервер (Firestore помечает их hasPendingWrites)
+// How many records are not sent to the server yet (Firestore marks them hasPendingWrites)
 export const pendingCount = () => Math.max(ownPendingCount(),
   Object.values(state.data).reduce((n, arr) => n + arr.filter((d) => d._pending).length, 0) + (currentProject()?._pending ? 1 : 0));
 
@@ -57,7 +59,7 @@ function openProjectData(pid) {
 export function setCurrentProject(pid, { pending = false } = {}) {
   if (pid === state.currentProjectId) return;
   state.currentProjectId = pid; state.pendingProjectId = pending ? pid : null;
-  try { localStorage.setItem(storeKey(), pid || ''); } catch { /* нет доступа к хранилищу */ }
+  try { localStorage.setItem(storeKey(), pid || ''); } catch { /* storage not accessible */ }
   info(`Текущий проект: ${currentProject()?.name || '—'}`);
   openProjectData(pid); rebuild();
 }
@@ -79,14 +81,14 @@ export function start(r) {
   unsubProjects = repo.listenProjects((docs) => {
     state.projects = docs; state.projectsLoaded = true;
     const live = liveProjects();
-    try { repo.allowEmails(live.flatMap((p) => [...(p.memberEmails || []), ...(p.invitedEmails || [])])); } catch { /* не критично */ }
+    try { repo.allowEmails(live.flatMap((p) => [...(p.memberEmails || []), ...(p.invitedEmails || [])])); } catch { /* not critical */ }
     syncAllDays(live);
-    // только что созданный проект может ещё не прийти в список — не уходим с него
+    // a project just created may not be in the list yet — do not leave it
     if (state.pendingProjectId && state.pendingProjectId === state.currentProjectId) {
       if (!live.some((p) => p.id === state.pendingProjectId)) { rebuild(); return; }
       state.pendingProjectId = null;
     }
-    let saved = null; try { saved = localStorage.getItem(storeKey()); } catch { /* нет доступа */ }
+    let saved = null; try { saved = localStorage.getItem(storeKey()); } catch { /* no access */ }
     const wanted = live.find((p) => p.id === state.currentProjectId)?.id || live.find((p) => p.id === saved)?.id
       || [...live].sort((a, b) => (b.lastWorkDate || b.createdAt || 0) - (a.lastWorkDate || a.createdAt || 0))[0]?.id || null;
     if (wanted !== state.currentProjectId) { state.currentProjectId = null; setCurrentProject(wanted); } else rebuild();
@@ -104,7 +106,7 @@ export function stop() {
 export const getRepo = () => repo;
 export const ready = () => !!state.ctx && COLLECTIONS.every((c) => state.loaded.has(c));
 
-// Расчёты по точке (кэшируются на время жизни контекста)
+// Calculations for a point (cached for the lifetime of the context)
 export function infoOf(point) {
   const ctx = state.ctx; if (!ctx) return null;
   let m = infoCache.get(ctx); if (!m) { m = new Map(); infoCache.set(ctx, m); }

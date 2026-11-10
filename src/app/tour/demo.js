@@ -1,5 +1,6 @@
-// Демо-проект для тура: отдельное хранилище в памяти. Настоящие данные не трогаются и на сервер ничего не уходит.
-// Вход: подменяем репозиторий в store на демо; выход: возвращаем настоящий (данные подтянутся из кэша телефона).
+// Demo project for the tour, kept in a separate in-memory store: real data is not touched and nothing goes to the server.
+// Enter: swaps the repo in store.js for the demo one; exit: puts the real repo back (data comes back from the phone's cache).
+// Used by index.js of the tour; remembers `pz.currentProject.<uid>` in localStorage to restore it.
 import * as store from '../store.js';
 import { createRepo, createMemoryBackend } from '../repo.js';
 import { composedTypes, POINT_TYPES } from '../../domain/index.js';
@@ -34,7 +35,7 @@ export function exitDemo() {
   if (!store.demo.on) return;
   store.stop();
   store.demo.on = false;
-  try { if (savedKey !== null) localStorage.setItem(`pz.currentProject.${real.user.uid}`, savedKey); } catch { /* нет доступа */ }
+  try { if (savedKey !== null) localStorage.setItem(`pz.currentProject.${real.user.uid}`, savedKey); } catch { /* no access */ }
   store.start(real);
   real = null;
 }

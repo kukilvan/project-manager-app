@@ -1,6 +1,7 @@
-// Инструкции в руководстве (схемы, фото подключений, таблицы, PDF). Общие для всех проектов:
-// запись — в общей коллекции pool_manuals (видят и добавляют все участники), файл — на Google Диске владельца записи
-// в папке «Менеджер проектов / Инструкции» (доступ «у кого есть ссылка — читатель»), копия — на устройстве (работает офлайн).
+// Manuals for the guide (diagrams, wiring photos, tables, PDFs), shared by all projects.
+// The entry lives in the shared collection pool_manuals (every member sees and adds), the file on the Google Drive of the entry's owner
+// in «Менеджер проектов / Инструкции» (access «anyone with the link — reader»), a copy on the device (works offline).
+// Drive calls and the device cache come from drawings.js, folders from drivefolders.js, the token from google.js.
 import { getRepo } from './store.js';
 import { isAdminEmail } from '../edition.js';
 import { newId } from './repo.js';
@@ -23,7 +24,7 @@ export const canEditManual = (m) => {
   return isAdminEmail(me) || String(m.addedBy || '').toLowerCase() === me;
 };
 
-/** Большие фото ужимаем (длинная сторона до 2400, JPEG) — иначе на телефоне тяжело и долго */
+/** Big photos are shrunk (long side up to 2400, JPEG) — otherwise they are heavy and slow on a phone */
 export async function shrinkImage(file) {
   if (!/^image\//.test(file.type) || file.size < 1_200_000) return { buf: await file.arrayBuffer(), mime: file.type, name: file.name };
   try {
@@ -32,11 +33,11 @@ export async function shrinkImage(file) {
     c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
     const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.85));
     if (blob && blob.size < file.size) return { buf: await blob.arrayBuffer(), mime: 'image/jpeg', name: file.name.replace(/\.\w+$/, '') + '.jpg' };
-  } catch { /* не вышло — берём как есть */ }
+  } catch { /* did not work — take it as it is */ }
   return { buf: await file.arrayBuffer(), mime: file.type, name: file.name };
 }
 
-/** Добавить инструкцию: сразу на устройство и в общий список, потом на Диск (на iPhone без разрешения Google — позже кнопкой) */
+/** Add a manual: at once to the device and the shared list, then to Drive (on iPhone without Google's permission — later, by a button) */
 export async function addManual({ title, section, file }) {
   const repo = getRepo(); const { buf, mime, name } = await shrinkImage(file);
   const id = `MN_${newId(6)}`; await cachePut(id, buf);
@@ -45,7 +46,7 @@ export async function addManual({ title, section, file }) {
   if (!entry.fileId && (!useRedirect() || storedTokenValid())) { try { return await pushManual(entry, buf); } catch (e) { return { ...entry, error: e.message }; } }
   return entry;
 }
-/** Отправить файл на Диск и дать доступ по ссылке */
+/** Upload the file to Drive and give access by link */
 export async function pushManual(entry, buf = null) {
   if (mem()) return entry;
   const data = buf || await cacheGet(entry.id); if (!data) throw new Error('Файла нет на этом устройстве');
@@ -58,15 +59,15 @@ export async function pushManual(entry, buf = null) {
   if (!r.ok) throw new Error(`Загрузка на Диск: HTTP ${r.status}`);
   const fileId = (await r.json()).id;
   await driveCall('POST', `${D}/${fileId}/permissions?fields=id`, { body: JSON.stringify({ role: 'reader', type: 'anyone' }), headers: { 'Content-Type': 'application/json' } });
-  getRepo().savePool([{ coll: 'manuals', id: entry.id, data: { fileId } }]);   // только ссылка на файл: остальное не трогаем (его могли изменить на другом устройстве)
+  getRepo().savePool([{ coll: 'manuals', id: entry.id, data: { fileId } }]);   // only the file link: the rest is left alone (it may have been changed on another device)
   return { ...entry, fileId };
 }
-/** Файл инструкции: с устройства, иначе с Диска (и сохранить на устройстве) */
+/** The manual's file: from the device, otherwise from Drive (and save it on the device) */
 export async function loadManual(entry) {
   const local = await cacheGet(entry.id); if (local) return local;
   if (!entry.fileId || mem()) throw new Error('Файл ещё не отправлен на Диск — откройте на телефоне, где его добавили, и нажмите «⬆ На Диск»');
   const r = await driveCall('GET', `${D}/${entry.fileId}?alt=media`, { raw: true });
   const buf = await r.arrayBuffer(); await cachePut(entry.id, buf); return buf;
 }
-export function updateManual(entry, patch) { getRepo().savePool([{ coll: 'manuals', id: entry.id, data: { ...patch } }]); }   // только изменённые поля
-export function removeManual(entry) { getRepo().savePool([{ coll: 'manuals', id: entry.id, remove: true }]); }  // файл на Диске остаётся (удаляется только вручную)
+export function updateManual(entry, patch) { getRepo().savePool([{ coll: 'manuals', id: entry.id, data: { ...patch } }]); }   // only the changed fields
+export function removeManual(entry) { getRepo().savePool([{ coll: 'manuals', id: entry.id, remove: true }]); }  // the file stays on Drive (deleted by hand only)

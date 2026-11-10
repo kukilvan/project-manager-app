@@ -1,23 +1,24 @@
-// Движок тура: затемнение с «окном» вокруг нужного элемента, подпись и кнопка «Далее».
-// Шаг: { title, text, sel (функция → элемент или null), go (подготовка экрана), click (ждём нажатия на подсвеченное) }
+// Tour engine: a dimmed screen with a «window» around the target element, a caption and a «Далее» button.
+// A step is { title, text, sel (function → element or null), go (prepares the screen), click (wait for a tap on the highlighted element) }.
+// Pure DOM, no storage or network; the steps come from topics.js and index.js starts it.
 import { h } from '../ui.js';
 import { tr } from '../../i18n/index.js';
 
 const vis = (e) => { if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-/** Найти видимый элемент по селектору и тексту */
-// текст сравнивается и по-русски, и в переводе (интерфейс может быть на другом языке)
+/** Find a visible element by selector and text */
+// the text is compared both in Russian and translated (the interface may be in another language)
 export const find = (sel, text) => () => [...document.querySelectorAll(sel)].filter((e) => !e.closest('.tour-ui') && vis(e) && (!text || e.textContent.includes(text) || e.textContent.includes(tr(text))))[0] || null;
-/** Окно (модальное) поверх приложения */
+/** The modal window on top of the app */
 export const sheet = () => [...document.querySelectorAll('.backdrop .sheet')].filter(vis).pop() || null;
 export const closeModals = () => { [...document.querySelectorAll('.backdrop .sheet-head .x')].reverse().forEach((b) => b.click()); };
 
 let cur = null;
 export const tourActive = () => !!cur;
 
-/** Запуск: steps — плоский список шагов; onEnd(done) вызывается при выходе или завершении */
+/** Start: steps is a flat list of steps; onEnd(done) is called on exit or completion */
 export function runSteps(steps, { onEnd } = {}) {
   stop(false);
-  const dim = [0, 1, 2, 3, 4].map(() => h('div', { class: 'tour-dim' }));   // 4 стороны + крышка поверх «окна» (если нажимать не нужно)
+  const dim = [0, 1, 2, 3, 4].map(() => h('div', { class: 'tour-dim' }));   // 4 sides + a cover over the «window» (when no tap is needed)
   const ring = h('div', { class: 'tour-ring' });
   const cap = h('div', { class: 'tour-cap tour-ui' });
   const layer = h('div', { class: 'tour-layer' }, ...dim, ring, cap);
@@ -81,13 +82,13 @@ function place(st, rect) {
   const pad = 6;
   const l = Math.max(0, rect.left - pad); const t = Math.max(0, rect.top - pad); const r = Math.min(W, rect.right + pad); const b = Math.min(H, rect.bottom + pad);
   set(dim[0], 0, 0, W, t); set(dim[1], 0, b, W, H - b); set(dim[2], 0, t, l, b - t); set(dim[3], r, t, W - r, b - t);
-  set(dim[4], l, t, r - l, b - t);   // крышка над окном: не даёт нажать, пока шаг без нажатия
+  set(dim[4], l, t, r - l, b - t);   // cover over the window: blocks taps while the step needs none
   dim[4].style.background = 'transparent'; dim[4].style.display = step.click ? 'none' : '';
   Object.assign(st.ring.style, { display: '', left: `${l}px`, top: `${t}px`, width: `${r - l}px`, height: `${b - t}px` });
   dock(st);
 }
 
-// Подпись закреплена вверху, приложение сдвинуто вниз (см. .tour-on в style.css): окна приложения занимают всё место под подписью
+// The caption is pinned at the top and the app is shifted down (see .tour-on in style.css): app windows take all the room under the caption
 function dock(st) {
   const hh = Math.ceil(st.cap.getBoundingClientRect().bottom) + 8;
   if (hh !== st.dockH) { st.dockH = hh; document.documentElement.style.setProperty('--tour-h', `${hh}px`); }

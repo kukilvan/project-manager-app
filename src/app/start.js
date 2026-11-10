@@ -1,10 +1,11 @@
-// Первый запуск чистого приложения: приветствие → значок на главном экране (на телефоне) → «Как будете работать»:
-// на этом устройстве (без настройки) или своя база Firebase (мастер), либо подключение по ссылке-приглашению.
+// First launch of a clean app: welcome → home-screen icon (on a phone) → «Как будете работать»:
+// on this device (no setup) or one's own Firebase database (the wizard), or joining by an invitation link.
+// Pure screens: the choices go back to the caller through onLocal, onFirebase and onConnected; the connection is saved by edition.js.
 import { h, toast } from './ui.js';
 import { APP_NAME, isMobile, isIOS, isStandalone, saveConnection, parseConnect, setLocalMode } from '../edition.js';
 import { LANGS, lang, setLang } from '../i18n/index.js';
 
-// Android/Chrome: системное окно «Установить приложение» (событие приходит до показа экрана — ловим сразу при загрузке)
+// Android/Chrome: the system «Установить приложение» prompt (the event arrives before the screen is shown — caught at load time)
 let installEvent = null;
 if (typeof window !== 'undefined') window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvent = e; });
 
@@ -79,5 +80,5 @@ export function startView({ onLocal, onFirebase, onConnected }) {
   return { el: root, how, install: installGate };
 }
 
-/** Телефон, открыт не со значка: экран-подсказка (для режима «на устройстве» — обязательно) */
+/** A phone, not opened from the icon: the hint screen (required for the «на устройстве» mode) */
 export function needsInstallGate() { return isMobile() && !isStandalone(); }

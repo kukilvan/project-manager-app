@@ -1,7 +1,18 @@
-// Репозиторий данных проекта. Две реализации хранилища с одним интерфейсом:
-//  - Firestore (боевая, с офлайн-кэшем и очередью записи);
-//  - память (для автотестов интерфейса, включается адресом ?mem=1).
-// Общая логика здесь: кто и когда изменил, история изменений, мягкое удаление.
+// Project data repository: one interface over a Firestore backend and an in-memory backend, plus the shared layer that stamps author and time, writes history and soft-deletes.
+// Two storage implementations with one interface:
+//  - Firestore (the live one, with an offline cache and a write queue);
+//  - memory (for automatic UI tests, switched on by the address ?mem=1; localdb.js reuses it to keep data on the device).
+// The shared logic lives here: who changed what and when, the change history, soft deletion. Every data write of the app goes through `createRepo().save`.
+// Talks to Firestore (collections under `projects/<pid>/…`, `pool_*`, `meta/admin`, `allowed`, `users/<uid>/prefs/main`), keeps sync marks and counters in localStorage
+// (`pz.sync.*`, `pz.reads`, `pz.writes`, `pz.rejected`, `pz.allowed.<uid>`), and takes sync decisions from src/domain/sync.js.
+//
+// Contents:
+// - COLLECTIONS, docKey, newId — the project subcollections, document-id safety, id generator
+// - createMemoryBackend() — the in-memory backend (tests, on-device storage through `persist`)
+// - read saving — `deltaListen` (cache + changed documents only), the daily read and write counters
+// - rejected writes and read-state tracking — the data behind the «⚠» and «⬇» badges
+// - createFirestoreBackend(db, uid) — the Firestore backend
+// - createRepo(backend, user) — save with history, soft delete, projects, pool, inbox, members, administrator
 import {
   collection, doc, onSnapshot, setDoc, getDoc, query, where, writeBatch, serverTimestamp, arrayUnion, arrayRemove, getDocs, getDocsFromCache, orderBy, limit as fbLimit, Timestamp,
 } from 'firebase/firestore';
@@ -12,11 +23,11 @@ import {
   CATALOG, POINT_TYPES, CABLES, UNITS, CULPRITS, DELAY_REASONS, DEVICES, composedTypes, fixLatin, fixCabinet,
 } from '../domain/index.js';
 
-// Подколлекции проекта, которые приложение читает целиком (журнал изменений читается отдельно)
+// Project subcollections the app reads in full (the change history is read separately)
 export const COLLECTIONS = ['points', 'days', 'entries', 'journal', 'catalog', 'types', 'cables', 'devices', 'configs',
   'units', 'culprits', 'delayReasons', 'cabinetSettings', 'todos', 'notes', 'pulls'];
 
-// В id документа Firestore нельзя '/', а у справочников id = название («Поставка / склад»)
+// A Firestore document id cannot contain '/', and in catalogues id = name («Поставка / склад»)
 export const docKey = (id) => String(id).replace(/\//g, '_');
 
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -25,7 +36,7 @@ export function newId(len = 12) {
   return Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]).join('');
 }
 
-// Счётчик записей, отправленных в базу, но ещё не подтверждённых сервером (офлайн они ждут связи)
+// Counter of records sent to the database but not yet confirmed by the server (offline they wait for a connection)
 let ownPending = 0; const pendingSubs = new Set();
 export const ownPendingCount = () => ownPending;
 export const onPendingChange = (fn) => { pendingSubs.add(fn); return () => pendingSubs.delete(fn); };
@@ -42,8 +53,8 @@ export const setSnapProvider = (f) => { snapFn = f; };
 const clean = (obj) => JSON.parse(JSON.stringify(obj, (k, v) => (v === undefined ? null : v)));
 const strip = (obj) => { const c = clean(obj); delete c._pending; return c; };
 
-// ---------- хранилище: память ----------
-// persist (необязательно) — хранение на устройстве (localdb.js): initial — что уже сохранено, put/putProject/putSettings — запись изменений
+// ---------- storage: memory ----------
+// persist (optional) — on-device storage (localdb.js): initial — what is already saved, put/putProject/putSettings — writing the changes
 export function createMemoryBackend({ initial = null, persist = null, kind = 'memory' } = {}) {
   const projects = new Map(); // pid -> doc
   const colls = new Map();    // `${pid}/${name}` -> Map(key -> doc)
@@ -94,7 +105,7 @@ export function createMemoryBackend({ initial = null, persist = null, kind = 'me
     async claimAdmin(email) { if (!settings.__admin) { settings.__admin = email; saveSettings(); } return settings.__admin; },
     async loadSettings() { return { ...settings }; },
     async saveSettings(patch) { settings = { ...settings, ...patch }; saveSettings(); },
-    // общий пул и входящие (в памяти — для тестов)
+    // shared pool and inbox (in memory — for tests)
     listenPool(kind, cb) { const run = () => cb([...bucket('_pool', kind).values()].map((d) => ({ ...d }))); listeners.add(run); run(); return () => listeners.delete(run); },
     async commitPool(writes) { writes.forEach((w) => { const b = bucket('_pool', w.coll); const key = docKey(w.id); if (w.remove) { b.delete(key); persist?.del('_pool', w.coll, key); } else { const d = { ...(b.get(key) || {}), ...w.data }; b.set(key, d); persist?.put('_pool', w.coll, key, d); } }); notify(); },
     listenInbox(cb) { const run = () => cb([...bucket('_pool', 'inbox').values()].map((d) => ({ ...d }))); listeners.add(run); run(); return () => listeners.delete(run); },
@@ -103,16 +114,16 @@ export function createMemoryBackend({ initial = null, persist = null, kind = 'me
   };
 }
 
-// ---------- экономия чтений Firestore ----------
-// Firestore заново читает ВСЮ коллекцию, если слушатель был отключён дольше 30 минут (каждый такой запуск = тысячи чтений).
-// Поэтому после первой полной загрузки читаем только изменившееся: документы, у которых updatedAtServer новее последней отметки.
-// Остальное берём из кэша телефона. Раз в неделю и при подозрении, что кэш неполный, делаем полную загрузку.
+// ---------- saving Firestore reads ----------
+// Firestore re-reads the WHOLE collection if a listener was disconnected for more than 30 minutes (each such start = thousands of reads).
+// So after the first full load we read only what changed: documents whose updatedAtServer is newer than the last mark.
+// The rest comes from the phone's cache. Once a week, and when the cache is suspected to be incomplete, we do a full load.
 const metaGet = (k) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
-const metaSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* нет доступа к хранилищу */ } };
+const metaSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage not accessible */ } };
 const srvMillis = (d) => { const v = d.get('updatedAtServer'); return v && typeof v.toMillis === 'function' ? v.toMillis() : 0; };
-let serverReads = 0; // сколько документов прочитано с сервера за этот запуск (для проверки экономии)
+let serverReads = 0; // how many documents were read from the server in this run (to check the saving)
 export const readsCount = () => serverReads;
-// Суточный счётчик чтений на этом устройстве. Суточный лимит Firebase сбрасывается в полночь по тихоокеанскому времени (США).
+// The daily read counter on this device. Firebase's daily limit resets at midnight Pacific time (USA).
 export const DAILY_READ_LIMIT = 50000;
 const ptNow = () => {
   const f = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
@@ -122,12 +133,12 @@ const ptDay = () => { const t = ptNow(); return `${t.year}-${t.month}-${t.day}`;
 export function readsToday() {
   try { const o = JSON.parse(localStorage.getItem('pz.reads') || 'null'); return o && o.day === ptDay() ? o.n : 0; } catch { return 0; }
 }
-// Когда сбросится лимит (местное время)
+// When the limit resets (local time)
 export function readsResetAt() {
   const t = ptNow(); const left = 86400 - (Number(t.hour) * 3600 + Number(t.minute) * 60 + Number(t.second));
   return new Date(Date.now() + left * 1000);
 }
-// ---------- записи: суточный счётчик и не принятые сервером ----------
+// ---------- writes: the daily counter and those not accepted by the server ----------
 export { DAILY_WRITE_LIMIT };
 export function writesToday() {
   try { const o = JSON.parse(localStorage.getItem('pz.writes') || 'null'); return o && o.day === ptDay() ? o.n : 0; } catch { return 0; }
@@ -136,7 +147,7 @@ const writeSubs = new Set();
 export const onWriteWarn = (fn) => { writeSubs.add(fn); return () => writeSubs.delete(fn); };
 const addWrites = (n) => {
   if (!n) return; const before = writesToday(); const after = before + n;
-  try { localStorage.setItem('pz.writes', JSON.stringify({ day: ptDay(), n: after })); } catch { /* без хранилища */ }
+  try { localStorage.setItem('pz.writes', JSON.stringify({ day: ptDay(), n: after })); } catch { /* no storage */ }
   const lvl = writeWarnLevel(before, after); if (lvl) writeSubs.forEach((f) => { try { f(lvl, after); } catch { /* */ } });
 };
 const REJ_KEY = 'pz.rejected';
@@ -148,8 +159,8 @@ export const onRejectedChange = (fn) => { rejSubs.add(fn); return () => rejSubs.
 export const dropRejected = (id) => { rejected = rejected.filter((x) => x.id !== id); rejEmit(); };
 const addRejected = (item) => { rejected = [...rejected, item].slice(-50); rejEmit(); };
 
-// ---------- состояние чтения с сервера (значок «⬇» вверху) ----------
-// Каждый слушатель ждёт первый ответ сервера; пока не дождался — он «в очереди на чтение». Ошибка (например, лимит) — запоминаем.
+// ---------- the state of reading from the server (the «⬇» badge at the top) ----------
+// Each listener waits for the server's first answer; until it gets it, it is «queued for reading». An error (e.g. the limit) is remembered.
 const readWait = new Map(); const readFail = new Map(); const readSubs = new Set();
 let readSeq = 0;
 const readEmit = () => readSubs.forEach((f) => { try { f(); } catch { /* */ } });
@@ -158,7 +169,7 @@ export const readStatus = () => {
   const since = readWait.size ? Math.min(...readWait.values()) : 0;
   return { waiting: readWait.size, since, failed: [...readFail.entries()].map(([label, code]) => ({ label, code })) };
 };
-// readTrack(label): wait() — ждём сервер; ok() — сервер ответил; fail(e) — ошибка; stop() — слушатель снят
+// readTrack(label): wait() — waiting for the server; ok() — the server answered; fail(e) — an error; stop() — the listener is removed
 function readTrack(label) {
   const id = ++readSeq; const key = `${label}#${id}`;
   const t = {
@@ -171,10 +182,10 @@ function readTrack(label) {
 }
 const addReads = (n) => {
   if (!n) return; serverReads += n;
-  try { localStorage.setItem('pz.reads', JSON.stringify({ day: ptDay(), n: readsToday() + n })); } catch { /* без хранилища */ }
+  try { localStorage.setItem('pz.reads', JSON.stringify({ day: ptDay(), n: readsToday() + n })); } catch { /* no storage */ }
 };
 
-// Слушатель коллекции с экономией чтений: после первой полной загрузки — кэш + только изменённые документы.
+// A collection listener that saves reads: after the first full load — the cache + only changed documents.
 function deltaListen(col, key, shape, label, cb, retryDenied = false) {
   let unsub = () => {}; let stopped = false; let tries = 0; let timer = null;
   const tr = readTrack(label);
@@ -184,9 +195,9 @@ function deltaListen(col, key, shape, label, cb, retryDenied = false) {
     if (retryDenied && e.code === 'permission-denied' && tries < 15) { tries++; timer = setTimeout(() => { if (!stopped) restart(); }, 1500); return; }
     error(label, `${e.code || ''} ${e.message || e}`);
   };
-  // как раньше: слушаем всю коллекцию (первый запуск, раз в неделю, при неполном кэше)
+  // as before: listen to the whole collection (first start, once a week, when the cache is incomplete)
   const startFull = () => {
-    let stamped = false; // отметка времени полной загрузки ставится один раз за запуск
+    let stamped = false; // the full-load timestamp is set once per run
     unsub = onSnapshot(col, { includeMetadataChanges: true }, (snap) => {
       tries = 0;
       if (!snap.metadata.fromCache) {
@@ -199,10 +210,10 @@ function deltaListen(col, key, shape, label, cb, retryDenied = false) {
       cb(snap.docs.map(shape));
     }, onErr(startFull));
   };
-  // экономный режим: с сервера — только изменения с прошлой отметки; на экран — вся коллекция из памяти телефона.
-  // Почему так: запрос «изменено после» не видит записи, ещё не дошедшие до сервера (у них нет серверного времени),
-  // и без связи новая работа/запись не появлялась в списках, пока телефон не выгрузит её. Слушатель памяти телефона
-  // (source: 'cache') видит их сразу, а то, что пришло с сервера, тоже попадает в память и показывается им же.
+  // saving mode: from the server — only the changes since the last mark; on screen — the whole collection from the phone's memory.
+  // Why: a «changed after» query does not see records that have not reached the server yet (they have no server time),
+  // and without a connection a new work/record did not appear in the lists until the phone uploaded it. The phone-memory listener
+  // (source: 'cache') sees them at once, and what comes from the server also lands in that memory and is shown by it.
   const startDelta = (meta) => {
     const q = query(col, where('updatedAtServer', '>', Timestamp.fromMillis(meta.last - DELTA_MARGIN)));
     let lastSize = 0;
@@ -227,7 +238,7 @@ function deltaListen(col, key, shape, label, cb, retryDenied = false) {
       const cached = await getDocsFromCache(col);
       if (stopped) return;
       if (decideMode(meta, cached.size) !== 'delta') { startFull(); return; }
-      // сразу показываем всё, что есть в памяти телефона, затем подключаем слушатели
+      // show everything in the phone's memory at once, then attach the listeners
       cb(cached.docs.map(shape));
       startDelta(meta);
     } catch { if (!stopped) startFull(); }
@@ -236,11 +247,11 @@ function deltaListen(col, key, shape, label, cb, retryDenied = false) {
   return () => { stopped = true; clearTimeout(timer); tr.stop(); unsub(); };
 }
 
-// ---------- хранилище: Firestore ----------
+// ---------- storage: Firestore ----------
 export function createFirestoreBackend(db, uid) {
   return {
     kind: 'firestore',
-    // Открытая версия: администратор базы — первый вошедший (документ meta/admin; правила разрешают создать его один раз)
+    // Open edition: the database administrator is the first to sign in (document meta/admin; the rules allow creating it once)
     async loadAdmin() { const d = await getDoc(doc(db, 'meta', 'admin')); return d.exists() ? d.data().email : null; },
     async claimAdmin(email) {
       const cur = await this.loadAdmin(); if (cur) return cur;
@@ -255,7 +266,7 @@ export function createFirestoreBackend(db, uid) {
     },
     async loadHistory(pid, since, max) {
       const q = query(collection(db, 'projects', pid, 'history'), where('at', '>=', since), orderBy('at', 'desc'), fbLimit(max));
-      // при слабой связи не ждём сервер дольше 6 с — показываем историю из памяти телефона (там и всё сделанное здесь)
+      // on a weak connection we do not wait for the server longer than 6 s — we show the history from the phone's memory (it holds everything done here too)
       const srv = getDocs(q).then((s) => { addReads(s.size); return s; });
       const snap = await Promise.race([srv, new Promise((r) => setTimeout(() => r(null), 6000))]).catch(() => null) || await getDocsFromCache(q);
       return snap.docs.map((d) => d.data());
@@ -266,10 +277,10 @@ export function createFirestoreBackend(db, uid) {
         (e) => error('Чтение приглашений', `${e.code || ''} ${e.message || e}`));
     },
     listenColl(pid, name, cb) {
-      // Если проект ещё не дошёл до сервера, чтение отклоняется — повторяем попытку
+      // If the project has not reached the server yet, the read is rejected — retry
       return deltaListen(collection(db, 'projects', pid, name), `pz.sync.${uid}.${pid}.${name}`, (d) => ({ ...d.data(), _pending: d.metadata.hasPendingWrites }), `Чтение ${name}`, cb, true);
     },
-    // Запись пачками (в одной пачке до 500 операций). Не ждём ответа сервера: офлайн запись остаётся в очереди.
+    // Writing in batches (up to 500 operations per batch). We do not wait for the server: offline the write stays in the queue.
     commit(pid, writes) {
       addWrites(writes.length);
       const CHUNK = 400;
@@ -279,19 +290,19 @@ export function createFirestoreBackend(db, uid) {
         writes.slice(i, i + CHUNK).forEach((w) => {
           const ref = w.coll === 'projects' ? doc(db, 'projects', w.id) : doc(db, 'projects', pid, w.coll, docKey(w.id));
           const data = { ...w.data, updatedAtServer: serverTimestamp() };
-          // списки участников меняем «добавить/убрать один элемент», а не заменой целиком
+          // member lists are changed by «add/remove one element», not by replacing them whole
           Object.entries(w.arrayOps || {}).forEach(([k, o]) => { data[k] = o.union ? arrayUnion(...o.union) : arrayRemove(...o.remove); });
-          // replace: словари в записи заменяются целиком (иначе merge оставляет удалённые ключи)
-          // точки — всегда целиком по полям (место на чертеже pos не склеивается со старым: иначе остаются прежние icon, text, w, h)
+          // replace: dictionaries in the record are replaced whole (otherwise merge keeps deleted keys)
+          // points — always whole by fields (the place on the drawing, pos, is not merged with the old one: otherwise the previous icon, text, w, h stay)
           batch.set(ref, data, w.replace || w.coll === 'points' ? { mergeFields: Object.keys(data) } : { merge: true });
         });
         chunks.push(batch);
       }
-      return Promise.all(chunks.map((b) => b.commit())); // порядок отправки сохраняется
+      return Promise.all(chunks.map((b) => b.commit())); // the order of sending is kept
     },
-    // Общий пул: коллекции pool_types, pool_devices, pool_cables, pool_catalog (читают все, пишет только администратор пула)
+    // The shared pool: collections pool_types, pool_devices, pool_cables, pool_catalog (everyone reads, only the pool administrator writes)
     listenPool(kind, cb) {
-      // удалённое в пуле помечается deleted:true (а не стирается), чтобы экономное чтение «только изменений» его увидело
+      // a deletion in the pool is marked deleted:true (not erased), so the saving «changes only» read sees it
       return deltaListen(collection(db, `pool_${kind}`), `pz.sync.${uid}.pool.${kind}`, (d) => d.data(), `Чтение общего пула (${kind})`, (list) => cb(list.filter((x) => !x.deleted)));
     },
     commitPool(writes) {
@@ -300,13 +311,13 @@ export function createFirestoreBackend(db, uid) {
       writes.forEach((w) => { const ref = doc(db, `pool_${w.coll}`, docKey(w.id)); if (w.remove) batch.set(ref, { deleted: true, updatedAtServer: serverTimestamp() }, { merge: true }); else batch.set(ref, { ...w.data, updatedAtServer: serverTimestamp() }, { merge: true }); });
       return batch.commit();
     },
-    // Разрешённые почты (пишет только администратор пула): кому можно создавать проекты и писать в общие коллекции
+    // Allowed emails (written only by the pool administrator): who may create projects and write to the shared collections
     allowEmails(list) {
       const batch = writeBatch(db); addWrites(list.length);
       list.forEach((e) => batch.set(doc(db, 'allowed', e), { email: e, at: Date.now() }, { merge: true }));
       return batch.commit();
     },
-    // Входящие администратора пула: новое и изменённое из проектов (пишут все, читает только администратор)
+    // The pool administrator's inbox: what is new and changed in projects (everyone writes, only the administrator reads)
     listenInbox(cb) {
       return deltaListen(collection(db, 'pool_inbox'), `pz.sync.${uid}.pool.inbox`, (d) => ({ ...d.data(), key: d.id }), 'Чтение входящих пула', cb);
     },
@@ -315,7 +326,7 @@ export function createFirestoreBackend(db, uid) {
       list.forEach((x) => batch.set(doc(db, 'pool_inbox', x.key), { ...x.data, updatedAtServer: serverTimestamp() }, { merge: true }));
       return batch.commit();
     },
-    // Личные настройки пользователя (например, привязки установки по умолчанию для новых проектов)
+    // The user's personal settings (e.g. default installation bindings for new projects)
     listenUserPrefs(_uid, cb) {
       return onSnapshot(doc(db, 'users', uid, 'prefs', 'main'), (snap) => cb(snap.data() || {}),
         (e) => error('Чтение настроек пользователя', `${e.code || ''} ${e.message || e}`));
@@ -326,10 +337,10 @@ export function createFirestoreBackend(db, uid) {
 
 const emailOf = (u) => String(u.email || '').toLowerCase();
 
-// ---------- общий слой: автор/время, история, мягкое удаление ----------
+// ---------- the shared layer: author/time, history, soft deletion ----------
 export function createRepo(backend, user) {
   const by = { uid: user.uid, name: user.displayName || user.email || '' };
-  const cache = new Map(); // `${pid}/${coll}/${key}` -> последняя известная версия (для «было»)
+  const cache = new Map(); // `${pid}/${coll}/${key}` -> the last known version (for «before»)
   const keyOf = (pid, coll, id) => `${pid}/${coll}/${docKey(id)}`;
 
   function audit(pid, coll, id, data, existing, action) {
@@ -343,7 +354,7 @@ export function createRepo(backend, user) {
     return [{ coll, id, data: clean(stamped) }, { coll: 'history', id: history.id, data: history }];
   }
 
-  // сервер не принял запись: сохраняем её на телефоне (с кодом ошибки), чтобы можно было повторить после устранения причины
+  // the server did not accept the write: keep it on the phone (with the error code) so it can be retried once the cause is removed
   const onReject = (kind, pid, writes) => (e) => {
     error('Запись отклонена', `${e.code || ''} ${e.message || e}`);
     addRejected({ id: newId(), kind, pid, writes, code: e?.code || '', msg: String(e?.message || e), at: Date.now() });
@@ -352,7 +363,7 @@ export function createRepo(backend, user) {
 
   const api = {
     backend, user, by,
-    /** Повторить не принятые записи (после устранения причины); успешно ушедшие убираются из списка */
+    /** Retry the writes that were not accepted (after the cause is removed); those sent successfully leave the list */
     retryRejected(ids = null) {
       const list = rejected.filter((x) => !ids || ids.includes(x.id));
       list.forEach((it) => { dropRejected(it.id); track(send(it), it.writes.length)?.catch?.(onReject(it.kind, it.pid, it.writes)); });
@@ -369,13 +380,13 @@ export function createRepo(backend, user) {
         cb(docs);
       });
     },
-    // Одна или несколько записей за раз (ops: [{coll, id?, data, action?}]); возвращает id созданных/изменённых
+    // One or several writes at a time (ops: [{coll, id?, data, action?}]); returns the ids of the created/changed ones
     save(pid, ops) {
       const writes = []; const ids = [];
-      // названия точек и шкафов — латиницей, откуда бы они ни пришли (набор руками, файл, тохнит, импорт): С108 кириллицей → C108
+      // names of points and racks are in Latin letters wherever they come from (typed by hand, a file, a drawing, an import): «С108» in Cyrillic → «C108» in Latin
       let cabs = null;
       ops = ops.map((op) => {
-        // запись дохa: запоминаем текст строки на момент сохранения — потом видно, изменились ли данные (длина, число кабелей, точки…)
+        // a daily report entry: remember the row's text at the moment of saving — later it shows whether the data changed (length, number of cables, points…)
         if (op.coll === 'entries' && op.data && snapFn && op.action !== 'rollback' && !op.data.deleted) { try { return { ...op, data: { ...op.data, snap: snapFn(op.id, op.data) } }; } catch { return op; } }
         if (op.coll !== 'points' || !op.data) return op;
         const d = { ...op.data };
@@ -399,7 +410,7 @@ export function createRepo(backend, user) {
       track(backend.commit(pid, writes), ops.length)?.catch?.(onReject('project', pid, writes));
       return ids;
     },
-    // Мягкое удаление: запись остаётся, помечается deleted (откат — restore)
+    // Soft deletion: the record stays and is marked deleted (rollback — restore)
     remove(pid, coll, id) {
       const now = Date.now();
       return api.save(pid, [{ coll, id, action: 'delete', data: { deleted: true, deletedAt: now, deletedBy: by.uid, deletedByName: by.name } }]);
@@ -407,8 +418,8 @@ export function createRepo(backend, user) {
     restore(pid, coll, id) {
       return api.save(pid, [{ coll, id, action: 'restore', data: { deleted: false, deletedAt: null, deletedBy: null, deletedByName: null } }]);
     },
-    // Новый проект: документ проекта + начальные справочники внутри него (все участники видят одно и то же)
-    // refs: { types, devices, cables, catalog } — выбранное в мастере из общего пула (без старого стандартного набора)
+    // A new project: the project document + the initial catalogues inside it (all members see the same thing)
+    // refs: { types, devices, cables, catalog } — what was chosen in the wizard from the shared pool (without the old standard set)
     createProject(data, refs = null) {
       const pid = newId();
       const now = Date.now();
@@ -428,16 +439,16 @@ export function createRepo(backend, user) {
         ?.catch?.((e) => error('Создание проекта отклонено', `${e.code || ''} ${e.message || e}`));
       return pid;
     },
-    // replace: true — словари в patch заменяются целиком (чтобы можно было убрать ключ)
+    // replace: true — dictionaries in the patch are replaced whole (so a key can be removed)
     saveProject(pid, patch, { replace = false, arrayOps = null } = {}) {
       const now = Date.now();
       const data = clean({ ...patch, id: pid, updatedBy: by.uid, updatedByName: by.name, updatedAt: now });
       const writes = [{ coll: 'projects', id: pid, data, replace, ...(arrayOps ? { arrayOps } : {}) }];
       track(backend.commit(pid, writes), 1)?.catch?.(onReject('project', pid, writes));
     },
-    // История изменений и откат. Откат сам записывается в историю, поэтому его тоже можно отменить.
+    // The change history and rollback. A rollback is itself written to the history, so it can be undone too.
     loadHistory: (pid, since, max = 2000) => backend.loadHistory(pid, since, max),
-    // Вернуть запись к состоянию «до» указанного события (before === null → запись была создана этим событием → убрать)
+    // Return a record to its state «before» the given event (before === null → the record was created by this event → remove it)
     revertTo(pid, coll, docId, before) {
       if (!before) { api.remove(pid, coll, docId); return; }
       const now = api.cacheGet(pid, coll, docId) || {};
@@ -447,7 +458,7 @@ export function createRepo(backend, user) {
       api.save(pid, [{ coll, id: docId, action: 'rollback', data }]);
     },
     cacheGet: (pid, coll, id) => cache.get(keyOf(pid, coll, id)),
-    // общий пул
+    // shared pool
     listenPool: (kind, cb) => backend.listenPool?.(kind, cb) || (() => {}),
     savePool(ops) {
       const now = Date.now();
@@ -457,7 +468,7 @@ export function createRepo(backend, user) {
     },
     listenInbox: (cb) => backend.listenInbox?.(cb) || (() => {}),
     setInbox: (list) => backend.setInbox(list.map((x) => ({ key: x.key, data: clean(x.data) })))?.catch?.((e) => error('Входящие пула', `${e.code || ''} ${e.message || e}`)),
-    // Приглашения по почте Google: приглашённый видит проект и сам вступает (правила базы это проверяют)
+    // Invitations by Google email: the invited person sees the project and joins by themself (the database rules check it)
     listenInvitations: (cb) => backend.listenInvitations(emailOf(user), user.uid, cb),
     invite(project, email) {
       if (!api.isCreator(project)) throw new Error('Приглашать может только создатель проекта');
@@ -466,11 +477,11 @@ export function createRepo(backend, user) {
       api.saveProject(project.id, {}, { arrayOps: { invitedEmails: { union: [e] } } });
       api.allowEmails([e]);
     },
-    // Подпись участника (видна всем в проекте). Ключ — почта без точек, т.к. точка в ключе Firestore неудобна
+    // A member's display name (visible to everyone in the project). The key is the email with dots replaced, since a dot in a Firestore key is awkward
     renameMember(project, email, name) {
       api.saveProject(project.id, { memberNames: { [String(email).toLowerCase().replace(/\./g, '_')]: String(name || '').trim() } });
     },
-    // Убрать участника (только создатель): он теряет доступ; его прежние правки остаются, а uid запоминается для отката в «Истории»
+    // Remove a member (creator only): they lose access; their earlier edits stay, and the uid is remembered for rollback in «История»
     removeMember(project, email) {
       if (!api.isCreator(project)) throw new Error('Убирать участников может только создатель проекта');
       const e = String(email).toLowerCase();
@@ -494,13 +505,13 @@ export function createRepo(backend, user) {
     declineInvite(project) {
       api.saveProject(project.id, {}, { arrayOps: { invitedEmails: { remove: [emailOf(user)] } } });
     },
-    // Администратор пула вносит в список разрешённых почты всех участников и приглашённых своих проектов (один раз на почту)
+    // The pool administrator adds the emails of all members and invitees of their projects to the allowed list (once per email)
     allowEmails(list) {
       if (!isAdminEmail(emailOf(user)) || !backend.allowEmails) return;
-      const key = `pz.allowed.${user.uid}`; let done = []; try { done = JSON.parse(localStorage.getItem(key) || '[]'); } catch { /* пусто */ }
+      const key = `pz.allowed.${user.uid}`; let done = []; try { done = JSON.parse(localStorage.getItem(key) || '[]'); } catch { /* empty */ }
       const fresh = [...new Set(list.map((e) => String(e || '').trim().toLowerCase()).filter((e) => /^\S+@\S+\.\S+$/.test(e) && !done.includes(e)))];
       if (!fresh.length) return;
-      Promise.resolve(backend.allowEmails(fresh)).then(() => { try { localStorage.setItem(key, JSON.stringify([...done, ...fresh])); } catch { /* нет доступа */ } }).catch((e) => error('Список разрешённых почт', `${e.code || ''} ${e.message || e}`));
+      Promise.resolve(backend.allowEmails(fresh)).then(() => { try { localStorage.setItem(key, JSON.stringify([...done, ...fresh])); } catch { /* no access */ } }).catch((e) => error('Список разрешённых почт', `${e.code || ''} ${e.message || e}`));
     },
     loadAdmin: () => backend.loadAdmin?.(),
     claimAdmin: (email) => backend.claimAdmin?.(email),

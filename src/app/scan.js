@@ -1,5 +1,5 @@
-// Сканер штрихкодов и QR для серийного номера / MAC: живая камера или фото из галереи.
-// Библиотека (zxing) подгружается только при первом открытии сканера.
+// Barcode and QR scanner for a serial number / MAC: the live camera or a photo from the gallery.
+// The library (zxing) is loaded only when the scanner is first opened; candidate values come from src/domain (`candidatesFor`).
 import { h, openModal } from './ui.js';
 import { candidatesFor, normalizeMac } from '../domain/index.js';
 
@@ -7,12 +7,12 @@ async function lib() {
   const [z, b] = await Promise.all([import('@zxing/library'), import('@zxing/browser')]);
   const hints = new Map();
   hints.set(z.DecodeHintType.TRY_HARDER, true);
-  // только форматы, которыми печатают серийники и MAC; лишние форматы дают случайные «числа» из шума
+  // only the formats serial numbers and MACs are printed in; extra formats give random «numbers» out of noise
   hints.set(z.DecodeHintType.POSSIBLE_FORMATS, [z.BarcodeFormat.QR_CODE, z.BarcodeFormat.CODE_128, z.BarcodeFormat.DATA_MATRIX]);
   return { z, b, hints };
 }
 
-// Читаем код, закрашиваем его белым и ищем следующий: так находятся и штрихкод, и QR на одной наклейке
+// Read a code, paint it white and look for the next one: this finds both the barcode and the QR on one sticker
 function decodeAll(c, reader, L, found) {
   const g = c.getContext('2d');
   for (let n = 0; n < 5; n += 1) {
@@ -36,7 +36,7 @@ function decodeAll(c, reader, L, found) {
 }
 const newReader = (L) => { const r = new L.z.MultiFormatReader(); r.setHints(L.hints); return r; };
 
-// Все коды на фотографии: целиком и по частям
+// All codes in a photo: the whole image and by parts
 async function decodePhoto(file, L) {
   const url = URL.createObjectURL(file);
   try {
@@ -57,7 +57,7 @@ async function decodePhoto(file, L) {
   } finally { URL.revokeObjectURL(url); }
 }
 
-// kind: 'mac' | 'serial'; onPick(value) вызывается при выборе значения
+// kind: 'mac' | 'serial'; onPick(value) is called when a value is chosen
 export function scanDevice({ kind, onPick, title }) {
   const texts = [];
   let controls = null; let closed = false;
@@ -78,11 +78,11 @@ export function scanDevice({ kind, onPick, title }) {
     texts.push(t);
     const c = refresh();
     status.textContent = `Считано кодов: ${texts.length}. Нажмите нужное значение${kind === 'mac' ? '' : ' (или наведите на другой код)'}.`;
-    // серийный номер с камеры: код вида «GE4198747» подставляем сразу, остальное выбирается нажатием
+    // serial number from the camera: a code like «GE4198747» is filled in at once, the rest is chosen by a tap
     if (live && kind === 'serial' && /^[A-Za-z0-9\-_.]{6,32}$/.test(t) && !normalizeMac(t)) { pick(t); return; }
-    if (kind === 'mac' && c[0]?.sure && c.filter((x) => x.sure).length === 1) pick(c[0].value); // MAC найден однозначно
+    if (kind === 'mac' && c[0]?.sure && c.filter((x) => x.sure).length === 1) pick(c[0].value); // the MAC is found unambiguously
   };
-  function stop() { try { controls?.stop(); } catch { /* уже остановлена */ } controls = null; }
+  function stop() { try { controls?.stop(); } catch { /* already stopped */ } controls = null; }
   const photoBtn = h('button', { type: 'button', class: 'sec', onclick: () => fileIn.click() }, '🖼 Из фото');
   fileIn.addEventListener('change', async () => {
     const f = fileIn.files?.[0]; if (!f) return;
@@ -105,7 +105,7 @@ export function scanDevice({ kind, onPick, title }) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } } });
       if (closed) { stream.getTracks().forEach((t) => t.stop()); return; }
       video.srcObject = stream; await video.play().catch(() => {});
-      try { await stream.getVideoTracks()[0].applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch { /* не поддерживается */ }
+      try { await stream.getVideoTracks()[0].applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch { /* not supported */ }
       const reader = newReader(L); const cv = document.createElement('canvas'); let busy = false; let frame = 0; const votes = new Map();
       const timer = setInterval(() => {
         if (busy || closed || !video.videoWidth) return;
@@ -115,7 +115,7 @@ export function scanDevice({ kind, onPick, title }) {
           cv.width = Math.round(video.videoWidth * k); cv.height = Math.round(video.videoHeight * k);
           cv.getContext('2d').drawImage(video, 0, 0, cv.width, cv.height);
           const found = []; decodeAll(cv, reader, L, found);
-          // каждый второй кадр — центральная часть кадра в полном разрешении (мелкий штрихкод читается лучше)
+          // every second frame — the central part of the frame at full resolution (a small barcode reads better)
           frame += 1;
           if (frame % 2 === 0 || !found.length) {
             const cw = Math.round(video.videoWidth * 0.6); const ch = Math.round(video.videoHeight * 0.6);
@@ -123,7 +123,7 @@ export function scanDevice({ kind, onPick, title }) {
             cv.getContext('2d').drawImage(video, (video.videoWidth - cw) / 2, (video.videoHeight - ch) / 2, cw, ch, 0, 0, cv.width, cv.height);
             decodeAll(cv, reader, L, found);
           }
-          // код принимаем, только если он прочитан в двух кадрах (защита от случайных чтений)
+          // accept a code only if it was read in two frames (protection against random reads)
           found.filter((t) => t.length >= 5).forEach((t) => { votes.set(t, (votes.get(t) || 0) + 1); if (votes.get(t) >= 2) add(t, true); });
         } finally { busy = false; }
       }, 350);

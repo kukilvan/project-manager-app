@@ -1,5 +1,5 @@
-// Журнал событий для отладки: хранится в памяти и в localStorage (последние 300 строк),
-// показывается на экране «Журнал событий».
+// Event log for debugging: kept in memory and in localStorage (`pz.log.v1`, the last 300 lines).
+// Shown on the «Журнал событий» screen; every module writes to it through info, warn and error.
 const KEY = 'pz.log.v1';
 const MAX = 300;
 let lines = [];
@@ -17,7 +17,7 @@ function stamp() {
 }
 
 function persist() {
-  try { localStorage.setItem(KEY, JSON.stringify(lines.slice(-MAX))); } catch { /* переполнено/запрещено */ }
+  try { localStorage.setItem(KEY, JSON.stringify(lines.slice(-MAX))); } catch { /* full or forbidden */ }
 }
 
 export function log(level, msg, extra) {

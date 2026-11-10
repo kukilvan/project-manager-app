@@ -1,5 +1,6 @@
-// Перенос проектов из режима «на устройстве» в базу Firebase (после настройки своей базы или входа по приглашению).
-// Данные на устройстве не удаляются: перенесённые проекты просто помечаются, чтобы не предлагать их снова.
+// Moves projects from the «на устройстве» mode into the Firebase database (after setting up one's own database or joining by invitation).
+// Data on the device is not deleted: moved projects are only marked (localStorage `pm.migrated`) so they are not offered again.
+// Reads the device through localdb.js and commits through the repo backend; shows a modal from ui.js.
 import { h, openModal, toast } from './ui.js';
 import { localSnapshot } from './localdb.js';
 import { info, error } from '../log.js';
@@ -9,7 +10,7 @@ const done = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}');
 const mark = (pid) => { try { localStorage.setItem(KEY, JSON.stringify({ ...done(), [pid]: Date.now() })); } catch { /* ok */ } };
 const clean = (o) => JSON.parse(JSON.stringify(o, (k, v) => (v === undefined ? null : v)));
 
-/** Проекты на устройстве, ещё не перенесённые: [{ project, docs: [{coll, id, doc}] }] */
+/** Projects on the device that are not moved yet: [{ project, docs: [{coll, id, doc}] }] */
 export async function localProjects() {
   let rows = []; try { rows = await localSnapshot(); } catch { return []; }
   const projects = new Map(); const docs = new Map();
@@ -28,13 +29,13 @@ export async function localProjects() {
 async function moveOne(backend, user, { project, docs }) {
   const pid = project.id; const email = String(user.email || '').toLowerCase(); const name = user.displayName || email;
   const pdoc = clean({ ...project, memberUids: [user.uid], memberEmails: [email], invitedEmails: [], removedMembers: null, createdBy: user.uid, createdByName: name, updatedBy: user.uid, updatedByName: name, updatedAt: Date.now() });
-  await backend.commit(pid, [{ coll: 'projects', id: pid, data: pdoc }]);   // сначала проект: правила пускают в подколлекции только участников
+  await backend.commit(pid, [{ coll: 'projects', id: pid, data: pdoc }]);   // the project first: the rules let only members into subcollections
   await backend.commit(pid, docs.map((d) => ({ coll: d.coll, id: d.id, data: clean(d.doc) })));
   mark(pid);
   info(`Перенесён проект «${project.name}»: записей ${docs.length}`);
 }
 
-/** Предложить перенос (вызывается после входа в базу Firebase) */
+/** Offer the move (called after signing in to the Firebase database) */
 export async function offerMigration(repo, user) {
   const list = await localProjects(); if (!list.length) return;
   const total = list.reduce((n, x) => n + x.docs.length, 0);

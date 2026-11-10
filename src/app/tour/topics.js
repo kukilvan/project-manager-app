@@ -1,4 +1,9 @@
-// Темы тура. Тексты короткие и простые: тур рассчитан на тех, кто не знаком ни с приложением, ни со слаботочкой.
+// Tour topics: the step lists (title, text, target element) for each topic, built for the current UI by `buildTopics`.
+// The texts are short and simple: the tour is meant for people who know neither the app nor low-voltage work.
+//
+// Contents:
+// - field(), tab(), btn(), topbar() — finders of the elements a step highlights
+// - buildTopics(ui) — the 14 topics from «Знакомство» to «Дела и заметки», each with its steps
 import { find, sheet } from './engine.js';
 import { isLocal } from '../../edition.js';
 import { tr } from '../../i18n/index.js';

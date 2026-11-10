@@ -1,4 +1,6 @@
-// Оболочка: верхняя панель, нижняя панель из 5 экранов, меню, переключение экранов.
+// The shell: top bar, bottom bar of 5 tabs, the menu, screen switching, and the status badges (waiting to send, waiting to read, rejected by the server).
+// Subscribes to store.js and repo.js status callbacks, starts the shared pool, door pool, manuals and the starter set, and resumes the Drive/Sheets action after an iPhone return from Google.
+// Created by main.js once the user is known; every screen of src/app/views is opened from here.
 import { racksView } from './views/racks.js';
 import { sheetsView } from './views/sheetslist.js';
 import { projectWizard } from './views/wizard.js';
@@ -22,9 +24,9 @@ import { asText } from '../log.js';
 import { entryLine, rejectReason } from '../domain/index.js';
 import { makeWorker } from './views/tohnitview.js';
 import { assignOnPlan } from './views/planassign.js';
-// для проверок в браузере (как window.__pz)
+// for browser checks (like window.__pz)
 if (typeof window !== 'undefined') window.__pzPlanTools = { assignOnPlan, makeWorker };
-// тестовый режим (?mem=1): доступ к данным для проверок в браузере
+// test mode (?mem=1): access to the data for browser checks
 if (typeof window !== 'undefined' && new URLSearchParams(location.search).has('mem')) window.__pzTest = { state, getRepo, currentProject, setCurrentProject };
 import { themeLabel, setTheme, nextTheme } from './theme.js';
 import { projectView, updateManagerTable, updateTable, backupNow, organizeDrive } from './views/project.js';
@@ -57,7 +59,7 @@ export function createShell({ user, onLogout, diag }) {
   function menu() {
     const p = currentProject();
     const item = (label, fn) => h('button', { class: 'menu-item', onclick: () => { close(); fn(); } }, label);
-    // разделы свёрнуты по умолчанию; нажатие на заголовок раскрывает / сворачивает
+    // sections are collapsed by default; a tap on the heading expands / collapses
     const section = (title, items) => {
       const list = h('div', { style: { display: 'none' } }, ...items.filter(Boolean));
       const mark = h('span', {}, '▸ ');
@@ -139,7 +141,7 @@ export function createShell({ user, onLogout, diag }) {
     }
   }
 
-  // «⏳ N ждут отправки»: записи, ещё не дошедшие до сервера. Если онлайн, а они висят дольше полутора минут — красный
+  // the «⬆ N» badge: records that have not reached the server yet. If online and they hang for more than a minute and a half — red
   let pendingSince = 0; let badge = null;
   const paintBadge = () => {
     const n = pendingCount();
@@ -159,7 +161,7 @@ export function createShell({ user, onLogout, diag }) {
     paintBadge();
     return badge;
   }
-  // «⬇ N»: сколько разделов ещё ждут ответа сервера (чтение). Красный — ошибка (например, лимит) или ждём дольше 30 секунд онлайн
+  // «⬇ N»: how many sections still wait for the server's answer (reading). Red — an error (e.g. the limit) or waiting more than 30 seconds online
   let rbadge = null;
   const LIMIT_CODES = ['resource-exhausted'];
   const paintRead = () => {
@@ -182,7 +184,7 @@ export function createShell({ user, onLogout, diag }) {
     paintRead();
     return rbadge;
   }
-  // «⚠ N»: записи, которые сервер не принял. Хранятся на телефоне — можно разобраться в причине и повторить
+  // «⚠ N»: records the server did not accept. They are kept on the phone — you can find the cause and retry
   let xbadge = null;
   const paintRej = () => { if (!xbadge) return; const n = rejectedList().length; xbadge.style.display = n ? '' : 'none'; xbadge.textContent = `⚠ ${n}`; xbadge.title = `Сервер не принял записей: ${n}`; };
   function rejectedModal() {
@@ -232,7 +234,7 @@ export function createShell({ user, onLogout, diag }) {
 
   window.addEventListener('online', () => { state.online = true; render(); });
   window.addEventListener('offline', () => { state.online = false; render(); });
-  // иврит: названия из справочников проекта (в т. ч. добавленные вручную) берутся из их ивритских полей
+  // Hebrew: names from the project's catalogues (including those added by hand) are taken from their Hebrew fields
   let lastCtx = null;
   const ctxNames = () => {
     const c = state.ctx; if (!c || c === lastCtx || lang() !== 'he') return; lastCtx = c;
@@ -245,10 +247,10 @@ export function createShell({ user, onLogout, diag }) {
     addTranslations(m);
   };
   const unsub = subscribe(() => { ctxNames(); render(); if (ready() && !demo.on) { maybeWelcome(ui, user); maybeOfferTour(ui); if (currentProject()?.serverEmail) import('./views/managersfolder.js').then((m) => m.ensureServerAccess()).catch(() => {}); } });
-  startPool(); startDoorPool(); startManuals(); seedStarterPool();  // общий пул: слушать, входящие администратора, отправка нового из проекта
+  startPool(); startDoorPool(); startManuals(); seedStarterPool();  // shared pool: listen, the administrator's inbox, sending what is new from the project
   render();
 
-  // Возврат с Google после выдачи доступа (iPhone): дожидаемся загрузки проекта и запускаем обновление таблицы руководства
+  // Return from Google after access was granted (iPhone): wait for the project to load and run the pending action (by default the management sheet update)
   try {
     if (localStorage.getItem(PENDING)) {
       let tries = 0;
@@ -259,6 +261,6 @@ export function createShell({ user, onLogout, diag }) {
         else if (tries > 60) { clearInterval(timer); localStorage.removeItem(PENDING); }
       }, 500);
     }
-  } catch { /* без хранилища */ }
+  } catch { /* no storage */ }
   return { destroy: () => { unsub(); } };
 }

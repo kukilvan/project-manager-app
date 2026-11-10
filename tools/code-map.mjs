@@ -16,8 +16,6 @@ import { isPending, isRussian } from './ru-comments.mjs';
 
 // Modules still waiting for their English header (spec section 9). Each ticket deletes its own entries; ticket 09 deletes the list.
 export const PENDING = [
-  // ticket 03
-  'src/app/', 'src/app/tour/', 'src/main.js', 'src/edition.js', 'src/firebase.js', 'src/log.js', 'src/i18n/',
   // ticket 04
   ...['points', 'racks', 'pullview', 'racktable', 'pointmerge', 'pointsfile', 'pointchooser', 'cablespick', 'doorchips',
     'doorcfgview', 'ownworks', 'latinfix'].map((n) => `src/app/views/${n}.js`),

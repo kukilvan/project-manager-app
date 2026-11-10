@@ -1,6 +1,7 @@
-// Общий пул конфигураций дверей (pool_doorcfg): новая разновидность двери попадает туда сама (пишет любой участник),
-// удаляет только администратор пула. Проект держит копии используемых и закреплённых (коллекция configs) —
-// удалённая из пула конфигурация у дверей проекта продолжает работать.
+// The shared pool of door configurations (pool_doorcfg): a new kind of door gets there by itself (any member writes it),
+// only the pool administrator deletes. A project keeps copies of the configurations it uses or has pinned (the configs collection),
+// so a configuration deleted from the pool keeps working on the project's doors.
+// Builds on pool.js and the repo's `listenPool`/`savePool`; door logic comes from src/domain.
 import { state, getRepo, currentProject } from './store.js';
 import { toast } from './ui.js';
 import { isPoolAdmin, pool } from './pool.js';
@@ -19,10 +20,10 @@ export function startDoorPool() {
 }
 
 const bare = (c) => ({ name: c.name, devices: c.devices, cables: c.cables, kind: 'door' });
-// запись с актуальным названием (по коротким именам устройств проекта)
+// the entry with an up-to-date name (from the short device names of the project)
 const named = (c) => ({ ...c, name: doorCfgName(state.ctx, c.devices, c.cables) });
 
-/** Все известные конфигурации дверей: стандартные, проекта, пула → Map id → cfg */
+/** All known door configurations: standard, the project's, the pool's → Map id → cfg */
 export function allDoorCfgs() {
   const m = new Map();
   standardDoorCfgs(state.ctx).forEach((c) => m.set(c.id, c));
@@ -32,11 +33,11 @@ export function allDoorCfgs() {
 }
 export const pinsOf = () => doorPinsOf(currentProject(), state.ctx);
 
-/** Конфигурация пошла в дело (выбрана для двери или закреплена): копия в проект + в общий пул, если её там нет */
+/** A configuration came into use (chosen for a door or pinned): a copy goes into the project and into the shared pool if it is not there */
 export function useDoorCfg(cfg) {
   const p = currentProject(); const repo = getRepo();
   const full = isDoorCfg(cfg) && cfg.id ? cfg : makeDoorCfg(state.ctx, cfg.devices, cfg.cables);
-  // устройства и кабели конфигурации из другого проекта: берём недостающие из общего пула; нет и там — не переносим
+  // devices and cables of a configuration from another project: take the missing ones from the shared pool; if they are not there either — do not move it
   if (!state.ctx.configs.has(full.id)) {
     const ops = []; const missing = []; const maps = poolMaps(pool);
     (full.devices || []).forEach((d) => { if (!state.ctx.devices.has(d.deviceId)) { if (maps.devices.has(d.deviceId)) takeFromPoolOps(state.ctx, maps, 'devices', d.deviceId, ops); else missing.push(d.deviceId); } });
@@ -48,7 +49,7 @@ export function useDoorCfg(cfg) {
   if (!doorPool.has(full.id)) { try { repo.savePool([{ coll: 'doorcfg', id: full.id, data: { ...bare(full), deleted: false } }]); } catch (e) { console.warn('doorcfg pool', e); } }
   return full.id;
 }
-/** id выбранной конфигурации → она есть в проекте (стандартную/из пула копирует). Пустое → '' */
+/** id of the chosen configuration → make sure it is in the project (a standard or pool one is copied). Empty → '' */
 export function ensureDoorCfg(id) {
   if (!id || id === '__clear') return '';
   if (state.ctx.configs.has(id)) return id;
@@ -59,8 +60,8 @@ export function pin(cfg) { const id = typeof cfg === 'string' ? cfg : useDoorCfg
 export const unpin = (id) => setPins(pinsOf().filter((x) => x !== id));
 export const canDeleteFromPool = () => isPoolAdmin();
 export function deleteFromPool(id) { if (isPoolAdmin()) getRepo().savePool([{ coll: 'doorcfg', id, remove: true }]); }
-/** Удаление конфигурации: открепить, убрать копию из проекта (если нет дверей с ней) и — администратору — из общего пула.
- *  Возвращает { ok, reason, pool } */
+/** Deleting a configuration: unpin, remove the project's copy (if no door uses it) and — for the administrator — remove it from the shared pool.
+ *  Returns { ok, reason, pool } */
 export function deleteDoorCfg(id) {
   const c = allDoorCfgs().get(id);
   if (!c) return { ok: false, reason: 'нет такой' };
@@ -73,5 +74,5 @@ export function deleteDoorCfg(id) {
   if (admin && doorPool.has(id)) deleteFromPool(id);
   return { ok: true, pool: admin, stays: !admin && doorPool.has(id) };
 }
-/** Сколько точек проекта с этой конфигурацией */
+/** How many points of the project have this configuration */
 export const usageOf = (id) => [...state.ctx.points.values()].filter((p) => p.configId === id).length;

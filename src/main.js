@@ -1,3 +1,6 @@
+// App entry point: starts the language, theme and device helpers, decides what to show (the first-launch screens, the on-device mode or the Firebase sign-in) and starts the shell.
+// Builds the repo on the right backend (Firestore, on-device IndexedDB or memory for `?mem=1` test mode), resolves the database administrator and offers the project migration.
+// Loads the heavy screens (start.js, setup.js, firebase.js, localdb.js, migrate.js) lazily; keeps `pz.deviceId` and `pm.admin.<projectId>` in localStorage.
 import './style.css';
 import './app/theme.js';
 import { startI18n, tr } from './i18n/index.js';
@@ -17,11 +20,11 @@ import { createShell } from './app/shell.js';
 import { captureTokenFromUrl } from './app/google.js';
 import { APP_NAME, connection, saveConnection, parseConnect, setAdminEmail, adminEmail, mode, setLocalMode, localUser, isStandalone } from './edition.js';
 document.title = tr(APP_NAME);
-const popupReturn = captureTokenFromUrl() === 'popup';   // окно входа Google: токен сохранён, само приложение здесь не запускаем
+const popupReturn = captureTokenFromUrl() === 'popup';   // Google sign-in window: the token is saved, we do not start the app itself here
 const BUILD = typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev';
 const app = document.getElementById('app');
 const standalone = !!(window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches);
-const memoryMode = new URLSearchParams(location.search).has('mem'); // тестовый режим без входа и сервера
+const memoryMode = new URLSearchParams(location.search).has('mem'); // test mode without sign-in and server
 
 function deviceId() {
   try { let id = localStorage.getItem('pz.deviceId'); if (!id) { id = Math.random().toString(36).slice(2, 8); localStorage.setItem('pz.deviceId', id); } return id; }
@@ -31,10 +34,10 @@ const platform = (() => { const ua = navigator.userAgent; return /iPhone|iPad|iP
 const DEVICE = `${platform}-${deviceId()}${standalone ? ' (на экране Домой)' : ''}`;
 info(`Запуск, версия ${typeof __VERSION__ !== 'undefined' ? __VERSION__ : 'dev'}, сборка ${BUILD}`); info(`Устройство: ${DEVICE}`); info(`standalone=${standalone}, online=${navigator.onLine}${memoryMode ? ', ТЕСТОВЫЙ РЕЖИМ (память)' : ''}`);
 
-// просим телефон не удалять данные приложения (чертежи, модуль чтения PDF) при нехватке места
+// ask the phone not to delete the app's data (drawings, the PDF reader module) when it runs low on space
 try { navigator.storage?.persist?.().then((ok) => info(`Постоянное хранилище: ${ok ? 'да' : 'нет'}`)).catch(() => {}); } catch { /* ok */ }
 if ('serviceWorker' in navigator) navigator.serviceWorker.ready.then(() => info('Service worker активен')).catch(() => {});
-// Вышла новая версия, а приложение было открыто со старой: подгружаемые части (Протяжки, Точки, мастер…) прежних имён больше нет
+// A new version came out while the app was open on the old one: the lazily loaded parts («Протяжки», «Точки», the wizard…) no longer exist under their old names
 window.addEventListener('vite:preloadError', (e) => {
   e.preventDefault(); warn('Часть приложения не загрузилась — вышла новая версия');
   let last = 0; try { last = Number(sessionStorage.getItem('pz.reloaded') || 0); } catch { /* ok */ }
@@ -74,8 +77,8 @@ async function startSession(user) {
   const backend = memoryMode ? createMemoryBackend() : createFirestoreBackend(fb.db, user.uid);
   const repo = createRepo(backend, user);
   if (!memoryMode) {
-    // Администратор базы запоминается на устройстве: запуск не ждёт сеть. Проверка идёт в фоне и при расхождении обновит экран.
-    // Только на новом устройстве (запоминать нечего) ждём ответа базы — но не дольше 6 секунд.
+    // The database administrator is remembered on the device: start-up does not wait for the network. The check runs in the background and refreshes the screen on a mismatch.
+    // Only on a new device (nothing remembered) do we wait for the database's answer — but no longer than 6 seconds.
     const cached = readAdmin();
     if (cached) { setAdminEmail(cached); resolveAdmin(repo, user, true); }
     else if (!(await Promise.race([resolveAdmin(repo, user), new Promise((r) => setTimeout(() => r(true), 6000))]))) return;
@@ -90,8 +93,8 @@ async function startSession(user) {
   if (!memoryMode) setTimeout(() => import('./app/migrate.js').then((m) => m.offerMigration(repo, user)).catch((e) => error('Перенос проектов', e)), 2500);
 }
 
-// Что показать при запуске: ссылка-приглашение (?connect=…) → база Firebase; ?setup=1 → мастер своей базы;
-// режим «на устройстве» → локальные данные (на телефоне — только со значка); иначе — экран первого запуска.
+// What to show at start-up: an invitation link (?connect=…) → the Firebase database; ?setup=1 → the wizard for one's own database;
+// the «на устройстве» mode → local data (on a phone — only from the icon); otherwise — the first-launch screen.
 async function gate() {
   const q = new URLSearchParams(location.search);
   const { needsInstallGate, startView } = await import('./app/start.js');
@@ -133,7 +136,7 @@ async function startLocal() {
   });
 }
 
-// Открытая версия: кто администратор базы (первый вошедший становится им сам)
+// Open edition: who the database administrator is (the first one to sign in becomes it)
 const adminKey = () => `pm.admin.${connection()?.firebase?.projectId || ''}`;
 const readAdmin = () => { try { return localStorage.getItem(adminKey()) || ''; } catch { return ''; } };
 async function resolveAdmin(repo, user, quiet = false) {
@@ -143,7 +146,7 @@ async function resolveAdmin(repo, user, quiet = false) {
     const got = await repo.claimAdmin(email);
     setAdminEmail(got);
     try { localStorage.setItem(adminKey(), adminEmail()); } catch { /* ok */ }
-    if (adminEmail() !== before) {   // администратор определился (или поменялся): обновить экран и стартовый набор
+    if (adminEmail() !== before) {   // the administrator is determined (or changed): refresh the screen and the starter set
       store.notify();
       import('./app/starter.js').then((m) => m.seedStarterPool()).catch(() => {});
     }
@@ -161,7 +164,7 @@ async function resolveAdmin(repo, user, quiet = false) {
           h('button', { class: 'sec', onclick: async () => { const { clearConnection } = await import('./edition.js'); if (confirm('Забыть подключение и открыть мастер настройки?')) { clearConnection(); await fb?.logout().catch(() => {}); location.reload(); } } }, 'Сменить подключение')))));
       return false;
     }
-    return true;   // нет связи и т. п. — работаем, администратор определится при следующем запуске
+    return true;   // no connection etc. — we work on, the administrator is determined at the next start
   }
 }
 
@@ -172,7 +175,7 @@ async function boot() {
     if (g === 'local') { await startLocal(); return; }
   }
   if (memoryMode) { startSession({ uid: 'test-user', displayName: 'Тестовый пользователь', email: new URLSearchParams(location.search).get('memEmail') || 'test@example.com' }); window.__pz = { store, repo: window.__pzRepo }; return; }
-  showMessage('Проверяю вход…');   // только на новом устройстве: если здесь уже входили, приложение открывается сразу
+  showMessage('Проверяю вход…');   // only on a new device: if this device has signed in before, the app opens at once
   fb = await import('./firebase.js');
   fb.initFirebase();
   fb.watchAuth((user) => {
@@ -180,7 +183,7 @@ async function boot() {
       if (!shell && !starting) { starting = true; startSession(user).finally(() => { starting = false; }); fb.verifyInBackground(); }
     } else {
       store.stop();
-      // сессия закончилась (или вход отозван): без окна входа Google, которое при быстром запуске не подгружалось, — перезапуск
+      // the session ended (or the sign-in was revoked): without the Google sign-in window, which was not loaded on a fast start — restart
       if (fb.fast) { fb.forgetSignedIn(); location.reload(); return; }
       showLogin();
     }

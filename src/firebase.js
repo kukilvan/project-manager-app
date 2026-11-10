@@ -1,4 +1,5 @@
-// Подключение к Firebase: вход через Google и база с постоянным офлайн-кэшем.
+// Firebase connection: Google sign-in and a Firestore database with a persistent offline cache.
+// Config comes from edition.js; keeps `pm.authCached` and `pz_gtoken` in localStorage; loaded by main.js with a dynamic import, and google.js reads its current user.
 import { initializeApp } from 'firebase/app';
 import {
   initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserPopupRedirectResolver,
@@ -8,20 +9,20 @@ import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager
 import { firebaseConfig } from './edition.js';
 import { info, warn, error } from './log.js';
 
-// Подключение создаётся по вызову initFirebase(): в открытой версии настройки появляются только после мастера настройки
+// The connection is created by the initFirebase() call: in the open edition the settings appear only after the setup wizard
 export let auth = null;
 export let db; export let cacheMode = 'нет';
-// Быстрый запуск. Раньше при каждом старте Firebase (1) на телефоне сначала грузил из сети окно входа Google и
-// (2) проверял учётную запись на сервере — при слабой связи это висело минутами. Теперь, если на этом устройстве уже
-// входили, приложение берёт сохранённого пользователя сразу (как в режиме полёта), а проверка идёт потом, в фоне.
+// Fast start. Before, on every start Firebase (1) first loaded the Google sign-in window from the network on the phone and
+// (2) checked the account on the server — on a weak connection this hung for minutes. Now, if this device has signed in before,
+// the app takes the saved user at once (as in airplane mode) and the check runs later, in the background.
 const CACHED = 'pm.authCached';
 export const wasSignedIn = () => { try { return localStorage.getItem(CACHED) === '1'; } catch { return false; } };
 export const forgetSignedIn = () => { try { localStorage.removeItem(CACHED); } catch { /* ok */ } };
 export let fast = false;
 let endDefer = () => {};
 function deferStartupLookup() {
-  // Проверка учётной записи при старте (accounts:lookup): без связи Firebase оставляет сохранённого пользователя,
-  // поэтому отвечаем «нет связи» сразу, не дожидаясь сети; настоящую проверку делаем позже (verifyInBackground).
+  // The account check at start (accounts:lookup): without a connection Firebase keeps the saved user,
+  // so we answer «no connection» at once, without waiting for the network; the real check comes later (verifyInBackground).
   const orig = window.fetch; let active = true;
   const mine = function (input, init) {
     const url = typeof input === 'string' ? input : input?.url || '';
@@ -31,7 +32,7 @@ function deferStartupLookup() {
   window.fetch = mine;
   endDefer = () => { active = false; if (window.fetch === mine) window.fetch = orig; };
 }
-/** Настоящая проверка учётной записи (отключена/удалена?) — в фоне; при слабой связи просто не завершится. */
+/** The real account check (disabled/deleted?) — in the background; on a weak connection it simply does not finish. */
 export function verifyInBackground() { setTimeout(() => { auth?.currentUser?.reload().catch(() => {}); }, 3000); }
 
 export function initFirebase() {
@@ -45,7 +46,7 @@ export function initFirebase() {
   try {
     db = initializeFirestore(app, {
       localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-      experimentalAutoDetectLongPolling: true, // WebKit иногда ломает WebChannel
+      experimentalAutoDetectLongPolling: true, // WebKit sometimes breaks WebChannel
     });
     cacheMode = 'постоянный (IndexedDB)';
   } catch (e) {
@@ -71,14 +72,14 @@ export function watchAuth(cb) {
   const redirect = getRedirectResult(auth, browserPopupRedirectResolver)
     .then((res) => {
       info(res ? `Redirect-результат: вход OK ${res.user.email}` : 'Redirect-результата нет');
-      // Возврат после запроса доступа к Диску/Таблицам (iPhone): сохраняем токен для google.js
+      // Return after asking for Drive/Sheets access (iPhone): save the token for google.js
       const token = res && GoogleAuthProvider.credentialFromResult(res)?.accessToken;
-      if (token) { try { localStorage.setItem('pz_gtoken', JSON.stringify({ token, exp: Date.now() + 50 * 60 * 1000 })); } catch { /* без хранилища */ } }
+      if (token) { try { localStorage.setItem('pz_gtoken', JSON.stringify({ token, exp: Date.now() + 50 * 60 * 1000 })); } catch { /* no storage */ } }
     })
     .catch((e) => error('Redirect-результат ошибка', `${e.code || ''} ${e.message || e}`));
   return onAuthStateChanged(auth, async (user) => {
     endDefer();
-    // «не вошёл» объявляем после проверки возврата с Google (без связи она мгновенная)
+    // «not signed in» is announced after the return from Google is checked (without a connection that is instant)
     if (!user) { await redirect; if (auth.currentUser) return; }
     info(user ? `Пользователь: ${user.displayName || ''} <${user.email}>` : 'Пользователь: не вошёл');
     if (user) { try { localStorage.setItem(CACHED, '1'); } catch { /* ok */ } }

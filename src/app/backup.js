@@ -1,8 +1,9 @@
-// Резервная копия проекта в Google Диск: один JSON-файл на проект и день (формат совместим с «Импортом данных»).
+// Backs a project up to Google Drive: one JSON file per project and day, in the format the «Импорт данных» screen reads (`polevoy-import-1`).
+// Builds the file from the project and its collections and writes it through the Drive api object (drivefolders.js folders).
 export const BACKUP_FOLDER = 'Полевой журнал — резервные копии';
 const LIVE = (arr) => (arr || []).filter((d) => !d.deleted);
 const IMPORTABLE = ['points', 'journal', 'days', 'entries', 'cabinetSettings', 'todos', 'notes', 'pulls'];
-// Настройки самого проекта (не коллекции): шкафы, шильют, закрепления дверей, значки, список тохнитов
+// Settings of the project itself (not collections): racks, labels, door pins, icons, the list of drawings
 const PROJECT_KEYS = ['racks', 'shilut', 'doorPins', 'typeIcons', 'drawings', 'sheetLinks', 'tables', 'managers', 'rackTable'];
 const REFERENCE = ['catalog', 'types', 'cables', 'devices', 'configs', 'units', 'culprits', 'delayReasons'];
 

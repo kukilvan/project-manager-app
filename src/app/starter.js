@@ -1,5 +1,6 @@
-// Новая база (открытая версия): администратор при первом входе получает стартовый набор общего пула —
-// типы точек, устройства, кабели, работы и конфигурации дверей (копия пула Ивана, src/data/starter-pool.json).
+// Seeds a new database (open edition) with the starter set of the shared pool on the administrator's first sign-in.
+// The set is a copy of Ivan's pool (src/data/starter-pool.json): point types, devices, cables, works and door configurations.
+// Writes through the repo's `savePool`; waits for pool.js and edition.js to know the administrator.
 import starter from '../data/starter-pool.json';
 import { getRepo } from './store.js';
 import { adminKnown } from '../edition.js';
@@ -13,7 +14,7 @@ export function seedStarterPool() {
   const kinds = Object.entries(starter.pool || {}).filter(([, list]) => list.length);
   if (!kinds.length) return;
   const tryNow = () => {
-    if (done || !poolReady() || !getRepo() || !adminKnown()) return;   // пока администратор не определён, ждём
+    if (done || !poolReady() || !getRepo() || !adminKnown()) return;   // wait until the administrator is known
     done = true; off();
     if (!isPoolAdmin() || poolHasData()) return;
     const ops = kinds.flatMap(([coll, list]) => list.map(({ id, ...data }) => ({ coll, id, data: { ...data, deleted: false } })));
