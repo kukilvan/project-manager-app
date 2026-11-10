@@ -1,4 +1,4 @@
-Status: open
+Status: accepted
 Complexity: medium
 Blocked by: 01
 

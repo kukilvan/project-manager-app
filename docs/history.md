@@ -2,6 +2,13 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-10 — Ticket 1.2: `src/domain/` documented («Тикет 1.2»)
+
+- All 30 modules of `src/domain/` have an English header comment (first sentence = the module's line in `docs/code-map.md`) and every Russian comment translated (409 comments); `src/domain/` removed from both `PENDING` lists. Commit `464c2a3`, branch `claude/s01-ticket-02`.
+- Proof: `node tools/same-code.mjs --expect tools/ --expect tests/code-docs.test.js` — code identical without comments, built site byte-identical (28 files); 158/158 tests.
+- Fix beyond the ticket: `tools/same-code.mjs` no longer counts a line break before the *first* token of a file (a header added above `src/domain/index.js`, which had no comment, was flagged as a code change; the first token has no statement before it); one test case added in `tests/code-docs.test.js`.
+- Left as is: the two Russian strings of `src/domain/openrules.js` (ticket 07). Misplaced comments kept in place and made true: the «U|порт» line above `hasShilut` in `shilutsheet.js` describes `portsOf`; the rename comment above `replaced` in `points.js` now says what that helper does. No bug found, no `KNOWN_ISSUES.md` entry.
+
 ## 2026-11-10 — Ticket 1.1: tools, KI-1, KI-2 («Тикет 1.1»)
 
 - New `tools/code-map.mjs` (module list of `docs/code-map.md`, `--check`), `tools/ru-comments.mjs` (Russian comments; `PENDING` per ticket), `tools/same-code.mjs` (per-file code compare + byte-for-byte build compare in a git worktree with a `node_modules` junction); `tests/code-docs.test.js` (14 tests). Commit `036d628`, branch `claude/s01-ticket-01`.
