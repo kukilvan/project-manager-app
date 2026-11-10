@@ -19,6 +19,8 @@
 
 ## Для разработчика
 
+Документы проекта: `docs/project-spec.md` — что это за приложение и этапы; `PROJECT_CONTEXT.md` — где мы сейчас; `docs/workflow.md` — как идёт работа; `CLAUDE.md` — команды и правила для Claude Code.
+
 ```
 npm install
 npm run dev      # локально

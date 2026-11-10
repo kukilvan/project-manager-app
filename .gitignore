@@ -1,9 +1,23 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+serviceAccount*.json
+*-service-account*.json
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Stack
 node_modules
 dist
 dev-dist
 *.log
-.env
-.env.*
-serviceAccount*.json
-*-service-account*.json
-.DS_Store
+__pycache__/
