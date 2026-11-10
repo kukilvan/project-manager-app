@@ -12,7 +12,8 @@ The site is built only from `main`. Other branches are return points; branches a
 | `stable-2026-10-17-before-edits` | `aaa2f46` | 2026-10-17, all checked before a series of fixes (old history) |
 | `rollback-2026-11-08` | `3783037` | before the offline rework |
 | `rollback-2026-11-09` | `a0dcc99` | before «Новая версия чертежа» |
-| `rollback-2026-11-09b` | `2966523` | all checked: new drawing version, point merge, cables by label, own works, weak network. **Latest** |
+| `rollback-2026-11-09b` | `2966523` | all checked: new drawing version, point merge, cables by label, own works, weak network |
+| `rollback-2026-11-10` | `172c588` | before stage 1 (comment translation, code map); code identical to `2966523`, only docs differ. **Latest** |
 
 Why: a change broke something and a quick fix fails → return the site to a verified state; `release-*` are versions to restore from (`ВОССТАНОВЛЕНИЕ.md`); `rollback-*` the owner asks for before big reworks and knows by date.
 

@@ -62,10 +62,12 @@ Adoption (2026-11-10) moved the project onto this workflow; numbering starts her
 
 ### Stage 1. Code documentation
 
+Description approved: `.scratch/01-code-docs/description.md` (it overrides this section).
+
 - Goal: every part of the code is described so a session finds what it needs without reading the code through; the owner asked to document how everything works and what connects to what.
-- The owner sees at the end: every module starts with an English header comment — what it holds, what it talks to; `docs/code-map.md` has the architecture (storage, sync, offline, data paths, server jobs) and the module list built by a script; all tests green on Windows too.
-- Contains: `tools/code-map.mjs` and its test (behaviour: `docs/formats.md`, "Code map"); English header comments for all modules in `src/` and `scripts/` (the rest of the old Russian comments is translated when a ticket touches that code); architecture section; fix KI-1 and KI-2; the Run line of `CLAUDE.md` for the code map.
-- Sessions (est.): ≈ 12.
+- The owner sees at the end: the site works exactly as before; every module starts with an English header comment — what it holds, what it talks to; no Russian comments left in the code and config files (Russian strings stay); `docs/code-map.md` has the architecture (storage, sync, offline, data paths, server jobs) and the module list built by a script; all tests green on Windows too. The owner checks once, after the stage review.
+- Contains: `tools/code-map.mjs` and its test (behaviour: `docs/formats.md`, "Code map"); English header comments for all modules in `src/` and `scripts/` and for test modules; translation of all Russian comments (`src/`, `scripts/`, `tests/`, `tools/tohnit/`, `firestore.rules`, `vite.config.js`, workflows); a check that comment-only changes leave the built site unchanged; architecture section; fix KI-1 and KI-2; the Run line of `CLAUDE.md` for the code map.
+- Sessions (est.): ≈ 14.
 
 ### Stage 2. What the app needs from the NAS
 

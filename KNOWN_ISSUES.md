@@ -43,7 +43,7 @@ Entry format:
 ## KI-2. open-rules test fails on CRLF checkout
 
 - Where: the test «правила открытой версии: без вшитой почты, администратор из meta/admin»; `openRules` in `src/domain/openrules.js`.
-- What's wrong: with `core.autocrlf=true` the rules files are checked out with CRLF; the generation or comparison presumably expects LF (cause not confirmed).
+- What's wrong: with `core.autocrlf=true` the rules files are checked out with CRLF; git stores them with LF and there is no `.gitattributes`; `openRules` inserts its own lines joined with `\n`, so the generated text mixes CRLF and LF and differs from the CRLF `firestore.open.rules` (cause confirmed 2026-11-10, stage 1 description).
 - How to reproduce: `npm test` on Windows with `core.autocrlf=true` → that test fails.
 - Likelihood / impact: always on this PC; test-only, the deploy runs on Linux with LF.
 - Status: open
