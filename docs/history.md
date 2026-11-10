@@ -2,6 +2,13 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-10 — Stage 1 spec («Спека 1»)
+
+- `.scratch/01-code-docs/spec.md` accepted. Branch `claude/s01-spec`.
+- Checked on the owner's PC: with a fixed `__BUILD__` two builds are byte-identical, and comment edits in JS, CSS and `vite.config.js` leave `dist/` byte-identical; the only comment text in the bundle is `firestore.open.rules` (wizard copy button, `?raw`); pasted rules are checked by the `meta/probe` read, so no re-paste after translation. acorn parses all 141 JS files (1,565 Cyrillic comment tokens). KI-2 fix by `.gitattributes` `eol=lf` verified (domain tests 48/48). `SKILL.md` does not include `tohnit.py`; `tohnit.py` prints its module docstring as usage help (stays Russian). A `.pyc` under `tools/tohnit/__pycache__/` is tracked (untracked in ticket 08).
+- Decided: Cyrillic in a comment allowed only inside «…» (UI text, data); test names, assertion messages, event-log lines stay Russian; `PENDING` lists in `tools/code-map.mjs` and `tools/ru-comments.mjs` shrink per ticket, ticket 09 removes them; new `tools/same-code.mjs` (token-level code comparison of changed files + byte comparison of both builds via a git worktree) replaces the browser walk in this stage's self-check; header shape with a Contents list for modules ≥ 30 KB; coding standards 10 (comments in English) and 11 (comment-only change keeps the build identical).
+- Tickets: 9 instead of the description's 8 — tests and the Python tool split out (simple), architecture section last; estimate stays ≈ 14 sessions.
+
 ## 2026-11-10 — Stage 1 description («Описание 1»)
 
 - `.scratch/01-code-docs/description.md` accepted. Branch `claude/s01-description`.

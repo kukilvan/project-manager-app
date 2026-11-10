@@ -1,4 +1,4 @@
-Status: in review
+Status: accepted
 
 # Stage 1. Code documentation — spec
 

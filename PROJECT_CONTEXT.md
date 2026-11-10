@@ -4,14 +4,14 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 ## Next step
 
-«Спека 1» — spec of stage 1 «Code documentation» from `.scratch/01-code-docs/description.md`: header comment shape, the code-map tool and how its test grows across tickets, the built-site-unchanged check, finding leftover Russian comments, KI-1 and KI-2 fixes, ticket split. Model: Opus 5.5, effort high (`docs/models.md`).
+«Тикеты 1» — slicing of stage 1 «Code documentation»: one file per ticket in `.scratch/01-code-docs/issues/` from `.scratch/01-code-docs/spec.md`, section 14 (9 tickets; `PENDING` lists of section 9 and the stage self-check of section 10 go into each ticket). Model: Sonnet 5.5, effort high (`docs/models.md`).
 
 Quick fixes «Правка: …» may come at any time; they do not change this step.
 
 ## State
 
 - Version 1.2.0 live at https://kukilvan.github.io/project-manager-app/; everything up to commit `2966523` checked by the owner on the phone (branch `rollback-2026-11-09b`; rollback point before stage 1: `rollback-2026-11-10`, same code). No code in flight.
-- Stage 1: description accepted 2026-11-10 — all Russian comments translated in this stage; tickets go live after the self-check without waiting for «Работает»; the owner checks once after the stage review.
+- Stage 1: description and spec accepted 2026-11-10 — all Russian comments translated in this stage; 9 tickets; every ticket proves «only comments changed, built site byte-identical» with `tools/same-code.mjs` (ticket 01) and goes live without waiting for «Работает»; the owner checks once after the stage review.
 - 2026-11-10: project moved onto this workflow (`docs/history.md`); `HANDOFF.md` split into these docs and removed (original at commit `44ac16d`).
 - Tests: 144, 141 pass on the owner's Windows PC (KI-1, KI-2); all pass on the Linux deploy.
 - The owner's NAS arrives 2026-11-11 without disks; its setup is a separate project. This app hands it requirements in stage 2.
@@ -21,7 +21,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 
 | # | Stage | Status | Sessions (est.) | Ideas |
 |---|---|---|---|---|
-| 1 | Code documentation | spec | 14 | — |
+| 1 | Code documentation | tickets 0/9 | 14 | — |
 | 2 | What the app needs from the NAS | not started | 6 | — |
 | 3 | Management sheets | not started | 8 | — |
 | 4 | PocketBase storage (when the owner trusts the NAS) | not started | 16 | — |
