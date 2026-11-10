@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-10 — Ticket 1.4: views 1 documented («Тикет 1.4»)
+
+- 12 files of `src/app/views/` (`points`, `racks`, `pullview`, `racktable`, `pointmerge`, `pointsfile`, `pointchooser`, `cablespick`, `doorchips`, `doorcfgview`, `ownworks`, `latinfix`) have an English header (first sentence = the code-map line; `points.js`, `racks.js`, `pullview.js` also a Contents list) and all 139 Russian comments translated; their entries removed from both `PENDING` lists. Commit `634ed75`, branch `claude/s01-ticket-04`; deploy of `main` succeeded.
+- Proof: `node tools/same-code.mjs --expect tools/code-map.mjs --expect tools/ru-comments.mjs` — code identical without comments (the two tools differ only by the removed `PENDING` entries), built site byte-identical (28 files); 158/158 tests; `code-map --check` exit 0.
+- Found: the old header of `latinfix.js` promised a «search of names typed in the wrong layout», but the file only holds the shortcut list and its dialog (`fixLatin`, `fixCabinet`, `needsFix` are imported and silenced with `void`, never used); the new header says what the code does. A stale comment, not a bug: no `KNOWN_ISSUES.md` entry.
+
 ## 2026-11-10 — Ticket 1.3: app core documented («Тикет 1.3»)
 
 - All 35 modules of `src/app/` (with `tour/`), `src/main.js` (no header before), `src/edition.js`, `src/firebase.js`, `src/log.js` and `src/i18n/index.js` have an English header (first sentence = the code-map line; `repo.js` also a Contents list) and every Russian comment translated (359 comments); the seven entries removed from both `PENDING` lists. Commit `e5a5f8f`, branch `claude/s01-ticket-03`; deploy of `main` succeeded.

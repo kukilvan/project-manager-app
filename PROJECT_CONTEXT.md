@@ -4,17 +4,17 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 ## Next step
 
-«Тикет 1.4» — ticket 04 of stage 1 «Code documentation»: English headers and comments for 12 files of `src/app/views/` (points, racks, pullview, racktable, pointmerge, pointsfile, pointchooser, cablespick, doorchips, doorcfgview, ownworks, latinfix); file `.scratch/01-code-docs/issues/04-views-1.md`. Model: Sonnet 5.5, effort high (`docs/models.md`: medium ticket).
+«Тикет 1.5» — ticket 05 of stage 1 «Code documentation»: English headers and comments for 11 files of `src/app/views/` (planmodal, tohnitview, planversion, planpick, planlink, planview, planassign, plannumbers, pdfpick, import, guide); file `.scratch/01-code-docs/issues/05-views-2.md`. Model: Sonnet 5.5, effort high (`docs/models.md`: medium ticket).
 
 Quick fixes «Правка: …» may come at any time; they do not change this step.
 
 ## State
 
-- Version 1.2.0 live at https://kukilvan.github.io/project-manager-app/; everything up to commit `2966523` checked by the owner on the phone (branch `rollback-2026-11-09b`; rollback point before stage 1: `rollback-2026-11-10`, same code). Ticket 1.1 (tools, KI-1, KI-2) live 2026-11-10, commit `036d628`; ticket 1.2 (`src/domain/`) live 2026-11-10, commit `464c2a3`; ticket 1.3 (app core) live 2026-11-10, commit `e5a5f8f`; the built site byte-identical to the checked one each time.
+- Version 1.2.0 live at https://kukilvan.github.io/project-manager-app/; everything up to commit `2966523` checked by the owner on the phone (branch `rollback-2026-11-09b`; rollback point before stage 1: `rollback-2026-11-10`, same code). Ticket 1.1 (tools, KI-1, KI-2) live 2026-11-10, commit `036d628`; ticket 1.2 (`src/domain/`) live 2026-11-10, commit `464c2a3`; ticket 1.3 (app core) live 2026-11-10, commit `e5a5f8f`; ticket 1.4 (views 1) live 2026-11-10, commit `634ed75`; the built site byte-identical to the checked one each time.
 - Stage 1: description, spec and slicing accepted 2026-11-10 — all Russian comments translated in this stage; 9 tickets in `.scratch/01-code-docs/issues/` (01 tools, 02 domain, 03 app core, 04–06 views, 07 drawings/scripts/config, 08 tests and Python, 09 architecture and strict checks); every ticket proves «only comments changed, built site byte-identical» with `tools/same-code.mjs` (ticket 01) and goes live without waiting for «Работает»; the owner checks once after the stage review.
 - 2026-11-10: project moved onto this workflow (`docs/history.md`); `HANDOFF.md` split into these docs and removed (original at commit `44ac16d`).
 - Tests: 158, all pass on the owner's Windows PC and on the Linux deploy.
-- Stage 1: baseline 1,751 Russian comments in 144 files; 983 in 80 files left after ticket 1.3 (`node tools/ru-comments.mjs`); 62 of 127 modules still read `(no English header yet)` in `docs/code-map.md`.
+- Stage 1: baseline 1,751 Russian comments in 144 files; 844 in 68 files left after ticket 1.4 (`node tools/ru-comments.mjs`); 50 of 127 modules still read `(no English header yet)` in `docs/code-map.md`.
 - The owner's NAS arrives 2026-11-11 without disks; its setup is a separate project. This app hands it requirements in stage 2.
 - Open tails, status unconfirmed: possible management-sheet tweaks and a list of old Drive files to delete (stage 3); photos on points deferred by the owner.
 
@@ -22,7 +22,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 
 | # | Stage | Status | Sessions (est.) | Ideas |
 |---|---|---|---|---|
-| 1 | Code documentation | tickets 3/9 | 14 | — |
+| 1 | Code documentation | tickets 4/9 | 14 | — |
 | 2 | What the app needs from the NAS | not started | 6 | — |
 | 3 | Management sheets | not started | 8 | — |
 | 4 | PocketBase storage (when the owner trusts the NAS) | not started | 16 | — |
