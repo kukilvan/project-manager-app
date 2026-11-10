@@ -2,6 +2,14 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-10 — Stage 1 description («Описание 1»)
+
+- `.scratch/01-code-docs/description.md` accepted. Branch `claude/s01-description`.
+- Owner's decisions: translate all Russian comments now (code, tests, `style.css`, `firestore.rules`, `tools/tohnit/`, workflows), not gradually (+3–4 sessions, stage ≈ 14); no Russian explainer or diagram for the owner; every ticket gets the self-check plus a built-site-unchanged check and goes live, the owner checks once after the stage review; rollback point before any file change.
+- Rollback branch `rollback-2026-11-10` at `172c588` created and pushed (code identical to `2966523`).
+- Found: 124 of 127 modules have a Russian header (missing: `src/main.js`, `src/app/views/log.js`, `src/domain/index.js`); ~1,360 Russian comment lines in `src/` and `scripts/`; 4 of 13 test modules have a header. KI-2 cause confirmed (CRLF checkout vs `\n`-joined lines inserted by `openRules`); `docs/project-spec.md` Stage 1 updated.
+- Proposed for the spec (owner: no objection): `firestore.rules` comment changes need no re-paste into the Firebase console.
+
 ## 2026-11-10 — Adoption onto the workflow («Перенос на схему»)
 
 - The project (version 1.2.0, ~368 commits, last owner-checked commit `2966523`) moved onto the stage workflow. Branch `claude/adopt-workflow`.
