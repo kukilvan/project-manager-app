@@ -1,4 +1,6 @@
-// Двери: окно выбора конфигурации (закреплённые / собрать / общий пул), поле для форм и вкладка «Конфигурации дверей».
+// Doors: the door configuration chooser (pinned / build / shared pool), a form field and the «Конфигурации дверей» tab.
+// A configuration is built step by step from the door parts (src/domain: DOOR_PARTS, doorDevices, applyDoorRules, autoDoorCables, makeDoorCfg); pins, usage and the shared pool come from ../doorpool.js.
+// The chooser and field serve the point and plan forms; the tab is shown in settings, which supplies itemForm.
 import { h, openModal, toast, confirmDialog } from '../ui.js';
 import { state, subscribe, getRepo, currentProject } from '../store.js';
 import { DOOR_PARTS, doorDevices, applyDoorRules, autoDoorCables, makeDoorCfg, isDoorCfg, doorLibraryOps } from '../../domain/index.js';
@@ -17,7 +19,7 @@ const counter = (val, max, onSet) => {
 const pinned = () => { const all = allDoorCfgs(); return pinsOf().map((id) => all.get(id)).filter(Boolean); };
 
 /**
- * Окно выбора конфигурации двери. current — id текущей (или null). onPick(id) — после выбора (конфигурация уже в проекте и в пуле).
+ * Door configuration chooser. current — id of the current one (or null). onPick(id) — after the choice (the configuration is already in the project and in the pool).
  */
 export function doorPicker({ current = null, title = '🚪 Конфигурация двери', onPick } = {}) {
   let ctx = state.ctx; let all = allDoorCfgs();
@@ -31,7 +33,7 @@ export function doorPicker({ current = null, title = '🚪 Конфигурац�
   const devList = () => [...sel].map(([deviceId, count]) => ({ deviceId, count }));
   const cur = () => makeDoorCfg(ctx, devList(), [...cables].map(([cable, count]) => ({ cable, count })));
   const recalc = () => { if (autoCab) cables = new Map(autoDoorCables(ctx, devList()).map((c) => [c.cable, c.count])); };
-  let stp = current ? 99 : 0;   // номер шага; 99 — всё пройдено (готово к выбору)
+  let stp = current ? 99 : 0;   // step number; 99 — all steps done (ready to choose)
   let activeEl = null;
   const stepsOf = (parts) => [...DOOR_PARTS.filter((p) => parts[p.key].length).map((p) => ({ key: p.key, part: p, title: p.key === 'lock' ? 'Запирание' : p.name })), { key: 'cables', title: 'Кабели' }];
   const onlyPart = (parts, key) => devList().filter((d) => parts[key].some((x) => x.id === d.deviceId));
@@ -41,12 +43,12 @@ export function doorPicker({ current = null, title = '🚪 Конфигурац�
     const mini = st.key === 'cables' ? { devices: [], cables: [...cables].map(([cable, count]) => ({ cable, count })) } : { devices: onlyPart(parts, st.key), cables: [] };
     const hasAny = st.key === 'cables' ? mini.cables.length : mini.devices.length;
     const head = (text) => h('div', { class: 'mut', style: { fontSize: '13px', fontWeight: 700 } }, text);
-    if (i < cur) {   // пройденный шаг — выбранное, нажатие меняет выбор
+    if (i < cur) {   // a finished step shows the choice, a tap changes it
       return h('div', { class: 'wk cfg', style: { cursor: 'pointer', margin: '4px 0' }, onclick: () => goto(i) },
         h('span', { class: 'mut', style: { fontSize: '12px', minWidth: '84px' } }, st.title), hasAny ? doorChips(mini) : h('span', { class: 'mut' }, '— нет'), h('span', { class: 'wk-st' }, '✎'));
     }
     if (i > cur) return null;
-    // активный шаг
+    // the active step
     const doneBtn = (text) => h('button', { type: 'button', style: { width: '100%' }, onclick: () => goto(i + 1) }, text);
     if (st.key === 'cables') {
       const box = h('div', { style: { margin: '8px 0' } }, head(`Кабели двери${autoCab ? ' · подставлены по составу' : ' · свои'}`),
@@ -59,7 +61,7 @@ export function doorPicker({ current = null, title = '🚪 Конфигурац�
     const p = st.part;
     const tap = (d) => {
       const n = sel.get(d.id) || 0;
-      if (p.key === 'lock' && !n) { sel = applyDoorRules(ctx, sel, d.id, 1); recalc(); stp = i + 1; draw(); return; }   // запирание — выбрал и дальше
+      if (p.key === 'lock' && !n) { sel = applyDoorRules(ctx, sel, d.id, 1); recalc(); stp = i + 1; draw(); return; }   // locking: once chosen, go on to the next step
       const next = n >= p.max ? 0 : n + 1;
       sel = applyDoorRules(ctx, sel, d.id, next); recalc(); draw();
     };
@@ -102,7 +104,7 @@ export function doorPicker({ current = null, title = '🚪 Конфигурац�
   close = openModal(title, body, { sticky: true });
 }
 
-/** Поле формы: конфигурация двери (значение — id). bulk: «не менять» + «убрать» (значение '__clear') */
+/** Form field: door configuration (the value is an id). bulk: «не менять» + «убрать» (value '__clear') */
 export function doorField(key, label, { bulk = false, visible, hint } = {}) {
   return {
     key, label, type: 'custom', visible, hint,
@@ -124,7 +126,7 @@ export function doorField(key, label, { bulk = false, visible, hint } = {}) {
   };
 }
 
-/** Вкладка «Конфигурации дверей»: закреплённые (порядок, открепить), собрать новую, общий пул, старые (только работы) */
+/** The «Конфигурации дверей» tab: pinned ones (order, unpin), build a new one, the shared pool, old ones (works only) */
 export function doorConfigsView() {
   const box = h('div', {});
   const delBtn = (c) => !c.standard ? h('button', { class: 'sec', style: { padding: '2px 10px' }, title: 'Удалить конфигурацию', onclick: async () => {

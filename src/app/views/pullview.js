@@ -1,5 +1,11 @@
-// «🧵 Протяжки»: выбор точек на плане → «До шкафа» → метраж по точкам (своя цифровая панель) → чеклист → «Завершить» (форма отчёта).
-// Каждое действие сразу сохраняется на телефоне (localStorage) и на сервере (коллекция pulls) — открыл заново и продолжил с того же места.
+// Pulls «🧵 Протяжки»: pick points on the plan → «До шкафа» → meters per point (own numeric keypad) → checklist → «Завершить» (the report form).
+// Every action is saved at once on the phone (localStorage, key pz.pull.<pid>.<id>) and on the server (the pulls collection), so reopening continues from the same place.
+// Pull logic comes from src/domain/pull.js; the plan is shown with planview.js and planmodal.js helpers, the work is recorded through doh.js.
+//
+// Contents:
+// - localAll(), allPulls(), savePull() — storage: phone + server, the fresher copy wins
+// - openPulls() — the «Протяжки» list; newPull(), renameForm() create and rename a pull
+// - openPull() — working with one pull: step 1 choose points, step 2 «Выбрано N» + «До шкафа», step 3 meters per point, step 4 the «Протяжка» checklist
 import { h, openModal, toast, confirmDialog, formModal } from '../ui.js';
 import { state, getRepo, currentProject, infoOf, subscribe } from '../store.js';
 import { newId } from '../repo.js';
@@ -14,10 +20,10 @@ import { latinKey } from '../../domain/index.js';
 import { typeMatch, typeFilterOptions } from '../typegroups.js';
 import { cfgMatch, cfgFilterOptions } from '../cfgfilter.js';
 
-// ---------- хранение: телефон + сервер ----------
+// ---------- storage: phone + server ----------
 const lsKey = (pid, id) => `pz.pull.${pid}.${id}`;
 const readLocal = (pid, id) => { try { return JSON.parse(localStorage.getItem(lsKey(pid, id)) || 'null'); } catch { return null; } };
-const writeLocal = (pid, p) => { try { localStorage.setItem(lsKey(pid, p.id), JSON.stringify(p)); } catch { /* память телефона недоступна */ } };
+const writeLocal = (pid, p) => { try { localStorage.setItem(lsKey(pid, p.id), JSON.stringify(p)); } catch { /* the phone storage is unavailable */ } };
 const dropLocal = (pid, id) => { try { localStorage.removeItem(lsKey(pid, id)); } catch { /* ok */ } };
 function localAll(pid) {
   const out = [];
@@ -26,7 +32,7 @@ function localAll(pid) {
 }
 const FIELDS = ['name', 'createdAt', 'drawingId', 'screen', 'curId', 'pad', 'pointIds', 'base', 'meters', 'kept', 'checked', 'finished', 'fixed', 'finishedAt', 'savedAt'];
 const pick = (p) => Object.fromEntries(FIELDS.map((k) => [k, p[k] === undefined ? null : p[k]]));
-/** Все протяжки проекта: сервер + телефон (берётся более свежая копия) */
+/** All pulls of the project: server + phone (the fresher copy is taken) */
 export function allPulls() {
   const pid = currentProject()?.id; if (!pid) return [];
   const m = new Map(); const gone = new Set((state.data.pulls || []).filter((x) => x.deleted).map((x) => x.id));
@@ -42,7 +48,7 @@ function savePull(p) {
   return next;
 }
 
-// ---------- список «Протяжки» ----------
+// ---------- the «Протяжки» list ----------
 export function openPulls() {
   const body = h('div', {}); let q = '';
   const search = h('input', { type: 'search', placeholder: 'Найти точку: в каких протяжках была', oninput: (e) => { q = e.target.value.trim().toLowerCase(); paint(); } });
@@ -99,14 +105,14 @@ function newPull() {
   });
 }
 
-// ---------- работа с протяжкой ----------
+// ---------- working with a pull ----------
 const hitDist = (s, pos, x, y) => { const pad = 2 + 10 / s;
   if (isText(pos)) { const dx = Math.max(0, Math.abs(x - pos.x) - pos.w / 2 - pad); const dy = Math.max(0, Math.abs(y - pos.y) - pos.h / 2 - pad); return Math.hypot(dx, dy); }
   return Math.max(0, Math.hypot(x - pos.x, y - pos.y) - Math.max(pos.w || 8, pos.h || 8) / 2 - pad); };
 
 export async function openPull(id) {
   let P = getPull(id); if (!P) { toast('Протяжка не найдена'); return; }
-  { const fixed = reconcilePull(P, (x) => state.ctx.points.get(x)); if (fixed !== P) P = savePull(fixed); }   // длину в карточке меняли/стирали — протяжка подтягивает её
+  { const fixed = reconcilePull(P, (x) => state.ctx.points.get(x)); if (fixed !== P) P = savePull(fixed); }   // the length was changed/erased in the point card — the pull picks it up
   const d = drawingsOf().find((x) => x.id === P.drawingId);
   const body = h('div', {}, h('div', { class: 'mut' }, 'Открываю чертёж…'));
   let wk = null; let padClose = null;
@@ -114,21 +120,21 @@ export async function openPull(id) {
   if (!d) { body.replaceChildren(h('div', { class: 'empty' }, 'Чертёж этой протяжки убран из проекта.')); return; }
   const set = (patch) => {
     const remote = getPull(P.id); let base = P;
-    if (remote && (remote.savedAt || 0) > (P.savedAt || 0)) base = mergeRemote(P, remote); // другой телефон успел сохранить раньше
+    if (remote && (remote.savedAt || 0) > (P.savedAt || 0)) base = mergeRemote(P, remote); // another phone managed to save earlier
     P = savePull({ ...base, ...patch });
   };
   const ctx = () => state.ctx;
   const sheetPts = () => [...ctx().points.values()].filter((p) => p.pos && drawingFor(p)?.id === d.id);
   const chosen = () => (P.pointIds || []).map((x) => ctx().points.get(x)).filter(Boolean);
-  const needsLen = (p) => hasCablesOf(p, ctx());   // у точки без кабеля метраж не нужен и протягивать нечего
-  // фильтр по типу на шаге метража: метраж вводится по одному типу, ближайшая точка подбирается внутри него
+  const needsLen = (p) => hasCablesOf(p, ctx());   // a point without a cable needs no meters and has nothing to pull
+  // type filter on the meters step: meters are entered for one type, the nearest point is chosen within it
   let mType = '';
-  // путь по точкам в окне метража: «Предыдущая» возвращает назад (и дальше назад); после правки старой точки возвращаемся туда, откуда ушли
+  // the path through the points in the meters dialog: «Предыдущая» goes back (and further back); after editing an old point we return to where we left
   const hist = []; let origin = null;
   const mchosen = () => chosen().filter((p) => needsLen(p) && typeMatch(mType, p.typeId));
   const meas = (id) => isMeasured(P, id) || finSet().has(id);
   const meters = () => pairsToMap(P.meters); const kept = () => pairsToMap(P.kept);
-  // «протянута» в протяжке, но записи о протяжке в отчёте уже нет (удалили) — точка снова не протянута
+  // «pulled» in the pull, but the report no longer has the pull record (it was deleted) — the point is not pulled again
   const finSet = () => new Set((P.finished || []).filter((id) => {
     const pt = ctx().points.get(id); return !(pt && !infoOf(pt).pulled && Date.now() - (P.finishedAt || 0) > 60000);
   }));
@@ -139,7 +145,7 @@ export async function openPull(id) {
   try { buf = await loadDrawing(d); wk = makeWorker(); o = await wk.call('openDoc', { data: buf.slice(0) }); }
   catch (e) { body.replaceChildren(h('div', { class: 'empty' }, `Чертёж не открылся: ${e.message}`)); return; }
 
-  // фильтры выбора
+  // selection filters
   let fType = ''; let fCab = ''; let fCfg = ''; let onlyOpen = false; let rectSel = false; let focusId = P.curId || null;
   const visible = () => sheetPts().filter((p) => typeMatch(fType, p.typeId) && cfgMatch(fCfg, p) && (!fCab || (p.cabinet || '') === fCab) && (!onlyOpen || !infoOf(p).pulled));
   const selSet = () => new Set(P.pointIds || []);
@@ -181,7 +187,7 @@ export async function openPull(id) {
 
   const unsub = subscribe(() => { if (!body.isConnected) { unsub?.(); return; } viewer.draw(); });
 
-  // ---- шаг 1: выбор точек ----
+  // ---- step 1: choose points ----
   function selectScreen() {
     const pts = sheetPts();
     const types = [...new Set(pts.map((p) => p.typeId))].sort((a, b) => a.localeCompare(b, 'ru'));
@@ -213,7 +219,7 @@ export async function openPull(id) {
     ];
   }
 
-  // ---- шаг 2: «Выбрано N» + «До шкафа» ----
+  // ---- step 2: «Выбрано N» + «До шкафа» ----
   let showList = false;
   function baseScreen() {
     const pts = chosen().sort(comparePoints); const cabs = [...new Set(pts.map((p) => p.cabinet || '').filter(Boolean))];
@@ -243,13 +249,13 @@ export async function openPull(id) {
       h('div', { class: 'btns' }, h('button', { class: 'wide', onclick: go }, 'Далее →')),
     ];
   }
-  // «До шкафа» поменяли — метражи в карточках пересчитать
+  // «До шкафа» was changed — recalculate the meters in the cards
   function rewriteLengths() {
     const ops = chosen().filter((p) => meters()[p.id] != null && !finSet().has(p.id)).map((p) => ({ coll: 'points', id: p.id, data: { length: pullTotal(P, p.id) } }));
     if (ops.length) { getRepo().save(currentProject().id, ops); toast(`Метраж пересчитан у точек: ${ops.length}`); }
   }
 
-  // ---- шаг 3: метраж по точкам ----
+  // ---- step 3: meters per point ----
   function measureScreen() {
     const all = mchosen(); const done = all.filter((p) => meas(p.id)).length;
     const typeOpts = typeFilterOptions(chosen().map((p) => p.typeId));
@@ -268,7 +274,7 @@ export async function openPull(id) {
     ];
   }
 
-  // окно ввода метража: название, кусок чертежа вокруг точки, своя цифровая панель (системная клавиатура не выезжает)
+  // meters input dialog: the name, a piece of the drawing around the point, an own numeric keypad (the system keyboard does not pop up)
   function numpad(pointId, skip = new Set()) {
     padClose?.(); const p = ctx().points.get(pointId); if (!p) return;
     if (finSet().has(p.id)) { toast(`${p.label}: уже протянута, метраж не меняется`); return; }
@@ -296,7 +302,7 @@ export async function openPull(id) {
       else if (mType && mchosen().every((x) => meas(x.id))) { set({ pad: false }); toast(`Все точки этого типа с метражом ✅ Выберите другой тип или сбросьте фильтр`); screen(); }
       else { set({ pad: false }); toast('Остались пропущенные — нажмите их на плане'); screen(); }
     };
-    // несколько точек на одной отметке плана (пара «17-18», тройка и т. д.) получают один метраж за раз
+    // several points on one mark of the plan (a pair «17-18», a triple, etc.) get one meter value at a time
     const grp = () => { const g = chosen().filter((x) => x.id === p.id || (p.pos && x.pos && posKey(x.pos) === posKey(p.pos) && (x.pos.page || 0) === (p.pos.page || 0))); return g.filter((x) => x.id === p.id || !finSet().has(x.id)); };
     const cardOf = (x) => (x.length !== undefined && x.length !== null && x.length !== '' ? Number(x.length) : null);
     function enter() {
@@ -331,7 +337,7 @@ export async function openPull(id) {
     paint();
     const gl = grp().map((x) => x.label); const c = openModal(`📏 ${gl.length > 1 ? gl.join(' + ') : p.label}${pulledBefore(p) ? ' (уже протянута)' : ''}`, content, { onClose: () => { document.removeEventListener('keydown', onKey); if (padClose === c) padClose = null; } });
     padClose = c;
-    // кусок чертежа вокруг точки
+    // a piece of the drawing around the point
     requestAnimationFrame(async () => {
       try {
         const r = cv.getBoundingClientRect(); const dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
@@ -345,11 +351,11 @@ export async function openPull(id) {
         const api = { view: { s: sc }, toScr: (x, y) => [(x - clip[0]) * sc, (y - clip[1]) * sc] };
         chosen().filter((x) => (x.pos.page || 0) === (p.pos.page || 0) && x.id !== p.id).forEach((x) => outline(g, api, x.pos, meas(x.id) ? '#34c759' : '#ff9500', { width: 2 * dpr }));
         outline(g, api, p.pos, '#e0007a', { width: 4 * dpr, pad: 3 });
-      } catch { /* без картинки */ }
+      } catch { /* no picture */ }
     });
   }
 
-  // ---- шаг 4: чеклист «Протяжка» ----
+  // ---- step 4: the «Протяжка» checklist ----
   function checkScreen() {
     const pts = chosen().sort(comparePoints); const chk = new Set(P.checked || []); const fin = finSet();
     const toDo = pts.filter((p) => chk.has(p.id) && !fin.has(p.id) && needsLen(p));
@@ -402,7 +408,7 @@ export async function openPull(id) {
     body.replaceChildren(...parts.filter(Boolean));
     if (s === 'select' || s === 'measure') { if (!started) startViewer(); else viewer.draw(); }
   }
-  // чертёж запускается, когда он впервые на экране (до этого у него нет размера)
+  // the drawing starts when it is first on screen (it has no size before that)
   let started = null;
   function startViewer() {
     started = (async () => {

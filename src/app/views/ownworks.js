@@ -1,6 +1,6 @@
-// «Работы на точках» в окне «Изменить» (одна точка или группа — из «Точек», плана, шкафа): что требуется сейчас
-// (от типа, устройств, кабелей) и свой набор поверх этого — добавить работу, убрать, изменить количество на точку
-// или на каждый кабель точки (например, метаэм пас-дин: у двойного бакара 2, у одинарного 1).
+// Form field «Работы на точках» of the «Изменить» dialog (one point or a group, from «Точки», the plan or a rack): the works required now (from type, devices, cables) and an own set on top of them.
+// Own works can add a work, remove it or change its quantity per point or per cable (e.g. a DIN-rail adapter, «метаэм пас-дин»: 2 for a double «бакар», 1 for a single one).
+// Computes with worksSummary, ownWorksPatch, tasksOf and compositionOf of src/domain over state.ctx; the point form (points.js) stores the result in point.ownWorks.
 import { h } from '../ui.js';
 import { state } from '../store.js';
 import { worksSummary, ownWorksPatch, tasksOf, compositionOf, ownWorksOf, OWN_STAGES } from '../../domain/index.js';
@@ -10,8 +10,8 @@ const span = (min, max) => (min === max ? String(min) : `${min}–${max}`);
 const qtyOf = (p, ctx, workId) => tasksOf(p, ctx).filter((t) => t.workId === workId).reduce((n, t) => n + t.qty, 0);
 
 /**
- * Поле формы (formModal, type 'custom'). pointsOf(v) — точки, какими они будут после остальных изменений формы
- * (например, со сменой типа); sig(v) — от каких полей формы это зависит. get() → Map workId → изменение (см. ownWorksPatch).
+ * Form field (formModal, type 'custom'). pointsOf(v) — the points as they will be after the other changes of the form
+ * (e.g. with a type change); sig(v) — which form fields this depends on. get() → Map workId → change (see ownWorksPatch).
  */
 export function ownWorksField({ pointsOf, sig = () => '' }) {
   return {
@@ -21,7 +21,7 @@ export function ownWorksField({ pointsOf, sig = () => '' }) {
       const changes = new Map(); const added = []; let sum = null; let last = null;
       const box = h('div', {});
       const ctx = () => state.ctx;
-      // что получится у выбранных точек после изменения: «2» или «1–2»
+      // what the chosen points will get after the change: «2» or «1–2»
       const after = (workId, ch) => {
         const qs = sum.points.map((p) => qtyOf({ ...p, ownWorks: ownWorksPatch(p, ctx(), new Map([[workId, ch]])) }, ctx(), workId));
         const on = qs.filter((q) => q > 0);
@@ -77,7 +77,7 @@ export function ownWorksField({ pointsOf, sig = () => '' }) {
       };
       return {
         el: box,
-        // после остальных полей формы (состав точки загружается в том же обновлении) — по свежим значениям
+        // runs after the other form fields (the point's composition loads in the same update), so it sees fresh values
         update: () => queueMicrotask(() => { const v = values(); const s = JSON.stringify(sig(v)); if (s === last) return; last = s; sum = worksSummary(pointsOf(v), ctx()); paint(); }),
         get: () => changes,
       };
@@ -85,12 +85,12 @@ export function ownWorksField({ pointsOf, sig = () => '' }) {
   };
 }
 
-/** Что записать в точку p (в виде после остальных изменений формы): undefined — не менять */
+/** What to write into point p (as it is after the other form changes): undefined — leave unchanged */
 export function ownWorksData(p, changes) {
   if (!changes?.size || !state.ctx || !compositionOf(p, state.ctx)) return undefined;
   return ownWorksPatch(p, state.ctx, changes);
 }
-/** Свой набор работ точки одной строкой (для карточки точки): «Метаэм: 1 на кабель; Установка камеры: убрана» */
+/** The point's own works in one line (for the point card): «Метаэм: 1 на кабель; Установка камеры: убрана» */
 export function ownWorksText(p) {
   const ctx = state.ctx; if (!ctx || !compositionOf(p, ctx)) return '';
   return ownWorksOf(p).filter((o) => ctx.catalog.has(o.workId)).map((o) => `${ctx.catalog.get(o.workId).name}: ${!(Number(o.qty) > 0) ? 'убрана' : `${o.qty}${o.per === 'cable' ? ' на кабель' : ' на точку'}`}`).join('; ');

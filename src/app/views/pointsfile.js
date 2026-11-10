@@ -1,4 +1,5 @@
-// Предпросмотр и добавление точек из разбора чертежа (JSON-формат polevoy-points-1).
+// Preview and adding of points from drawing parsing (JSON format polevoy-points-1).
+// Plans the import with src/domain (planPointsImport, pointsImportOps) over state.ctx and the shared pool, and writes through repo.save; importPreview is used by planlink.js and tohnitview.js.
 import { h, openModal, toast } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
 import { newId } from '../repo.js';
@@ -6,8 +7,8 @@ import { parsePointsFile, planPointsImport, pointsImportOps, UNSORTED_TYPE, posO
 import { poolBundles } from '../pool.js';
 import { drawingsOf } from '../drawings.js';
 
-// Предпросмотр добавления точек (общий для файла и для разбора чертежа в приложении)
-// Точки без шкафа не добавляются: предпросмотр просит указать им шкаф (один на все такие точки) — иначе они остаются за бортом.
+// Preview of adding points (shared by the file and by drawing parsing in the app).
+// Points without a rack are not added: the preview asks for a rack for them (one for all such points), otherwise they stay out.
 const cabOfRaw = (f, data) => String(f.cabinet || data.cabinet || '').trim();
 export function importPreview(data, title, close) {
   const root = h('div', {}); let assign = ''; const off = new Set();
@@ -19,7 +20,7 @@ export function importPreview(data, title, close) {
   return root;
 }
 
-// выбор шкафа для точек без шкафа
+// choice of a rack for the points that have none
 function cabinetAsk(missing, assign, setAssign) {
   const cabs = [...new Set([...state.ctx.points.values()].map((p) => p.cabinet).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru', { numeric: true }));
   const NEW = '__new';
@@ -39,12 +40,12 @@ function previewBody(data, title, close, { off, missing, assign, setAssign }) {
   const offKey = (p) => `${p.cabinet || ''}\u0000${p.label}`;
   const list = (title, items, cls) => (items.length ? h('div', { style: { margin: '8px 0' } }, h('b', { class: cls }, `${title} (${items.length})`),
     h('div', { style: { fontSize: '14px', maxHeight: '160px', overflow: 'auto' } }, items.map((x) => h('div', {}, x)))) : null);
-  // точки, которые уже есть в проекте, но без места на этом чертеже — отметить их место (связать с чертежом)
+  // points already in the project but without a place on this drawing — mark their place (link them to the drawing)
   const sheetName = data?.sheet?.pdf || '';
   const drawingNames = new Set(drawingsOf().flatMap((d) => [d.name, ...(d.aliases || [])]));
   const keyOf = (label, cab) => `${cab || ''}\u0000${label}`;
   const byLabel = new Map([...state.ctx.points.values()].map((p) => [keyOf(p.label, p.cabinet), p]));
-  const fKey = (f) => keyOf(String(f.label).trim(), String(f.cabinet || data.cabinet || '').trim());   // то же обозначение в том же шкафу
+  const fKey = (f) => keyOf(String(f.label).trim(), String(f.cabinet || data.cabinet || '').trim());   // the same label in the same rack
   const toLink = sheetName ? data.points.filter((f) => f.pos && byLabel.has(fKey(f))).map((f) => ({ f, p: byLabel.get(fKey(f)) }))
     .filter(({ p }) => p.pos?.sheet !== sheetName && !(p.pos?.sheet && drawingNames.has(p.pos.sheet) && p.pos.sheet !== sheetName)) : [];
   const linkCb = h('input', { type: 'checkbox', checked: true, onchange: () => label() });
@@ -52,14 +53,14 @@ function previewBody(data, title, close, { off, missing, assign, setAssign }) {
   const nLink = () => (linkCb.checked ? toLink.length : 0);
   const label = () => { const n = plan.add.filter((p) => !off.has(offKey(p))).length; goBtn.textContent = n > 0 ? `➕ Добавить точек: ${n}${nLink() ? ` · отметить на чертеже: ${nLink()}` : ''}` : nLink() ? `📍 Отметить на чертеже: ${nLink()}` : '➕ Добавить точек: 0'; goBtn.disabled = n <= 0 && !nLink(); };
   goBtn.onclick = () => {
-    if (goBtn.disabled) return; goBtn.disabled = true;   // второе нажатие не должно добавить те же точки ещё раз
+    if (goBtn.disabled) return; goBtn.disabled = true;   // a second press must not add the same points again
     const ops = pointsImportOps({ ...plan, add: plan.add.filter((p) => !off.has(offKey(p))) }, newId, data);
     const linkOps = nLink() ? toLink.map(({ f, p }) => ({ coll: 'points', id: p.id, data: { pos: posOf(f, data) } })) : [];
     getRepo().save(currentProject().id, [...ops.map((o) => ({ ...o, data: { ...o.data, deleted: false } })), ...linkOps]);
     toast(`Добавлено точек: ${ops.filter((o) => o.coll === 'points').length}${linkOps.length ? `, отмечено на чертеже: ${linkOps.length}` : ''}`); close?.();
   };
   label();
-  // все точки к добавлению — по группам (шкаф · тип), у каждой галочка: снять — не добавлять; у группы — снять/поставить всю группу
+  // all points to add, by groups (rack · type), each with a checkbox: unchecked — not added; the group box unchecks/checks the whole group
   const warnOf = new Map(plan.warnings.map((w) => [w.split(':')[0], w.slice(w.indexOf(':') + 1).trim()]));
   const groups = new Map(); plan.add.forEach((p) => { const k = `${p.cabinet || 'без шкафа'} · ${p.typeId}`; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); });
   const groupEls = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0], 'ru', { numeric: true })).map(([k, list]) => {
@@ -71,7 +72,7 @@ function previewBody(data, title, close, { off, missing, assign, setAssign }) {
     const cnt = h('span', {});
     const sync = () => { const on = boxes.filter((b) => b.cb.checked).length; all.checked = on === boxes.length; all.indeterminate = on > 0 && on < boxes.length; cnt.textContent = ` ${k}: ${on}${on < boxes.length ? ` из ${boxes.length}` : ''}`; };
     sync();
-    // галочка группы — отдельно от раскрывающегося заголовка (нажатие по названию только раскрывает)
+    // the group checkbox is separate from the expandable header (pressing the name only expands)
     return h('div', { style: { display: 'flex', gap: '6px', alignItems: 'flex-start', margin: '4px 0' } }, h('span', { style: { paddingTop: '2px' } }, all),
       h('details', { style: { flex: 1, minWidth: 0 } }, h('summary', { style: { cursor: 'pointer', fontSize: '14px' } }, cnt, list.some((p) => warnOf.has(p.label)) ? h('small', { class: 'l-warn' }, ' ⚠️') : null),
         h('div', { class: 'picklist', style: { maxHeight: '260px' } }, boxes.map((b) => b.el))));

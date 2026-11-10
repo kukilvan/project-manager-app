@@ -1,4 +1,5 @@
-// Выбор точки проекта: поиск, тип, шкаф, «только без места на чертеже»; по выбору — onPick(point, { rename })
+// Dialog to choose a point of the project: search, type, rack and «only without a place on the drawing»; on choice it calls onPick(point, { rename }).
+// Reads points from state.ctx; drawingFor (src/app/drawings.js) tells whether a point is already on a drawing, typegroups.js builds the type filter.
 import { h, openModal } from '../ui.js';
 import { state } from '../store.js';
 import { comparePoints, latinKey } from '../../domain/index.js';
@@ -6,7 +7,7 @@ import { drawingFor } from '../drawings.js';
 
 import { typeMatch, typeFilterOptions } from '../typegroups.js';
 
-// onPickMany(points) — можно выбрать несколько точек на одну отметку плана (двойной значок и т.п.)
+// onPickMany(points) — several points can be chosen for one mark on the plan (a double icon etc.)
 export function choosePoint({ title, typeId = '', exclude = null, renameLabel = '', onPick, onPickMany = null }) {
   const all = [...state.ctx.points.values()].filter((p) => p.id !== exclude);
   const q = h('input', { type: 'search', placeholder: 'Поиск по названию', style: { flex: 1, minWidth: '120px' } });

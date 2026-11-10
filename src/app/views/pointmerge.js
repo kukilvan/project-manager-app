@@ -1,7 +1,8 @@
-// «🔀 Одинаковые точки»: одна и та же точка записана по-разному — двойная «FC/B05-06» и одинарные «FC/B05» + «FC/B06».
-// Человек выбирает, какой вид оставить; работы (записи дохa, журнал, протяжки, метраж) переходят на оставляемую точку,
-// лишние точки убираются (их можно вернуть через историю). Что не сходится — показывается до объединения:
-// количество в отчёте (по умолчанию сохраняется как было), работа, которой у оставляемой точки нет, разные метры.
+// Dialogs «🔀 Одинаковые точки» (point merge) and «🔌 Кабели не по номеру»: merge a point recorded two ways, and fix cable counts that do not follow the label.
+// The same point can be recorded as a double «FC/B05-06» and as singles «FC/B05» + «FC/B06». The user picks which form to keep; works (daily report entries, journal rows, pulls, meters) move to the kept point,
+// and the extra points are removed (they can be restored through the history). What does not match is shown before merging:
+// the quantity in the report (kept as it was by default), a work the kept point does not have, different meters.
+// Logic comes from src/domain/merge.js (findSameGroups, previewMerge, mergeOps, cablesMismatch); everything is written through repo.save.
 import { h, openModal, toast, confirmDialog } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
 import { findSameGroups, previewMerge, mergeOps, cablesMismatch } from '../../domain/merge.js';
@@ -28,7 +29,7 @@ export function mergeModal({ onDone } = {}) {
       const { g, pv } = r;
       const ask = pv.entries.filter((x) => x.before !== x.after || x.unexpected);
       const cb = h('input', { type: 'checkbox', checked: r.on, onchange: (e) => { r.on = e.target.checked; r.off = !r.on; upd(); } });
-      // двойной точки нет (одинарные стоят на одной отметке подряд) — первая одинарная станет двойной
+      // there is no double point (the singles stand in a row on one mark): the first single will become the double
       const keepTxt = !g.double ? g.newLabel : mode === 'double' ? g.double.label : g.singles.map((s) => s.label).join(' + ');
       const goneTxt = !g.double ? `${g.singles.map((s) => s.label).join(' + ')} (станет двойной)` : mode === 'double' ? g.singles.map((s) => s.label).join(' + ') : g.double.label;
       return h('div', { class: 'card', style: { margin: '6px 0', padding: '8px' } },
@@ -40,7 +41,7 @@ export function mergeModal({ onDone } = {}) {
           x.before !== x.after && mode === 'double' ? h('label', { class: 'pickrow', style: { margin: '2px 0' } }, h('input', { type: 'checkbox', checked: x.keepCount, onchange: (e) => { x.keepCount = e.target.checked; } }), h('span', {}, `Сохранить в отчёте как было (${x.before} ${unit(x)})`)) : null)),
         ...pv.notes.map((n) => h('div', { class: 'mut', style: { fontSize: '13px', marginTop: '4px' } }, `• ${n}`)));
     };
-    // «оставлять одинарные» — группам без двойной точки делать нечего (они и так одинарные)
+    // «keep singles»: groups without a double point have nothing to do (they are singles already)
     const act = rows.filter((r) => mode === 'double' || r.g.double);
     rows.forEach((r) => { if (!act.includes(r)) r.on = false; else if (r.off === undefined) r.on = true; });
     const withQ = act.filter((r) => r.pv.entries.some((x) => x.before !== x.after || x.unexpected) || r.pv.notes.length);
@@ -78,8 +79,8 @@ export function mergeModal({ onDone } = {}) {
     list, h('div', { class: 'btns' }, go, h('button', { class: 'sec', onclick: () => close() }, 'Отмена'))), { sticky: true });
 }
 
-// «🔌 Кабели не по номеру»: одинарная точка сети — 1 кабель, двойная — 2…; у точек без своего значения число кабелей
-// бралось по типу (у бакара — 2), и одинарные считались двойными. Свои значения (исключения) не трогаются.
+// «🔌 Кабели не по номеру»: a single network point has 1 cable, a double one 2…; for points without an own value the cable count
+// was taken from the type (2 for a «бакар»), so singles counted as doubles. Own values (exceptions) are left alone.
 export const cablesToFix = () => (state.ctx ? cablesMismatch([...state.ctx.points.values()], state.ctx) : []);
 export function cablesFixModal({ onDone } = {}) {
   const list = cablesToFix(); if (!list.length) { toast('Все точки с кабелями по номеру'); return; }

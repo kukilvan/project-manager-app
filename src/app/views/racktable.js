@@ -1,5 +1,6 @@
-// «📊 Таблица для шильюта»: один файл Google Таблицы «תכנון ארונות ושילוט» на проект (папка проекта «Для руководства»): лист-план на каждый шкаф + общий лист шильюта.
-// Повторное создание обновляет тот же файл. Значения пишутся прямо в ячейки — листы можно копировать и отправлять по отдельности.
+// Rack table «📊 Таблица для шильюта»: card, dialog and generator of one Google Sheets file «תכנון ארונות ושילוט» per project — a plan sheet per rack plus a common shilut (port labels) sheet.
+// The file lives in the project folder «Для руководства»; creating it again updates the same file. Values are written straight into the cells, so sheets can be copied and sent separately.
+// Sheets are built by src/domain/shilutsheet.js, written through racktablecore.js and google.js (a Drive stub in ?mem=1); racks.js shows the card.
 import { memberNameByUid } from './members.js';
 import { h, openModal, toast } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
@@ -14,7 +15,7 @@ const build = (p, opts) => buildRackSheets(p, state.ctx, [...state.ctx.points.va
 const defaults = (p) => { const rt = p.rackTable || {}; const all = cabinetsOf(p, [...state.ctx.points.values()], state.ctx);
   return { auto: rt.auto ?? true, mode: rt.mode || MODES.fill, mergeColors: !!rt.mergeColors, cabs: rt.cabs?.length ? rt.cabs.filter((k) => all.some((c) => c.key === k)) : all.filter((c) => c.count > 0).map((c) => c.key) }; };
 
-// Заглушка Диска для проверки в браузере (?mem=1)
+// Drive stub for checking in the browser (?mem=1)
 function testApi() {
   const calls = (window.__gcalls = window.__gcalls || []); const files = (window.__gfiles = window.__gfiles || {});
   return {
@@ -30,7 +31,7 @@ function testApi() {
 }
 
 let busy = false;
-// Личные настройки автора (модели панелей, свои цвета) копируются в проект: по ним таблицу собирает и сервер
+// The author's personal settings (panel models, own colors) are copied into the project: the server builds the table from them too
 const prefsCopy = () => ({ models: prefs().panelModels || [], colors: prefs().shilutColors || [] });
 export async function generateRackTable(opts = null, retried = false) {
   const p = currentProject(); if (!p || busy) return; busy = true;
@@ -38,7 +39,7 @@ export async function generateRackTable(opts = null, retried = false) {
     const rt = p.rackTable || {};
     const o = opts || defaults(p);
     const next = { ...rt, mode: o.mode, mergeColors: !!o.mergeColors, cabs: o.cabs, auto: o.auto ?? rt.auto ?? true, prefs: prefsCopy() };
-    getRepo().saveProject(p.id, { rackTable: next });   // запоминаем: после входа в Google на iPhone продолжим с теми же настройками
+    getRepo().saveProject(p.id, { rackTable: next });   // remember: after the Google sign-in on iPhone we continue with the same settings
     const proj = { ...p, rackTable: next };
     if (!build(proj, o).count) { toast('Нет шкафов с планом: сначала постройте план в «🗄 Шкафы и шильют»'); return; }
     toast('Создаю таблицу на Диске…');
@@ -55,7 +56,7 @@ export async function generateRackTable(opts = null, retried = false) {
   } finally { busy = false; }
 }
 
-// Карточка в списке шкафов
+// Card in the rack list
 export function rackTableCard(ui) {
   const p = currentProject(); const rt = p.rackTable || {};
   return h('div', { class: 'card' },
@@ -67,7 +68,7 @@ export function rackTableCard(ui) {
       rt.link ? h('button', { class: 'sec', onclick: () => window.open(rt.link, '_blank') }, '🔗 Открыть') : null));
 }
 
-// Окно: режим шильюта и какие шкафы включить
+// Dialog: the shilut mode and which racks to include
 function rackTableModal(ui) {
   const p = currentProject(); const cabs = cabinetsOf(p, [...state.ctx.points.values()], state.ctx);
   if (!cabs.length) { toast('Нет шкафов с планом: сначала постройте план в «🗄 Шкафы и шильют»'); return; }

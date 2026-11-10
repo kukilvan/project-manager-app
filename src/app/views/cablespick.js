@@ -1,12 +1,13 @@
-// Кабели точки рядом с выбором типа: сразу показаны кабели типа по умолчанию, можно поменять вид и количество
-// (например, «RJ45 X2» — тип «Точка», но 2 кабеля). Своё сохраняется в точке (cableOverride), как у типа — не сохраняется.
+// Cables picker for a point, shown next to the type chooser: the type's default cables appear at once and their kind and count can be changed.
+// An own set («RJ45 X2» is type «Точка» with 2 cables) is saved in the point as cableOverride; «as the type» saves nothing.
+// Reads state.ctx and the cable composition from src/domain (typeCablesOf, cableOverrideFor); used by the point form and the catalog, plan and drawing screens.
 import { h, qtyList } from '../ui.js';
 import { state, currentProject } from '../store.js';
 import { typeCablesOf, cableOverrideFor } from '../../domain/index.js';
 
 const fmt = (l) => (l?.length ? l.map((c) => `${c.cable} ×${c.count}`).join(' + ') : 'без кабеля');
 
-// value — свои кабели точки (или null — как у типа); onChange(list) — при каждом изменении
+// value — the point's own cables (or null — as the type's); onChange(list) — on every change
 export function cablesPicker({ typeId = '', cabinet = '', value = null, onChange, compact = false } = {}) {
   const ctx = state.ctx; const pid = currentProject()?.id;
   let tid = typeId; let cab = cabinet; let touched = Array.isArray(value);
@@ -28,15 +29,15 @@ export function cablesPicker({ typeId = '', cabinet = '', value = null, onChange
   refresh();
   return {
     el,
-    // тип/шкаф поменялись: если кабели не трогали — показать кабели нового типа
+    // type or rack changed: if the cables were not touched, show the new type's cables
     setType(t, c = cab) { if (t === tid && c === cab) return; tid = t; cab = c; if (!touched) q.set(def().map((x) => ({ value: x.cable, count: x.count }))); refresh(); },
     get: list, override: own, isOwn: () => !!own(),
-    // задать свои кабели (null — как у типа)
+    // set own cables (null — as the type's)
     setList(l) { touched = Array.isArray(l); q.set((Array.isArray(l) ? l : def()).map((c) => ({ value: c.cable, count: c.count }))); refresh(); },
   };
 }
 
-// То же как поле формы (formModal): ключ cableOverride → null (как у типа) или свой список
+// The same as a form field (formModal): key cableOverride → null (as the type's) or an own list
 export function cablesField(point, { label = 'Кабели', hint } = {}) {
   return {
     key: 'cableOverride', label, type: 'custom', visible: (v) => !!v.typeId,

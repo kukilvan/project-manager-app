@@ -76,22 +76,22 @@ Vanilla JS PWA built by Vite (`vite-plugin-pwa`, service worker `autoUpdate`), n
 - `src/app/tour/topics.js` — Tour topics: the step lists (title, text, target element) for each topic, built for the current UI by `buildTopics`.
 - `src/app/typegroups.js` — Shared groups of point types (e.g. «Дверь» holds every door type with its own devices and cables) for type filters.
 - `src/app/ui.js` — Small interface helpers: element creation (`h`), popup windows and forms, confirmation dialog, toast notifications.
-- `src/app/views/cablespick.js` — (no English header yet)
+- `src/app/views/cablespick.js` — Cables picker for a point, shown next to the type chooser: the type's default cables appear at once and their kind and count can be changed.
 - `src/app/views/catalogview.js` — (no English header yet)
 - `src/app/views/doh.js` — (no English header yet)
-- `src/app/views/doorcfgview.js` — (no English header yet)
-- `src/app/views/doorchips.js` — (no English header yet)
+- `src/app/views/doorcfgview.js` — Doors: the door configuration chooser (pinned / build / shared pool), a form field and the «Конфигурации дверей» tab.
+- `src/app/views/doorchips.js` — Door configuration name as chips (locking filled, other parts in a colored outline, count «×2» on top, cables in grey at the end) and the device color picker.
 - `src/app/views/guide.js` — (no English header yet)
 - `src/app/views/history.js` — (no English header yet)
 - `src/app/views/import.js` — (no English header yet)
 - `src/app/views/journal.js` — (no English header yet)
-- `src/app/views/latinfix.js` — (no English header yet)
+- `src/app/views/latinfix.js` — Quick input in Latin letters: the shortcut list («тв = TV») kept in user preferences, and the settings dialog that edits it.
 - `src/app/views/log.js` — (no English header yet)
 - `src/app/views/managersfolder.js` — (no English header yet)
 - `src/app/views/manualsview.js` — (no English header yet)
 - `src/app/views/members.js` — (no English header yet)
 - `src/app/views/month.js` — (no English header yet)
-- `src/app/views/ownworks.js` — (no English header yet)
+- `src/app/views/ownworks.js` — Form field «Работы на точках» of the «Изменить» dialog (one point or a group, from «Точки», the plan or a rack): the works required now (from type, devices, cables) and an own set on top of them.
 - `src/app/views/pdfpick.js` — (no English header yet)
 - `src/app/views/planassign.js` — (no English header yet)
 - `src/app/views/planlink.js` — (no English header yet)
@@ -100,16 +100,16 @@ Vanilla JS PWA built by Vite (`vite-plugin-pwa`, service worker `autoUpdate`), n
 - `src/app/views/planpick.js` — (no English header yet)
 - `src/app/views/planversion.js` — (no English header yet)
 - `src/app/views/planview.js` — (no English header yet)
-- `src/app/views/pointchooser.js` — (no English header yet)
-- `src/app/views/pointmerge.js` — (no English header yet)
-- `src/app/views/points.js` — (no English header yet)
-- `src/app/views/pointsfile.js` — (no English header yet)
+- `src/app/views/pointchooser.js` — Dialog to choose a point of the project: search, type, rack and «only without a place on the drawing»; on choice it calls onPick(point, { rename }).
+- `src/app/views/pointmerge.js` — Dialogs «🔀 Одинаковые точки» (point merge) and «🔌 Кабели не по номеру»: merge a point recorded two ways, and fix cable counts that do not follow the label.
+- `src/app/views/points.js` — Points screens: the point form, the batch generator, the length input, the point card with history, the «Что осталось» list, mass actions and the «Точки» tab.
+- `src/app/views/pointsfile.js` — Preview and adding of points from drawing parsing (JSON format polevoy-points-1).
 - `src/app/views/poolview.js` — (no English header yet)
 - `src/app/views/project.js` — (no English header yet)
 - `src/app/views/projects.js` — (no English header yet)
-- `src/app/views/pullview.js` — (no English header yet)
-- `src/app/views/racks.js` — (no English header yet)
-- `src/app/views/racktable.js` — (no English header yet)
+- `src/app/views/pullview.js` — Pulls «🧵 Протяжки»: pick points on the plan → «До шкафа» → meters per point (own numeric keypad) → checklist → «Завершить» (the report form).
+- `src/app/views/racks.js` — Racks and shilut screen «🗄 Шкафы и шильют»: the rack plan — which cat7 points sit in which panels (U) and ports (1–24).
+- `src/app/views/racktable.js` — Rack table «📊 Таблица для шильюта»: card, dialog and generator of one Google Sheets file «תכנון ארונות ושילוט» per project — a plan sheet per rack plus a common shilut (port labels) sheet.
 - `src/app/views/settings.js` — (no English header yet)
 - `src/app/views/sheetslist.js` — (no English header yet)
 - `src/app/views/shilutsettings.js` — (no English header yet)

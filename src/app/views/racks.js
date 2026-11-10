@@ -1,5 +1,14 @@
-// «🗄 Шкафы и шильют»: план шкафа — какие точки cat7 в каких панелях (U) и портах (1–24).
-// Мастер раскладывает точки по типам в панели на указанных U; дальше — ручная правка: поставить с любого порта, переставить, убрать.
+// Racks and shilut screen «🗄 Шкафы и шильют»: the rack plan — which cat7 points sit in which panels (U) and ports (1–24).
+// The wizard places points by type into panels at the given U; after that — manual editing: place from any port, move, remove.
+// Panel and shilut logic comes from src/domain/rack.js; data is saved through repo.save (points' panel positions, project racks); point actions reuse points.js, shilutsettings.js and racktable.js; shilut marks are written to the daily report through doh.js.
+//
+// Contents:
+// - slotsOf(), saveRack(), savePanels() — the rack's ports and writing the rack and panel positions
+// - racksView() — the rack list; showCabinet() opens the plan at a given rack (from the point card)
+// - rackForm() — rack size and numbering (and sections: several physical racks under one name)
+// - wizard() — put points into panels by type
+// - placeModal() — put points into a panel from a chosen port
+// - rackEditor() — the rack plan: moving ports, closing ports with a cross, point selection, shilut marks («есть» / «поклеен»)
 import { h, openModal, toast, confirmDialog, formModal } from '../ui.js';
 import { state, getRepo, currentProject, infoOf } from '../store.js';
 import { comparePoints } from '../../domain/index.js';
@@ -12,19 +21,19 @@ import { shilutSettings, panelModels, modelName } from './shilutsettings.js';
 import { rackTableCard } from './racktable.js';
 import { markShilutForPoints, addWorkForPoints } from './doh.js';
 
-let openCab = null;   // открытый шкаф
-let moving = null;    // перенос порта: { id, i }
-let editMode = false; // режим перестановки: нажал точку → нажал порт, без окон
-let blockMode = false; // режим «закрыть порты»: нажал порт → на нём крестик (или снял)
-let pickSel = null;   // режим «Выбрать точки» (изменить / переименовать / добавить работу): Set id точек шкафа
-let shMode = null;    // режим «Шилют готов» на одной панели: { key: 'секция|U', sel: Set('точка:порт') }
+let openCab = null;   // the open rack
+let moving = null;    // port move: { id, i }
+let editMode = false; // rearrange mode: tap a point → tap a port, no dialogs
+let blockMode = false; // «close ports» mode: tap a port → a cross on it (or remove it)
+let pickSel = null;   // «Выбрать точки» mode (change / rename / add a work): a Set of the rack's point ids
+let shMode = null;    // «Шилют готов» mode on one panel: { key: 'section|U', sel: Set('point:port') }
 
 const sortRu = (a, b) => a.localeCompare(b, 'ru', { numeric: true });
 const HUES = [205, 140, 45, 0, 275, 175, 25, 320, 95, 240];
 const hueOf = (typeId) => { let x = 0; for (const ch of String(typeId)) x = (x * 31 + ch.charCodeAt(0)) >>> 0; return HUES[x % HUES.length]; };
 const allPoints = () => [...state.ctx.points.values()];
 const cabPoints = (cab) => rackPointsOf(allPoints(), state.ctx, cab);
-// Отметка проверки точки у порта: проверена — зелёная птичка, проверка была и не работает — красный крестик (на белой подложке — видно на любом цвете)
+// The point's test mark at a port: tested — a green tick, tested and not working — a red cross (on a white backing, visible on any color)
 const checkMark = (pt) => {
   const info = infoOf(pt); if (!info) return null;
   const bad = info.checkResult === 'Не работает'; if (!bad && !info.checked) return null;
@@ -32,7 +41,7 @@ const checkMark = (pt) => {
 };
 const slotLabel = (pt, i) => shilutLabel(pt, i, currentProject(), state.ctx) || pt.label;
 const shortLabel = (txt, cab) => (cab && (txt.startsWith(`${cab}-`) || txt.startsWith(`${cab}/`)) ? txt.slice(cab.length + 1) : txt);
-// «секция|U|порт» → { pt, i } для точек шкафа
+// «section|U|port» → { pt, i } for the rack's points
 function slotsOf(cab) {
   const m = new Map();
   cabPoints(cab).forEach((pt) => panelOf(pt).forEach((x, i) => m.set(slotKey(x), { pt, i })));
@@ -52,8 +61,8 @@ function savePanels(list) {  // [[pointId, panel[]]]
   getRepo().save(currentProject().id, list.map(([id, panel]) => ({ coll: 'points', id, data: { panel } })));
 }
 
-// ---------- список шкафов ----------
-/** Открыть план шкафа сразу на нужном шкафу (из карточки точки) */
+// ---------- rack list ----------
+/** Open the rack plan right at the needed rack (from the point card) */
 export function showCabinet(cab) { openCab = cab || ''; moving = null; blockMode = false; pickSel = null; }
 
 export function racksView(ui) {
@@ -76,7 +85,7 @@ export function racksView(ui) {
     }) : h('div', { class: 'empty' }, 'Нет точек с кабелями cat7 и шкафом')));
 }
 
-// окно с несколькими вариантами: → индекс выбранного или null (отмена)
+// dialog with several options: → the index of the chosen one or null (cancel)
 function choose3(text, options) {
   return new Promise((resolve) => {
     let ans = null;
@@ -86,7 +95,7 @@ function choose3(text, options) {
   });
 }
 
-// ---------- размер и нумерация шкафа (и секции: несколько физических шкафов под одним именем) ----------
+// ---------- rack size and numbering (and sections: several physical racks under one name) ----------
 function rackForm(cab, done) {
   const r = rackOf(currentProject(), cab) || { height: 42, bottomUp: true, panels: [] };
   const subs = subsOf(r, cab).map((x) => ({ ...x }));
@@ -124,7 +133,7 @@ function rackForm(cab, done) {
     const names = subs.map((x) => String(x.name).trim().toLowerCase());
     if (many && new Set(names).size !== names.length) { toast('Названия шкафов не должны повторяться'); return; }
     const s0 = subs[0];
-    // направление нумерации поменяли у секции с панелями: перевернуть как есть или зеркально (панели остаются на тех же физических местах)
+    // the numbering direction of a section with panels was changed: mirror (the panels stay in the same physical places) or flip as is
     const flipped = subs.filter((x) => { const was = subsOf(r, cab).find((q) => q.id === (x.id || '')); return was && (was.bottomUp !== false) !== (x.bottomUp !== false) && (r.panels || []).some((q) => (q.s || '') === (x.id || '')); });
     let mirror = [];
     if (flipped.length) {
@@ -148,7 +157,7 @@ function rackForm(cab, done) {
     box, h('div', { class: 'btns' }, save)), { sticky: true });
 }
 
-// ---------- мастер: панели по типам ----------
+// ---------- wizard: panels by type ----------
 function wizard(cab, ui) {
   const r = rackOf(currentProject(), cab);
   if (!r) { rackForm(cab, () => setTimeout(() => wizard(cab, ui), 300)); return; }
@@ -158,7 +167,7 @@ function wizard(cab, ui) {
     const list = pts.filter((p) => p.typeId === t).sort(comparePoints);
     const ports = list.reduce((n, p) => n + rackPortsOf(p, state.ctx), 0);
     const placed = list.filter((p) => panelOf(p).length).length;
-    const holding = [...new Map(list.flatMap((p) => panelOf(p).map((x) => [`${x.s || ''}|${x.u}`, { s: x.s || '', u: String(x.u) }]))).values()];  // где они сейчас
+    const holding = [...new Map(list.flatMap((p) => panelOf(p).map((x) => [`${x.s || ''}|${x.u}`, { s: x.s || '', u: String(x.u) }]))).values()];  // where they are now
     return { t, list, ports, placed, on: placed === 0, us: holding.length ? holding : Array.from({ length: Math.ceil(ports / PANEL_PORTS) }, () => ({ s: '', u: '' })) };
   });
   const box = h('div', {});
@@ -209,7 +218,7 @@ function wizard(cab, ui) {
     box, h('div', { class: 'btns' }, go)), { sticky: true });
 }
 
-// ---------- поставить точки в панель ----------
+// ---------- put points into a panel ----------
 function placeModal(cab, ui, { u = null, s: sid = '', p = 1 } = {}) {
   const r = rackOf(currentProject(), cab); const panels = subsOf(r, cab).flatMap((sub) => panelsInOrder(r, sub));
   if (!panels.length) { toast('Сначала добавьте панель'); return; }
@@ -250,7 +259,7 @@ function placeModal(cab, ui, { u = null, s: sid = '', p = 1 } = {}) {
     list, h('div', { class: 'btns' }, go)), { sticky: true });
 }
 
-// ---------- редактор шкафа ----------
+// ---------- rack editor ----------
 function rackEditor(ui, cab) {
   const p = currentProject(); const r = rackOf(p, cab);
   const pts = cabPoints(cab);
@@ -267,7 +276,7 @@ function rackEditor(ui, cab) {
   const floor = cabinetFloor(pts);
   const subOf = (sid) => subs.find((x) => x.id === (sid || ''));
   const blocked = blockedOf(r);
-  // Своя подпись порта в шильюте (пусто — снова по умолчанию/шаблону)
+  // The port's own label in the shilut (empty — back to the default/template)
   const editLabel = (pt, i) => {
     const arr = panelOf(pt).map((x) => ({ ...x })); const own = arr[i].label || '';
     const auto = shilutLabel({ ...pt, panel: arr.map((x) => ({ ...x, label: '' })) }, i, p, state.ctx);
@@ -275,7 +284,7 @@ function rackEditor(ui, cab) {
       fields: [{ key: 'label', label: `В шильюте (по умолчанию: ${auto})`, type: 'text' }],
       onSubmit: (v) => { const t = String(v.label || '').trim(); if (!t || t === auto) delete arr[i].label; else arr[i].label = t; savePanels([[pt.id, arr]]); setTimeout(() => ui.render(), 200); } });
   };
-  // Закрыть/открыть порт крестиком; при закрытии точки панели сдвигаются, кому не хватило места — не расставлены
+  // Close/open a port with a cross; when closing, the panel's points shift, and those that no longer fit stay unplaced
   const toggleBlock = (pnl, port, isX) => {
     const sid = pnl.s || '';
     if (isX) { saveRack(cab, unblockPort(r, { s: sid, u: pnl.u, p: port })); setTimeout(() => ui.render(), 200); return; }
@@ -286,7 +295,7 @@ function rackEditor(ui, cab) {
     else if (res.writes.size) toast(`Точки сдвинуты: ${res.writes.size}`);
     setTimeout(() => ui.render(), 200);
   };
-  // ----- шилют: «есть» (напечатан и у меня; point.shHave — номера портов точки) и «поклеен» (работа «Шилют» в отчёте) -----
+  // ----- shilut: «есть» (printed and in my hands; point.shHave — the point's port numbers) and «поклеен» (stuck on; the work «Шилют» in the report) -----
   const shKey = (pnl) => `${pnl.s || ''}|${pnl.u}`;
   const shPorts = () => [...(shMode?.sel || [])].map((k) => { const [id, i] = k.split(':'); return [state.ctx.points.get(id), Number(i)]; }).filter(([pt]) => pt);
   const setHave = (list, on) => {
@@ -311,13 +320,13 @@ function rackEditor(ui, cab) {
           if (!fresh.length) { toast('Выбранные порты уже поклеены'); return; }
           const part = pts.filter((pt) => { const st = stuckPortsOf(pt, state.ctx); const total = rackPortsOf(pt, state.ctx); return total > 1 && [...new Set([...st, ...by.get(pt.id)])].length < total; });
           if (!(await confirmDialog(`Записать в сегодняшний отчёт «Шилют»: портов ${fresh.length}, точек ${new Set(fresh.map(([pt]) => pt.id)).size}?${part.length ? `\n\nУ ${part.slice(0, 4).map((x) => x.label).join(', ')}${part.length > 4 ? '…' : ''} поклеены не все порты: в отчёт пойдут только эти порты, остальные останутся неотмеченными.` : ''}`, { yes: 'Записать' }))) return;
-          const r = markShilutForPoints(pts.map((x) => x.id), by);   // «есть шилют» не ставится: это отдельная отметка
+          const r = markShilutForPoints(pts.map((x) => x.id), by);   // «есть шилют» is not set here: it is a separate mark
           shDone(`Поклеено портов: ${fresh.length}, в отчёт записано точек: ${pts.length - r.done.length - r.none.length}${r.done.length ? `; уже были поклеены: ${r.done.length}` : ''}${r.none.length ? `; у типа нет работы «Шилют» (только отметка): ${r.none.length}` : ''}`);
         } }, '✅ Поклеил'),
         h('button', { class: 'sec', disabled: none, onclick: () => { const l = shPorts(); setHave(l, false); shDone('Отметка «есть шилют» снята'); } }, '↩ Нет шилюта'),
         h('button', { class: 'sec', onclick: () => { shMode = null; ui.render(); } }, 'Готово')));
   };
-  // выбор точек шкафа: изменить как в «Точки», переименовать, добавить работу как в «Отчёт»
+  // selecting the rack's points: change as in «Точки», rename, add a work as in «Отчёт»
   const pickBar = () => {
     for (const id of [...pickSel]) if (!state.ctx.points.has(id)) pickSel.delete(id);
     const ids = [...pickSel]; const done = () => { pickSel.clear(); setTimeout(() => ui.render(), 300); };
@@ -396,7 +405,7 @@ function rackEditor(ui, cab) {
       return h('div', { title: at ? `${slotLabel(at.pt, at.i)} (${at.pt.typeId})${mark ? (mark.bad ? ' — проверка: не работает' : ' — проверена') : ''}${have ? ' — шилют есть' : ''}${stuck ? ' — шилют поклеен' : ''}` : 'свободно', onclick: () => cellTap(pnl, k + 1),
         style: { position: 'relative', cursor: 'pointer', border: `1px solid ${mv ? '#e0007a' : 'var(--line)'}`, borderWidth: mv ? '2px' : '1px', borderRadius: '6px', outline: mv ? '3px solid #e0007a' : picked ? '3px solid #0a84ff' : 'none', outlineOffset: '1px', padding: '2px 4px', minHeight: '38px',
           background: col ? col.bg : at ? `hsla(${hue},70%,50%,.18)` : 'transparent', color: col ? col.fg : 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', overflow: 'hidden' } },
-        // отметки — по углам, на заднем плане (текст поверх них): птичка проверки — справа сверху, «Ш» — слева снизу, «П» — справа снизу, выбранный порт — слева сверху
+        // marks sit in the corners, in the background (the text is over them): the test tick — top right, «Ш» — bottom left, «П» — bottom right, the selected port — top left
         mark ? h('div', { style: { position: 'absolute', right: '1px', top: '1px', zIndex: 0, pointerEvents: 'none', transform: 'scale(.8)', transformOrigin: 'top right', opacity: 0.9 } }, mark.el) : null,
         have ? h('span', { title: 'шилют есть', style: { position: 'absolute', left: '1px', bottom: '1px', zIndex: 0, pointerEvents: 'none', width: '11px', height: '11px', borderRadius: '50%', fontSize: '7px', lineHeight: '11px', fontWeight: 800, textAlign: 'center', background: '#fff', color: '#0a84ff', boxShadow: '0 0 0 1px rgba(0,0,0,.25)', opacity: 0.9 } }, 'Ш') : null,
         stuck ? h('span', { title: 'шилют поклеен', style: { position: 'absolute', right: '1px', bottom: '1px', zIndex: 0, pointerEvents: 'none', width: '11px', height: '11px', borderRadius: '50%', fontSize: '7px', lineHeight: '11px', fontWeight: 800, textAlign: 'center', background: '#0a84ff', color: '#fff', boxShadow: '0 0 0 1px rgba(0,0,0,.25)', opacity: 0.9 } }, 'П') : null,

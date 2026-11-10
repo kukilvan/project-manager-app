@@ -1,4 +1,6 @@
-// Настройки: быстрый ввод латиницей (список «тв = TV») и поиск названий с перепутанной раскладкой.
+// Quick input in Latin letters: the shortcut list («тв = TV») kept in user preferences, and the settings dialog that edits it.
+// Reads and saves the list through the repo (prefs.latinShortcuts, falling back to DEFAULT_SHORTCUTS of src/domain); the shell hands currentShortcuts() to the input helper (setShortcutsProvider).
+// The imported wrong-layout helpers (fixLatin, fixCabinet, needsFix) are not used here.
 import { h, openModal, toast, confirmDialog } from '../ui.js';
 import { printedPortsOf } from '../../domain/rack.js';
 import { state, getRepo, currentProject } from '../store.js';

@@ -1,4 +1,17 @@
-// Точки: форма точки, генератор пачкой, карточка точки с историей, вкладка «Точки».
+// Points screens: the point form, the batch generator, the length input, the point card with history, the «Что осталось» list, mass actions and the «Точки» tab.
+// Reads state.ctx and project data from store.js and writes through repo.save; composition, statuses, labels and merge logic come from src/domain.
+// Door configurations, cables, own works and point choice use the neighbouring pickers (doorcfgview.js, cablespick.js, ownworks.js, pointchooser.js).
+//
+// Contents:
+// - compField(), compData() — the point's composition editor (devices, cables, works) and the part of it that is saved
+// - scanField(), pickOrNewField() — form fields: text with a scanner, a choice among the project's values or a new one
+// - pointForm() — add and edit one point
+// - generatorForm() — create points in a batch by a label pattern
+// - meterForm() — enter lengths point after point
+// - pointCard() — one point: details, work history and actions (bindToPoint turns a plan mark into an existing point)
+// - remainingModal() — «Что осталось»: works still waiting for points; pick points and record a work
+// - renameForm(), bulkEditForm() — mass rename and mass change of the selected points
+// - meterView() — the «Точки» tab: the list with search, filters and selection
 import { h, formModal, openModal, confirmDialog, toast, qtyList, attachShortcuts } from '../ui.js';
 import { nav, state, getRepo, pointsSorted, infoOf, currentProject } from '../store.js';
 import { generateLabels, generatedTotal, MAX_GENERATED, parseSuffixes, comparePoints, renameLabel, renameIssue, sameLabelClash, labelKey, inheritedFromCables, usesConfig, missingStages, hasDeviceId, normalizeMac, findDuplicate , findSameGroups, cablesMismatch } from '../../domain/index.js';
@@ -28,27 +41,27 @@ const hasIdType = (id) => hasDeviceId(state.ctx.types.get(id));
 const isDoorType = (id) => usesConfig(state.ctx.types.get(id));
 const reasonOptions = () => [...state.ctx.delayReasons.values()].map((r) => ({ value: r.id, label: r.id }));
 
-// ---- состав точки (тип из устройств): галочки устройств с количеством + кабели самой точки ----
+// ---- point composition (a type made of devices): device checkboxes with a count + the point's own cables ----
 const typeOf = (id) => state.ctx.types.get(id);
 const composedType = (id) => isComposedType(typeOf(id));
-// у двери выбрана конфигурация (новая схема): состав и кабели — из неё, поля «Состав» и «Кабели» не нужны
+// a door has a configuration chosen (the new scheme): composition and cables come from it, the «Состав» and «Кабели» fields are not needed
 const doorShort = (p) => { const c = doorCfgOf(p, state.ctx); return c ? doorCfgShort(state.ctx, c) : ''; };
 const doorCfgSet = (v) => isDoorType(v.typeId) && !!v.configId && v.configId !== '__clear' && isDoorCfg(state.ctx.configs.get(v.configId) || allDoorCfgs().get(v.configId));
 const sameList = (a, b, k) => JSON.stringify((a || []).map((x) => [x[k], Number(x.count), x.cables || null, x.workIds || null]))
   === JSON.stringify((b || []).map((x) => [x[k], Number(x.count), x.cables || null, x.workIds || null]));
 function compField(point) {
   const ctx = state.ctx; const allDev = [...ctx.devices.values()].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-  let typeId = null; let rows = []; // [{ deviceId, count, on, cables?, workIds?, open? }] — cables/workIds: изменено у этой точки
+  let typeId = null; let rows = []; // [{ deviceId, count, on, cables?, workIds?, open? }] — cables/workIds: changed for this point
   const works = [...ctx.catalog.values()].filter((w) => ['Хивут', 'Установка', 'Проверка', 'Шилют', 'Доп. работа'].includes(w.workType) && w.active !== false)
     .sort((a, b) => a.workType.localeCompare(b.workType, 'ru') || a.name.localeCompare(b.name, 'ru'));
   const cableOpts = [...ctx.cables.values()].map((c) => ({ value: c.id, label: c.id }));
-  // редактор устройства для этой точки: кабели и работы (по умолчанию — как в «Устройствах»)
+  // device editor for this point: cables and works (by default as in «Устройства»)
   const editor = (r) => {
     const dev = ctx.devices.get(r.deviceId) || {};
     const q = qtyList(cableOpts, { addLabel: '➕ Кабель', empty: 'Без кабеля', onChange: () => { r.cables = q.get().map((c) => ({ cable: c.value, count: c.count })); mark(); paintWorks(); } });
     q.set((Array.isArray(r.cables) ? r.cables : dev.cables || []).map((c) => ({ value: c.cable, count: c.count })));
     const cur = new Set(Array.isArray(r.workIds) ? r.workIds : dev.workIds || []);
-    // работы кабелей устройства — серые (уже есть), здесь не сохраняются
+    // the device's cable works are grey (already there) and are not saved here
     const wl = h('div', { class: 'picklist', style: { maxHeight: '180px' } });
     const paintWorks = () => {
       const inh = inheritedFromCables(ctx, Array.isArray(r.cables) ? r.cables : dev.cables || []);
@@ -85,7 +98,7 @@ function compField(point) {
     const devs = own && Array.isArray(point?.devices) ? point.devices : (t?.devices || []);
     rows = devs.map((d) => ({ deviceId: d.deviceId, count: Number(d.count) || 1, on: true,
       ...(Array.isArray(d.cables) ? { cables: d.cables } : {}), ...(Array.isArray(d.workIds) ? { workIds: d.workIds } : {}) }));
-    // устройства типа, снятые у этой точки, показываем без галочки
+    // type devices removed from this point are shown unchecked
     if (own && Array.isArray(point?.devices)) (t?.devices || []).forEach((d) => { if (!rows.some((r) => r.deviceId === d.deviceId)) rows.push({ deviceId: d.deviceId, count: Number(d.count) || 1, on: false }); });
     const cbl = own && Array.isArray(point?.cables) ? point.cables : (t?.cables || []);
     cableQ.set(cbl.map((c) => ({ value: c.cable, count: c.count })));
@@ -95,7 +108,7 @@ function compField(point) {
     key: 'comp', label: 'Состав точки', type: 'custom', visible: (v) => composedType(v.typeId) && !doorCfgSet(v),
     hint: 'Снимите галочку, если устройства на этой точке нет; количество можно поменять. Кабели — в поле «Кабели» ниже.',
     build: (api) => ({
-      el: h('div', {}, devBox, addSel, h('div', { style: { display: 'none' } }, cableQ.el)),  // кабели точки — в поле «Кабели» ниже (все кабели точки сразу)
+      el: h('div', {}, devBox, addSel, h('div', { style: { display: 'none' } }, cableQ.el)),  // the point's cables are in the «Кабели» field below (all cables of the point at once)
       update: (v) => { if (v.typeId !== typeId) load(v.typeId, typeId === null && point && v.typeId === point.typeId); },
       get: () => ({ devices: rows.filter((r) => r.on && r.count > 0).map((r) => ({ deviceId: r.deviceId, count: r.count,
         ...(Array.isArray(r.cables) ? { cables: r.cables } : {}), ...(Array.isArray(r.workIds) ? { workIds: r.workIds } : {}) })),
@@ -103,7 +116,7 @@ function compField(point) {
     }),
   };
 }
-// Что записать в точку: свой состав только если он отличается от типа (иначе точка следует за типом)
+// What to write into the point: an own composition only if it differs from the type (otherwise the point follows the type)
 function compData(typeId, comp) {
   const t = typeOf(typeId);
   if (!isComposedType(t) || !comp) return { devices: null, cables: null };
@@ -115,15 +128,15 @@ const compText = (p) => {
   return devs.map((d) => `${ctx.devices.get(d.deviceId)?.name || d.deviceId}${d.count > 1 ? ` ×${d.count}` : ''}${d.cables || d.workIds ? ' (изменено)' : ''}`).join(', ') + (Array.isArray(p.devices) || Array.isArray(p.cables) ? ' (свой состав)' : '');
 };
 
-// Поле со сканером: текстовое поле + кнопка «📷»
+// Field with a scanner: a text field + the «📷» button
 function scanField(key, label, kind, value) {
   const input = h('input', { type: 'text', value: value ?? '', autocomplete: 'off', autocapitalize: 'characters', style: { flex: 1, minWidth: 0 } });
-  if (kind === 'mac') input.addEventListener('blur', () => { const m = normalizeMac(input.value); if (m) input.value = m; }); // 12 символов → AA:BB:…
+  if (kind === 'mac') input.addEventListener('blur', () => { const m = normalizeMac(input.value); if (m) input.value = m; }); // 12 characters → AA:BB:…
   const btn = h('button', { type: 'button', class: 'sec', onclick: () => scanDevice({ kind, onPick: (v) => { input.value = v; input.dispatchEvent(new Event('input', { bubbles: true })); } }) }, '📷');
   return { key, label, type: 'custom', build: () => ({ el: h('div', { style: { display: 'flex', gap: '8px' } }, input, btn), get: () => (input.value.trim() === '' ? undefined : input.value.trim()) }) };
 }
 
-// Выбор из имеющихся в проекте (шкафы, этажи) или «✏️ Новый…» — своё значение. empty — подпись пустого варианта
+// A choice among the values already in the project (racks, floors) or «✏️ Новый…» — an own value. empty — the label of the empty option
 const sortRu = (a, b) => a.localeCompare(b, 'ru', { numeric: true });
 const projectValues = (key) => [...new Set([...state.ctx.points.values()].map((p) => String(p[key] ?? '').trim()).filter(Boolean))].sort(sortRu);
 function pickOrNewField(key, label, { empty = '—', hint = '' } = {}) {
@@ -138,7 +151,7 @@ function pickOrNewField(key, label, { empty = '—', hint = '' } = {}) {
   } };
 }
 
-// Что связано с точками: записи работ и незавершённые протяжки (для предупреждений при удалении, смене типа и шкафа)
+// What is tied to the points: work records and unfinished pulls (for warnings on delete, type change and rack change)
 async function usageOf(ids) {
   const set = new Set(ids);
   const rec = ids.reduce((n, id) => n + (state.ctx.journalByPoint.get(id) || []).length, 0);
@@ -146,12 +159,12 @@ async function usageOf(ids) {
   try {
     const { allPulls } = await import('./pullview.js'); const { pullStatus, pullTitle } = await import('../../domain/pull.js');
     pulls = allPulls().filter((p) => (p.pointIds || []).some((id) => set.has(id)) && pullStatus(p, (id) => state.ctx.points.has(id)) !== 'Завершена').map((p) => pullTitle(p));
-  } catch { /* без протяжек */ }
+  } catch { /* no pulls */ }
   return { rec, pulls };
 }
 const pullsText = (u) => (u.pulls.length ? ` Точки лежат в незавершённых протяжках: ${u.pulls.slice(0, 3).join(', ')}${u.pulls.length > 3 ? '…' : ''}.` : '');
 
-// Точка, какой она станет после сохранения формы (для поля «Работы на точках»)
+// The point as it will be after the form is saved (for the «Работы на точках» field)
 const formPoint = (point, v) => ({ ...(point || { id: '__new' }), label: v.label, cabinet: v.cabinet, typeId: v.typeId, configId: isDoorType(v.typeId) ? v.configId : undefined,
   ...(doorCfgSet(v) ? { devices: null, cables: null, cableOverride: null } : { ...compData(v.typeId, v.comp), cableOverride: v.cableOverride ?? null }) });
 export function pointForm(point, { onDone } = {}) {
@@ -256,7 +269,7 @@ export function generatorForm() {
       const labels = labelsOf(v);
       if (!labels.length) { toast('Нечего создавать: проверьте «от», «до» и шаг'); return false; }
       if (!v.cabinet) { toast('Укажите шкаф — точки добавляются только с шкафом'); return false; }
-      const have = new Set([...state.ctx.points.values()].filter((p) => (p.cabinet || '') === v.cabinet).map((p) => p.label));   // дубль — только в том же шкафу
+      const have = new Set([...state.ctx.points.values()].filter((p) => (p.cabinet || '') === v.cabinet).map((p) => p.label));   // a duplicate counts only in the same rack
       const fresh = labels.filter((l) => !have.has(l));
       if (!fresh.length) { toast('Все такие точки уже есть в этом шкафу'); return false; }
       if (fresh.length > 100 && !(await confirmDialog(`Создать ${fresh.length} точек?`, { yes: 'Создать' }))) return false;
@@ -269,7 +282,7 @@ export function generatorForm() {
   });
 }
 
-// Ввод длины: «Сохранить и дальше» открывает следующую точку того же шкафа и типа
+// Length input: «Сохранить и дальше» opens the next point of the same rack and type
 export function meterForm(startPoint) {
   const repo = getRepo(); const pid = currentProject().id;
   let point = startPoint;
@@ -278,13 +291,13 @@ export function meterForm(startPoint) {
     const i = list.findIndex((p) => p.id === point.id);
     return list.slice(i + 1).find((p) => p.cabinet === point.cabinet && p.typeId === point.typeId);
   };
-  // Одно окно на всю серию точек: поле ввода не пересоздаётся, поэтому клавиатура на телефоне не закрывается
+  // One dialog for the whole series of points: the input is not recreated, so the phone keyboard stays open
   const titleEl = h('b', {});
   const labelEl = h('span', {});
   const input = h('input', { type: 'text', inputMode: 'decimal', autocomplete: 'off', autocapitalize: 'off', enterKeyHint: 'next' });
   const errBox = h('div', { class: 'err' });
   const okBtn = h('button', { type: 'submit', class: 'grow' });
-  // не даём кнопке забрать фокус у поля ввода (иначе iOS убирает клавиатуру)
+  // do not let the button take focus from the input (otherwise iOS hides the keyboard)
   okBtn.addEventListener('pointerdown', (e) => e.preventDefault());
   okBtn.addEventListener('mousedown', (e) => e.preventDefault());
   const more = h('button', { type: 'button', class: 'sec', onclick: () => { const pt = point; close(); setTimeout(() => pointForm(pt), 60); } }, 'Подробнее…');
@@ -313,7 +326,7 @@ export function meterForm(startPoint) {
   show(point);
 }
 
-// Значок, отмеченный на плане (✋/👆), — на самом деле уже существующая точка проекта: перенести ей место на чертеже, значок удалить
+// A mark put on the plan (✋/👆) is in fact an existing point of the project: move its place on the drawing to that point and delete the mark
 function bindToPoint(src, closeCard) {
   choosePoint({ title: `🔗 Чья это отметка «${src.label}»?`, typeId: src.typeId, exclude: src.id, onPick: async (p) => {
     const rows = state.data.journal.filter((r) => r.pointId === src.id && !r.deleted);
@@ -327,7 +340,7 @@ function bindToPoint(src, closeCard) {
   } });
 }
 
-// Карточка точки: сведения, история работ (что, когда, кто) и действия
+// Point card: details, work history (what, when, who) and actions
 export function pointCard(startPoint, { fromPlan = false } = {}) {
   const proj = currentProject();
   let close = () => {};
@@ -361,14 +374,14 @@ export function pointCard(startPoint, { fromPlan = false } = {}) {
         !fromPlan && p.pos && drawingFor(p) ? h('button', { class: 'sec', onclick: () => { close(); setTimeout(() => planModal({ point: p }), 60); } }, '📍 На чертеже') : null,
         !fromPlan && !(p.pos && drawingFor(p)) && drawingsOf().length ? h('button', { class: 'sec', onclick: () => { close(); setTimeout(() => planModal({ placeFor: p }), 60); } }, '📍 Отметить на плане') : null,
         fromPlan && p.pos && String(p.note || '').includes('значок без номера') ? h('button', { class: 'sec', onclick: () => bindToPoint(p, close) }, '🔗 Привязать к точке') : null,
-        // значок типа на плане у точки, добавленной на объекте: показать / убрать
+        // the type mark on the plan for a point added on site: show / remove
         fromPlan && p.pos && (p.pos.icon || String(p.note || '').includes('добавлено на плане')) ? h('button', { class: 'sec', onclick: () => {
           const ic = currentProject()?.typeIcons?.[p.typeId]; const on = !p.pos.icon;
           const pos = on ? { ...p.pos, icon: true, w: ic?.w || p.pos.w || 10, h: ic?.h || p.pos.h || 10 } : { ...p.pos, icon: false };
           getRepo().save(currentProject().id, [{ coll: 'points', id: p.id, data: { pos } }]);
           toast(on ? (ic ? 'Значок типа нарисован' : 'Значок у типа не задан — задайте в плане «📌 Значки типов»') : 'Значок убран'); close();
         } }, p.pos.icon ? '🖼 Убрать значок типа' : '🖼 Нарисовать значок типа') : null),
-      // работы по точке: сверху — что ещё не сделано (цвет по этапу), ниже — сделанное зелёным (дата, кто, правка)
+      // works of the point: on top what is not done yet (colored by stage), below what is done, in green (date, who, edit)
       h('div', { class: 'group', style: { padding: '12px 0 6px' } }, `Работы: осталось ${left.length} · сделано ${rows.length}`),
       left.length ? h('div', {}, left.map((t) => h('div', { class: `wk todo ${t.chip || ''}` }, h('b', {}, `${t.label}${t.qty > 1 ? ` ×${t.qty}` : ''}`), h('span', { class: 'wk-st' }, 'осталось')))) : h('div', { class: 'wk done' }, h('b', {}, '✅ Всё сделано')),
       ...rows.map((r) => {
@@ -381,8 +394,8 @@ export function pointCard(startPoint, { fromPlan = false } = {}) {
   close = openModal(startPoint.label, body);
 }
 
-// «Что осталось»: все работы, которые ещё ждут точки проекта (по составу точки), с фильтрами по работе, шкафу, типу и протяжке.
-// Галочками выбрать точки → «✅ Записать работу» (форма записи отчёта с выбранной работой и точками).
+// «Что осталось»: all works still waiting for the project's points (by each point's composition), with filters by work, rack, type and pull.
+// Tick points → «✅ Записать работу» (the report entry form with the chosen work and points).
 function leftTasksOf(point) {
   const ctx = state.ctx; const info = infoOf(point); const out = new Map();
   const add = (key, label, chip) => { if (!out.has(key)) out.set(key, { key, label, chip }); };
@@ -405,7 +418,7 @@ export function remainingModal() {
   const all = pointsSorted().map((point) => ({ point, left: leftTasksOf(point), info: infoOf(point) })).filter((r) => r.left.length);
   const body = h('div', {});
   let close = () => {};
-  // варианты работ — с числом точек
+  // work options — with the number of points
   const counts = new Map(); all.forEach((r) => r.left.forEach((t) => { const c = counts.get(t.key) || { ...t, n: 0 }; c.n++; counts.set(t.key, c); }));
   const order = (k) => (k.startsWith('p:') || k === 's:Протяжка' || k === 's:Дотянуть' ? 0 : 1);
   const workOpts = [...counts.values()].sort((a, b) => order(a.key) - order(b.key) || a.label.localeCompare(b.label, 'ru'));
@@ -422,7 +435,7 @@ export function remainingModal() {
   const bar = h('div', { class: 'btns', style: { marginTop: '6px' } });
   const listBox = h('div', {});
   function fill() {
-    // список пересобирается при каждой галочке — запоминаем прокрутку, чтобы не прыгало наверх
+    // the list is rebuilt on every tick — remember the scroll position so it does not jump to the top
     const oldList = listBox.querySelector('.rem-list'); const sb = body.closest('.sheet-body');
     const keep = { list: oldList ? oldList.scrollTop : 0, sheet: sb ? sb.scrollTop : 0 };
     const rows = shown(); const ids = new Set(rows.map((r) => r.point.id));
@@ -455,14 +468,14 @@ export function remainingModal() {
   close = openModal('Что осталось', body, { wide: true });
 }
 
-// Массовые действия: выбранные точки (живёт, пока открыто приложение)
+// Mass actions: the selected points (lives while the app is open)
 let selMode = false; const selected = new Set();
 
-// Групповое переименование: убрать/заменить часть названия, сдвинуть номер, добавить в начало/конец — с предпросмотром и проверкой повторов
+// Group rename: remove/replace a part of the name, shift the number, add at the start/end — with a preview and a check for repeats
 export function renameForm(ids, done) {
   const pts = ids.map((id) => state.ctx.points.get(id)).filter(Boolean).sort(comparePoints);
   const others = [...state.ctx.points.values()].filter((p) => !ids.includes(p.id));
-  // общее начало у всех выбранных — подсказка «убрать»
+  // a start common to all selected points — a hint for «убрать»
   let common = pts[0]?.label || ''; for (const p of pts) { while (common && !p.label.startsWith(common)) common = common.slice(0, -1); }
   const find = h('input', { placeholder: common ? `Что убрать, например: ${common}` : 'Что убрать или заменить' });
   const where = h('select', {}, h('option', { value: 'start' }, 'в начале'), h('option', { value: 'any' }, 'везде'), h('option', { value: 'end' }, 'в конце'));
@@ -476,7 +489,7 @@ export function renameForm(ids, done) {
   const calc = () => {
     const op = { find: find.value, replace: repl.value, where: where.value, shift: shift.value, prefix: prefix.value, suffix: suffix.value };
     plan = pts.map((p) => ({ p, to: renameLabel(p.label, op).trim(), issue: renameIssue(p.label, op) }));
-    // повтор — только в одном и том же шкафу (в разных шкафах и у точек без шкафа одинаковые названия можно)
+    // a repeat counts only in the same rack (the same names are allowed in different racks and for points without a rack)
     const cnt = new Map(); plan.forEach((x) => { const k = labelKey(x.to, x.p.cabinet); cnt.set(k, (cnt.get(k) || 0) + 1); });
     plan.forEach((x) => { x.bad = !x.to ? 'пустое название' : x.issue === 'negative' ? 'номер стал бы отрицательным' : others.some((o) => sameLabelClash(o, { label: x.to, cabinet: x.p.cabinet })) ? (x.p.cabinet ? 'уже есть в этом шкафу' : 'уже есть среди точек без шкафа') : cnt.get(labelKey(x.to, x.p.cabinet)) > 1 ? 'повтор' : ''; });
     const changed = plan.filter((x) => x.to !== x.p.label); const bad = plan.filter((x) => x.bad && x.to !== x.p.label);
@@ -509,7 +522,7 @@ export function renameForm(ids, done) {
   calc();
 }
 
-// Точка, какой она станет после группового изменения типа и кабелей (для поля «Работы на точках»)
+// The point as it will be after the group change of type and cables (for the «Работы на точках» field)
 const bulkPoint = (v) => (pt) => {
   const x = { ...pt };
   if (v.typeId) Object.assign(x, { typeId: v.typeId, devices: null, cables: null, cableOverride: null });
@@ -540,7 +553,7 @@ export function bulkEditForm(ids, done) {
     ],
     onSubmit: async (v) => {
       if (!v.cabinet && !v.floor && !v.typeId && !v.setCables && v.length === undefined && !v.clearLength && !v.delayReasonId && !v.noteAdd && !v.configId && v.portFrom === undefined && !v.clearPort && !v.ownWorks?.size) { toast('Ничего не выбрано для изменения'); return false; }
-      if (v.cabinet) {   // в шкафу не должно появиться двух точек с одним обозначением
+      if (v.cabinet) {   // a rack must not end up with two points with the same label
         const sel = ids.map((id) => state.ctx.points.get(id)).filter(Boolean); const seenL = new Set();
         const bad = sel.find((pt) => { if (seenL.has(pt.label)) return true; seenL.add(pt.label); return [...state.ctx.points.values()].some((x) => !ids.includes(x.id) && sameLabelClash(x, { label: pt.label, cabinet: v.cabinet })); });
         if (bad) { toast(`«${bad.label}» уже есть в шкафу ${v.cabinet} — перенести нельзя`); return false; }
@@ -554,7 +567,7 @@ export function bulkEditForm(ids, done) {
         if (warn.length && !(await confirmDialog(`⚠ ${warn.join(' ')} Применить?`, { yes: 'Применить' }))) return false;
       }
       let clearPanel = new Set();
-      if (v.cabinet) {   // порты панели переезжают вместе с точкой: если в новом шкафу они заняты или закрыты крестиком — предупредить
+      if (v.cabinet) {   // panel ports move together with the point: warn if in the new rack they are taken or crossed out
         const sel = ids.map((id) => state.ctx.points.get(id)).filter((pt) => pt && panelOf(pt).length && (pt.cabinet || '') !== v.cabinet);
         if (sel.length) {
           const busy = panelOccupancy([...state.ctx.points.values()].filter((x) => !ids.includes(x.id) && (x.cabinet || '') === v.cabinet));
