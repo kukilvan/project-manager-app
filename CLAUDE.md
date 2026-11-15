@@ -27,6 +27,7 @@ Owner's shell: PowerShell, in the project folder. Node.js 22+.
 - Translations after adding UI strings: `node scripts/i18n-build.mjs`
 - Code map: `node tools/code-map.mjs` (check only: `--check`)
 - Only comments changed: `node tools/same-code.mjs`
+- NAS check: `node tools/nas-check.mjs https://<host>`
 - Deploy: push to `main`; watch it: `gh run list --workflow pages.yml --limit 1`
 
 ## Agent skills
