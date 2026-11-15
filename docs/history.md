@@ -2,6 +2,11 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-15 — Review 1: stage 1 closed («Ревью 1»)
+
+- `.scratch/01-code-docs/review.md`: the whole stage (`0fa2436..48ceeed`) against the spec and coding standards, two parallel passes; `same-code` over the whole stage exit 0 (only comments changed, built site byte-identical); owner check walked in `?mem=1`, then done by the owner on the phone.
+- 16 findings, 15 fixed now: pullview Contents, `src/domain/index.js` header, three test headers, glossary words and American spelling in comments (rule 10 now says so), code-map facts (sync limits, workflow schedules, tohnit files, journal ids by pointer), rule 11 names the open-rules exception; tools: `ru-comments` scope matches the code map, YAML apostrophe, `same-code` compares token source text. KI-3 (two same-code runs at once) deferred. 160 tests.
+
 ## 2026-11-15 — Ticket 1.9: architecture section and strict checks («Тикет 1.9»)
 
 - `docs/code-map.md`: the hand-written architecture written from the code and module headers — start, storage and the repo, sync and read saving, offline, data paths, Google Drive and Sheets, server jobs, drawings; the "Not code" list checked against `git ls-files` (added `package.json`, `package-lock.json`, `tests/`, `.gitignore`, the `tools/tohnit/` sources). Hand-written part 8,927 bytes, whole file ≈ 30 KB: the ticket's "≤ 10,000 bytes for the whole file" cannot hold with a built list of ≈ 21 KB, so the spec 13 limit (the architecture section) was kept — left to «Ревью 1».

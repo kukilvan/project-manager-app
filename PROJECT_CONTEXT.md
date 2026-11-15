@@ -4,16 +4,17 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 ## Next step
 
-«Ревью 1» — review of stage 1 «Code documentation»: the whole stage (9 tickets) against `.scratch/01-code-docs/spec.md` and `docs/coding-standards.md`, one pass for standards and one for the spec; output `.scratch/01-code-docs/review.md`. After it the owner's one check of the stage (spec section 12). Note for the review: ticket 09 asked for ≤ 10,000 bytes for the whole `docs/code-map.md`, which the built list alone (≈ 21 KB) exceeds; spec 13 limits the hand-written part, and that is what was kept (8,927 bytes). Model: Opus 5.5, effort xhigh (`docs/models.md`: review with complex tickets).
+«Описание 2» — description of stage 2 «What the app needs from the NAS» (`docs/project-spec.md`): output `.scratch/02-<slug>/description.md`. Wishes of Review 1: `.scratch/01-code-docs/review.md`, "Wishes". Model: Opus 5.5, effort high (`docs/models.md`: description).
 
 Quick fixes «Правка: …» may come at any time; they do not change this step.
 
 ## State
 
 - Version 1.2.0 live at https://kukilvan.github.io/project-manager-app/; everything up to commit `2966523` checked by the owner on the phone (branch `rollback-2026-11-09b`; rollback point before stage 1: `rollback-2026-11-10`, same code). Ticket 1.1 (tools, KI-1, KI-2) live 2026-11-10, commit `036d628`; ticket 1.2 (`src/domain/`) live 2026-11-10, commit `464c2a3`; ticket 1.3 (app core) live 2026-11-10, commit `e5a5f8f`; ticket 1.4 (views 1) live 2026-11-10, commit `634ed75`; ticket 1.5 (views 2) live 2026-11-15, commit `f74dd93`; ticket 1.6 (views 3) live 2026-11-15, commit `2bb81c2`; ticket 1.7 (drawings, scripts, config) live 2026-11-15, commit `4017aa2`; ticket 1.8 (tests and Python tools) live 2026-11-15, commit `d7b0e7e`; ticket 1.9 (architecture, strict checks) live 2026-11-15, commit `cc52459`; the built site byte-identical to the checked one each time (ticket 1.7: apart from the comment text of the open rules the setup wizard copies; tickets 1.8 and 1.9 changed no built file).
+- Stage 1 done 2026-11-15: «Ревью 1» accepted (16 findings: 15 fixed, KI-3 deferred; no fix round), the owner checked the stage on the phone (spec 12).
 - Stage 1: description, spec and slicing accepted 2026-11-10 — all Russian comments translated in this stage; 9 tickets in `.scratch/01-code-docs/issues/` (01 tools, 02 domain, 03 app core, 04–06 views, 07 drawings/scripts/config, 08 tests and Python, 09 architecture and strict checks); every ticket proves «only comments changed, built site byte-identical» with `tools/same-code.mjs` (ticket 01) and goes live without waiting for «Работает»; the owner checks once after the stage review.
 - 2026-11-10: project moved onto this workflow (`docs/history.md`); `HANDOFF.md` split into these docs and removed (original at commit `44ac16d`).
-- Tests: 159, all pass on the owner's Windows PC and on the Linux deploy.
+- Tests: 160, all pass on the owner's Windows PC and on the Linux deploy.
 - Stage 1: baseline 1,751 Russian comments in 144 files, 0 left; every one of the 127 modules in `docs/code-map.md` has an English header; the map has its architecture section; `PENDING` is gone, so `tools/code-map.mjs` and `tools/ru-comments.mjs` (and `tests/code-docs.test.js`) are strict; `tools/tohnit/__pycache__` is no longer tracked.
 - The owner's NAS arrives 2026-11-11 without disks; its setup is a separate project. This app hands it requirements in stage 2.
 - Open tails, status unconfirmed: possible management-sheet tweaks and a list of old Drive files to delete (stage 3); photos on points deferred by the owner.
@@ -22,7 +23,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 
 | # | Stage | Status | Sessions (est.) | Ideas |
 |---|---|---|---|---|
-| 1 | Code documentation | tickets 9/9 | 14 | — |
+| 1 | Code documentation | done | 14 | — |
 | 2 | What the app needs from the NAS | not started | 6 | — |
 | 3 | Management sheets | not started | 8 | — |
 | 4 | PocketBase storage (when the owner trusts the NAS) | not started | 16 | — |
