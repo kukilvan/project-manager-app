@@ -4,7 +4,7 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 ## Next step
 
-«Тикет 1.9» — ticket 09 of stage 1 «Code documentation»: the hand-written architecture section of `docs/code-map.md`; the end of `PENDING` (the tools and the stage test become strict); file `.scratch/01-code-docs/issues/09-architecture-and-strict-checks.md`. Model: Opus 5.5, effort high (`docs/models.md`: complex ticket).
+«Тикет 1.9» — ticket 09 of stage 1 «Code documentation»: the hand-written architecture section of `docs/code-map.md`; the end of `PENDING` (the tools and the stage test become strict); file `.scratch/01-code-docs/issues/09-architecture-strict.md`. Model: Opus 5.5, effort high (`docs/models.md`: complex ticket).
 
 Quick fixes «Правка: …» may come at any time; they do not change this step.
 
