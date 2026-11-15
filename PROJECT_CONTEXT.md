@@ -4,19 +4,20 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 ## Next step
 
-«Описание 2» — description of stage 2 «What the app needs from the NAS» (`docs/project-spec.md`): output `.scratch/02-<slug>/description.md`. Wishes of Review 1: `.scratch/01-code-docs/review.md`, "Wishes". Model: Opus 5.5, effort high (`docs/models.md`: description).
+«Спека 2» — spec of stage 2 «What the app needs from the NAS»: output `.scratch/02-nas-requirements/spec.md`, built from the accepted description (its open questions first; check PocketBase on a local binary in the scratchpad where possible; ADR 0013). Model: Opus 5.5, effort high (`docs/models.md`: spec).
 
 Quick fixes «Правка: …» may come at any time; they do not change this step.
 
 ## State
 
 - Version 1.2.0 live at https://kukilvan.github.io/project-manager-app/; everything up to commit `2966523` checked by the owner on the phone (branch `rollback-2026-11-09b`; rollback point before stage 1: `rollback-2026-11-10`, same code). Ticket 1.1 (tools, KI-1, KI-2) live 2026-11-10, commit `036d628`; ticket 1.2 (`src/domain/`) live 2026-11-10, commit `464c2a3`; ticket 1.3 (app core) live 2026-11-10, commit `e5a5f8f`; ticket 1.4 (views 1) live 2026-11-10, commit `634ed75`; ticket 1.5 (views 2) live 2026-11-15, commit `f74dd93`; ticket 1.6 (views 3) live 2026-11-15, commit `2bb81c2`; ticket 1.7 (drawings, scripts, config) live 2026-11-15, commit `4017aa2`; ticket 1.8 (tests and Python tools) live 2026-11-15, commit `d7b0e7e`; ticket 1.9 (architecture, strict checks) live 2026-11-15, commit `cc52459`; the built site byte-identical to the checked one each time (ticket 1.7: apart from the comment text of the open rules the setup wizard copies; tickets 1.8 and 1.9 changed no built file).
+- Stage 2: description accepted 2026-11-15 (`.scratch/02-nas-requirements/description.md`): output `docs/nas-requirements.md`, no code change; site and PocketBase both on the NAS, used by the owner and helpers, through a Cloudflare Tunnel to the owner's own domain (ADR 0013).
 - Stage 1 done 2026-11-15: «Ревью 1» accepted (16 findings: 15 fixed, KI-3 deferred; no fix round), the owner checked the stage on the phone (spec 12).
 - Stage 1: description, spec and slicing accepted 2026-11-10 — all Russian comments translated in this stage; 9 tickets in `.scratch/01-code-docs/issues/` (01 tools, 02 domain, 03 app core, 04–06 views, 07 drawings/scripts/config, 08 tests and Python, 09 architecture and strict checks); every ticket proves «only comments changed, built site byte-identical» with `tools/same-code.mjs` (ticket 01) and goes live without waiting for «Работает»; the owner checks once after the stage review.
 - 2026-11-10: project moved onto this workflow (`docs/history.md`); `HANDOFF.md` split into these docs and removed (original at commit `44ac16d`).
 - Tests: 160, all pass on the owner's Windows PC and on the Linux deploy.
 - Stage 1: baseline 1,751 Russian comments in 144 files, 0 left; every one of the 127 modules in `docs/code-map.md` has an English header; the map has its architecture section; `PENDING` is gone, so `tools/code-map.mjs` and `tools/ru-comments.mjs` (and `tests/code-docs.test.js`) are strict; `tools/tohnit/__pycache__` is no longer tracked.
-- The owner's NAS arrives 2026-11-11 without disks; its setup is a separate project. This app hands it requirements in stage 2.
+- The owner's NAS arrives 2026-11-11 without disks; its setup is a separate project. This app hands it requirements in stage 2 (`docs/nas-requirements.md`).
 - Open tails, status unconfirmed: possible management-sheet tweaks and a list of old Drive files to delete (stage 3); photos on points deferred by the owner.
 
 ## Stages
@@ -24,7 +25,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 | # | Stage | Status | Sessions (est.) | Ideas |
 |---|---|---|---|---|
 | 1 | Code documentation | done | 14 | — |
-| 2 | What the app needs from the NAS | not started | 6 | — |
+| 2 | What the app needs from the NAS | spec | 6 | — |
 | 3 | Management sheets | not started | 8 | — |
 | 4 | PocketBase storage (when the owner trusts the NAS) | not started | 16 | — |
 | 5 | Move to the NAS | not started | 10 | — |

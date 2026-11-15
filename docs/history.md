@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-15 — Description 2: NAS requirements («Описание 2»)
+
+- `.scratch/02-nas-requirements/description.md`: stage 2 writes `docs/nas-requirements.md` (11 parts: PocketBase, site on the NAS, Cloudflare Tunnel, sign-in and Google, server jobs, backups, data volume, power and network, acceptance checks, open questions); no code change. Facts: latest backup 2026-11-13 — two projects, ≈ 15,000 documents, full JSON ≈ 18 MB.
+- Owner's decisions: the site moves to the NAS too (new address, icons reinstalled; GitHub Pages stays for everyone else); the copy is used by the owner and the helpers, so public HTTPS without a VPN app; Cloudflare Tunnel to the owner's own domain (≈ 40 ₪ a year); document in English, no Russian summary. Recorded as ADR 0013; `docs/project-spec.md` stage 2 points to the description.
+- Open for the spec: one address or two subdomains, build delivery to the NAS, where server jobs run, Cloudflare Access, PocketBase checks on a real instance, drawings size, a `tools/nas-check.mjs` acceptance tool.
+
 ## 2026-11-15 — Review 1: stage 1 closed («Ревью 1»)
 
 - `.scratch/01-code-docs/review.md`: the whole stage (`0fa2436..48ceeed`) against the spec and coding standards, two parallel passes; `same-code` over the whole stage exit 0 (only comments changed, built site byte-identical); owner check walked in `?mem=1`, then done by the owner on the phone.

@@ -71,7 +71,7 @@ Description approved: `.scratch/01-code-docs/description.md` (it overrides this 
 
 ### Stage 2. What the app needs from the NAS
 
-Description: `.scratch/02-nas-requirements/description.md` (it overrides this section once accepted). Site and PocketBase both on the NAS, reached through a Cloudflare Tunnel to the owner's own domain (ADR 0013).
+Description: `.scratch/02-nas-requirements/description.md` approved (it overrides this section). Site and PocketBase both on the NAS, reached through a Cloudflare Tunnel to the owner's own domain (ADR 0013).
 
 - Goal: the owner sets up a home NAS (UGREEN DXP2800, 2×3 TB HDD mirror, 500 GB NVMe) in a separate project; that project needs to know what this app requires to move there.
 - The owner sees at the end: a document for the NAS project (`docs/nas-requirements.md`): PocketBase (container, storage, ports), hosting the site on the NAS, HTTPS access from the phone outside home (Cloudflare Tunnel, own domain), backups, the server jobs now in GitHub Actions, Google sign-in and OAuth origins for the new address, the data volume.

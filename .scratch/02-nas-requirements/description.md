@@ -1,4 +1,4 @@
-Status: in review
+Status: accepted
 
 # Stage 2. What the app needs from the NAS — description
 
