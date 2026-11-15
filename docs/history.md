@@ -2,6 +2,13 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-15 — Ticket 1.7: drawings, scripts, config documented («Тикет 1.7»)
+
+- The 9 modules of `src/tohnit/` and the 12 of `scripts/` have an English header (first sentence = the code-map line; `vite.config.js` got one too, outside the map) and every Russian comment is translated: `src/style.css`, `vite.config.js`, `firestore.rules`, the three workflows with comments. The entries are removed from both `PENDING` lists. Commit `4017aa2`, branch `claude/s01-ticket-07`; deploy of `main` succeeded.
+- The one real text change: the two comment literals of `src/domain/openrules.js` are translated and `firestore.open.rules` regenerated from `firestore.rules` (never by hand), so the setup chunk of the built site carries English comments in the rules the wizard copies. Databases already set up need nothing (probe check, spec 1). `same-code` check 1 listed `openrules.js` as expected (read: exactly the two literals); check 2 passed with the new open rules copied into the base build.
+- Proof: `node tools/same-code.mjs --expect src/domain/openrules.js --expect tools/code-map.mjs --expect tools/ru-comments.mjs` — every other file comment-only; 158/158 tests; `code-map --check` exit 0; 0 Russian comments in the ticket's paths.
+- Found: `scripts/export-pool.mjs` says «run by hand» while the weekly workflow runs `starter-from-backup.mjs`; the header now says so. A stale comment, not a bug: no `KNOWN_ISSUES.md` entry.
+
 ## 2026-11-15 — Ticket 1.6: views 3 documented («Тикет 1.6»)
 
 - The last 18 files of `src/app/views/` (`doh`, `settings`, `wizard`, `catalogview`, `project`, `poolview`, `shilutsettings`, `managersfolder`, `tables`, `todos`, `sheetslist`, `history`, `manualsview`, `members`, `journal`, `projects`, `month`, `log`) have an English header (first sentence = the code-map line; `doh.js` and `settings.js` also a Contents list; `log.js` had none before) and all 164 Russian comments translated; their entries removed from both `PENDING` lists, so `src/app/views/` is clean. Commit `2bb81c2`, branch `claude/s01-ticket-06`; deploy of `main` succeeded.
