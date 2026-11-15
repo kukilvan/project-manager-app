@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-15 — Review 2: stage 2 closed («Ревью 2»)
+
+- `.scratch/02-nas-requirements/review.md`: the whole stage (`2deeaa5..20d6edf`) against the spec and coding standards, two parallel passes, then runs on a real PocketBase 0.40.6 (Windows binary) and on the NAS document's Dockerfile and Compose example built in Docker (downloads allowed by the owner; all removed from the scratchpad and Docker at the end).
+- 15 findings, all fixed now, no fix round: the WAF rule and A3b also cover the superuser collection's id `pbc_3142635823` (a wrong password gets 400, a right one 403, so the id path was a password oracle); `PB_ENCRYPTION_KEY` exactly 32 characters (another length: PocketBase exits, restart loop); the first-superuser command with `--encryptionEnv`; password sign-in off does not stop sign-up through the records API (stage 4 sets the `users` rules, in `docs/project-spec.md`); A8 needs 200 on the second answer, A9 SKIPs only for 404 or the HTML fallback; the cleanup row names history; project-spec stage 4 points to R-ids instead of repeating numbers; settings count as musts; test host allow list as spec § 6; the document test resolves its path from the file; tool naming; `docs/formats.md` allows `accepted (planned, stages …)`; PROJECT_CONTEXT state folded.
+- Checked: backup into the separately mounted folder and a restore work in the container; `auth-refresh` is not counted by `*:auth`. Not checked: anything through a real Cloudflare Tunnel. Tests 191 → 192. NAS document version `11f01e9`.
+
 ## 2026-11-15 — Ticket 2.2: the NAS check tool («Тикет 2.2»)
 
 - `tools/nas-check.mjs`: A1–A9 and the realtime cut time (A7, A7i); `parseArgs`, `judgeA1…A9`, `checkRealtime`, `runChecks` (takes a `fetch` function), `main`; no file read or written, no dependency. `tests/nas-check.test.js`: 31 tests (stubbed responses, a stubbed realtime stream, the CLI, the NAS document check). `CLAUDE.md` Run line and the `docs/code-map.md` tools line. Tests 160 → 191.
