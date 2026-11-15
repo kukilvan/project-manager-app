@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-15 — Ticket 2.1: the NAS document («Тикет 2.1»)
+
+- `docs/nas-requirements.md` (24,391 bytes): sections 1–12 as spec 2 § 3; 32 requirement ids with phases; a Dockerfile (Alpine 3.22, release zip with SHA-256 re-checked against `checksums.txt`) and a Compose example (`pocketbase`, `cloudflared` 2026.11.0, secrets in `.env`); acceptance checks A1–A14 exactly as spec § 3.10. Added beyond the spec: the placeholder `<docker-subnet>` (superuser IPs need the Docker network's subnet, and the document may hold no real IP); a note that PocketBase also accepts a collection id in the URL, so the WAF rule on `_superusers` is only the outer layer and the superuser IP list is what holds; a "should" that helpers be test users while the OAuth consent screen is in Testing.
+- ADR 0014 (D1–D4 with rejected options); `docs/project-spec.md` stage 2 output, stage 4 PocketBase facts and the rate-limit note, start condition A1–A7 and A10–A13, stage 5 contents; `CONTEXT.md`: NAS copy, NAS document, NAS check.
+- Version line names commit `a528881` (the content commit); live in `main` at `00aa606`. The push to `main` was first stopped by the auto-mode classifier; the owner approved it in chat. Owner checked the GitHub link.
+
 ## 2026-11-15 — Stage 2 slicing («Тикеты 2»)
 
 - Two tickets in `.scratch/02-nas-requirements/issues/` accepted: 01 the NAS document, ADR 0014, project spec and `CONTEXT.md` (complex, Opus 5.5); 02 `tools/nas-check.mjs`, `tests/nas-check.test.js` with the document check, code map and `CLAUDE.md` lines (medium, blocked by 01). Branch `claude/s02-tickets`. Ticket files stay `open` until their own sessions.
