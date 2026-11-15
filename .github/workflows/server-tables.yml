@@ -1,8 +1,8 @@
 name: Server tables
 
-# Каждую ночь в 00:00 UTC (03:00 по Израилю летом, 02:00 зимой) обновляются таблицы для руководства, у которых включено автообновление.
-# Повтор в 07:20 UTC (10:20 по Израилю) — сразу после сброса суточного лимита Firebase (полночь по Тихоокеанскому времени).
-# Он работает, только если ночной запуск сегодня не удался (например, лимит чтения был исчерпан накануне).
+# Every night at 00:00 UTC (03:00 Israel time in summer, 02:00 in winter) the management sheets that have auto-update on are refreshed.
+# A retry at 07:20 UTC (10:20 Israel time), right after the daily Firebase quota reset (midnight Pacific time).
+# It runs only if tonight's run did not succeed today (for example, the read quota was used up the day before).
 on:
   schedule:
     - cron: '0 0 * * *'
@@ -11,7 +11,7 @@ on:
 
 permissions:
   contents: read
-  actions: write   # чтобы задача сама продлевала расписание (GitHub отключает расписание после 60 дней без активности)
+  actions: write   # lets the job renew its own schedule (GitHub disables a schedule after 60 days without activity)
 
 concurrency:
   group: server-tables

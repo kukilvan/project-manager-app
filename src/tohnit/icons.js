@@ -1,16 +1,17 @@
-// Значки без номеров: нажал на значок → нашлись такие же (по тексту внутри или по форме) → нумерация цепочкой по соседям.
+// Icons without numbers: tap an icon, find the same ones (by the text inside or by shape), then number them in a chain by neighbours.
+// Works on the output of scanPages and extractPdf; uses shapeSig and findSymbols from engine.js, and is called by worker.js; planpick.js takes regionOrder and numberLabels for the numbering.
 import { shapeSig, findSymbols } from './engine.js';
 
 const ctr = (s) => [(s.x0 + s.x1) / 2, (s.y0 + s.y1) / 2];
 const near = (s, x, y, pad) => x >= s.x0 - pad && x <= s.x1 + pad && y >= s.y0 - pad && y <= s.y1 + pad;
 
 /**
- * Что под пальцем и где ещё такое же.
- * spans — из scanPages (с bg), pages — extractPdf().pages, hidden(layer) — мусорные слои.
- * → { kind: 'text'|'shape', what, items: [{ page, x, y, w, h }] } или null
+ * What is under the finger and where else there is the same.
+ * spans come from scanPages (with bg), pages is extractPdf().pages, hidden(layer) tells junk layers.
+ * → { kind: 'text'|'shape', what, items: [{ page, x, y, w, h }] } or null
  */
 export function pickSimilar(spans, pages, page, x, y, { hidden = () => false, pad = 3 } = {}) {
-  // 1) короткий текст под пальцем (буква в квадратике, «1» в треугольнике…) — все такие же надписи того же вида
+  // 1) short text under the finger (a letter in a square, «1» in a triangle…): all the same captions of the same look
   const hit = spans.filter((s) => s.page === page && !s.c?.startsWith?.('sym:') && s.t.trim().length <= 5 && !/\s/.test(s.t.trim()) && near(s, x, y, pad))
     .sort((a, b) => (a.x1 - a.x0) * (a.y1 - a.y0) - (b.x1 - b.x0) * (b.y1 - b.y0))[0];
   if (hit) {
@@ -19,7 +20,7 @@ export function pickSimilar(spans, pages, page, x, y, { hidden = () => false, pa
     return { kind: 'text', what: `надпись «${t}»${hit.bg ? ' на цветном фоне' : ''}`, text: t,
       items: same.map((s) => ({ page: s.page, x: +ctr(s)[0].toFixed(1), y: +ctr(s)[1].toFixed(1), w: +(s.x1 - s.x0).toFixed(1), h: +(s.y1 - s.y0).toFixed(1) })) };
   }
-  // 2) векторный значок: связные линии одного цвета под пальцем
+  // 2) a vector icon: connected lines of one color under the finger
   const pg = pages[page]; if (!pg) return null;
   const R = 40;
   const cand = pg.paths.filter((p) => !hidden(p.layer) && p.bbox[0] <= x + R && p.bbox[2] >= x - R && p.bbox[1] <= y + R && p.bbox[3] >= y - R && Math.max(p.bbox[2] - p.bbox[0], p.bbox[3] - p.bbox[1]) <= 60);
@@ -43,7 +44,7 @@ export function pickSimilar(spans, pages, page, x, y, { hidden = () => false, pa
   return { kind: 'shape', what: `значок (#${sig.color}, ${Math.round(size)} pt)`, sig, items };
 }
 
-/** Нумерация цепочкой по соседям: от верхнего левого (или заданного) — к ближайшему ещё не занятому */
+/** Chain numbering by neighbours: from the top-left (or the given) item to the nearest one not yet taken */
 export function chainOrder(items, start = null) {
   const left = items.map((it, i) => ({ it, i }));
   if (!left.length) return [];
@@ -61,17 +62,17 @@ export function chainOrder(items, start = null) {
   return out;
 }
 
-/** Обозначения: буквы + номер с ведущими нулями (W01, W02…) */
-// step — сколько кабелей (портов) у каждой точки: при step > 1 название — диапазон «A01-02», «A03-04»…
+/** Labels: letters + a number with leading zeros (W01, W02…) */
+// step is how many cables (ports) each point has: with step > 1 the name is a range «A01-02», «A03-04»…
 export const numberLabels = (prefix, n, { from = 1, digits = 2, step = 1 } = {}) => Array.from({ length: n }, (_, i) => {
   const a = from + i * step; const pad = (v) => String(v).padStart(digits, '0');
   return step > 1 ? `${prefix}${pad(a)}-${pad(a + step - 1)}` : `${prefix}${pad(a)}`;
 });
 
 /**
- * Нумерация по областям: значки, стоящие кучно, — одна область (связаны, если ближе 3 «обычных» расстояний между соседями).
- * Области — по порядку чтения (сверху вниз полосами, в полосе слева направо); внутри области — строками слева направо, строки сверху вниз.
- * start — значок, с области (и строки) которого начать.
+ * Numbering by regions: icons standing in a cluster form one region (linked when closer than 3 «usual» distances between neighbours).
+ * Regions go in reading order (top to bottom in bands, left to right within a band); inside a region, by rows left to right, rows top to bottom.
+ * start is the icon whose region (and row) to begin with.
  */
 export function regionOrder(items, start = null) {
   const out = [];
@@ -85,7 +86,7 @@ export function regionOrder(items, start = null) {
     const par = its.map((_, i) => i); const f = (i) => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; };
     for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (d(its[i], its[j]) <= 3 * med) par[f(i)] = f(j);
     const groups = new Map(); its.forEach((it, i) => { const r = f(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(it); });
-    const rows = (list, tol) => {  // строки: близкие по высоте — одна строка, в строке слева направо
+    const rows = (list, tol) => {  // rows: items close in height are one row, and a row goes left to right
       const s = [...list].sort((a, b) => a.y - b.y); const res = []; let cur = []; let y0 = null;
       for (const it of s) { if (y0 === null || it.y - y0 <= tol) { cur.push(it); y0 ??= it.y; } else { res.push(cur); cur = [it]; y0 = it.y; } }
       if (cur.length) res.push(cur);
@@ -104,12 +105,12 @@ export function regionOrder(items, start = null) {
   return out;
 }
 
-/** Что под пальцем (для «➕ Вручную»): ближайшая короткая надпись (рамка) или значок из линий (круг); ничего рядом — null */
+/** What is under the finger (for «➕ Вручную»): the nearest short caption (a frame) or an icon made of lines (a circle); nothing near gives null */
 export function snapAt(spans, pages, page, x, y, { hidden = () => false, r = 12 } = {}) {
   const dRect = (s) => Math.hypot(Math.max(0, s.x0 - x, x - s.x1), Math.max(0, s.y0 - y, y - s.y1));
   const txt = spans.filter((s) => s.page === page && !String(s.c || '').startsWith('sym:') && s.t.trim().length <= 30 && dRect(s) <= r)
     .sort((a, b) => dRect(a) - dRect(b) || (a.x1 - a.x0) * (a.y1 - a.y0) - (b.x1 - b.x0) * (b.y1 - b.y0))[0];
-  // значок: связные линии одного цвета, не больше 60 pt, в которые попал палец (или рядом)
+  // an icon: connected lines of one color, at most 60 pt, that the finger hit (or is near)
   const pg = pages[page]; let shp = null;
   if (pg) {
     const cand = pg.paths.filter((p) => !hidden(p.layer) && Math.max(p.bbox[2] - p.bbox[0], p.bbox[3] - p.bbox[1]) <= 60 && p.bbox[0] <= x + r && p.bbox[2] >= x - r && p.bbox[1] <= y + r && p.bbox[3] >= y - r);
@@ -121,9 +122,9 @@ export function snapAt(spans, pages, page, x, y, { hidden = () => false, r = 12 
     const d = (b) => Math.hypot(Math.max(0, b[0] - x, x - b[2]), Math.max(0, b[1] - y, y - b[3]));
     shp = boxes.filter((b) => d(b) <= r).sort((a, b) => d(a) - d(b) || (a[2] - a[0]) * (a[3] - a[1]) - (b[2] - b[0]) * (b[3] - b[1]))[0] || null;
   }
-  // надпись важнее, если палец на ней (или она ближе значка)
+  // a caption wins if the finger is on it (or it is nearer than the icon)
   if (txt && (!shp || dRect(txt) <= Math.hypot(Math.max(0, shp[0] - x, x - shp[2]), Math.max(0, shp[1] - y, y - shp[3])))) {
-    const angle = txt.dir ? +(Math.atan2(txt.dir[1], txt.dir[0]) * 180 / Math.PI).toFixed(1) : 0;  // наклон надписи (0 — горизонтально)
+    const angle = txt.dir ? +(Math.atan2(txt.dir[1], txt.dir[0]) * 180 / Math.PI).toFixed(1) : 0;  // the caption's tilt (0 means horizontal)
     return { kind: 'text', label: txt.t.trim(), page, x: +((txt.x0 + txt.x1) / 2).toFixed(1), y: +((txt.y0 + txt.y1) / 2).toFixed(1), w: +(txt.x1 - txt.x0).toFixed(1), h: +(txt.y1 - txt.y0).toFixed(1), angle, size: txt.size || 0 };
   }
   if (shp) { const s = Math.max(shp[2] - shp[0], shp[3] - shp[1]); return { kind: 'shape', page, x: +((shp[0] + shp[2]) / 2).toFixed(1), y: +((shp[1] + shp[3]) / 2).toFixed(1), w: +s.toFixed(1), h: +s.toFixed(1) }; }

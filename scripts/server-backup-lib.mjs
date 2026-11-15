@@ -1,11 +1,12 @@
-// Серверная резервная копия: чистая логика (без обращения к сети), чтобы её можно было проверить тестом.
+// Server backup logic: reading projects from Firestore, writing the backup folders and planning a restore.
+// Kept free of network setup so tests can cover it; the callers are server-backup.mjs, server-restore.mjs and tests/. Uses buildBackup from src/app/backup.js.
 import { buildBackup } from '../src/app/backup.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
 const safe = (s) => String(s || 'проект').replace(/[\\/:*?"<>|]/g, '_').trim() || 'проект';
 
-// Читает проект целиком: сам документ и все его подколлекции (списки подколлекций берутся из базы, ничего не пропустит)
+// Reads a whole project: the document and all its subcollections (the subcollection list comes from the database, so none is missed)
 export async function readProject(projectRef, only) {
   const snap = await projectRef.get();
   const project = { id: projectRef.id, ...snap.data() };
@@ -19,8 +20,8 @@ export async function readProject(projectRef, only) {
   return { project, data };
 }
 
-// Экономный вариант: берём прошлую полную копию и читаем из базы только изменённое после неё (поле updatedAtServer
-// ставит приложение при каждой записи). Раз в неделю — полное чтение (на случай окончательно удалённых записей).
+// The economical variant: take the previous full copy and read from the database only what changed after it (the app sets updatedAtServer
+// on every write). Once a week a full read is done instead (for records deleted for good).
 export async function readProjectDelta(projectRef, prev, since, Timestamp) {
   const snap = await projectRef.get();
   const project = { id: projectRef.id, ...snap.data() };
@@ -37,7 +38,7 @@ export async function readProjectDelta(projectRef, prev, since, Timestamp) {
   return { project, data, reads };
 }
 
-// Прошлая полная копия каждого проекта (по id) из самой свежей папки копий
+// The previous full copy of each project (by id) from the newest backup folder
 export function previousBackups(root) {
   if (!fs.existsSync(root)) return new Map();
   const dirs = fs.readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory() && /^\d{4}-\d{2}-\d{2}_\d{4}$/.test(d.name)).map((d) => d.name).sort();
@@ -45,20 +46,20 @@ export function previousBackups(root) {
   for (const name of dirs.reverse()) {
     const dir = path.join(root, name);
     for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('(полная).json'))) {
-      try { const j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); if (j.project?.id && !out.has(j.project.id)) out.set(j.project.id, j); } catch { /* битая — пропускаем */ }
+      try { const j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); if (j.project?.id && !out.has(j.project.id)) out.set(j.project.id, j); } catch { /* broken file: skip it */}
     }
     if (out.size) break;
   }
   return out;
 }
 
-// Удалённые в приложении проекты (мягкое удаление) в копию не попадают
+// Projects deleted in the app (soft deletion) do not go into the backup
 export const isDeleted = (project) => project?.deleted === true;
 
-// Имя папки копии по времени: 2026-10-10_0000 (UTC), сортируется как дата
+// Backup folder name by time: 2026-10-10_0000 (UTC), sorts as a date
 export const stamp = (now) => now.toISOString().slice(0, 16).replace('T', '_').replace(':', '');
 
-// Записывает две копии проекта: «для импорта» (как кнопка «Резервная копия») и полную (всё, включая историю и участников)
+// Writes two copies of a project: «для импорта» (like the «Резервная копия» button) and a full one (everything, including history and members)
 export function writeProjectBackup(dir, { project, data, fullAt }, now) {
   const base = safe(project.name);
   const importable = buildBackup(project, data, now);
@@ -69,7 +70,7 @@ export function writeProjectBackup(dir, { project, data, fullAt }, now) {
   return { id: project.id, name: project.name, counts };
 }
 
-// Оставляет только последние keep папок копий (имена сортируются по времени)
+// Keeps only the last `keep` backup folders (names sort by time)
 export function pruneOld(root, keep) {
   const dirs = fs.readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory() && /^\d{4}-\d{2}-\d{2}_\d{4}$/.test(d.name)).map((d) => d.name).sort();
   const drop = dirs.slice(0, Math.max(0, dirs.length - keep));
@@ -77,8 +78,8 @@ export function pruneOld(root, keep) {
   return drop;
 }
 
-// ---------- общее (не проекты): общий пул, список разрешённых почт, личные настройки пользователей ----------
-// Читает все корневые коллекции, кроме projects, и документы users/{uid}/prefs/{id}
+// ---------- common data (not projects): the shared pool, the allowed e-mails, users' personal settings ----------
+// Reads every root collection except projects, and the documents users/{uid}/prefs/{id}
 export async function readCommon(db) {
   const out = { format: 'polevoy-common-1', collections: {}, prefs: [] };
   for (const col of await db.listCollections()) {
@@ -91,8 +92,8 @@ export async function readCommon(db) {
   return out;
 }
 
-// ---------- восстановление в пустую базу (новый проект Firebase) ----------
-// В JSON копии метки времени Firestore записаны как { _seconds, _nanoseconds } — превращаем обратно в Timestamp
+// ---------- restore into an empty database (a new Firebase project) ----------
+// In the backup JSON, Firestore timestamps are stored as { _seconds, _nanoseconds }; turn them back into Timestamp
 export function revive(v, Timestamp) {
   if (Array.isArray(v)) return v.map((x) => revive(x, Timestamp));
   if (v && typeof v === 'object') {
@@ -103,7 +104,7 @@ export function revive(v, Timestamp) {
   return v;
 }
 
-// Список записей для восстановления из папки копии: [{ path: 'projects/ID/points/X', data }]
+// The list of writes to restore from a backup folder: [{ path: 'projects/ID/points/X', data }]
 export function restorePlan(dir) {
   const writes = [];
   for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('(полная).json'))) {

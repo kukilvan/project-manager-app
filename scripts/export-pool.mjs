@@ -1,5 +1,5 @@
-// Стартовый набор для открытой версии: копия общего пула (типы, устройства, кабели, работы, конфигурации дверей) без служебных полей.
-// Запускается вручную (Actions → «Export starter pool»), результат коммитится в src/data/starter-pool.json.
+// Starter set for the open edition: a copy of the shared pool (types, devices, cables, works, door configurations) without service fields.
+// Reads the pool from Firestore through firebase-admin; meant to be run by hand, and the result is committed to src/data/starter-pool.json (the weekly workflow uses starter-from-backup.mjs instead).
 import fs from 'node:fs';
 import admin from 'firebase-admin';
 process.on('uncaughtException', (e) => { console.log(`::error::${String(e?.stack || e).replace(/\n/g, ' | ').slice(0, 900)}`); process.exit(1); });

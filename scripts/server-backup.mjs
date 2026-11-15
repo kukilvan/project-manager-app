@@ -1,5 +1,6 @@
-// Ночная копия всех проектов из Firestore в папку (её затем коммитит GitHub Actions в закрытый репозиторий).
-// Запуск: FIREBASE_SERVICE_ACCOUNT='{...}' node scripts/server-backup.mjs <папка-для-копий>
+// Server backup run by GitHub Actions every 2 days: copies all projects from Firestore into a folder that the workflow then commits to the private backup repo.
+// Talks to Firestore through firebase-admin and uses server-backup-lib.mjs.
+// Run: FIREBASE_SERVICE_ACCOUNT='{...}' node scripts/server-backup.mjs <backup-folder>
 import fs from 'node:fs';
 import path from 'node:path';
 import admin from 'firebase-admin';
@@ -17,7 +18,7 @@ const now = new Date();
 const dir = path.join(root, stamp(now));
 fs.mkdirSync(dir, { recursive: true });
 
-// ошибки и итог — пометками GitHub (видны в сводке запуска без скачивания журнала)
+// errors and the summary go out as GitHub annotations (visible in the run summary without downloading the log)
 const fail = (e) => { console.log(`::error::Копия не сделана: ${String(e?.stack || e).replace(/\n/g, ' | ').slice(0, 900)}`); process.exit(1); };
 try {
   const refs = await db.collection('projects').listDocuments();
@@ -34,10 +35,10 @@ try {
     reads += p.reads;
     if (isDeleted(p.project)) { console.log(`Пропущен удалённый проект: ${p.project.name}`); continue; }
     done.push(writeProjectBackup(dir, p, now));
-    // отметка в проекте, чтобы приложение показывало дату последней автокопии
+    // a mark in the project so the app can show the date of the last auto-backup
     await ref.set({ serverBackupAt: now.toISOString() }, { merge: true });
   }
-  // общий пул, список разрешённых почт и личные настройки (словарик, выученное по тохнитам) — без них новую базу не восстановить
+  // the shared pool, the allowed e-mails and personal settings (the dictionary, what was learned from drawings): a new database cannot be restored without them
   const common = await readCommon(db);
   const commonCount = Object.values(common.collections).reduce((n, v) => n + v.length, 0) + common.prefs.length;
   reads += commonCount;

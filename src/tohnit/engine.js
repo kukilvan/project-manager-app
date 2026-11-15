@@ -1,5 +1,5 @@
-// Разбор тохнита без ИИ — логика (порт tools/tohnit/tohnit.py: scan → правила каталога → точки + вопросы человеку).
-// На входе — результат extractPdf; на выходе — точки в формате polevoy-points-1 и вопросы по неизвестным группам.
+// Drawing parsing without AI, step 2: the logic that turns the extracted PDF text into points (a port of tools/tohnit/tohnit.py: scan → catalog rules → points + questions for a person).
+// Input is the result of extractPdf (extract.js); output is points in the polevoy-points-1 format and questions about unknown groups. Uses pattern.js; called by worker.js, tohnitview.js and catalogview.js.
 import { segment } from './pattern.js';
 
 const LABELISH = /^(?=.*\d)(?=.*[A-Za-z\-/])[A-Za-z0-9][A-Za-z0-9\-./_,()]{0,22}$/;
@@ -15,7 +15,7 @@ const ctr = (s) => [(s.x0 + s.x1) / 2, (s.y0 + s.y1) / 2];
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 const edgeDist = (r, p) => Math.hypot(Math.max(r.x0 - p[0], 0, p[0] - r.x1), Math.max(r.y0 - p[1], 0, p[1] - r.y1));
 
-// «GD1/» над «D-15.2» → «GD1/D-15.2»
+// «GD1/» above «D-15.2» → «GD1/D-15.2»
 function joinStacked(spans, key) {
   const pre = spans.filter((s) => s.t.endsWith('/') && s.t.length <= 6 && !s.font.startsWith('аннотация'));
   if (!pre.length) return spans;
@@ -30,7 +30,7 @@ function joinStacked(spans, key) {
   }
   return spans.filter((s) => !used.has(s)).concat(out);
 }
-// Соседние фрагменты одной строки и стиля («TV» «140») — в один; две целые подписи не склеиваются
+// Neighbouring spans of one line and style («TV» «140») become one; two whole captions are not glued together
 export function mergeSpans(spans) {
   const key = (s) => `${s.color}|${s.font}|${s.size}`;
   const list = joinStacked(spans, key).slice().sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0) || Math.round((a.y0 + a.y1) / 2) - Math.round((b.y0 + b.y1) / 2) || a.x0 - b.x0);
@@ -51,9 +51,9 @@ export function mergeSpans(spans) {
   return out;
 }
 
-// Несколько обозначений одним текстом в PDF («FC/B09-10 FC/B11-12» — две соседние подписи одним объектом):
-// каждое — отдельной подписью, место — по доле символов. Только если все части похожи на обозначения точек
-// (буквы, цифры и «/» или «-»), чтобы «EL 560», «RACK 75/110» и т. п. не дробились.
+// Several labels in one text of the PDF («FC/B09-10 FC/B11-12»: two neighbouring captions as one object):
+// each becomes a caption of its own, placed by its share of the characters. Only when every part looks like a point label
+// (letters, digits and «/» or «-»), so that «EL 560», «RACK 75/110» and the like are not split.
 const RUN_PART = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[/-])[A-Za-z0-9][A-Za-z0-9\-./]{3,22}$/;
 export function splitLabelRuns(spans) {
   const out = [];
@@ -69,7 +69,7 @@ export function splitLabelRuns(spans) {
   return out;
 }
 
-// Слои-мусор: серые (архитектура «в подложке»), штриховки, рамки колонн, сетка осей. Слои систем не трогаем.
+// Junk layers: gray ones (architecture «in the underlay»), hatching, column frames, the axis grid. System layers are left alone.
 const CLUTTER_STRONG = /KOTERET|HATCH|GRID|AXIS|COLUMN|ZIRIM/i;
 const SYSTEM_LAYERS = /CCTV|CTV|CAM|ACC|ACS|COMM|TEL|DATA|ALR|ALARM|INT|SEC|BITACHON|LOW|WIFI|AP\b|FIBER|TV/i;
 export function clutterLayers(layers) {
@@ -83,7 +83,7 @@ export function clutterLayers(layers) {
   return out;
 }
 
-/** Скан: склейка, дубли аннотаций, фон под коротким текстом, группы по стилю → { spans, clusters } */
+/** Scan: merging, annotation duplicates, the background under short text, groups by style → { spans, clusters } */
 export function scanPages(pages) {
   const all = [];
   pages.forEach((pg, pi) => {
@@ -118,7 +118,7 @@ export function scanPages(pages) {
   return { spans: all, clusters };
 }
 
-// ---------------------------------------------------------------- значки по форме (подпись формы не зависит от поворота и разбивки линий)
+// ---------------------------------------------------------------- icons by shape (the shape signature does not depend on rotation or on how lines are split)
 export function shapeSig(pts, step = 0.3) {
   const cells = new Set(); const xs = []; const ys = [];
   for (const [x, y] of pts) { const k = `${Math.round(x / step)},${Math.round(y / step)}`; if (!cells.has(k)) { cells.add(k); xs.push(Math.round(x / step) * step); ys.push(Math.round(y / step) * step); } }
@@ -131,7 +131,7 @@ export function shapeSig(pts, step = 0.3) {
   const l1 = tr / 2 + disc, l2 = tr / 2 - disc;
   return { L: n * step, rg: Math.sqrt(tr), el: l1 > 0 ? l2 / l1 : 1, cx: mx, cy: my };
 }
-/** Все значки формы sig {color, L, rg, el, size}; hidden — функция «слой скрыт» */
+/** All icons of shape sig {color, L, rg, el, size}; hidden is a «layer is hidden» function */
 export function findSymbols(paths, sig, tol = 0.15, hidden = () => false) {
   const size = sig.size;
   const L = paths.filter((p) => p.color === sig.color && !hidden(p.layer) && p.bbox[2] - p.bbox[0] <= size * 1.5 + 2 && p.bbox[3] - p.bbox[1] <= size * 1.5 + 2);
@@ -158,7 +158,7 @@ export function findSymbols(paths, sig, tol = 0.15, hidden = () => false) {
   return found;
 }
 
-// ---------------------------------------------------------------- шаблон по примерам (для «запомнить» ответа)
+// ---------------------------------------------------------------- a pattern from examples (for «remember» an answer)
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\/-]/g, '\\$&');
 export function generalize(samples) {
   const items = samples.map((x) => (x || '').replace(/ /g, '')).filter(Boolean);
@@ -184,7 +184,7 @@ export function generalize(samples) {
   return uniq.length ? `^${uniq.length === 1 ? uniq[0] : `(?:${uniq.join('|')})`}$` : null;
 }
 
-// ---------------------------------------------------------------- сборка точек по правилам
+// ---------------------------------------------------------------- building points by rules
 function splitGlued(s) {
   const toks = [...s.t.matchAll(/\S+/g)]; const out = []; let pre = ''; const n = Math.max(1, s.t.length); const w = s.x1 - s.x0;
   for (const m of toks) {
@@ -195,7 +195,7 @@ function splitGlued(s) {
   return out.length >= 2 || (out.length === 1 && pre) ? out : null;
 }
 
-/** spans + rules (как в map.json) → { points, report }. Поддержано: clusters/match/style/area/page, skip, near, by_icon, near_text, expand, dedupe #2, cabinet_regex. */
+/** spans + rules (as in map.json) → { points, report }. Supported: clusters/match/style/area/page, skip, near, by_icon, near_text, expand, dedupe #2, cabinet_regex. */
 export function buildPoints(spans, rules, opts = {}) {
   const compiled = rules.map((r) => ({ ...r, rx: r.match ? new RegExp(r.match) : null }));
   const pick = (s, t) => compiled.find((r) => (!r.clusters || r.clusters.includes(s.c)) && (!r.rx || r.rx.test(t)) && (r.page == null || s.page === r.page)
@@ -225,7 +225,7 @@ export function buildPoints(spans, rules, opts = {}) {
     }
     pts.push({ label, orig: t, typeId: rule.type, s, rule });
   }
-  // тип по значку рядом: каждый значок — одной подписи (ближайшей)
+  // type by the icon nearby: each icon belongs to one caption (the nearest)
   if (byicon.length) {
     const groups = new Set(byicon.flatMap((b) => Object.keys(b.rule.by_icon)));
     const icn = spans.filter((x) => groups.has(x.c));
@@ -240,7 +240,7 @@ export function buildPoints(spans, rules, opts = {}) {
       log.icon.push(`⚠️ ${b.label}: значка рядом нет → «${b.rule.type}» по умолчанию — проверить`); b.typeId = b.rule.type; b.check = true; pts.push(b);
     });
   }
-  // тип по тексту рядом (табличка двери)
+  // type by the text nearby (a door sign)
   for (const p of pts) {
     const nt = p.rule.near_text; if (!nt) continue;
     for (const cond of nt) {
@@ -249,7 +249,7 @@ export function buildPoints(spans, rules, opts = {}) {
       if (hit) { p.typeId = cond.type; log.nearText.push(`${p.label} → ${cond.type}`); break; }
     }
   }
-  // значок рядом с точкой другого типа (APA у интеркома): обозначение = точка + суффикс
+  // an icon next to a point of another type (APA by an intercom): label = the point + a suffix
   const used = {};
   for (const [s, r] of nears) {
     const cand = pts.filter((p) => p.typeId === r.near && p.s.page === s.page && !p.derived).sort((a, b) => dist(ctr(a.s), ctr(s)) - dist(ctr(b.s), ctr(s)));
@@ -258,17 +258,17 @@ export function buildPoints(spans, rules, opts = {}) {
     const base = best.label + (r.suffix || ''); used[base] = (used[base] || 0) + 1;
     pts.push({ label: used[base] === 1 ? base : `${base}${used[base]}`, orig: s.t, typeId: r.type, s, rule: r, derived: true, near: best.label });
   }
-  // шкаф
+  // rack
   const cabRx = opts.cabinetRegex ? new RegExp(opts.cabinetRegex) : null;
   for (const p of pts) {
     if (p.rule.cabinet != null) { p.cabinet = p.rule.cabinet; continue; }
-    if (p.rule.cab != null) { let m = null; try { m = p.rule.cab ? (p.near || p.label).match(new RegExp(p.rule.cab)) : null; } catch { /* плохой шаблон */ } p.cabinet = m?.[1] || ''; continue; }  // шкаф по своему шаблону правила ('' — шкафа нет)
+    if (p.rule.cab != null) { let m = null; try { m = p.rule.cab ? (p.near || p.label).match(new RegExp(p.rule.cab)) : null; } catch { /* bad pattern */ } p.cabinet = m?.[1] || ''; continue; }  // the rack by the rule's own pattern ('' means no rack)
     let cab = '';
     const src = p.near || p.label; const m = cabRx && src.match(cabRx); if (m) cab = m[1];
     p.cabinet = cab;
   }
-  // дубли: одно обозначение в разных местах → #2; в одном месте — склеиваем
-  const byl = new Map(); for (const p of pts) { const k = `${p.cabinet || ''}\u0000${p.label}`; if (!byl.has(k)) byl.set(k, []); byl.get(k).push(p); }   // одно обозначение в разных шкафах — разные точки
+  // duplicates: one label in different places → #2; in one place they are merged
+  const byl = new Map(); for (const p of pts) { const k = `${p.cabinet || ''}\u0000${p.label}`; if (!byl.has(k)) byl.set(k, []); byl.get(k).push(p); }   // one label in different racks means different points
   const final = []; const dups = [];
   for (const lst of byl.values()) {
     const lab = lst[0].label;
@@ -283,7 +283,7 @@ export function buildPoints(spans, rules, opts = {}) {
   const floor = opts.floor || '';
   const points = final.map((p) => {
     const d = { label: p.label, typeId: p.typeId, cabinet: p.cabinet, floor };
-    if (Array.isArray(p.rule.cables) && p.typeId === p.rule.type) d.cableOverride = p.rule.cables;  // свои кабели из правила (например «X2» — 2 кабеля)
+    if (Array.isArray(p.rule.cables) && p.typeId === p.rule.type) d.cableOverride = p.rule.cables;  // the rule's own cables (for example «X2» means 2 cables)
     if (p.orig && p.orig.replace(/ /g, '') !== p.label && !p.note) d.planName = p.orig;
     const notes = [p.note, p.dup && 'повтор обозначения на чертеже — проверить', p.check && 'тип по умолчанию (значка рядом нет) — проверить'].filter(Boolean);
     if (notes.length) d.note = notes.join('; ');
@@ -293,22 +293,22 @@ export function buildPoints(spans, rules, opts = {}) {
   return { points, unknown, skipped, dups, log, taken };
 }
 
-// ---------------------------------------------------------------- автономный разбор по каталогу
+// ---------------------------------------------------------------- standalone parsing by the catalog
 const inScope = (e, project) => !e.project || (!!project && String(project).toLowerCase().includes(e.project.toLowerCase()));
 
-/** extracted (extractPdf) + каталог + ответы человека → { points, questions, learned, scale, hiddenLayers } */
+/** extracted (extractPdf) + the catalog + a person's answers → { points, questions, learned, scale, hiddenLayers } */
 export function autoParse(extracted, catalog, { floor = '', project = '', answers = {}, sheet = '' } = {}) {
   const { pages } = extracted;
   const { spans, clusters } = scanPages(pages);
   const cat = { labels: [], skip: [], symbols: [], ...catalog };
-  // слои-мусор (для поиска значков и картинок)
+  // junk layers (for finding icons and pictures)
   const layerStats = {}; pages.forEach((p) => Object.entries(p.layers).forEach(([n, e]) => { const t = (layerStats[n] ??= { n: 0, colors: {} }); t.n += e.n; Object.entries(e.colors).forEach(([c, k]) => { t.colors[c] = (t.colors[c] || 0) + k; }); }));
   const hiddenLayers = new Set(clutterLayers(layerStats)); const hidden = (l) => hiddenLayers.has(l);
-  // масштаб: медиана высоты подписей, которые узнал каталог, относительно text_ref
+  // scale: the median height of the captions the catalog recognised, relative to text_ref
   const labRx = cat.labels.filter((e) => inScope(e, project)).map((e) => new RegExp(e.re));
   const hs = spans.filter((x) => !x.c.startsWith?.('sym:') && labRx.some((r) => r.test(x.t.trim()))).map((x) => Math.min(x.x1 - x.x0, x.y1 - x.y0)).sort((a, b) => a - b);
   let k = hs.length >= 5 ? hs[Math.floor(hs.length / 2)] / (cat.text_ref || 7.8) : 1; if (!(k >= 0.2 && k <= 8)) k = 1;
-  // значки из каталога
+  // icons from the catalog
   for (const sym of cat.symbols.filter((e) => inScope(e, project))) {
     const sig = { ...sym, L: sym.L * k, rg: sym.rg * k, size: sym.size * k };
     pages.forEach((pg, pi) => {
@@ -317,7 +317,7 @@ export function autoParse(extracted, catalog, { floor = '', project = '', answer
       }
     });
   }
-  // правила каталога: мусор → подписи
+  // catalog rules: junk first, then captions
   const catRules = [];
   for (const e of cat.skip.filter((x) => inScope(x, project))) catRules.push({ match: e.re, skip: true, why: e.why || 'каталог: не точка', ...(e.style ? { style: e.style } : {}) });
   for (const e of cat.labels.filter((x) => inScope(x, project))) {
@@ -326,7 +326,7 @@ export function autoParse(extracted, catalog, { floor = '', project = '', answer
     if (r.near_text) r.near_text = r.near_text.map((c) => ({ ...c, dist: (c.dist ?? 60) * k }));
     catRules.push({ ...r, match: re });
   }
-  // незнакомое в каждой группе (то, о чём спрашиваем; ответ относится только к этим подписям)
+  // what is unfamiliar in each group (what we ask about; an answer applies only to these captions)
   const ruleRx = catRules.filter((r) => r.match).map((r) => new RegExp(r.match));
   const known = (t) => ruleRx.some((r) => r.test(t.trim()));
   const bycl = new Map(); for (const s of spans) { if (!bycl.has(s.c)) bycl.set(s.c, []); bycl.get(s.c).push(s); }
@@ -339,7 +339,7 @@ export function autoParse(extracted, catalog, { floor = '', project = '', answer
   }
   rules.push(...catRules);
   const res = buildPoints(spans, rules, { floor, cabinetRegex: cat.cabinet_regex });
-  // вопросы: группы, где много «похожего на обозначения», а каталог узнал меньше 80%
+  // questions: groups with many «label-like» texts where the catalog recognised less than 80%
   const questions = [];
   for (const c of clusters) {
     if (answers[c.id] != null) continue;
@@ -351,12 +351,12 @@ export function autoParse(extracted, catalog, { floor = '', project = '', answer
       style: { color: c.color, size: c.size }, examples: free.slice(0, 6).map((s) => ({ page: s.page, x0: s.x0, y0: s.y0, x1: s.x1, y1: s.y1 })) });
   }
   questions.sort((a, b) => b.n - a.n);
-  // что запомнить: ответы → записи каталога (шаблон по примерам группы)
+  // what to remember: answers → catalog entries (a pattern from the group's examples)
   const learned = [];
   for (const [cid, ans] of Object.entries(answers)) {
     const texts = freeOf(cid).map((s) => s.t.trim());
-    if (!segment(texts).ok) continue;  // подписи разного вида (Z7, M24, 30x20(h)…) — общий шаблон был бы «сборной солянкой»: не запоминаем
-    const pat = generalize(texts); if (!pat) continue;  // только незнакомые подписи — чтобы выученное не перебивало каталог
+    if (!segment(texts).ok) continue;  // captions of different kinds (Z7, M24, 30x20(h)…): a common pattern would be a «hodgepodge», so it is not remembered
+    const pat = generalize(texts); if (!pat) continue;  // only unfamiliar captions, so that what was learned does not override the catalog
     const a = typeof ans === 'object' ? ans : (ans === 'skip' ? { skip: true } : { type: ans });
     const e = { re: pat, learned: true, samples: [...new Set(freeOf(cid).map((s) => s.t.trim()))].slice(0, 8), ...(project ? { project } : {}) };
     if (a.skip) learned.push({ kind: 'skip', cluster: cid, ...e }); else learned.push({ kind: 'labels', cluster: cid, ...e, ...a });
@@ -366,7 +366,7 @@ export function autoParse(extracted, catalog, { floor = '', project = '', answer
   return { data, questions, learned, scale: k, hiddenLayers: [...hiddenLayers], report: res };
 }
 
-/** Добавить выученное в каталог (копия) */
+/** Add what was learned to the catalog (a copy) */
 export function learnInto(catalog, learned) {
   const cat = { labels: [], skip: [], symbols: [], ...JSON.parse(JSON.stringify(catalog)) };
   let n = 0;
@@ -377,7 +377,7 @@ export function learnInto(catalog, learned) {
   return { catalog: cat, added: n };
 }
 
-/** Какое правило каталога сработает на подпись (порядок как в разборе: «не точки», потом подписи) → { kind: 'skip'|'label', rule, index } или null */
+/** Which catalog rule fires on a caption (the order of parsing: «не точки» first, then captions) → { kind: 'skip'|'label', rule, index } or null */
 export function matchLabel(text, catalog, project = '') {
   const t = String(text || '').trim(); if (!t) return null;
   const test = (e) => { try { return new RegExp(e.re).test(t); } catch { return false; } };
@@ -388,7 +388,7 @@ export function matchLabel(text, catalog, project = '') {
   return null;
 }
 
-/** Шаблон правила — по-человечески: ^[A-Za-z]+\d*\/C\-\d+$ → «шкаф/C-№» */
+/** A rule's pattern in plain words: ^[A-Za-z]+\d*\/C\-\d+$ → «шкаф/C-№» */
 export function prettyRule(re) {
   return String(re || '').replace(/^\^/, '').replace(/\$$/, '')
     .replace(/\[A-Za-z\]\+\\d\*\\?\//g, 'шкаф/').replace(/\[A-Za-z\]\+/g, 'буквы').replace(/\\d\{(\d+)(?:,(\d+))?\}/g, (_, x, y) => `№(${y ? `${x}–${y}` : x})`).replace(/\\d\+/g, '№').replace(/\\d/g, '#')

@@ -1,8 +1,8 @@
-// Копия данных вне GitHub: самая свежая папка автокопии упаковывается в zip и заменяет содержимое файла
-// «Автокопия данных (обновляется каждые 2 дня).zip» на Google Диске владельца. Файл создан владельцем и открыт сервисному
-// аккаунту на запись (сам сервисный аккаунт не может создавать файлы в чужом Диске — у него нет своего места).
-// Прежние версии Диск хранит сам (около 30 дней): «Файл → Управление версиями».
-// Запуск: FIREBASE_SERVICE_ACCOUNT='{...}' node scripts/server-drive-backup.mjs <папка с копиями>
+// Backup copy outside GitHub: zips the newest auto-backup folder and uploads it to the owner's Google Drive.
+// It replaces the contents of the file «Автокопия данных (обновляется каждые 2 дня).zip» through the Drive API. The owner created the file and shared it
+// with the service account for writing (the service account cannot create files in someone else's Drive: it has no storage of its own).
+// Drive keeps earlier versions itself (about 30 days): «Файл → Управление версиями».
+// Run: FIREBASE_SERVICE_ACCOUNT='{...}' node scripts/server-drive-backup.mjs <folder with backups>
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';

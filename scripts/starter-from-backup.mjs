@@ -1,5 +1,5 @@
-// Стартовый набор из последней серверной копии (без чтения базы — не тратит суточный лимит Firestore).
-// Запуск: node scripts/starter-from-backup.mjs <папка репозитория копий> src/data/starter-pool.json
+// Starter set built from the latest server backup (the database is not read, so no Firestore daily quota is spent).
+// Used by the export-pool workflow; reads the common-data file written by server-backup-lib.mjs. Run: node scripts/starter-from-backup.mjs <backup repo folder> src/data/starter-pool.json
 import fs from 'node:fs';
 import path from 'node:path';
 import { COMMON_FILE } from './server-backup-lib.mjs';

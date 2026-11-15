@@ -1,33 +1,34 @@
-// Конструктор шаблона подписи по примерам: подпись режется на части (буквы / цифры / знаки), человек говорит, что значит каждая часть.
-// Пример: C2/04 → «C» постоянно (это камера) · «2» не важно (этаж) · «/» на месте · «04» номер (2 цифры).
+// Caption pattern builder from examples: a caption is cut into parts (letters / digits / signs) and a person says what each part means.
+// Example: C2/04 → «C» constant (a camera) · «2» does not matter (the floor) · «/» in place · «04» the number (2 digits).
+// Pure functions with no imports; engine.js uses segment, and src/app/views/catalogview.js drives the builder.
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\/-]/g, '\\$&');
 const kindOf = (t) => (/^[A-Za-z]/.test(t) ? 'L' : /^[֐-׿]/.test(t) ? 'H' : /^\d/.test(t) ? 'D' : /^\s/.test(t) ? 'S' : 'P');
 export const tokenize = (s) => String(s || '').trim().match(/[A-Za-z]+|[֐-׿]+|\d+|\s+|./g) || [];
 
-// Роли частей: что можно выбрать для букв и для цифр
+// Roles of the parts: what can be chosen for letters and for digits
 export const ROLES = {
   L: [['const', 'постоянно (как в примерах)'], ['any', 'любые буквы'], ['cab', 'шкаф']],
   H: [['const', 'постоянно (как в примерах)'], ['any', 'любые буквы иврита']],
   D: [['num', 'номер (столько цифр, как в примерах)'], ['numAny', 'номер (любой длины)'], ['any', 'не важно (любое число)'], ['const', 'постоянно (как в примерах)'], ['cab', 'шкаф']],
 };
 
-/** примеры → части. Все примеры должны быть одного вида (одинаковый порядок букв/цифр/знаков). */
+/** examples → parts. All examples must be of one kind (the same order of letters/digits/signs). */
 export function segment(samples) {
   const list = [...new Set((samples || []).map((s) => String(s).trim()).filter(Boolean))];
   if (!list.length) return { ok: false, error: 'Введите примеры подписей' };
   const toks = list.map(tokenize);
   const key = (x) => { const k = kindOf(x); return k === 'P' ? `P${x}` : k; };
-  // основа — самый длинный пример; в остальных части могут отсутствовать (тогда часть необязательная: GA1/… и GB/…)
+  // the base is the longest example; parts may be missing in the others (then the part is optional: GA1/… and GB/…)
   const bi = toks.reduce((m, t, i) => (t.length > toks[m].length ? i : m), 0); const base = toks[bi].map(key);
-  const align = (t) => {  // сопоставить по порядку (LCS); каждая часть примера должна найти место в основе
+  const align = (t) => {  // match in order (LCS); every part of an example must find a place in the base
     const k = t.map(key); const n = base.length; const m = k.length;
     const L = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
     for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = base[i] === k[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
     if (L[0][0] !== m) return null;
     const out = new Array(n).fill(null); let i = 0; let j = 0;
     while (i < n && j < m) { if (base[i] === k[j]) { out[i++] = t[j++]; } else if (L[i + 1][j] >= L[i][j + 1]) i++; else return null; }
-    if (j !== m || out.some((v, x) => v == null && base[x][0] === 'P')) return null;  // знаки (/, -, .) должны быть во всех примерах
+    if (j !== m || out.some((v, x) => v == null && base[x][0] === 'P')) return null;  // signs (/, -, .) must be in all examples
     return out;
   };
   const rows = []; const bad = [];
@@ -40,7 +41,7 @@ export function segment(samples) {
   return { ok: true, segs, samples: list };
 }
 
-/** роли по умолчанию: одинаковое во всех примерах — постоянно; последнее меняющееся число — номер; остальные меняющиеся — не важно / любые */
+/** default roles: the same in all examples is constant; the last varying number is the number; the other varying parts are «не важно» / any */
 export function defaultRoles(segs) {
   const lastNum = segs.map((s, i) => (s.kind === 'D' && s.values.length > 1 ? i : -1)).filter((i) => i >= 0).pop();
   return segs.map((s, i) => {
@@ -51,7 +52,7 @@ export function defaultRoles(segs) {
   });
 }
 
-/** части + роли → { re, cab } (cab — тот же шаблон со скобками вокруг шкафа; '' — шкафа в подписи нет) */
+/** parts + roles → { re, cab } (cab is the same pattern with parentheses around the rack; '' means the caption has no rack) */
 export function buildPattern(segs, roles) {
   const piece = (s, r) => {
     if (s.kind === 'S') return '\\s*';
@@ -65,13 +66,13 @@ export function buildPattern(segs, roles) {
   const cabIdx = roles.map((r, i) => (r === 'cab' ? i : -1)).filter((i) => i >= 0);
   let cab = '';
   if (cabIdx.length) {
-    const a = cabIdx[0]; const b = cabIdx[cabIdx.length - 1];  // шкаф — от первой до последней отмеченной части (вместе со знаками между ними)
+    const a = cabIdx[0]; const b = cabIdx[cabIdx.length - 1];  // the rack runs from the first to the last marked part (with the signs between them)
     cab = `^${ps.slice(0, a).join('')}(${ps.slice(a, b + 1).join('')})${ps.slice(b + 1).join('')}$`;
   }
   return { re, cab };
 }
 
-/** коротко по-человечески: «C · (не важно) · / · №(2)» */
+/** a short human description: «C · (не важно) · / · №(2)» */
 export function describeParts(segs, roles) {
   return segs.map((s, i) => {
     const r = roles[i];

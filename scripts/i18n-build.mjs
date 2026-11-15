@@ -1,5 +1,5 @@
-// Сборка словарей: src/i18n/src/*.json ({ "русский": ["English", "עברית"] }) → src/i18n/en.json и he.json
-// и отчёт: сколько строк интерфейса ещё без перевода.
+// Builds the translation dictionaries: src/i18n/src/*.json ({ "<Russian text>": ["English", "Hebrew"] }) → src/i18n/en.json and he.json.
+// Run after adding UI strings (`node scripts/i18n-build.mjs`); it reads and writes only files under src/i18n/ and prints the number of translations.
 import fs from 'node:fs';
 import path from 'node:path';
 const dir = 'src/i18n/src'; const en = {}; const he = {};

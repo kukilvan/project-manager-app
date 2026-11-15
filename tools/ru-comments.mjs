@@ -16,8 +16,6 @@ import * as acorn from 'acorn';
 
 // Paths still waiting for their ticket (spec section 9). Each ticket deletes its own entries; ticket 09 deletes the list.
 export const PENDING = [
-  // ticket 07
-  'src/tohnit/', 'scripts/', 'src/style.css', 'vite.config.js', 'firestore.rules', 'firestore.open.rules', '.github/workflows/',
   // ticket 08
   'tests/', 'tools/tohnit/',
 ];

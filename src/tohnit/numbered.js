@@ -1,12 +1,12 @@
-// PDF с номерами — как план в приложении: подписи на чертеже обводятся рамкой цвета статуса, значки — кружком,
-// своя подпись (в рамке, белый фон) ставится там, где не закрывает значки, рамки и другие подписи. Несколько точек на одной отметке —
-// одна подпись («TV13-14» или столбиком). Скрытое закрашивается белым. Пометки PDF разложены по слоям «Номера: <тип>» —
-// в просмотрщике можно оставить только нужные. Последняя страница — легенда.
+// Builds «PDF с номерами»: the drawing PDF marked like the plan in the app, with a legend page at the end (in Russian or in Hebrew through legendhe.js).
+// Captions on the drawing get a frame in the status color and icons get a circle; a tag of its own (framed, white background) is placed where it does not cover icons, frames or other captions.
+// Several points on one mark share one tag («TV13-14» or stacked). Hidden items are painted over in white. The PDF marks are split into layers «Номера: <тип>»,
+// so a viewer can keep only the needed ones. Works on MuPDF objects passed in by the caller (worker.js and scripts/server-tables-lib.mjs); uses src/domain/points.js and plan.js.
 import { combineLabels } from '../domain/points.js';
 import { STATUS_COLORS } from '../domain/plan.js';
 import { legendPdfHe } from './legendhe.js';
 
-// Легенда на иврите (для папки руководства): названия статусов
+// The Hebrew legend (for the management folder): status names
 export const STATUS_HE = { 'новая': 'חדשה (טרם נמשך)', 'померяно': 'נמדד (טרם נמשך)', 'протянуто частично': 'נמשך חלקית', 'протянуто': 'נמשך', 'захивучено': 'חווט',
   'установлено не всё': 'הותקן חלקית', 'установлено': 'הותקן', 'проверено': 'נבדק', 'проблема': 'תקלה' };
 
@@ -15,7 +15,7 @@ const rgb = (hex) => [1, 3, 5].map((i) => parseInt(String(hex || '#9e9e9e').slic
 const isText = (pos) => { const w = pos.w || 0; const h = pos.h || 0; return w && h && Math.max(w, h) / Math.min(w, h) > 1.6; };
 const keyOf = (p) => `${p.pos.page || 0}|${Math.round(p.pos.x)}|${Math.round(p.pos.y)}`;
 
-/** Раскладка подписей (единицы листа PDF): tags [{x,y,r,lines}] → [{tag, box:[x0,y0,x1,y1]}]. Чистая функция — проверяется тестом. */
+/** Layout of the tags (PDF sheet units): tags [{x,y,r,lines}] → [{tag, box:[x0,y0,x1,y1]}]. A pure function, checked by a test. */
 export function layoutTags(tags, { circles = [], frames = [], fs = 6 } = {}) {
   const placed = [...frames]; const out = []; const padX = 1.5; const lh = fs * 1.2;
   const hitsBox = (b) => placed.some((q) => b[0] < q[2] && b[2] > q[0] && b[1] < q[3] && b[3] > q[1]);
@@ -33,20 +33,20 @@ export function layoutTags(tags, { circles = [], frames = [], fs = 6 } = {}) {
   return out;
 }
 
-/** mupdf — модуль; data — PDF; points — [{ label, typeId, pos, color? }]; hidden — [{pos}] → Uint8Array */
+/** mupdf is the module; data is the PDF; points are [{ label, typeId, pos, color? }]; hidden is [{pos}] → Uint8Array */
 export function numberedPdf(mupdf, data, points, { title = '', icons = {}, hidden = [], fs = 7, lang = 'ru', typeNames = {}, updated = '' } = {}) {
   const doc = mupdf.Document.openDocument(data, 'application/pdf').asPDF();
   const types = [...new Set(points.map((p) => p.typeId))].sort((a, b) => a.localeCompare(b, 'ru'));
   const typeColor = (t) => rgb(TYPE_COLORS[types.indexOf(t) % TYPE_COLORS.length]);
   const colorOf = (p) => (p.color ? rgb(p.color) : typeColor(p.typeId));
-  // слои: «Номера: <тип>», «Добавлено на объекте» (значки точек, которых нет на чертеже), «Скрытое»
+  // layers: «Номера: <тип>», «Добавлено на объекте» (icons of points that are not on the drawing), «Скрытое»
   let order = null; let ocgs = null;
   try {
     const root = doc.getTrailer().get('Root'); let ocp = root.get('OCProperties'); if (ocp.isNull()) { ocp = doc.newDictionary(); root.put('OCProperties', ocp); }
     ocgs = ocp.get('OCGs'); if (ocgs.isNull()) { ocgs = doc.newArray(); ocp.put('OCGs', ocgs); }
     let D = ocp.get('D'); if (D.isNull()) { D = doc.newDictionary(); ocp.put('D', D); }
     order = D.get('Order'); if (order.isNull()) { order = doc.newArray(); D.put('Order', order); }
-  } catch { /* без слоёв — просто пометки */ }
+  } catch { /* no layers: just the marks */}
   const layers = new Map();
   const layer = (name) => { if (!ocgs) return null; if (!layers.has(name)) { const o = doc.newDictionary(); o.put('Type', doc.newName('OCG')); o.put('Name', doc.newString(name)); const ref = doc.addObject(o); ocgs.push(ref); order.push(ref); layers.set(name, ref); } return layers.get(name); };
   const inLayer = (a, name) => { const ref = layer(name); if (ref) try { a.getObject().put('OC', ref); } catch { /* ok */ } };
@@ -56,13 +56,13 @@ export function numberedPdf(mupdf, data, points, { title = '', icons = {}, hidde
   const pages = new Map(); const pageOf = (pi) => { if (!pages.has(pi)) pages.set(pi, doc.loadPage(pi)); return pages.get(pi); };
   const n = doc.countPages();
 
-  // скрытое — белым
+  // hidden items are painted white
   for (const m of hidden) {
     const pi = m.pos?.page || 0; if (!m.pos || pi >= n) continue; const q = m.pos;
     const a = pageOf(pi).createAnnotation('Square'); a.setRect([q.x - (q.w || 8) / 2 - 1.5, q.y - (q.h || 8) / 2 - 1.5, q.x + (q.w || 8) / 2 + 1.5, q.y + (q.h || 8) / 2 + 1.5]);
     a.setColor([1, 1, 1]); a.setInteriorColor([1, 1, 1]); a.setBorderWidth(0.5); a.update(); inLayer(a, 'Скрытое');
   }
-  // отметки по группам (одна отметка — одна рамка/кружок, одна подпись)
+  // marks by group (one mark is one frame/circle and one tag)
   const groups = new Map();
   for (const p of points) { if (!p.pos || (p.pos.page || 0) >= n) continue; const k = keyOf(p); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); }
   const perPage = new Map();
@@ -83,7 +83,7 @@ export function numberedPdf(mupdf, data, points, { title = '', icons = {}, hidde
       pp.circles.push([q.x, q.y, rr]); pp.tags.push({ x: q.x, y: q.y, r: rr, lines, c, lyr });
     }
   }
-  // подписи — поверх всего
+  // tags go on top of everything
   for (const [pi, pp] of perPage) {
     const page = pageOf(pi);
     for (const { tag: t, box: b } of layoutTags(pp.tags, { circles: pp.circles, frames: pp.frames, fs })) {
@@ -94,7 +94,7 @@ export function numberedPdf(mupdf, data, points, { title = '', icons = {}, hidde
       ft.setDefaultAppearance('Helv', fs, [0, 0, 0]); ft.setBorderWidth(0); ft.update(); inLayer(ft, t.lyr);
     }
   }
-  // легенда на иврите — отдельными страницами со встроенным шрифтом
+  // the Hebrew legend: separate pages with the embedded font
   if (lang === 'he') {
     const L = [{ text: `מקרא: ${title}`, size: 16 }];
     if (updated) L.push({ text: `עודכן: ${updated}`, size: 10, color: [0.3, 0.3, 0.3] });
@@ -111,7 +111,7 @@ export function numberedPdf(mupdf, data, points, { title = '', icons = {}, hidde
     for (let i = 0; i < leg.countPages(); i++) doc.graftPage(-1, leg, i);
     return doc.saveToBuffer('compress').asUint8Array();
   }
-  // легенда: цвета статусов и точки по типам
+  // the legend: status colors and points by type
   const W = 842; const H = 595; const lines = [];
   lines.push([`Легенда номеров${title ? ` - ${title}` : ''}`, 14, [0, 0, 0]]);
   lines.push([`Цвет рамки - статус точки: ${STATUS_COLORS.map(([, t]) => t).join(', ')}`, 9, [0.3, 0.3, 0.3]]);

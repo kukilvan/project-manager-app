@@ -7,8 +7,8 @@ export function openRules(rules) {
   const out = rules.replace(ADMIN_LINE, [
     'function poolAdmin() { return signedIn() && exists(/databases/$(database)/documents/meta/admin)',
     '      && request.auth.token.email.lower() == get(/databases/$(database)/documents/meta/admin).data.email; }',
-    '    // Администратор базы — первый вошедший: документ создаётся один раз и больше не меняется',
-    '    // Проверка из мастера настройки (без входа): если этот пустой документ читается — правила вставлены',
+    '    // The database admin is the first user to sign in: the document is created once and never changes',
+    '    // Check from the setup wizard (no sign-in): if this empty document can be read, the rules are pasted',
     '    match /meta/probe { allow read: if true; allow write: if false; }',
     '    match /meta/admin {',
     '      allow read: if signedIn();',

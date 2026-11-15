@@ -1,15 +1,15 @@
 name: Export starter pool
 
-# Вручную: общий пул → src/data/starter-pool.json (стартовый набор для новых баз и режима «на устройстве»).
-# Берётся из последней серверной копии (repo polevoy-backups) — база не читается, лимит Firestore не тратится.
+# Weekly and on demand: shared pool → src/data/starter-pool.json (the starter set for new databases and on-device mode).
+# Taken from the latest server backup (repo polevoy-backups): the database is not read, so no Firestore quota is spent.
 on:
   schedule:
-    - cron: '0 9 * * 1'   # раз в неделю, в понедельник (после утренней автокопии)
+    - cron: '0 9 * * 1'   # once a week, on Monday (after the morning auto-backup)
   workflow_dispatch:
 
 permissions:
   contents: write
-  actions: write   # запустить выкладку сайта, если набор изменился
+  actions: write   # start the site deploy when the set changed
 
 jobs:
   export:

@@ -1,4 +1,6 @@
-// Запуск: FIREBASE_SERVICE_ACCOUNT='{...}' node scripts/server-tables.mjs
+// Nightly server run (GitHub Actions) that refreshes the management sheets, the rack table and the «PDF с номерами» drawings of every active project.
+// Talks to Firestore (firebase-admin), Google Drive and Sheets (REST with a service account) and MuPDF; the logic is in server-tables-lib.mjs.
+// Run: FIREBASE_SERVICE_ACCOUNT='{...}' node scripts/server-tables.mjs
 import admin from 'firebase-admin';
 import { GoogleAuth } from 'google-auth-library';
 import { readProject, isDeleted } from './server-backup-lib.mjs';
@@ -29,21 +31,21 @@ const api = {
   sheetsOf: async (id) => (await call('GET', `${S}/${id}?fields=sheets.properties(sheetId,title,gridProperties)`)).sheets.map((x) => x.properties),
   batch: (id, requests) => call('POST', `${S}/${id}:batchUpdate`, { requests }),
   write: (id, data) => call('POST', `${S}/${id}/values:batchUpdate`, { valueInputOption: 'RAW', data }),
-  // для «PDF с номерами»
+  // for «PDF с номерами»
   async download(id) { const token = await auth.getAccessToken(); const r = await fetch(`${D}/${id}?alt=media`, { headers: { Authorization: `Bearer ${token}` } }); if (!r.ok) throw new Error(`Чертёж не скачать: HTTP ${r.status} (откройте его серверу кнопкой «☁️ … на Диск» в плане)`); return new Uint8Array(await r.arrayBuffer()); },
   async upload(id, bytes) { const token = await auth.getAccessToken(); const r = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media&fields=id`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/pdf' }, body: bytes }); if (!r.ok) throw new Error(`Не записать на Диск: HTTP ${r.status}`); },
 };
 let mupdf = null;
 
-// для сборки таблиц журнал изменений (history), дела и заметки не нужны — не читаем их, чтобы экономить лимит чтений
+// building the tables does not need the change history (history), to-dos or notes: they are not read, to save the read quota
 const NEED = ['points', 'days', 'entries', 'journal', 'catalog', 'types', 'cables', 'devices', 'configs', 'units', 'culprits', 'delayReasons', 'cabinetSettings'];
 const now = new Date();
 let failed = 0;
-// ошибки выводим как аннотации GitHub (видны в сводке запуска и через API)
+// errors are printed as GitHub annotations (visible in the run summary and through the API)
 const fail = (m, e) => { console.log(`::error::${m}: ${String(e?.stack || e).replace(/\n/g, ' | ')}`); failed += 1; };
 try {
-// Нужно ли вообще читать проект: если с прошлого успешного обновления ничего не менялось и ошибок нет — пропускаем
-// (один запрос «есть ли изменения» на коллекцию вместо чтения всех документов). Раз в 3 дня — полное обновление для надёжности.
+// Whether to read the project at all: if nothing changed since the last successful update and there are no errors, skip it
+// (one «anything changed» query per collection instead of reading every document). Every 3 days a full update runs, for reliability.
 async function changedSince(ref, p) {
   const since = p.serverTablesAt ? Date.parse(p.serverTablesAt) : 0;
   if (process.env.FULL === '1' || !since || now - since > 3 * 864e5) return true;
@@ -59,17 +61,17 @@ for (const ref of await db.collection('projects').listDocuments()) {
   if (isDeleted(head) || head.archived) continue;
   if (!(await changedSince(ref, head))) { console.log(`  - ${head.name}: без изменений с прошлого раза — пропущен`); continue; }
   const { project, data } = await readProject(ref, NEED);
-  if (isDeleted(project) || project.archived) continue; // архивные проекты не обновляем
-  // адрес сервера записываем в проект: приложение откроет ему доступ к файлам таблиц
+  if (isDeleted(project) || project.archived) continue; // archived projects are not updated
+  // the server's address goes into the project: the app will share the table files with it
   await ref.set({ serverEmail: cred.client_email }, { merge: true });
-  // «PDF с номерами» на Диске
+  // «PDF с номерами» on Drive
   if ((project.drawings || []).some((d) => (d.numberedFileId || project.managers?.drawings?.[d.id]?.fileId) && !d.deleted)) {
     mupdf ??= await import('mupdf');
     const { patches, mgrPatches, report } = await updateProjectNumbered(api, mupdf, project, data, now);
     if (Object.keys(patches).length || Object.keys(mgrPatches).length) await db.runTransaction(async (tx) => { const fresh = { id: ref.id, ...(await tx.get(ref)).data() }; tx.set(ref, { drawings: applyDrawingPatches(fresh, patches), managers: applyManagerPatches(fresh, mgrPatches) }, { merge: true }); });
     report.forEach((l) => console.log(l.includes('ОШИБКА') ? `::warning::${project.name}: ${l}` : `  - ${l}`));
   }
-  // таблица шкафов и шильюта для руководства
+  // the racks and labels table for management
   {
     const { patch, report } = await updateProjectRackTable(api, project, data, now);
     if (patch) await db.runTransaction(async (tx) => { const fresh = { id: ref.id, ...(await tx.get(ref)).data() }; tx.set(ref, { rackTable: { ...(fresh.rackTable || {}), ...patch } }, { merge: true }); });

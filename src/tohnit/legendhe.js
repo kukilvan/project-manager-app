@@ -1,5 +1,5 @@
-// Легенда «PDF с номерами» на иврите: страница рисуется отдельно (DocumentWriter + встроенный шрифт иврита) и вставляется в документ.
-// Строки справа налево: куски на иврите выводятся шрифтом иврита в обратном порядке букв, цифры и латиница — Helvetica.
+// The Hebrew legend of «PDF с номерами»: the page is drawn separately (MuPDF DocumentWriter + the embedded Hebrew font) and inserted into the document.
+// Lines run right to left: Hebrew pieces are drawn in the Hebrew font with the letters in reverse order, digits and Latin in Helvetica. Uses hefont.js; called by numbered.js.
 import { HE_FONT_B64 } from './hefont.js';
 
 const HE = /[֐-׿]/;
@@ -7,8 +7,8 @@ const b64 = (s) => { const bin = atob(s); const u = new Uint8Array(bin.length); 
 let fonts = null;
 const getFonts = (mupdf) => (fonts ??= { he: new mupdf.Font('NotoSansHebrew', b64(HE_FONT_B64)), lat: new mupdf.Font('Helvetica') });
 
-// Упрощённый bidi для строки справа налево: буквы иврита — RTL, латиница и цифры — LTR; знаки и пробелы — по соседям
-// (если с обеих сторон LTR — LTR, иначе RTL). Возвращает символы в порядке слева направо (как рисовать) со шрифтом.
+// Simplified bidi for a right-to-left line: Hebrew letters are RTL, Latin and digits are LTR; signs and spaces follow their neighbours
+// (LTR if both sides are LTR, otherwise RTL). Returns the characters in left-to-right order (the order to draw them).
 const MIRROR = { '(': ')', ')': '(', '[': ']', ']': '[', '<': '>', '>': '<' };
 const LTR = /[A-Za-z0-9\u00C0-\u024F\u0400-\u04FF]/;
 export function visualOrder(s) {
@@ -25,7 +25,7 @@ export function visualOrder(s) {
   return out;
 }
 
-/** Страницы легенды: lines — [{ text, size, color:[r,g,b], swatch?:[r,g,b] }] → PDF (Uint8Array) */
+/** Legend pages: lines are [{ text, size, color:[r,g,b], swatch?:[r,g,b] }] → PDF (Uint8Array) */
 export function legendPdfHe(mupdf, lines, { W = 842, H = 595 } = {}) {
   const f = getFonts(mupdf);
   const width = (font, s, size) => [...s].reduce((a, ch) => a + font.advanceGlyph(font.encodeCharacter(ch.codePointAt(0)), 0) * size, 0);

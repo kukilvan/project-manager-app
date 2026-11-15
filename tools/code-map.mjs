@@ -16,8 +16,6 @@ import { isPending, isRussian } from './ru-comments.mjs';
 
 // Modules still waiting for their English header (spec section 9). Each ticket deletes its own entries; ticket 09 deletes the list.
 export const PENDING = [
-  // ticket 07
-  'src/tohnit/', 'scripts/',
 ];
 
 export const MAP_FILE = 'docs/code-map.md';

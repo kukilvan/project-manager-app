@@ -34,18 +34,18 @@ Vanilla JS PWA built by Vite (`vite-plugin-pwa`, service worker `autoUpdate`), n
 ## Modules (built)
 
 <!-- code-map:start (built by tools/code-map.mjs from the header comments; do not edit by hand) -->
-- `scripts/export-pool.mjs` — (no English header yet)
-- `scripts/i18n-build.mjs` — (no English header yet)
-- `scripts/i18n-extract.mjs` — (no English header yet)
-- `scripts/server-backup-lib.mjs` — (no English header yet)
-- `scripts/server-backup.mjs` — (no English header yet)
-- `scripts/server-cleanup.mjs` — (no English header yet)
-- `scripts/server-drive-backup.mjs` — (no English header yet)
-- `scripts/server-restore.mjs` — (no English header yet)
-- `scripts/server-tables-lib.mjs` — (no English header yet)
-- `scripts/server-tables.mjs` — (no English header yet)
-- `scripts/starter-from-backup.mjs` — (no English header yet)
-- `scripts/tohnit-eval.mjs` — (no English header yet)
+- `scripts/export-pool.mjs` — Starter set for the open edition: a copy of the shared pool (types, devices, cables, works, door configurations) without service fields.
+- `scripts/i18n-build.mjs` — Builds the translation dictionaries: src/i18n/src/*.json ({ "<Russian text>": ["English", "Hebrew"] }) → src/i18n/en.json and he.json.
+- `scripts/i18n-extract.mjs` — Collects every Russian UI string (strings and `…${x}…` templates in src) for the translation dictionaries.
+- `scripts/server-backup-lib.mjs` — Server backup logic: reading projects from Firestore, writing the backup folders and planning a restore.
+- `scripts/server-backup.mjs` — Server backup run by GitHub Actions every 2 days: copies all projects from Firestore into a folder that the workflow then commits to the private backup repo.
+- `scripts/server-cleanup.mjs` — Server cleanup: permanently deletes what has been marked deleted for over a year (records, whole projects) and change-history entries older than a year.
+- `scripts/server-drive-backup.mjs` — Backup copy outside GitHub: zips the newest auto-backup folder and uploads it to the owner's Google Drive.
+- `scripts/server-restore.mjs` — Restores a database from a server backup (a folder like 2026-10-23_0830 from the polevoy-backups repo) into an EMPTY Firebase project.
+- `scripts/server-tables-lib.mjs` — Server-side logic of the nightly auto-update of the management sheets, the rack table and the «PDF с номерами» drawings (GitHub Actions).
+- `scripts/server-tables.mjs` — Nightly server run (GitHub Actions) that refreshes the management sheets, the rack table and the «PDF с номерами» drawings of every active project.
+- `scripts/starter-from-backup.mjs` — Starter set built from the latest server backup (the database is not read, so no Firestore daily quota is spent).
+- `scripts/tohnit-eval.mjs` — Checks the app's drawing parsing (JS) against reference data.
 - `src/app/backup.js` — Backs a project up to Google Drive: one JSON file per project and day, in the format the «Импорт данных» screen reads (`polevoy-import-1`).
 - `src/app/cfgfilter.js` — Filter of points by door configuration for lists and the plan: «Без запирания», «Без конфигурации» and each configuration with its point count.
 - `src/app/doorpool.js` — The shared pool of door configurations (pool_doorcfg): a new kind of door gets there by itself (any member writes it), only the pool administrator deletes.
@@ -152,13 +152,13 @@ Vanilla JS PWA built by Vite (`vite-plugin-pwa`, service worker `autoUpdate`), n
 - `src/i18n/index.js` — Interface languages: Russian (the source), English, Hebrew (right to left), and the translation layer over the screen.
 - `src/log.js` — Event log for debugging: kept in memory and in localStorage (`pz.log.v1`, the last 300 lines).
 - `src/main.js` — App entry point: starts the language, theme and device helpers, decides what to show (the first-launch screens, the on-device mode or the Firebase sign-in) and starts the shell.
-- `src/tohnit/engine.js` — (no English header yet)
-- `src/tohnit/extract.js` — (no English header yet)
-- `src/tohnit/hefont.js` — (no English header yet)
-- `src/tohnit/icons.js` — (no English header yet)
-- `src/tohnit/legendhe.js` — (no English header yet)
-- `src/tohnit/linking.js` — (no English header yet)
-- `src/tohnit/numbered.js` — (no English header yet)
-- `src/tohnit/pattern.js` — (no English header yet)
-- `src/tohnit/worker.js` — (no English header yet)
+- `src/tohnit/engine.js` — Drawing parsing without AI, step 2: the logic that turns the extracted PDF text into points (a port of tools/tohnit/tohnit.py: scan → catalog rules → points + questions for a person).
+- `src/tohnit/extract.js` — Drawing parsing, step 1: extracts text, icons and layers from a PDF through MuPDF (the same engine as tools/tohnit/tohnit.py).
+- `src/tohnit/hefont.js` — Noto Sans Hebrew (Hebrew letters only) as a base64 string, for the Hebrew legend of «PDF с номерами».
+- `src/tohnit/icons.js` — Icons without numbers: tap an icon, find the same ones (by the text inside or by shape), then number them in a chain by neighbours.
+- `src/tohnit/legendhe.js` — The Hebrew legend of «PDF с номерами»: the page is drawn separately (MuPDF DocumentWriter + the embedded Hebrew font) and inserted into the document.
+- `src/tohnit/linking.js` — Matching project points to the captions on a drawing: exact pairs, similar ones (other separators, an extra beginning) and those without a pair.
+- `src/tohnit/numbered.js` — Builds «PDF с номерами»: the drawing PDF marked like the plan in the app, with a legend page at the end (in Russian or in Hebrew through legendhe.js).
+- `src/tohnit/pattern.js` — Caption pattern builder from examples: a caption is cut into parts (letters / digits / signs) and a person says what each part means.
+- `src/tohnit/worker.js` — Background drawing parsing (a Web Worker): heavy PDF reading does not slow the screen down.
 <!-- code-map:end -->

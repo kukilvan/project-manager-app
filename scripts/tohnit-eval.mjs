@@ -1,5 +1,5 @@
-// Проверка разбора тохнита в приложении (JS) на эталоне: node scripts/tohnit-eval.mjs ПАПКА [имя…]
-// В папке: <имя>.pdf и <имя>.truth.json ({points:[{label,typeId,x,y}]}). Эталон не в репозитории (чертежи заказчиков).
+// Checks the app's drawing parsing (JS) against reference data.
+// Run: node scripts/tohnit-eval.mjs FOLDER [name…]. It runs extractPdf (src/tohnit/extract.js) and autoParse (src/tohnit/engine.js) with the catalog of tools/tohnit/. The folder holds <name>.pdf and <name>.truth.json ({points:[{label,typeId,x,y}]}); the reference is not in the repo (customers' drawings).
 import fs from 'fs';
 import path from 'path';
 import { extractPdf } from '../src/tohnit/extract.js';

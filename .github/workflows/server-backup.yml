@@ -1,7 +1,7 @@
 name: Server backup
 
-# Каждые 2 дня в 08:30 UTC (сразу после суточного сброса лимита Firebase ~10:00 по Израилю) копия всех проектов уходит в закрытый репозиторий kukilvan/polevoy-backups
-# и на Google Диск владельца (файл «Автокопия данных (обновляется каждые 2 дня).zip» в папке «Полевой журнал»).
+# Every 2 days at 08:30 UTC (right after the daily Firebase quota reset, ~10:00 Israel time) a copy of all projects goes to the private repo kukilvan/polevoy-backups
+# and to the owner's Google Drive (the file «Автокопия данных (обновляется каждые 2 дня).zip» in the folder «Полевой журнал»).
 on:
   schedule:
     - cron: '30 8 */2 * *'
@@ -9,7 +9,7 @@ on:
 
 permissions:
   contents: read
-  actions: write   # нужно, чтобы задача сама продлевала своё расписание (GitHub отключает расписание после 60 дней без активности)
+  actions: write   # lets the job renew its own schedule (GitHub disables a schedule after 60 days without activity)
 
 concurrency:
   group: server-backup

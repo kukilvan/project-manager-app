@@ -1,9 +1,9 @@
-// Восстановление базы из серверной копии (папка вида 2026-10-23_0830 из репозитория polevoy-backups) в ПУСТОЙ проект Firebase.
-// Нужен только, если старый проект Firebase потерян. Обычный откат одного проекта — в приложении («Импорт данных»).
-// Запуск:
+// Restores a database from a server backup (a folder like 2026-10-23_0830 from the polevoy-backups repo) into an EMPTY Firebase project.
+// Needed only if the old Firebase project is lost; rolling back one project is done in the app («Импорт данных»). Talks to Firestore through firebase-admin; uses server-backup-lib.mjs.
+// Run:
 //   npm i --no-save firebase-admin@13
-//   FIREBASE_SERVICE_ACCOUNT="$(cat ключ.json)" node scripts/server-restore.mjs <папка копии>          — только показать, что будет записано
-//   FIREBASE_SERVICE_ACCOUNT="$(cat ключ.json)" node scripts/server-restore.mjs <папка копии> --write  — записать
+//   FIREBASE_SERVICE_ACCOUNT="$(cat key.json)" node scripts/server-restore.mjs <backup folder>          — only show what would be written
+//   FIREBASE_SERVICE_ACCOUNT="$(cat key.json)" node scripts/server-restore.mjs <backup folder> --write  — write it
 import admin from 'firebase-admin';
 import { restorePlan, revive } from './server-backup-lib.mjs';
 

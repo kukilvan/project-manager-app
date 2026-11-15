@@ -1,5 +1,5 @@
-// Сбор всех русских строк интерфейса (строки и шаблоны `…${x}…` в src) — для словарей переводов.
-// Запуск: node scripts/i18n-extract.mjs [--json out.json]
+// Collects every Russian UI string (strings and `…${x}…` templates in src) for the translation dictionaries.
+// Parses the source with acorn and prints the counts per file; run: node scripts/i18n-extract.mjs [--json out.json]
 import fs from 'node:fs';
 import path from 'node:path';
 import * as acorn from 'acorn';
@@ -8,7 +8,7 @@ import * as walk from 'acorn-walk';
 const CYR = /[А-Яа-яЁё]/;
 const files = [];
 (function scan(dir) { for (const f of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, f.name); if (f.isDirectory()) { if (!['tohnit', 'data', 'i18n'].includes(f.name)) scan(p); } else if (p.endsWith('.js')) files.push(p); } })('src');
-const out = new Map(); // текст -> {files:Set, tpl:boolean}
+const out = new Map(); // text -> {files:Set, tpl:boolean}
 for (const file of files) {
   const src = fs.readFileSync(file, 'utf8');
   let ast; try { ast = acorn.parse(src, { ecmaVersion: 'latest', sourceType: 'module' }); } catch (e) { console.error(file, e.message); continue; }
