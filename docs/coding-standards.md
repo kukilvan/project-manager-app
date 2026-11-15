@@ -24,7 +24,7 @@ One rule per item: the rule, why, how it is checked. Reviews check against this 
 
 **Why.** Every spec, ticket and review session reads the code map. A hand-written map drifts from the code; a built one stays short and true, and a comment next to the code is edited together with the code.
 
-**Checked.** `tests/code-docs.test.js` and `node tools/code-map.mjs --check`: the committed map equals the built one, every module has an English header (except the paths still in `PENDING` during stage 1), no first sentence is over 200 characters.
+**Checked.** `tests/code-docs.test.js` and `node tools/code-map.mjs --check`: the committed map equals the built one, every module has an English header, no first sentence is over 200 characters.
 
 ## 4. Domain logic is pure and tested
 
@@ -80,7 +80,7 @@ One rule per item: the rule, why, how it is checked. Reviews check against this 
 
 **Why.** One language for every session that reads the code; a mixed codebase costs more to read and search.
 
-**Checked.** `tests/code-docs.test.js` (through `tools/ru-comments.mjs`): every Russian comment of the scope is in a path still listed in `PENDING` (stage 1 empties the list).
+**Checked.** `tests/code-docs.test.js` (through `tools/ru-comments.mjs`): the scope has no Russian comment; `node tools/ru-comments.mjs` lists them all and exits 1 when there is one.
 
 ## 11. A comment-only change keeps the built site identical
 

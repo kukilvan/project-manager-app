@@ -18,7 +18,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import * as acorn from 'acorn';
-import { commentRanges, isPending, kindOf } from './ru-comments.mjs';
+import { commentRanges, inPaths, kindOf } from './ru-comments.mjs';
 
 const lineOf = (text, pos) => text.slice(0, pos).split('\n').length;
 const LINE_BREAK = new RegExp('[\n\r\u2028\u2029]');
@@ -110,7 +110,7 @@ export function checkFiles(root, base, expect = []) {
       } catch (e) { reason = `cannot compare: ${e.message.split('\n')[0]}`; }
     }
     if (!reason) res.commentOnly.push({ path: f.path });
-    else (isPending(f.path, expect) ? res.expected : res.changed).push({ path: f.path, reason });
+    else (inPaths(f.path, expect) ? res.expected : res.changed).push({ path: f.path, reason });
   }
   return res;
 }

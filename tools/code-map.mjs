@@ -1,26 +1,21 @@
 #!/usr/bin/env node
 // Code-map builder: writes the module list of docs/code-map.md from the first sentence of each module's header comment (spec 01-code-docs, section 5).
 // Reads every *.js and *.mjs under src/ and scripts/; tests/code-docs.test.js calls the same functions,
-// and tools/ru-comments.mjs supplies the Cyrillic check and the PENDING matching.
+// and tools/ru-comments.mjs supplies the Cyrillic check. Strict: every module needs an English header.
 //
 // Contents:
 // - listModules() — the modules on disk, sorted
 // - headerOf(), firstSentence(), entryOf() — header comment → first sentence → one map line
 // - buildList(), renderMap(), checkMap() — the list, its place between the markers, staleness and problems
-// - PENDING — modules still waiting for their ticket (spec section 9)
 // - CLI: node tools/code-map.mjs [--check]
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { isPending, isRussian } from './ru-comments.mjs';
-
-// Modules still waiting for their English header (spec section 9). Each ticket deletes its own entries; ticket 09 deletes the list.
-export const PENDING = [
-];
+import { isRussian } from './ru-comments.mjs';
 
 export const MAP_FILE = 'docs/code-map.md';
 export const MAX_SENTENCE = 200;
-export const NO_HEADER = '(no English header yet)';
+export const NO_HEADER = '(no English header)';
 
 // Every *.js and *.mjs under src/ and scripts/ on disk, paths with "/", plain string order.
 export function listModules(root) {
@@ -100,15 +95,15 @@ export function entryOf(file, text) {
   return { path: file, sentence, english, tooLong, line: `- \`${file}\` — ${english ? sentence : NO_HEADER}` };
 }
 
-// The map list and its problems: a module without an English header that is not pending; a sentence over 200 characters.
-export function buildList(root, pending = PENDING) {
+// The map list and its problems: a module without an English header; a sentence over 200 characters.
+export function buildList(root) {
   const entries = listModules(root).map((f) => entryOf(f, fs.readFileSync(path.join(root, f), 'utf8')));
   const problems = [];
   for (const e of entries) {
-    if (!e.english && !isPending(e.path, pending)) problems.push(`${e.path}: no English header comment`);
+    if (!e.english) problems.push(`${e.path}: no English header comment`);
     if (e.tooLong) problems.push(`${e.path}: first sentence is ${e.sentence.length} characters (limit ${MAX_SENTENCE})`);
   }
-  return { entries, lines: entries.map((e) => e.line), problems, pending: entries.filter((e) => isPending(e.path, pending)).length };
+  return { entries, lines: entries.map((e) => e.line), problems };
 }
 
 // Puts the list between the line starting "<!-- code-map:start" and the line "<!-- code-map:end -->".
@@ -124,9 +119,9 @@ export function renderMap(mapText, list) {
 }
 
 // { stale, problems, text, current }: stale when the file differs from the rendered map (carriage returns ignored).
-export function checkMap(root, pending = PENDING) {
+export function checkMap(root) {
   const current = fs.readFileSync(path.join(root, MAP_FILE), 'utf8');
-  const built = buildList(root, pending);
+  const built = buildList(root);
   const text = renderMap(current, built.lines);
   return { stale: text.replace(/\r/g, '') !== current.replace(/\r/g, ''), problems: built.problems, text, current, built };
 }
@@ -137,7 +132,7 @@ function main() {
   let res;
   try { res = checkMap(root); } catch (e) { console.error(e.message); process.exit(2); }
   if (!check && res.stale) fs.writeFileSync(path.join(root, MAP_FILE), res.text);
-  console.log(`code map: ${res.built.entries.length} modules, ${res.built.pending} pending`);
+  console.log(`code map: ${res.built.entries.length} modules`);
   for (const p of res.problems) console.log(`PROBLEM ${p}`);
   if (check && res.stale) console.log(`${MAP_FILE} is stale: run node tools/code-map.mjs`);
   else if (!check && res.stale) console.log(`${MAP_FILE} written`);

@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as map from '../tools/code-map.mjs';
@@ -44,6 +45,20 @@ test('code map: entryOf — English, Russian, no header', () => {
   assert.equal(map.entryOf('src/a.js', '// Holds the «Точки» tab. Talks to repo.\n').line, '- `src/a.js` — Holds the «Точки» tab.');
   assert.equal(map.entryOf('src/a.js', '// Экран точек.\n').line, `- \`src/a.js\` — ${map.NO_HEADER}`);
   assert.equal(map.entryOf('src/a.js', 'export {};\n').line, `- \`src/a.js\` — ${map.NO_HEADER}`);
+});
+
+test('code map: buildList — every module without an English header is a problem', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'code-map-'));
+  try {
+    fs.mkdirSync(path.join(dir, 'src/app'), { recursive: true });
+    fs.mkdirSync(path.join(dir, 'scripts'));
+    fs.writeFileSync(path.join(dir, 'src/app/a.js'), '// Holds A. Talks to B.\n');
+    fs.writeFileSync(path.join(dir, 'src/app/b.js'), '// Модуль Б.\n');
+    fs.writeFileSync(path.join(dir, 'scripts/c.mjs'), 'export {};\n');
+    const { lines, problems } = map.buildList(dir);
+    assert.deepEqual(lines, ['- `scripts/c.mjs` — ' + map.NO_HEADER, '- `src/app/a.js` — Holds A.', '- `src/app/b.js` — ' + map.NO_HEADER]);
+    assert.deepEqual(problems, ['scripts/c.mjs: no English header comment', 'src/app/b.js: no English header comment']);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('code map: renderMap', () => {
@@ -115,6 +130,14 @@ test('comments: isRussian', () => {
   assert.equal(ru.isRussian({ text: 'plain English' }), false);
 });
 
+test('paths: inPaths — a folder entry matches the files directly in it', () => {
+  assert.equal(ru.inPaths('src/app/repo.js', ['src/app/']), true);
+  assert.equal(ru.inPaths('src/app/views/points.js', ['src/app/']), false);
+  assert.equal(ru.inPaths('tools/code-map.mjs', ['tests/code-docs.test.js', 'tools/code-map.mjs']), true);
+  assert.equal(ru.inPaths('tools/code-map.mjs.bak', ['tools/code-map.mjs']), false);
+  assert.equal(ru.inPaths('src/a.js', []), false);
+});
+
 test('same-code: per-file comparison', () => {
   assert.equal(sameCode('src/a.js', 'const a = 1; // старый\n', 'const a = 1; // new\n'), true);
   assert.equal(sameCode('src/a.js', "const a = 'x';\n", "const a = 'y';\n"), false);
@@ -137,22 +160,14 @@ test('repo: the code map is current and has no problems', () => {
   assert.equal(stale, false, 'docs/code-map.md is stale: run node tools/code-map.mjs');
 });
 
-test('repo: every Russian comment is in a PENDING path', () => {
+test('repo: every Russian comment is a failure — the scope has none', () => {
   const { hits, problems } = ru.scanScope(root);
   assert.deepEqual(problems, []);
-  assert.deepEqual(hits.filter((h) => !ru.isPending(h.file)).map((h) => `${h.file}:${h.line}`), []);
+  assert.deepEqual(hits.map((h) => `${h.file}:${h.line}`), []);
 });
 
 test('repo: every test module starts with a comment', () => {
   const files = fs.readdirSync(path.join(root, 'tests')).filter((f) => f.endsWith('.test.js')).map((f) => `tests/${f}`);
-  const checked = files.filter((f) => f === 'tests/code-docs.test.js' || !ru.isPending(f));
-  const missing = checked.filter((f) => !map.headerOf(fs.readFileSync(path.join(root, f), 'utf8')));
+  const missing = files.filter((f) => !map.headerOf(fs.readFileSync(path.join(root, f), 'utf8')));
   assert.deepEqual(missing, []);
-});
-
-test('repo: every PENDING entry still matches a file', () => {
-  const modules = map.listModules(root);
-  const scope = ru.scopeFiles(root);
-  assert.deepEqual(map.PENDING.filter((e) => !modules.some((f) => ru.isPending(f, [e]))), [], 'stale entries in tools/code-map.mjs');
-  assert.deepEqual(ru.PENDING.filter((e) => !scope.some((f) => ru.isPending(f, [e]))), [], 'stale entries in tools/ru-comments.mjs');
 });

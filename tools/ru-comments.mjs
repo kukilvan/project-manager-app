@@ -1,25 +1,22 @@
 #!/usr/bin/env node
 // Russian-comment finder: lists every comment with Cyrillic outside «…» in the stage-1 scope (spec 01-code-docs, sections 2 and 6.1).
 // Parses JS with acorn and scans CSS, Python, YAML and Firestore rules by hand; tools/code-map.mjs, tools/same-code.mjs
-// and tests/code-docs.test.js reuse its comment scanners and PENDING matching.
+// and tests/code-docs.test.js reuse its comment scanners and its path matching.
 //
 // Contents:
 // - commentRanges(), commentsOf() — the comments of one file by its type, with line and character range
 // - isRussian() — Cyrillic left after removing «…» spans
-// - PENDING, isPending() — paths still waiting for their ticket; a folder entry matches the files directly in it
+// - inPaths() — whether a file is in a path list; a folder entry matches the files directly in it
 // - scopeFiles(), scanScope() — every file of the scope and its Russian comments
-// - CLI: node tools/ru-comments.mjs [paths…] — prints path:line: comment; exit 1 if one is outside PENDING
+// - CLI: node tools/ru-comments.mjs [paths…] — prints path:line: comment; exit 1 if there is one
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import * as acorn from 'acorn';
 
-// Paths still waiting for their ticket (spec section 9). Each ticket deletes its own entries; ticket 09 deletes the list.
-export const PENDING = [
-];
-
-// An entry ending in "/" matches the files directly in that folder (not subfolders); any other entry matches one file.
-export function isPending(file, list = PENDING) {
+// Whether a file is in a path list: an entry ending in "/" matches the files directly in that folder (not subfolders),
+// any other entry matches one file. Used for CLI folder arguments and for --expect of tools/same-code.mjs.
+export function inPaths(file, list) {
   return list.some((e) => (e.endsWith('/') ? file.startsWith(e) && !file.slice(e.length).includes('/') : file === e));
 }
 
@@ -236,14 +233,14 @@ export function scanScope(root, files = scopeFiles(root)) {
   return { files, hits, problems };
 }
 
-// CLI arguments: a file of the scope, or a folder (its files directly inside, as in PENDING).
+// CLI arguments: a file of the scope, or a folder (its files directly inside, as in inPaths).
 function selectFiles(root, args) {
   const all = scopeFiles(root);
   const picked = new Set();
   for (const a of args) {
     const p = a.replace(/\\/g, '/').replace(/^\.\//, '');
     const isDir = p.endsWith('/') || (fs.existsSync(path.join(root, p)) && fs.statSync(path.join(root, p)).isDirectory());
-    const found = isDir ? all.filter((f) => isPending(f, [p.endsWith('/') ? p : `${p}/`])) : all.filter((f) => f === p);
+    const found = isDir ? all.filter((f) => inPaths(f, [p.endsWith('/') ? p : `${p}/`])) : all.filter((f) => f === p);
     if (!found.length) { console.error(`not in the scope: ${a}`); process.exit(2); }
     found.forEach((f) => picked.add(f));
   }
@@ -257,10 +254,8 @@ function main() {
   for (const h of hits) console.log(`${h.file}:${h.line}: ${h.text.replace(/\s+/g, ' ').trim().slice(0, 100)}`);
   for (const p of problems) console.log(`PROBLEM ${p.file}: ${p.message}`);
   const inFiles = new Set(hits.map((h) => h.file)).size;
-  const outside = hits.filter((h) => !isPending(h.file));
   console.log(`${hits.length} Russian comments in ${inFiles} files (${files.length} files scanned)`);
-  if (outside.length) console.log(`${outside.length} of them outside PENDING`);
-  process.exit(outside.length || problems.length ? 1 : 0);
+  process.exit(hits.length || problems.length ? 1 : 0);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) main();
