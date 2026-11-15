@@ -6,6 +6,7 @@ Offline-first PWA for low-voltage installers in Israel: project points, drawings
 
 - Talk to the owner in Russian. Everything new in the repo — docs, code comments, commit messages — is English. Old Russian comments are translated when a session edits that code. App UI: Russian (source), English, Hebrew (RTL).
 - **Golden rule (ADR 0011):** code reaches `main` only after the full self-check (`docs/workflow.md`); every push to `main` deploys the live site, and the owner checks there. Stage docs (description, spec, tickets, review) reach `main` only after the owner's «Коммит».
+- **FIRST ACTION of every session, before reading any file: rename the session** to the step's title («Тикет 1.7», «Описание 2», «Правка: <slug>»; `docs/workflow.md`, "Start of a session"). Desktop app: `ToolSearch` "select:mcp__ccd_session_mgmt__set_session_title", then `set_session_title` with `session_id: "self"`. The owner renames by hand when you skip it: never skip it, and say «Сессия переименована: …» in your first message.
 - The owner starts a session with «дальше» (do the Next step of `PROJECT_CONTEXT.md`) or «Правка: …» (quick fix, `docs/workflow.md`). Read `docs/workflow.md` first in every session.
 - Never print secrets (service account JSON, tokens, Firebase configs of users) — in replies, logs or commands.
 - Never commit work data, customer drawings, the owner's backups or keys: the repo is public (ADR 0005). Keep such files in the scratchpad.

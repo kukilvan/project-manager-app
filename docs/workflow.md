@@ -57,7 +57,7 @@ A session does one step and never starts the next, even with time left. Outside 
 
 ## Start of a session
 
-1. Title the session from the table (desktop app: the session-title tool via ToolSearch; elsewhere skip).
+1. **Rename the session — the very first action, before reading anything else.** The title is the step's name from the table («Тикет 1.7», «Спека 2», «Ревью 1 · правки 1»), for a quick fix «Правка: <slug>». Desktop app: `ToolSearch` with "select:mcp__ccd_session_mgmt__set_session_title", then `set_session_title` with `session_id: "self"` and the title; elsewhere skip. Your first message to the owner says «Сессия переименована: <title>». The owner has had to do this by hand when it was skipped; check it again at "End of a session", step 1.
 2. Read what the step needs, no more:
 
 | Session | Reads, besides `CLAUDE.md`, `PROJECT_CONTEXT.md` and this file |
@@ -85,7 +85,7 @@ Before the owner sees the change:
 
 ## End of a session
 
-1. Status line of the step's file → `in review`. Commit and `git push -u origin <branch>` — allowed without asking.
+1. The session title is set (Start of a session, step 1); if not, set it now. Status line of the step's file → `in review`. Commit and `git push -u origin <branch>` — allowed without asking.
 2. Ticket and quick fix only: after the self-check, bring the branch up to date (`git pull --rebase origin main` — the pool bot may have committed) and `git push origin HEAD:main`; wait for the deploy (`gh run list --workflow pages.yml --limit 1`, usually 1–2 minutes). A failed deploy is fixed before you report.
 3. Message to the owner, Russian:
    - what was done, 2–4 lines;
