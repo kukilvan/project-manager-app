@@ -2,6 +2,13 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-15 — Ticket 1.8: tests and Python tools documented («Тикет 1.8»)
+
+- All 14 `tests/*.test.js` start with an English comment saying what they check and which modules they cover (9 got one, 3 were translated); the 276 Russian comments of `tests/` and `tools/tohnit/` are translated. Test names, assertion messages and Russian test data stay (strings).
+- `tools/tohnit/tohnit.py`: English header comment after the shebang, English comments and docstrings; the module docstring stays Russian on purpose (printed as usage help by `print(__doc__)`), as do the Russian output texts and the Russian type names in the data. `build_skill.py` translated; `SKILL.md` needs no rebuild.
+- `git rm --cached tools/tohnit/__pycache__` (already in `.gitignore`); the `tests/` and `tools/tohnit/` entries are gone from the `ru-comments` `PENDING`, so the stage test now checks every test file.
+- Proof: `node tools/same-code.mjs --expect tools/ru-comments.mjs` — all other changed files comment-only, built site byte-identical (28 files); 158/158 tests; `code-map --check` exit 0; 0 Russian comments; deploy of `main` succeeded (commit `d7b0e7e`).
+
 ## 2026-11-15 — Ticket 1.7: drawings, scripts, config documented («Тикет 1.7»)
 
 - The 9 modules of `src/tohnit/` and the 12 of `scripts/` have an English header (first sentence = the code-map line; `vite.config.js` got one too, outside the map) and every Russian comment is translated: `src/style.css`, `vite.config.js`, `firestore.rules`, the three workflows with comments. The entries are removed from both `PENDING` lists. Commit `4017aa2`, branch `claude/s01-ticket-07`; deploy of `main` succeeded.
