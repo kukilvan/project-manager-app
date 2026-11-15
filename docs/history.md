@@ -2,6 +2,13 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-15 — Ticket 1.9: architecture section and strict checks («Тикет 1.9»)
+
+- `docs/code-map.md`: the hand-written architecture written from the code and module headers — start, storage and the repo, sync and read saving, offline, data paths, Google Drive and Sheets, server jobs, drawings; the "Not code" list checked against `git ls-files` (added `package.json`, `package-lock.json`, `tests/`, `.gitignore`, the `tools/tohnit/` sources). Hand-written part 8,927 bytes, whole file ≈ 30 KB: the ticket's "≤ 10,000 bytes for the whole file" cannot hold with a built list of ≈ 21 KB, so the spec 13 limit (the architecture section) was kept — left to «Ревью 1».
+- `tools/code-map.mjs`, `tools/ru-comments.mjs`: both `PENDING` arrays and every pending path deleted; a module without an English header, or any Russian comment, is always a problem (exit 1). `isPending` became `inPaths(file, list)` — still used for CLI folder arguments and for `--expect`, so `tools/same-code.mjs` follows the rename (two identifiers; a fourth expected exception beyond the ticket's three). The placeholder line now reads `(no English header)`.
+- `tests/code-docs.test.js`: pending cases and the stale-entry case dropped; new cases for strict `buildList` (a temp folder) and `inPaths`; 159 tests. `docs/coding-standards.md` rules 3 and 10 say how the strict checks work; `CLAUDE.md` and `CONTEXT.md` already matched.
+- Proof: `node tools/same-code.mjs --expect tools/code-map.mjs --expect tools/ru-comments.mjs --expect tests/code-docs.test.js --expect tools/same-code.mjs` — exit 0, built site byte-identical (28 files); `code-map --check` and `ru-comments` (whole scope, 154 files) exit 0; deploy of `main` succeeded (commit `cc52459`).
+
 ## 2026-11-15 — Ticket 1.8: tests and Python tools documented («Тикет 1.8»)
 
 - All 14 `tests/*.test.js` start with an English comment saying what they check and which modules they cover (9 got one, 3 were translated); the 276 Russian comments of `tests/` and `tools/tohnit/` are translated. Test names, assertion messages and Russian test data stay (strings).
