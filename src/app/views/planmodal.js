@@ -1,4 +1,15 @@
-// «🗺 План»: чертёж проекта с точками по статусу. Нажал на точку — её карточка; из карточки точки «📍 На чертеже» — сюда же, к ней.
+// «🗺 План»: the project's drawing with points colored by status; tapping a point opens its card, and «📍 На чертеже» on a point card opens the plan at that point.
+// Draws the sheets with the planview.js viewer through the tohnit worker (MuPDF), reads and writes drawings with drawings.js, and saves points through repo.save;
+// the tools on the plan call planversion.js (new drawing version), planlink.js (link points), plannumbers.js (PDF with numbers), tohnitview.js (parse, icons) and pointmerge.js.
+//
+// Contents:
+// - shOf(), tagOf(), outline(), placeTags(), iconImg() — drawing helpers: door short labels, frames, non-overlapping tags, type icons
+// - planModal() — the plan screen: sheet pages, status filters, layers, the «🚪 Двери» wizard and the brush
+// - addPdf() — add a drawing to the project from a PDF
+// - tap handling and addCard(), existingCard(), pickGroup() — «➕ Точка на плане»: add a point, link a place to a point, draw or remove a type icon
+// - markCard(), moveMark(), chooseFor(), hideArea() — an unlinked caption («Не размеченая»): hide it or link it to a project point
+// - the type-icons tool «📌 Значки типов» and the drawing layers (AutoCAD) switcher
+// - namesModal() — the user's own drawing names and their order
 import { matchesPanelQuery } from '../../domain/rack.js';
 import { pickPdf } from './pdfpick.js';
 import { h, openModal, toast, confirmDialog } from '../ui.js';
@@ -26,14 +37,14 @@ import { allDoorCfgs, pinsOf as doorPins, ensureDoorCfg } from '../doorpool.js';
 import { doorPicker } from './doorcfgview.js';
 import { doorChips } from './doorchips.js';
 import { doorShortColor } from '../../domain/index.js';
-// подпись точки на плане: у двери с конфигурацией — ещё ЭМ / МХ
+// the point's tag on the plan: a door with a configuration also gets «ЭМ» / «МХ»
 export const shOf = (p) => { const c = doorCfgOf(p, state.ctx); const t = c ? doorCfgShort(state.ctx, c) : ''; return t ? { text: t, color: doorShortColor(state.ctx, c) || '#111' } : null; };
 export const tagOf = (p) => { const c = doorCfgOf(p, state.ctx); const sh = c ? doorCfgShort(state.ctx, c) : ''; return sh ? `${p.label} ${sh}` : p.label; };
 import { typeMatch, typeFilterOptions } from '../typegroups.js';
 
 export { STATUS_COLORS, statusColor } from '../../domain/index.js';
 import { statusColor, STATUS_COLORS } from '../../domain/index.js';
-// подпись на чертеже — рамка вокруг текста; значок без подписи — кружок его размера
+// a caption on the drawing — a frame around the text; an icon without a caption — a circle of its size
 export const isText = (pos) => { const w = pos.w || 0; const hh = pos.h || 0; return w && hh && Math.max(w, hh) / Math.min(w, hh) > 1.6; };
 export function outline(g, api, pos, color, { width = 1.5, pad = 1.5, fill = null } = {}) {
   const s = api.view.s; const [x, y] = api.toScr(pos.x, pos.y);
@@ -44,8 +55,8 @@ export function outline(g, api, pos, color, { width = 1.5, pad = 1.5, fill = nul
   g.stroke();
 }
 const labelLike = (t = '') => /\d/.test(t) && !/[\u0590-\u05FF]/.test(t) && t.length <= 24 && !/\s{2,}/.test(t);
-// подписи значков (точки без надписи на чертеже): растут вместе с приближением, в рамке цвета статуса,
-// ставятся туда, где не закрывают значки и другие подписи
+// tags of icons (points with no caption on the drawing): they grow with the zoom, sit in a frame of the status color,
+// and are placed where they do not cover icons and other tags
 export function placeTags(g, api, tags, circles, frames = []) {
   const fs = Math.round(Math.min(26, Math.max(12, 5.5 * api.view.s)));
   g.font = `bold ${fs}px system-ui`; g.textBaseline = 'middle';
@@ -61,14 +72,14 @@ export function placeTags(g, api, tags, circles, frames = []) {
     const box = ([x0, y0]) => [x0, y0, x0 + w, y0 + hh];
     const best = opts.map(box).find((b) => !hitsBox(b) && !hitsCircle(b)) || opts.map(box).find((b) => !hitsCircle(b)) || box(opts[0]);
     placed.push(best);
-    // линия от значка к подписи, если подпись отодвинута
+    // a line from the icon to its tag when the tag is moved aside
     const cx = Math.max(best[0], Math.min(t.x, best[2])); const cy = Math.max(best[1], Math.min(t.y, best[3]));
     if (Math.hypot(cx - t.x, cy - t.y) > r + gap + 4) { g.strokeStyle = t.col; g.lineWidth = 1; g.beginPath(); g.moveTo(t.x, t.y); g.lineTo(cx, cy); g.stroke(); }
     g.fillStyle = 'rgba(255,255,255,.92)'; g.fillRect(best[0], best[1], w, hh);
     g.strokeStyle = t.col; g.lineWidth = 2; g.strokeRect(best[0], best[1], w, hh);
     g.fillStyle = '#111'; lines.forEach((l, i) => {
       const yy = best[1] + 2 + lh * i + lh / 2 + 1;
-      if (t.sh && lines.length === 1 && l.endsWith(` ${t.sh.text}`)) {  // ЭМ / МХ — цветом
+      if (t.sh && lines.length === 1 && l.endsWith(` ${t.sh.text}`)) {  // «ЭМ» / «МХ» — by color
         const main = l.slice(0, -t.sh.text.length); g.fillText(main, best[0] + padX, yy);
         g.fillStyle = t.sh.color; g.fillText(t.sh.text, best[0] + padX + g.measureText(main).width, yy); g.fillStyle = '#111'; return;
       }
@@ -78,10 +89,10 @@ export function placeTags(g, api, tags, circles, frames = []) {
   g.textBaseline = 'alphabetic';
 }
 const UNL = '__unlinked'; const HID = '__hidden';
-// «Что осталось»: показать ярко только точки, где этот этап ещё не сделан
+// «Что осталось»: show brightly only the points where this stage is not done yet
 const STAGE_FILTERS = [['Длина', 'Осталось: длина (не померяно)'], ['Протяжка', 'Осталось: протяжка'], ['Дотянуть', 'Осталось: дотянуть'], ['Хивут', 'Осталось: хивут'], ['Установка', 'Осталось: установка'], ['Проверка', 'Осталось: проверка']];
 
-// значки типов (картинка с чертежа): ими рисуются точки, добавленные на объекте, — на плане и в «PDF с номерами»
+// type icons (an image taken from the drawing): they draw the points added on site, on the plan and in the «PDF с номерами»
 const iconImgs = new Map();
 function iconImg(t, png, redraw) {
   const k = `${t}|${png.length}`; if (iconImgs.has(k)) return iconImgs.get(k);
@@ -94,9 +105,9 @@ export function planModal({ point = null, placeFor = null } = {}) {
   let wk = null; let viewer = null; let current = null; let focusId = point?.id || null; let fType = ''; let fCab = ''; let fStage = ''; let fCfg = '';
   let dimDrawing = false; let selMode = false; let rectSel = false; const sel = new Set(); let selBar = () => {};
   let openCard = null; let doorPts = () => []; let goDoor = () => {}; let brushTap = () => {};
-  const doorSkip = new Set(); let doorCur = null; let doorMode = 'wizard'; let brushId = ''; let pipette = false;  // «Кисть»: конфигурация по нажатию; пипетка — взять с двери  // мастер «🚪 Двери»: пропущенные и текущая дверь
+  const doorSkip = new Set(); let doorCur = null; let doorMode = 'wizard'; let brushId = ''; let pipette = false;  // «Кисть»: a configuration applied by a tap; the pipette takes it from a door  // the «🚪 Двери» wizard: skipped doors and the current door
   let tool = placeFor ? 'place' : null; let iconType = ''; let temp = null; let toolBar = () => {};  // tool: add — «➕ Точка на плане», icon — «📌 Значки типов», place — «📍 Отметить на плане»
-  let updateInfo = () => {}; const unsub = subscribe(() => { viewer?.draw(); updateInfo(); if (tool === 'doors') toolBar(); });  // статусы и номера меняются — план следом
+  let updateInfo = () => {}; const unsub = subscribe(() => { viewer?.draw(); updateInfo(); if (tool === 'doors') toolBar(); });  // statuses and numbers change — the plan follows
   const close = openModal('🗺 План', box, { sticky: true, wide: true, onClose: () => { unsub(); wk?.stop(); } });
   const sheetPts = (d) => [...state.ctx.points.values()].filter((p) => p.pos && drawingFor(p)?.id === d.id);
 
@@ -106,7 +117,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
       const f = { name: r.name }; const buf = r.buf;
       const dup = drawingsOf().find((x) => x.name === f.name);
       if (dup && !(await confirmDialog(`Этот файл уже добавлен: «${drawingTitle(dup)}» (файл ${f.name}). Заменить чертёж новым файлом? Точки и отметки останутся.`, { yes: 'Заменить' }))) return;
-      // точки, чей чертёж ещё не добавлен: предложить связать с этим файлом
+      // points whose drawing is not added yet: offer to link them to this file
       const orphan = [...new Set([...state.ctx.points.values()].filter((p) => p.pos?.sheet && !drawingFor(p)).map((p) => p.pos.sheet))];
       let alias = null;
       if (orphan.length && !orphan.includes(f.name)) {
@@ -136,7 +147,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
     const perf = h('div', { class: 'mut', style: { fontSize: '12px', margin: '0 0 4px' } });
     const holder = h('div', {}); body.replaceChildren(status, perf, holder);
     try {
-      // модуль чтения PDF грузится и запускается одновременно с чтением файла чертежа
+      // the PDF reader module loads and starts at the same time as the drawing file is read
       const t0 = performance.now(); const warm = wk.call('warm').then(() => performance.now() - t0, () => 0);
       const buf = await loadDrawing(d); const from = loadDrawing.from || 'устройства'; const t1 = performance.now();
       if (from === 'Диска') status.textContent = 'Чертёж скачан с Google Диска (раньше на этом устройстве не был)…';
@@ -150,7 +161,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
         if (fStage === 'Протяжка') return !info.pulled && !info.pullDone; return missingStages(p, state.ctx).includes(fStage); };
       const pts = () => (fType === UNL || fType === HID ? [] : sheetPts(d).filter((p) => typeMatch(fType, p.typeId) && cfgMatch(fCfg, p) && (!fCab || (p.cabinet || '') === fCab)));
       const marks = () => (fType === UNL ? unl() : fType === HID ? hid() : []);
-      // попадание: внутри рамки/круга с запасом 10 px; из нескольких — ближайший край
+      // hit test: inside the frame or circle with a 10 px margin; of several, the nearest edge wins
       const hitDist = (pos, x, y) => { const s = viewer.view.s; const pad = 2 + 10 / s;
         if (isText(pos)) { const dx = Math.max(0, Math.abs(x - pos.x) - pos.w / 2 - pad); const dy = Math.max(0, Math.abs(y - pos.y) - pos.h / 2 - pad); return Math.hypot(dx, dy); }
         return Math.max(0, Math.hypot(x - pos.x, y - pos.y) - Math.max(pos.w || 8, pos.h || 8) / 2 - pad); };
@@ -172,7 +183,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
         overlay: (g, api) => {
           const big = api.view.s > 0.6;
           if (fType === UNL || fType === HID) { for (const m of marks()) { if ((m.pos.page || 0) !== api.page) continue; if (fType === HID) { outline(g, api, m.pos, '#c7c7cc', { width: 1, fill: 'rgba(255,255,255,.9)' }); } else outline(g, api, m.pos, '#ff9500', { width: 2 }); } return; }
-          // скрытые подписи и значки — закрашены белым, чтобы не мешали
+          // hidden captions and icons are painted white so they do not get in the way
           for (const m of hid()) { if ((m.pos.page || 0) === api.page) outline(g, api, m.pos, '#ffffff', { width: 2, pad: 2, fill: '#ffffff' }); }
           const icons = currentProject()?.typeIcons || {}; const tags = []; const circles = []; const frames = []; const byKey = new Map();
           for (const p of pts()) {
@@ -183,12 +194,12 @@ export function planModal({ point = null, placeFor = null } = {}) {
             outline(g, api, p.pos, col, { width: on ? (big ? 1.5 : 2) : 1 });
             if (sel.has(p.id)) outline(g, api, p.pos, '#00b7ff', { width: 3, pad: 1.5 + 3 / api.view.s });
             if (!isText(p.pos)) {
-              const k = posKey(p.pos); const same = byKey.get(k);  // несколько точек на одной отметке — одна подпись
+              const k = posKey(p.pos); const same = byKey.get(k);  // several points on one mark — one tag
               if (same) { same.labels.push(tagOf(p)); continue; }
               const [x, y] = api.toScr(p.pos.x, p.pos.y); const r = Math.max(5, (Math.max(p.pos.w || 8, p.pos.h || 8) / 2 + 1.5) * api.view.s); circles.push([x, y, r]);
               const t = { p, col, x, y, r, labels: [tagOf(p)], sh: shOf(p) }; byKey.set(k, t); if (on && big) tags.push(t);
             } else {
-              // надпись на чертеже: своя подпись не нужна, если точка одна и называется так же; иначе (несколько точек, другое название) — подпись
+              // a caption on the drawing: no tag of our own is needed if there is one point and it is named the same; otherwise (several points, another name) — a tag
               const k = posKey(p.pos); const same = byKey.get(k);
               if (same) { same.labels.push(tagOf(p)); same.need = true; continue; }
               const [x, y] = api.toScr(p.pos.x, p.pos.y); const hw = (p.pos.w / 2 + 2) * api.view.s; const hh2 = (p.pos.h / 2 + 2) * api.view.s; frames.push([x - hw, y - hh2, x + hw, y + hh2]);
@@ -207,7 +218,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
       const search = h('input', { type: 'search', placeholder: 'Найти точку или порт U38-05', style: { flex: 1, minWidth: '120px' }, onchange: (e) => {
         const q = e.target.value.trim().toLowerCase(); if (!q) return;
         let p = sheetPts(d).find((x) => latinKey(x.label) === latinKey(q));
-        if (!p) {  // по порту панели (U38-05): сначала в выбранном шкафу
+        if (!p) {  // by a panel port (U38-05): first in the chosen rack
           const byPort = sheetPts(d).filter((x) => matchesPanelQuery(x, q)).sort((a, b) => (b.cabinet === fCab) - (a.cabinet === fCab));
           if (byPort.length) { p = byPort[0]; toast(byPort.length > 1 ? `Порт ${q.toUpperCase()} есть в шкафах: ${byPort.map((x) => `${x.cabinet || '—'} (${x.label})`).join(', ')}. Показана ${p.label}` : `Порт в панели ${q.toUpperCase()}: ${p.label}`); }
         }
@@ -226,8 +237,8 @@ export function planModal({ point = null, placeFor = null } = {}) {
       const addBtn = h('button', { class: 'sec', onclick: () => { tool = tool === 'add' ? null : 'add'; if (tool) { selMode = false; sel.clear(); selBar(); } temp = null; toolBar(); viewer.draw(); } });
       const iconBtn = h('button', { class: 'sec', onclick: () => { tool = tool === 'icon' ? null : 'icon'; if (tool) { selMode = false; sel.clear(); selBar(); } temp = null; toolBar(); viewer.draw(); } });
       const tbar = h('div', { class: 'card', style: { display: 'none', margin: '6px 0', padding: '8px', gap: '8px', flexWrap: 'wrap', alignItems: 'center' } });
-      const doorBar = h('div', { class: 'card', style: { display: 'none', margin: '6px 0', padding: '8px', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } });  // под планом: дверь видна выше
-      // ---- мастер «🚪 Двери»: нажать дверь → выбрать конфигурацию → следующая ближайшая неразмеченная ----
+      const doorBar = h('div', { class: 'card', style: { display: 'none', margin: '6px 0', padding: '8px', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } });  // under the plan: the door is visible above
+      // ---- the «🚪 Двери» wizard: tap a door → choose a configuration → the next nearest unmarked one ----
       const isDoor = (p) => usesConfig(state.ctx.types.get(p.typeId));
       doorPts = () => sheetPts(d).filter(isDoor);
       const doorDone = (p) => !!doorCfgOf(p, state.ctx);
@@ -244,7 +255,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
         doorSkip.delete(p.id); const nx = nextDoor({ ...p, configId: id }); toast(`${p.label}: ${allDoorCfgs().get(id)?.name || 'готово'}`);
         setTimeout(() => goDoor(nx), 250);
       };
-      // все конфигурации в порядке вкладки «Конфигурации дверей»: закреплённые, потом остальные (чаще используемые выше)
+      // all configurations in the order of the «Конфигурации дверей» tab: pinned ones first, then the rest (the more used ones higher)
       const cfgOrder = () => { const all = allDoorCfgs(); const pins = doorPins(); const used = (id) => [...state.ctx.points.values()].filter((q) => q.configId === id).length;
         return [...pins.map((id) => all.get(id)).filter(Boolean), ...[...all.values()].filter((c) => !pins.includes(c.id)).sort((a, b) => used(b.id) - used(a.id) || a.name.localeCompare(b.name, 'ru'))]; };
       brushTap = (p) => {
@@ -328,7 +339,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
       const bar = h('div', { class: 'card', style: { display: 'none', margin: '6px 0', padding: '8px', gap: '8px', flexWrap: 'wrap', alignItems: 'center' } });
       const layersBtn = h('button', { class: 'sec', onclick: () => layersModal(d) }, '🗂 Слои чертежа');
       const dimBtn = h('button', { class: 'sec', onclick: () => { dimDrawing = !dimDrawing; dimBtn.textContent = dimDrawing ? '🌕 Чертёж ярче' : '🌗 Чертёж бледнее'; viewer.draw(); } }, dimDrawing ? '🌕 Чертёж ярче' : '🌗 Чертёж бледнее');
-      // после «Новой версии чертежа»: точки, которые надо проверить (сдвинуты на новом листе, нет на нём, значок не на месте)
+      // after a «Новая версия чертежа»: points to check (moved on the new sheet, missing from it, icon not in place)
       const revBtn = h('button', { style: { display: 'none', background: '#ff9500' }, onclick: () => reviewModal(cur(), {
         onFocus: (id) => { const p = state.ctx.points.get(id); focusId = id; if (p?.pos) viewer.focus(p.pos.x, p.pos.y, p.pos.page || 0); viewer.draw(); },
         onOpen: (id) => { const p = state.ctx.points.get(id); if (p) openCard?.(p); },
@@ -365,15 +376,15 @@ export function planModal({ point = null, placeFor = null } = {}) {
     } catch (e) { status.textContent = e.message; }
   }
 
-  // нажатие в режиме инструмента: прицепиться к ближайшей надписи/значку, дальше — по инструменту
+  // a tap in a tool mode: snap to the nearest caption or icon, then act by the tool
   async function toolTap(d, pages, x, y, page, nearest) {
     const all = sheetPts(d);
     if (tool === 'add') { const hit = nearest(all, (p) => p.pos, x, y, page); if (hit) { focusId = hit.id; viewer.draw(); existingCard(d, hit); return; } }
-    let sn = null; try { sn = await wk.call('snap', { page, x, y, r: 14 / viewer.view.s }); } catch { /* без привязки */ }
-    if (sn?.kind === 'text' && !labelLike(sn.label)) sn = null;  // посторонняя надпись (иврит, длинный текст) — не номер точки
-    if (tool !== 'icon' && sn?.kind === 'shape' && Math.max(sn.w || 0, sn.h || 0) > 24) sn = null;  // крупное (стена, линия, штриховка) — не значок: ставим, где нажали
+    let sn = null; try { sn = await wk.call('snap', { page, x, y, r: 14 / viewer.view.s }); } catch { /* no snapping */ }
+    if (sn?.kind === 'text' && !labelLike(sn.label)) sn = null;  // a foreign caption (Hebrew, long text) — not a point number
+    if (tool !== 'icon' && sn?.kind === 'shape' && Math.max(sn.w || 0, sn.h || 0) > 24) sn = null;  // something large (a wall, a line, hatching) — not an icon: place it where tapped
     const pg = pages[page] || {}; const ic = (t) => currentProject()?.typeIcons?.[t];
-    // icon — нарисовать значок типа (на чертеже значка нет): по умолчанию, если рядом ничего не нашлось
+    // icon — draw the type's icon (there is none on the drawing): the default when nothing was found nearby
     const at = (t, icon = !sn) => {
       const tap = { page, x: +x.toFixed(1), y: +y.toFixed(1) };
       const base = sn && !(icon && sn.kind === 'text') ? { page, x: sn.x, y: sn.y, w: sn.w, h: sn.h, ...(sn.kind === 'text' ? { text: sn.label } : {}) } : tap;
@@ -392,7 +403,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
     addCard(d, sn, posFor, done);
   }
 
-  // «➕ Точка на плане» по уже отмеченной точке: привязать это место к другой точке или нарисовать/убрать значок типа
+  // «➕ Точка на плане» on an already marked point: link this place to another point, or draw or remove the type icon
   function existingCard(d, p) {
     const ic = currentProject()?.typeIcons?.[p.typeId];
     const group = sheetPts(d).filter((q) => posKey(q.pos) === posKey(p.pos)).sort(comparePoints);
@@ -420,7 +431,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
         } }, '🙈 Скрыть'),
         h('button', { class: 'sec', onclick: () => { c(); openCard?.(p); } }, '📋 Карточка точки'))), {});
   }
-  // какие из точек отметки (по умолчанию все); одна точка — просто подтверждение
+  // which of the mark's points (all by default); a single point — just a confirmation
   function pickGroup(group, title, note, yes) {
     if (group.length === 1) return confirmDialog(`${title} ${note}`, { yes }).then((ok) => (ok ? group : null));
     return new Promise((res) => {
@@ -431,14 +442,14 @@ export function planModal({ point = null, placeFor = null } = {}) {
       { onClose: () => { if (!done) res(null); } });
     });
   }
-  // добавить место в «Скрытые» чертежа (и убрать из «Не размеченых», если оно там было)
+  // add the place to the drawing's «Скрытые» (and remove it from «Не размеченых» if it was there)
   function hideArea(d, m) {
     const k = posKey(m.pos); const pos = { ...m.pos }; delete pos.icon;
     updateDrawing(d.id, (x) => ({ unlinked: (x.unlinked || []).filter((y) => posKey(y.pos) !== k), hidden: [...(x.hidden || []).filter((y) => posKey(y.pos) !== k), { label: m.label, typeId: m.typeId || '', pos }] }));
     setTimeout(() => viewer?.draw(), 300);
   }
 
-  // «➕ Точка на плане»: оставить отметку / привязать к точке / новая точка
+  // «➕ Точка на плане»: keep the mark / link it to a point / a new point
   function addCard(d, sn, posFor, done) {
     const what = sn?.kind === 'text' ? `Надпись «${sn.label}»` : sn ? 'Значок на чертеже' : 'Свободное место (рядом нет значка или надписи)';
     const area = h('div', {});
@@ -508,12 +519,12 @@ export function planModal({ point = null, placeFor = null } = {}) {
     }
   }
 
-  // «📌 Значки типов»: нажатие на значок → его картинка (маленький PNG) хранится в проекте
+  // «📌 Значки типов»: a tap on an icon → its picture (a small PNG) is stored in the project
   async function iconTap(d, sn, page, x, y, done) {
     if (!iconType) { toast('Сначала выберите тип'); done(); return; }
     let png = null; let size;
     if (sn?.kind === 'text') {
-      // надпись в рамке (например, «TV-140»): берём надпись с рамкой вокруг; наклонную — разворачиваем горизонтально
+      // a caption in a frame (e.g. «TV-140»): take the caption with its frame; a slanted one is turned horizontal
       const a = sn.angle || 0; const rad = a * Math.PI / 180; const c = Math.abs(Math.cos(rad)); const s = Math.abs(Math.sin(rad));
       const H = sn.size ? sn.size * 1.1 : Math.min(sn.w, sn.h);
       let L = c > 0.3 ? (sn.w - H * s) / c : (sn.h - H * c) / s; if (!(L > 0)) L = Math.max(sn.w, sn.h);
@@ -533,7 +544,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
     toast(`Значок типа «${iconType}» сохранён`); setTimeout(() => { toolBar(); viewer?.draw(); }, 300);
   }
 
-  // слои чертежа (AutoCAD): выключить лишнее — мебель, штриховки, размеры; запоминается на этом устройстве
+  // drawing layers (AutoCAD): switch off what is extra — furniture, hatching, dimensions; remembered on this device
   async function layersModal(d) {
     const list = await wk.call('layers');
     if (!list.length) { toast('В этом чертеже нет слоёв'); return; }
@@ -549,7 +560,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
       } }, 'Применить'))), { sticky: true });
   }
 
-  // «Не размеченая» подпись на чертеже: скрыть или связать с точкой проекта
+  // an «Не размеченая» caption on the drawing: hide it or link it to a project point
   function markCard(d, m, isHidden) {
     const c = openModal(`«${m.label}» на чертеже`, h('div', {},
       h('div', { class: 'mut' }, isHidden ? 'Скрытая подпись: на плане почти не видна.' : `Подпись есть на чертеже, но не связана с точкой проекта.${m.typeId ? ` Похоже на: ${m.typeId}.` : ''}`),
@@ -563,7 +574,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
     updateDrawing(d.id, (x) => ({ [from]: (x[from] || []).filter((y) => posKey(y.pos) !== k), [to]: [...(x[to] || []), m] }));
     setTimeout(() => viewer?.draw(), 300);
   }
-  // выбор точки проекта для подписи: поиск, тип, шкаф; по умолчанию — точки без места на чертеже
+  // choosing a project point for a caption: search, type, rack; by default the points with no place on the drawing
   function chooseFor(d, m) {
     choosePoint({ title: `🔗 Точка для «${m.label}»`, typeId: m.typeId, renameLabel: m.label, onPick: (p, { rename }) => {
       if (rename && [...state.ctx.points.values()].some((x) => x.id !== p.id && sameLabelClash(x, { label: m.label, cabinet: p.cabinet }))) { toast(`«${m.label}» уже есть в этом шкафу — переименовать нельзя`); return false; }
@@ -592,7 +603,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
       list.length ? body : h('div', { class: 'empty', style: { marginTop: '10px' } }, 'Чертежей пока нет. Добавьте PDF тохнита — точки с местом на чертеже (после разбора «📐 Добавить точки из чертежа» или из файла) появятся на нём. Чертёж хранится на вашем Google Диске и открыт участникам проекта.'));
     if (d) show(d);
   }
-  // свои названия чертежей и порядок в списке (имя файла не меняется — по нему связаны точки и ищутся дубликаты)
+  // the user's own drawing names and their order in the list (the file name does not change — points are linked and duplicates found by it)
   function namesModal() {
     const rows = drawingsOf().map((d) => ({ d, inp: h('input', { value: d.title || '', placeholder: d.name }) }));
     const list = h('div', {});

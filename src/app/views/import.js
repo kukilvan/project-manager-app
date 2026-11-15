@@ -1,4 +1,5 @@
-// Разовый импорт данных проекта из файла (подготовлен из таблицы AppSheet).
+// One-off import of a project's data from a polevoy-import-1 file (prepared from the AppSheet table) and its screen (opened by shell.js).
+// Writes through repo.save and repo.saveProject; replaced records go to «deleted», so they can be restored from the history.
 import { h, confirmDialog, toast } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
 
@@ -13,7 +14,7 @@ export function parseImport(text) {
   return data;
 }
 
-// replace: все текущие данные проекта уходят в «удалённые» (их можно вернуть через историю), затем записывается содержимое файла
+// replace: all current project data is marked deleted (it can be restored through the history), then the file's content is written
 export function runImport(repo, pid, data, { replace }) {
   const now = Date.now();
   const incoming = new Set(COLLS.flatMap((c) => data[c].map((d) => `${c}/${d.id}`)));
@@ -26,12 +27,12 @@ export function runImport(repo, pid, data, { replace }) {
     }));
   }
   COLLS.forEach((c) => data[c].forEach((d) => ops.push({ coll: c, id: d.id, action: 'import', data: { ...d, deleted: false } })));
-  // справочники: только добавляем отсутствующие (ничего не затираем и не убираем)
+  // reference lists: only add the missing ones (nothing is overwritten or removed)
   REFS.forEach((c) => (data.reference?.[c] || []).forEach((d) => { if (d?.id && !(state.data[c] || []).some((x) => x.id === d.id && !x.deleted)) ops.push({ coll: c, id: d.id, action: 'import', data: { ...d, deleted: false } }); }));
   repo.save(pid, ops);
   if (data.project || data.projectData) {
     const pd = { ...(data.projectData || {}) };
-    // ссылки на файлы Диска возвращаем только в тот же проект, из которого сделана копия
+    // links to Drive files are restored only into the same project the backup was made from
     if (data.backupOf !== pid) ['sheetLinks', 'tables', 'managers', 'rackTable', 'drawings'].forEach((k) => delete pd[k]);
     repo.saveProject(pid, { ...(data.project || {}), ...pd });
   }

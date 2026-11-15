@@ -1,6 +1,6 @@
-// «🗺 Распределить на плане»: отметки на чертеже, чей шкаф непонятен (один номер есть в нескольких шкафах).
-// Видно весь лист: выбираешь отметки нажатием или рамкой → шкаф из имеющихся / новый → «Привязать». Пока не привязаны все —
-// «Готово» предложит положить остальные в шкаф «Не уверен» (потом их можно выбрать на плане и перенести в нужный).
+// «🗺 Распределить на плане»: a modal where the marks of a drawing whose rack is unclear (one number exists in several racks) are assigned to racks.
+// Shows the whole sheet through the planview.js viewer: select marks by tap or by frame → an existing or a new rack → «Привязать». While some are unassigned,
+// «Готово» offers to put the rest into the «Не уверен» rack (they can be selected on the plan later and moved to the right one).
 import { h, openModal, toast, confirmDialog } from '../ui.js';
 import { state } from '../store.js';
 import { createViewer, mark } from './planview.js';
@@ -8,10 +8,10 @@ import { createViewer, mark } from './planview.js';
 export const UNSURE_CABINET = 'Не уверен';
 const NEW = '__new';
 
-/** items: [{ f: {label, pos}, cands: [точки проекта с таким номером] }] → Promise<[{ item, cabinet }] | null> (null — отмена) */
+/** items: [{ f: {label, pos}, cands: [project points with that number] }] → Promise<[{ item, cabinet }] | null> (null — cancelled) */
 export function assignOnPlan({ wk, pages, items, sheet = '' }) {
   return new Promise((resolve) => {
-    const cabinet = new Map();   // индекс отметки → шкаф
+    const cabinet = new Map();   // mark index → rack
     const sel = new Set(); let mode = 'tap'; let finished = false;
     const COL = { off: '#e0007a', sel: '#0a84ff', ok: '#30d158', unsure: '#ff9f0a' };
     const posOf = (it) => it.f.pos;
@@ -33,7 +33,7 @@ export function assignOnPlan({ wk, pages, items, sheet = '' }) {
     const summary = h('div', { class: 'mut', style: { margin: '6px 0' } });
     const allCabs = () => [...new Set([...state.ctx.points.values()].map((p) => p.cabinet).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru', { numeric: true }));
     function fillCabs() {
-      const hint = new Set([...sel].flatMap((i) => items[i].cands.map((p) => p.cabinet).filter(Boolean)));   // шкафы, где такие номера уже есть, — первыми
+      const hint = new Set([...sel].flatMap((i) => items[i].cands.map((p) => p.cabinet).filter(Boolean)));   // racks that already hold such numbers come first
       const rest = allCabs().filter((c) => !hint.has(c) && c !== UNSURE_CABINET); const keep = cabSel.value;
       cabSel.replaceChildren(h('option', { value: '' }, '— выберите шкаф —'),
         ...[...hint].map((c) => h('option', { value: c }, `Шкаф ${c} (есть такой номер)`)), ...rest.map((c) => h('option', { value: c }, `Шкаф ${c}`)),

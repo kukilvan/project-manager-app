@@ -1,5 +1,14 @@
-// «📐 Из чертежа»: разбор тохнита (PDF) прямо в приложении, без ИИ — по каталогу подписей.
-// Незнакомые группы подписей — вопросы кнопками; ответы можно запомнить (личный каталог, общий для всех проектов).
+// «📐 Из чертежа»: parses a drawing (PDF) right in the app, without AI, by the caption catalog, and turns the captions into points.
+// Runs the tohnit engine in a worker (src/tohnit/worker.js, MuPDF); unfamiliar groups of captions become button questions, and answers can be remembered
+// (the personal caption catalog in the user prefs, shared by all projects). Saves drawings through drawings.js and points through importPreview (pointsfile.js).
+//
+// Contents:
+// - cablesFor(), typePicker() — the cables and point-type pickers used by the question forms
+// - userCatalog(), saveLearned() — the caption catalog: the user's learned rules plus the built-in catalog
+// - makeWorker() — the message channel to the tohnit worker
+// - pointsFromDrawing() — the parsing modal: questions, icons without numbers, preview, saving the drawing
+// - drawingsHub() — «📐 Добавить точки из чертежа»: the project's drawings with the «разобран» mark
+// - unsortedModal() — «❓ Точки без типа»: points set aside while parsing, typed by groups
 import { pickPdf } from './pdfpick.js';
 import { h, openModal, toast, confirmDialog } from '../ui.js';
 import { state, getRepo, currentProject, subscribe } from '../store.js';
@@ -13,7 +22,7 @@ import { iconsPicker } from './planpick.js';
 import { addDrawing, drawingFor, drawingsOf, drawingTitle, loadDrawing, updateDrawing } from '../drawings.js';
 import { singlesOf } from '../../domain/merge.js';
 
-// кабели рядом с выбором типа: видны, когда выбран настоящий тип
+// cables next to the type picker: visible when a real type is chosen
 export function cablesFor(onChange) {
   const p = cablesPicker({ compact: true, onChange }); const box = h('div', { style: { display: 'none', margin: '4px 0 8px' } }, h('small', { class: 'mut' }, 'Кабели каждой такой точки'), p.el);
   return { box, p, set: (t) => { const real = !!t && !t.startsWith('__') && t !== 'skip' && t !== UNSORTED_TYPE; box.style.display = real ? '' : 'none'; if (real) p.setType(t); }, own: () => (box.style.display === 'none' ? null : p.override()) };
@@ -21,7 +30,7 @@ export function cablesFor(onChange) {
 import DEFAULT_CATALOG from '../../../tools/tohnit/catalog.json';
 export { DEFAULT_CATALOG };
 
-// Каталог = выученное пользователем (впереди, главнее) + встроенный каталог приложения
+// Catalog = what the user has learned (first, takes priority) + the app's built-in catalog
 export function userCatalog() {
   const mine = getRepo().prefs?.tohnitLearned || {};
   return { ...DEFAULT_CATALOG, labels: [...(mine.labels || []), ...DEFAULT_CATALOG.labels], skip: [...(mine.skip || []), ...DEFAULT_CATALOG.skip], symbols: [...(mine.symbols || []), ...(DEFAULT_CATALOG.symbols || [])] };
@@ -29,11 +38,11 @@ export function userCatalog() {
 export async function saveLearned(learned) {
   const mine = getRepo().prefs?.tohnitLearned || {};
   const { catalog, added } = learnInto({ labels: mine.labels || [], skip: mine.skip || [], symbols: mine.symbols || [] }, learned);
-  if (added) getRepo().saveUserPrefs({ tohnitLearned: { labels: catalog.labels, skip: catalog.skip, symbols: catalog.symbols } }).catch(() => toast('Не удалось запомнить правила'));  // без ожидания: без сети запись дойдёт позже
+  if (added) getRepo().saveUserPrefs({ tohnitLearned: { labels: catalog.labels, skip: catalog.skip, symbols: catalog.symbols } }).catch(() => toast('Не удалось запомнить правила'));  // not awaited: offline, the write arrives later
   return added;
 }
 
-// Выбор типа: список типов проекта + «➕ Новый тип» (форма создания типа; после сохранения он сразу выбран)
+// Type picker: the project's types + «➕ Новый тип» (the type creation form; once saved, the new type is selected at once)
 export function typePicker({ extra = [], onChange }) {
   const sel = h('select', { onchange: () => onChange(sel.value) });
   const fill = (pick) => {
@@ -48,7 +57,7 @@ export function typePicker({ extra = [], onChange }) {
   return h('div', { style: { display: 'flex', gap: '8px' } }, h('div', { style: { flex: 1, minWidth: 0 } }, sel), add);
 }
 
-// Обмен с фоновым разборщиком
+// Messaging with the background parser (the tohnit worker)
 export function makeWorker() {
   const w = new Worker(new URL('../../tohnit/worker.js', import.meta.url), { type: 'module' });
   let seq = 0; const wait = new Map();
@@ -57,7 +66,7 @@ export function makeWorker() {
   return { call, stop: () => w.terminate() };
 }
 
-// Уже отмеченные значки этого чертежа (точки проекта с пометкой «значок без номера») — группами по типу и буквам номера
+// Icons of this drawing that are already marked (project points with the note «значок без номера») — grouped by type and number letters
 function iconGroupsOf(drawing) {
   const pts = [...state.ctx.points.values()].filter((p) => p.pos && drawingFor(p)?.id === drawing.id && String(p.note || '').includes('значок без номера'));
   const by = new Map();
@@ -66,8 +75,8 @@ function iconGroupsOf(drawing) {
     points: list.sort((a, b) => a.label.localeCompare(b.label, 'ru', { numeric: true })).map((p) => ({ id: p.id, label: p.label, typeId: p.typeId, cabinet: p.cabinet || '', floor: p.floor || '', note: p.note, pos: { ...p.pos }, cableOverride: p.cableOverride ?? null })) }));
 }
 
-// drawing + buf — правка уже сохранённого чертежа (из «🗺 План» → «✏️ Редактировать»): без выбора файла; значки — уже отмеченные
-export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = null, onDone = null, iconsOnly = false, lockIcons = false } = {}) {  // lockIcons: уже отмеченные значки не правятся (после «Новой версии чертежа» — номера сохраняются)  // iconsOnly: сразу окно «Значки без номеров», после «Готово» — применить  // file: { name, buf, fileId } — уже выбранный PDF
+// drawing + buf — editing an already saved drawing (from «🗺 План» → «✏️ Редактировать»): no file choice; the icons are the already marked ones
+export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = null, onDone = null, iconsOnly = false, lockIcons = false } = {}) {  // lockIcons: already marked icons are not edited (after a «Новая версия чертежа» their numbers are kept)  // iconsOnly: open the «Значки без номеров» window at once and apply after «Готово»  // file: { name, buf, fileId } — an already chosen PDF
   const input = h('input', { type: 'file', accept: '.pdf,application/pdf', style: { display: 'none' } });
   const floorIn = h('input', { placeholder: 'Этаж (например 0, -3.50)' });
   const status = h('div', { class: 'mut', style: { margin: '6px 0' } });
@@ -80,15 +89,15 @@ export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = n
     h('label', { class: 'field' }, h('span', {}, 'Этаж'), floorIn),
     drawing ? null : h('div', { class: 'btns' }, h('button', { onclick: async () => { const r = await pickPdf({ title: 'Тохнит для разбора' }); if (r) useFile(r); } }, '📂 Выбрать PDF'), input),
     status, out), { sticky: true, onClose: () => wk?.stop() });
-  // только значки (кнопка в плане): окно правки чертежа не показываем — оно появится лишь для проверки перед добавлением
+  // icons only (a button on the plan): the drawing edit window is not shown — it appears only for the check before adding
   const backdrop = out.closest('.backdrop'); if (iconsOnly && backdrop) { backdrop.style.display = 'none'; toast('Читаю чертёж…'); }
   const showMain = () => { if (backdrop) backdrop.style.display = ''; };
 
   const answers = {}; const remember = new Set();
-  let lastQuestions = []; let iconGroups = []; let lastR = null; let pagesInfo = [];  // значки без номеров (добавлены на плане)
-  const iconPts = () => iconGroups.flatMap((gr) => gr.points).filter((p) => !p.id);  // новые значки (у существующих точек есть id)
+  let lastQuestions = []; let iconGroups = []; let lastR = null; let pagesInfo = [];  // icons without numbers (added on the plan)
+  const iconPts = () => iconGroups.flatMap((gr) => gr.points).filter((p) => !p.id);  // new icons (the points that already exist have an id)
   const origIcons = drawing ? iconGroupsOf(drawing) : []; const origIds = new Set(origIcons.flatMap((g) => g.points.map((p) => p.id)));
-  // правка значков существующих точек: что поменять и что удалить
+  // editing icons of existing points: what to change and what to delete
   const iconDiff = () => {
     const now = iconGroups.flatMap((gr) => gr.points).filter((p) => p.id); const ids = new Set(now.map((p) => p.id));
     const upd = now.filter((p) => { const o = state.ctx.points.get(p.id); return o && (o.label !== p.label || o.typeId !== p.typeId || JSON.stringify(o.cableOverride ?? null) !== JSON.stringify(p.cableOverride ?? null) || Math.abs((o.pos?.x || 0) - p.pos.x) > 0.5 || Math.abs((o.pos?.y || 0) - p.pos.y) > 0.5); });
@@ -102,7 +111,7 @@ export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = n
     lastQuestions = r.questions; lastR = r;
     render(r);
   }
-  async function cropImg(ex, scale) {  // кусок чертежа вокруг подписи; сама подпись — в розовой рамке
+  async function cropImg(ex, scale) {  // a piece of the drawing around a caption; the caption itself is in a pink frame
     const pad = 22 * scale; const w = ex.x1 - ex.x0 + 2 * pad; const zoom = Math.min(8, 320 / w);
     const png = await wk.call('crop', { page: ex.page, clip: [ex.x0 - pad, ex.y0 - pad, ex.x1 + pad, ex.y1 + pad], zoom });
     const img = new Image(); img.src = URL.createObjectURL(new Blob([png], { type: 'image/png' })); await img.decode();
@@ -111,7 +120,7 @@ export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = n
     g.strokeRect(pad * zoom - 4, pad * zoom - 4, (ex.x1 - ex.x0) * zoom + 8, (ex.y1 - ex.y0) * zoom + 8);
     return cv;
   }
-  // места точек, уже найденных по подписям (этот разбор + точки проекта на этом чертеже), — для «закрасить» в поиске значков
+  // places of points already found by captions (this parse + the project's points on this drawing) — for «paint over» in the icon search
   function knownPos(r) {
     const out = r.data.points.map((p) => p.pos).filter(Boolean);
     if (drawing) [...state.ctx.points.values()].forEach((p) => { if (p.pos && drawingFor(p)?.id === drawing.id && !String(p.note || '').includes('значок без номера')) out.push(p.pos); });
@@ -128,7 +137,7 @@ export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = n
       const cab = cablesFor(() => setAns());
       const sel = typePicker({ extra: [['__skip', '🚫 Не точки'], ['__later', '⏳ Разобрать потом']],
         onChange: (v) => { tv = v; cab.set(v); setAns(); } });
-      const tune = h('button', { type: 'button', class: 'sec', onclick: () => {  // своё правило по частям подписи → в каталог → разобрать заново
+      const tune = h('button', { type: 'button', class: 'sec', onclick: () => {  // a custom rule by caption parts → into the catalog → parse again
         const cur = answers[q.cluster]; const ct = typeof cur === 'object' ? cur.type : cur; const t = ct === 'skip' ? '__skip' : ct === UNSORTED_TYPE ? '' : (ct || '');
         ruleEditor({ samples: q.samples, type: t, onSaved: () => { delete answers[q.cluster]; parse().catch((e) => { status.textContent = e.message; }); } });
       } }, '⚙️ Настроить шаблон');
@@ -146,7 +155,7 @@ export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = n
     const iconsBtn = h('button', { class: pts.length ? 'sec' : '', onclick: openIcons }, iconGroups.length ? '✏️ Изменить значки' : '🔎 Отметить значки на плане');
     const again = h('button', { onclick: async () => { again.disabled = true; try { await parse(); } catch (e) { status.textContent = e.message; } } }, '🔄 Разобрать с ответами');
     const next = h('button', { class: r.questions.length ? 'sec' : '', onclick: async () => {
-      if (drawing) {  // сначала правка уже существующих точек-значков (номера, место, тип), потом — добавление нового
+      if (drawing) {  // first edit the already existing icon points (numbers, place, type), then add the new ones
         const { upd, del } = iconDiff();
         if (upd.length || del.length) {
           if (!(await confirmDialog(`Значки этого чертежа: изменить точек — ${upd.length}${upd.length ? ` (${upd.slice(0, 4).map((p) => `${state.ctx.points.get(p.id)?.label}→${p.label}`).join(', ')}${upd.length > 4 ? '…' : ''})` : ''}, удалить — ${del.length}. История работ у точек сохраняется (номер меняется, точка та же).`, { yes: 'Применить' }))) return;
@@ -156,17 +165,17 @@ export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = n
           await new Promise((res) => { const t = setTimeout(res, 1500); const un = subscribe(() => { if (state.ctx !== before) { clearTimeout(t); un(); res(); } }); });
           toast(`Изменено: ${upd.length}, удалено: ${del.length}`);
         }
-        // то же обозначение в том же шкафу (у подписи без шкафа — любое с таким обозначением)
+        // the same label in the same rack (for a caption without a rack — any point with that label)
         const mine = (p) => [...state.ctx.points.values()].find((x) => x.label === p.label && (!p.cabinet || (x.cabinet || '') === p.cabinet));
         const unplaced = r.data.points.filter((p) => mine(p) && mine(p).pos?.sheet !== drawing.name && !(drawing.aliases || []).includes(mine(p).pos?.sheet));
         if (!iconPts().length && r.data.points.every((p) => mine(p)) && !unplaced.length) { toast('Новых точек нет — все уже на чертеже'); markScanned(drawing); onDone?.(); close(); return; }
       }
-      const keep = r.learned.filter((e) => remember.has(e.cluster) && e.type !== UNSORTED_TYPE).map(({ project: _p, ...e }) => e);  // запоминается для всех проектов
+      const keep = r.learned.filter((e) => remember.has(e.cluster) && e.type !== UNSORTED_TYPE).map(({ project: _p, ...e }) => e);  // remembered for all projects
       const skip = new Set(skipDoubles ? doublesWithSingles(r) : []);
       out.replaceChildren(importPreview({ ...r.data, points: [...r.data.points.filter((p) => !skip.has(p)), ...iconPts()] }, fileName, async () => {
-        try { const n = await saveLearned(keep); if (n) toast(`Запомнено правил: ${n}`); } catch { /* не страшно */ }
+        try { const n = await saveLearned(keep); if (n) toast(`Запомнено правил: ${n}`); } catch { /* harmless: the points are still added */ }
         if (drawing) markScanned(drawing);
-        if (keepPdf.checked && theFile && !drawing) {  // чертёж — в проект: план и «📍 На чертеже»
+        if (keepPdf.checked && theFile && !drawing) {  // the drawing goes into the project: the plan and «📍 На чертеже»
           scannedNow.add(fileName);
           theFile.arrayBuffer().then((buf) => addDrawing(buf, { name: fileName, floor: floorIn.value.trim(), pages: pagesInfo, fileId: theFile.fileId || null }))
             .then((d) => { if (d?.id) { scannedNow.add(d.id); setTimeout(() => markScanned(d), 1500); } return d; })
@@ -174,7 +183,7 @@ export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = n
             .catch((e) => toast(`Чертёж сохранён на этом устройстве; на Диск — не получилось: ${e.message}`));
         }
         onDone?.(); close();
-        // после добавления: одинаковые точки в разном виде — предложить объединить
+        // after adding: the same points in a different form — offer to merge them
         setTimeout(() => import('./pointmerge.js').then((m) => { if (m.sameGroups().length) m.mergeModal(); }).catch(() => {}), 1500);
       }));
     } }, `Дальше → проверить и добавить (${pts.length})`);
@@ -193,7 +202,7 @@ export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = n
     if (iconsOnly && !autoIcons) { autoIcons = true; openIcons(); }
   }
 
-  // двойные на чертеже, которые в проекте записаны одинарными (FC/B05-06 ↔ FC/B05 + FC/B06)
+  // doubles on the drawing that the project records as singles (FC/B05-06 ↔ FC/B05 + FC/B06)
   let skipDoubles = false;
   const doublesWithSingles = (r) => { const all = [...state.ctx.points.values()]; return r.data.points.filter((p) => !all.some((x) => x.label === p.label && (x.cabinet || '') === (p.cabinet || '')) && singlesOf(p.label, p.cabinet, all)); };
   function dupBox(r) {
@@ -223,7 +232,7 @@ export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = n
     fileName = file.name; theFile = file; if (!floorIn.value.trim()) floorIn.value = (fileName.match(/(-?\d+(?:\.\d+)?)/) || [])[1] || '';
     load(await file.arrayBuffer());
   });
-  // выбранный PDF (из проекта, с Диска или с устройства); тохнит этого проекта — сразу режим «✏️ Редактировать»
+  // the chosen PDF (from the project, from Drive or from the device); a drawing of this project goes straight to the «✏️ Редактировать» mode
   function useFile(r) {
     if (r.drawing) { close(); pointsFromDrawing({ drawing: r.drawing, buf: r.buf, onDone }); return; }
     fileName = r.name; theFile = { name: r.name, fileId: r.fileId || null, arrayBuffer: async () => r.buf.slice(0) };
@@ -235,7 +244,7 @@ export function pointsFromDrawing({ drawing = null, buf: preBuf = null, file = n
   void lastQuestions;
 }
 
-// Отметка «разобран» у тохнита проекта (зелёная птичка в окне «📐 Из чертежа»). scannedNow — на случай, если запись чертежа ещё не дошла
+// The «разобран» mark on a project's drawing (a green tick in the «📐 Из чертежа» window). scannedNow — for when the drawing's record has not arrived yet
 const scannedNow = new Set();
 function markScanned(d) {
   scannedNow.add(d.id); scannedNow.add(d.name);
@@ -243,8 +252,8 @@ function markScanned(d) {
 }
 const isScanned = (d) => !!d.scannedAt || scannedNow.has(d.id) || scannedNow.has(d.name);
 
-/** «📐 Из чертежа»: список тохнитов проекта с отметкой «разобран», другой тохнит — с Диска или с устройства.
- *  onNext (мастер нового проекта) — кнопка «Дальше» внизу; extra — только что добавленные чертежи */
+/** «📐 Из чертежа»: the project's drawings with the «разобран» mark, another drawing from Drive or from the device.
+ *  onNext (the new-project wizard) — the «Дальше» button at the bottom; extra — drawings just added */
 export function drawingsHub({ onNext = null, extra = [] } = {}) {
   const box = h('div', {});
   let close = null;
@@ -271,12 +280,12 @@ export function drawingsHub({ onNext = null, extra = [] } = {}) {
   return close;
 }
 
-// «❓ Не разобрано»: точки, отложенные при разборе чертежа. Группы однотипных подписей → тип всей группе или выбранным; правило — в каталог.
+// «❓ Не разобрано»: points set aside while parsing a drawing. Groups of similar captions → a type for the whole group or for the selected ones; the rule goes into the catalog.
 const shapeOf = (label) => label.replace(/#\d+$/, '').replace(/^[A-Za-z]+\d*\//, '…/').replace(/\d+/g, '#');
 export function unsortedModal(ui) {
   const pid = currentProject().id;
   const box = h('div', {});
-  let redraw = null; const unsub = subscribe(() => { if (redraw && state.ctx !== redraw) { redraw = null; draw(); } });  // перерисовать, когда изменения дошли до данных
+  let redraw = null; const unsub = subscribe(() => { if (redraw && state.ctx !== redraw) { redraw = null; draw(); } });  // redraw when the changes have reached the data
   const close = openModal('❓ Точки без типа', h('div', {},
     h('div', { class: 'mut' }, 'Точки, отложенные при разборе чертежа. Выберите тип для группы (или снимите галочки с лишних точек) и нажмите «Применить». «🚫 Не точки» — удалить их (вернуть можно из истории).'), box), { sticky: true, onClose: () => { unsub(); ui?.render?.(); } });
   function draw() {
@@ -306,7 +315,7 @@ export function unsortedModal(ui) {
         let n = 0;
         if (rem.checked) {
           const re = generalize([...new Set(chosen.map((p) => base(p.label)))]);
-          if (re) try { n = await saveLearned([choice === '__skip' ? { kind: 'skip', re, learned: true } : { kind: 'labels', re, type: choice, learned: true, ...(cab.own() ? { cables: cab.own() } : {}) }]); } catch { /* не страшно */ }
+          if (re) try { n = await saveLearned([choice === '__skip' ? { kind: 'skip', re, learned: true } : { kind: 'labels', re, type: choice, learned: true, ...(cab.own() ? { cables: cab.own() } : {}) }]); } catch { /* harmless: the rule is just not remembered */ }
         }
         toast(`${choice === '__skip' ? 'Удалено' : `Тип «${choice}»`}: ${chosen.length}${n ? ' · правило запомнено' : ''}`);
       };

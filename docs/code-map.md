@@ -81,9 +81,9 @@ Vanilla JS PWA built by Vite (`vite-plugin-pwa`, service worker `autoUpdate`), n
 - `src/app/views/doh.js` — (no English header yet)
 - `src/app/views/doorcfgview.js` — Doors: the door configuration chooser (pinned / build / shared pool), a form field and the «Конфигурации дверей» tab.
 - `src/app/views/doorchips.js` — Door configuration name as chips (locking filled, other parts in a colored outline, count «×2» on top, cables in grey at the end) and the device color picker.
-- `src/app/views/guide.js` — (no English header yet)
+- `src/app/views/guide.js` — The in-app guide «Как пользоваться приложением»: sections from the design and the project to serial numbers and MAC, plus the separate «Шпаргалка» and «Словарик» parts.
 - `src/app/views/history.js` — (no English header yet)
-- `src/app/views/import.js` — (no English header yet)
+- `src/app/views/import.js` — One-off import of a project's data from a polevoy-import-1 file (prepared from the AppSheet table) and its screen (opened by shell.js).
 - `src/app/views/journal.js` — (no English header yet)
 - `src/app/views/latinfix.js` — Quick input in Latin letters: the shortcut list («тв = TV») kept in user preferences, and the settings dialog that edits it.
 - `src/app/views/log.js` — (no English header yet)
@@ -92,14 +92,14 @@ Vanilla JS PWA built by Vite (`vite-plugin-pwa`, service worker `autoUpdate`), n
 - `src/app/views/members.js` — (no English header yet)
 - `src/app/views/month.js` — (no English header yet)
 - `src/app/views/ownworks.js` — Form field «Работы на точках» of the «Изменить» dialog (one point or a group, from «Точки», the plan or a rack): the works required now (from type, devices, cables) and an own set on top of them.
-- `src/app/views/pdfpick.js` — (no English header yet)
-- `src/app/views/planassign.js` — (no English header yet)
-- `src/app/views/planlink.js` — (no English header yet)
-- `src/app/views/planmodal.js` — (no English header yet)
-- `src/app/views/plannumbers.js` — (no English header yet)
-- `src/app/views/planpick.js` — (no English header yet)
-- `src/app/views/planversion.js` — (no English header yet)
-- `src/app/views/planview.js` — (no English header yet)
+- `src/app/views/pdfpick.js` — Modal picker for a drawing PDF: from this project, from Google Drive (the «Чертежи» folders of the app's projects) or from the device.
+- `src/app/views/planassign.js` — «🗺 Распределить на плане»: a modal where the marks of a drawing whose rack is unclear (one number exists in several racks) are assigned to racks.
+- `src/app/views/planlink.js` — «🔗 Связать точки с чертежом»: parses a drawing by the caption catalog so that project points with the same labels get a place on the drawing.
+- `src/app/views/planmodal.js` — «🗺 План»: the project's drawing with points colored by status; tapping a point opens its card, and «📍 На чертеже» on a point card opens the plan at that point.
+- `src/app/views/plannumbers.js` — Builds the «📄 PDF с номерами» file of a drawing: the plan as the app shows it, with status-colored frames, non-overlapping captions, hidden marks in white and a legend.
+- `src/app/views/planpick.js` — «🔎 Значки без номеров»: a modal where icons on the drawing plan are found, numbered and turned into points.
+- `src/app/views/planversion.js` — «🔄 Новая версия чертежа»: moves the points of a drawing onto its updated version, with recalculated coordinates.
+- `src/app/views/planview.js` — Viewer of one drawing sheet on a canvas: dragging, zooming by pinch, wheel or buttons, and a sharp tile re-rendered when zoomed in.
 - `src/app/views/pointchooser.js` — Dialog to choose a point of the project: search, type, rack and «only without a place on the drawing»; on choice it calls onPick(point, { rename }).
 - `src/app/views/pointmerge.js` — Dialogs «🔀 Одинаковые точки» (point merge) and «🔌 Кабели не по номеру»: merge a point recorded two ways, and fix cable counts that do not follow the label.
 - `src/app/views/points.js` — Points screens: the point form, the batch generator, the length input, the point card with history, the «Что осталось» list, mass actions and the «Точки» tab.
@@ -115,7 +115,7 @@ Vanilla JS PWA built by Vite (`vite-plugin-pwa`, service worker `autoUpdate`), n
 - `src/app/views/shilutsettings.js` — (no English header yet)
 - `src/app/views/tables.js` — (no English header yet)
 - `src/app/views/todos.js` — (no English header yet)
-- `src/app/views/tohnitview.js` — (no English header yet)
+- `src/app/views/tohnitview.js` — «📐 Из чертежа»: parses a drawing (PDF) right in the app, without AI, by the caption catalog, and turns the captions into points.
 - `src/app/views/wizard.js` — (no English header yet)
 - `src/domain/compose.js` — Composition of points from devices (the composite model): tasks, stages and statuses of a point computed from cables, devices and its type.
 - `src/domain/context.js` — Builds the calculation context: lookup indexes over a project's data.

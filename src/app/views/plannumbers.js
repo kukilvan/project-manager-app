@@ -1,5 +1,5 @@
-// «📄 PDF с номерами»: чертёж как план в приложении (рамки цвета статуса, подписи без наложений, скрытое — белым) + легенда.
-// Скачать на устройство — отдельно; на Google Диск — отдельно («☁️ На Диск»), дальше сервер обновляет его каждую ночь, если что-то поменялось.
+// Builds the «📄 PDF с номерами» file of a drawing: the plan as the app shows it, with status-colored frames, non-overlapping captions, hidden marks in white and a legend.
+// Builds it with the tohnit worker (tohnitview.js); downloads it to the device, or uploads it to Google Drive («☁️ На Диск»), where the server refreshes it every night when something changed.
 import { makeWorker } from './tohnitview.js';
 import { toast } from '../ui.js';
 import { state, currentProject, getRepo } from '../store.js';
@@ -20,7 +20,7 @@ export async function build(drawing, buf, { title = drawingTitle(drawing), lang 
   } finally { wk.stop(); }
 }
 
-/** Скачать на это устройство */
+/** Download to this device */
 export async function exportNumberedPdf(drawing, buf) {
   toast('Готовлю PDF…');
   const r = await build(drawing, buf); if (!r) return;
@@ -31,7 +31,7 @@ export async function exportNumberedPdf(drawing, buf) {
   toast(`Готово: ${name}`);
 }
 
-/** На Google Диск (папка проекта «Чертежи с номерами»), без скачивания; открыть доступ серверу для ночного обновления */
+/** To Google Drive (the project's «Чертежи с номерами» folder), without downloading; share it with the server for the nightly refresh */
 export async function publishNumbered(drawing, buf) {
   toast('Готовлю PDF для Диска…');
   const r = await build(drawing, buf); if (!r) return;

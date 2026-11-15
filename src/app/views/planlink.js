@@ -1,6 +1,7 @@
-// «🔗 Связать точки с чертежом»: разбор чертежа по каталогу → у точек проекта с такими же обозначениями появляется место на чертеже.
-// Похожие названия (1A-01-02 ↔ 1A/01-02, Solar-B3-4 ↔ B/03-04) — спросить с картинкой: та же точка? заменить название?
-// Что на чертеже осталось без пары — «Не размеченые» (видны в плане по фильтру; там же скрыть или связать вручную).
+// «🔗 Связать точки с чертежом»: parses a drawing by the caption catalog so that project points with the same labels get a place on the drawing.
+// Parses in the tohnit worker (tohnitview.js), matches labels with src/tohnit/linking.js and saves through repo.save and updateDrawing (drawings.js).
+// Similar names (1A-01-02 ↔ 1A/01-02, Solar-B3-4 ↔ B/03-04) are asked about with a picture: the same point? rename it?
+// What is left on the drawing without a pair is «Не размеченые» (shown on the plan by a filter; hide or link them by hand there).
 import { h, openModal, toast, confirmDialog } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
 import { posOf, sameLabelClash } from '../../domain/index.js';
@@ -21,10 +22,10 @@ export async function linkPoints(d, buf, { onDone } = {}) {
     const sheet = { pdf: d.name, pages: r.data.sheet.pages };
     const pts = [...state.ctx.points.values()];
     const onThis = (p) => p.pos?.sheet === d.name || (d.aliases || []).includes(p.pos?.sheet);
-    const elsewhere = (p) => p.pos?.sheet && !onThis(p) && drawingFor(p);  // уже на другом чертеже проекта — не трогаем
+    const elsewhere = (p) => p.pos?.sheet && !onThis(p) && drawingFor(p);  // already on another drawing of the project — leave it alone
     const cand = pts.filter((p) => !elsewhere(p));
     const { exact, similar, unlinked, ambiguous } = matchLabels(cand, r.data.points);
-    // подписи, которых не знает каталог (например, ответы на вопросы не запомнены): точное совпадение с названием точки проекта — тоже связываем
+    // captions the catalog does not know (e.g. answers to its questions are not remembered): an exact match with a project point's name is linked too
     const usedIds = new Set([...exact, ...similar].map((x) => x.p.id));
     const taken = new Set(r.data.points.map((f) => posKey(f.pos)));
     const texts = (await wk.call('texts')).filter((t) => !taken.has(posKey(t.pos)));
@@ -35,9 +36,9 @@ export async function linkPoints(d, buf, { onDone } = {}) {
     if (ops.length) getRepo().save(currentProject().id, ops);
     const hiddenKeys = new Set((d.hidden || []).map((x) => posKey(x.pos)));
     const saveUnlinked = (list) => updateDrawing(d.id, { unlinked: list.filter((f) => !hiddenKeys.has(posKey(f.pos))).map((f) => ({ label: f.label, typeId: f.typeId || '', pos: posOf(f, { sheet }) })) });
-    const fresh = unlinked; let freshLeft = fresh;  // после «Добавить как новые» — пусто
+    const fresh = unlinked; let freshLeft = fresh;  // empty after «Добавить как новые»
 
-    // похожие пары: подтвердить
+    // similar pairs: to be confirmed
     const rows = similar.map((s) => {
       const same = h('input', { type: 'checkbox', checked: s.kind === 'same' });
       const canRename = !pts.some((x) => x.id !== s.p.id && sameLabelClash(x, { label: s.f.label, cabinet: s.p.cabinet }));
@@ -56,11 +57,11 @@ export async function linkPoints(d, buf, { onDone } = {}) {
     });
     const msg = `Связано с чертежом: ${ops.length}${already ? `, уже были связаны: ${already}` : ''}. Похожих названий: ${similar.length}. Не размеченых на чертеже: ${fresh.length}.${ambiguous.length ? ` Номер в нескольких шкафах: ${ambiguous.length}.` : ''}`;
     const box = h('div', {});
-    // отметки с номером, который есть в нескольких шкафах: распределяются на плане (результат — [{ item, cabinet }])
+    // marks whose number exists in several racks: assigned on the plan (the result is [{ item, cabinet }])
     let ambDone = null;
     const ambBtn = h('button', { class: 'sec', onclick: async () => { const r2 = await assignOnPlan({ wk, pages: sheet.pages, items: ambiguous, sheet: d.name }); if (r2) { ambDone = r2; ambBtn.textContent = `🗺 Распределено: ${r2.length} (изменить)`; } } }, `🗺 Распределить на плане (${ambiguous.length})`);
     const finish = async () => {
-      if (ambiguous.length && !ambDone) {   // не оставляем без шкафа: сначала распределить
+      if (ambiguous.length && !ambDone) {   // never leave them without a rack: assign first
         ambDone = await assignOnPlan({ wk, pages: sheet.pages, items: ambiguous, sheet: d.name });
         if (!ambDone && !(await confirmDialog(`Не распределено отметок: ${ambiguous.length}. Выйти без привязки? Они останутся «Не размечеными».`, { yes: 'Выйти без привязки', no: 'Вернуться' }))) return;
       }
@@ -71,7 +72,7 @@ export async function linkPoints(d, buf, { onDone } = {}) {
         if (ren.checked && !ren.disabled) { data.label = s.f.label; data.planName = s.p.label; } else if (s.p.label !== s.f.label) data.planName = s.f.label;
         ops2.push({ coll: 'points', id: s.p.id, data });
       }
-      // распределённые на плане: точка с таким номером в выбранном шкафу — связать; нет такой — создать (в «Не уверен» тоже)
+      // assigned on the plan: a point with that number in the chosen rack — link it; none — create one (also in «Не уверен»)
       let created = 0; let unsure = 0;
       if (ambDone) {
         const used = new Set([...exact.map((x) => x.p.id), ...ops2.map((o) => o.id)]); const made = new Map();
@@ -84,7 +85,7 @@ export async function linkPoints(d, buf, { onDone } = {}) {
             ops2.push({ coll: 'points', id: newId(), data: { label: n ? `${f.label}#${n + 1}` : f.label, typeId: item.cands[0]?.typeId || f.typeId || UNSORTED_TYPE, cabinet, floor: d.floor || undefined, pos: posOf(f, { sheet }), deleted: false,
               ...(cabinet === 'Не уверен' ? { note: 'шкаф не определён — перенесите в нужный' } : {}) } });
             created++; if (cabinet === 'Не уверен') unsure++;
-          } else left.push(f);   // такая точка в этом шкафу уже есть, но занята другим местом — оставим «Не размеченой»
+          } else left.push(f);   // such a point already exists in this rack but is taken by another place — leave the mark «Не размеченой»
         }
       } else left.push(...ambiguous.map((x) => x.f));
       if (ops2.length) getRepo().save(currentProject().id, ops2);

@@ -1,9 +1,17 @@
-// «🔄 Новая версия чертежа»: прислали обновлённый тохнит (другого размера, обрезан иначе, дорисованы другие части здания) —
-// точки переезжают со старого листа на новый с пересчётом координат. Пересчёт находится сам по надписям, которые есть на обоих
-// листах (номера точек); если общих надписей мало — человек показывает два одинаковых места на обоих листах.
-// Каждая точка проверяется: на месте / сдвинута на новом чертеже / нет на новом чертеже / значок не найден — сомнительные остаются
-// на пересчитанном месте и попадают в список «⚠ Проверить» в плане. Старый чертёж остаётся в проекте («… (старая версия)»).
-// Дальше — обычный разбор нового листа: новые номера и новые значки без номеров (уже отмеченные значки не перенумеровываются).
+// «🔄 Новая версия чертежа»: moves the points of a drawing onto its updated version, with recalculated coordinates.
+// The updated drawing may have another size, be cropped differently or add other parts of the building.
+// Works with two tohnit workers (tohnitview.js), the fit math of src/domain/sheetfit.js, the viewer of planview.js and drawings.js (addDrawingVersion, updateDrawing); points are saved through repo.save.
+// The fit is found automatically from the captions present on both sheets (point numbers); if there are few common captions, the person shows two identical places on both sheets.
+// Every point is checked: in place / moved on the new drawing / missing on the new drawing / icon not found — doubtful ones stay
+// at the recalculated place and go to the «⚠ Проверить» list on the plan. The old drawing stays in the project («… (старая версия)»).
+// Then the usual parsing of the new sheet follows: new numbers and new icons without numbers (icons already marked are not renumbered).
+//
+// Contents:
+// - newVersion() — the whole flow: pick the PDF, read both drawings, fit the sheets
+// - manualFit() — the person taps two identical places on the old and the new sheet
+// - preview() — points on the new sheet by color, a summary, «Перенести»
+// - apply() — save the new drawing version and the moved points
+// - reviewOf(), reviewModal() — the «⚠ Проверить» list shown on the plan after a transfer
 import { h, openModal, toast } from '../ui.js';
 import { state, getRepo, currentProject, subscribe } from '../store.js';
 import { makeWorker, pointsFromDrawing } from './tohnitview.js';
@@ -51,7 +59,7 @@ export async function newVersion(oldD, { onDone } = {}) {
   } catch (e) { status.textContent = `Не получилось: ${e.message}`; warn('Новая версия чертежа', e.message); }
 }
 
-// Два одинаковых места на старом и новом листе → пересчёт. Возвращает fit (с newPage) или null (отмена).
+// Two identical places on the old and the new sheet → a fit. Returns the fit (with newPage) or null (cancelled).
 function manualFit(ctx, oldPage) {
   const { wkO, wkN, sO, sN, body } = ctx;
   return new Promise((resolve) => {
@@ -87,7 +95,7 @@ function manualFit(ctx, oldPage) {
   });
 }
 
-// Предпросмотр: точки на новом листе по цветам; сводка; «Перенести»
+// Preview: points on the new sheet by color; a summary; «Перенести»
 function preview(ctx) {
   const { pts, fits, sO, sN, sheet, wkN, status, body } = ctx;
   const plan = planMove(pts, fits, sO.spans, sN.spans, sheet);
@@ -134,7 +142,7 @@ async function apply(ctx, plan) {
     const review = plan.filter((x) => REVIEW.includes(x.kind)).map((x) => ({ id: x.id, label: x.label || '', kind: x.kind, ...(x.to ? { to: x.to } : {}), ...(x.under ? { under: x.under } : {}), ...(x.newLabel ? { newLabel: x.newLabel } : {}) }));
     const entry = await addDrawingVersion(r.buf, oldD, { name: sheet.name, title: oldD.title || '', floor: oldD.floor || '', pages: sN.pages, fileId: r.fileId || null,
       hidden, review, versionOf: { id: oldD.id, name: oldD.name, at: new Date().toISOString() } });
-    // точки — после чертежа (иначе на мгновение они ссылались бы на чертёж, которого ещё нет)
+    // points go after the drawing (otherwise for a moment they would refer to a drawing that does not exist yet)
     const ops = plan.filter((x) => x.pos).map((x) => ({ coll: 'points', id: x.id, data: { pos: x.pos } }));
     if (ops.length) getRepo().save(currentProject().id, ops);
     await new Promise((res) => { const t = setTimeout(res, 2000); const un = subscribe(() => { if (drawingsOf().some((d) => d.id === entry.id)) { clearTimeout(t); un(); res(); } }); });
@@ -153,8 +161,8 @@ async function apply(ctx, plan) {
   } catch (e) { status.textContent = `Не получилось сохранить: ${e.message}`; warn('Новая версия чертежа: сохранение', e.message); }
 }
 
-// ---------- после переноса: список «⚠ Проверить» в плане ----------
-/** Пункты проверки, ещё актуальные (точка есть и всё ещё на этом чертеже) */
+// ---------- after the transfer: the «⚠ Проверить» list on the plan ----------
+/** Review items that are still current (the point exists and is still on this drawing) */
 export function reviewOf(d) {
   return (d?.review || []).filter((x) => { const p = state.ctx.points.get(x.id); return p && p.pos && drawingFor(p)?.id === d.id; });
 }

@@ -1,4 +1,16 @@
-// Руководство «Как пользоваться приложением»: от оформления и проекта до серийных номеров и MAC; Шпаргалка и Словарик — отдельно. Тексты переводятся на английский и иврит словарём (src/i18n).
+// The in-app guide «Как пользоваться приложением»: sections from the design and the project to serial numbers and MAC, plus the separate «Шпаргалка» and «Словарик» parts.
+// The guide texts are Russian UI strings, translated into English and Hebrew by the dictionary of src/i18n; this file holds the texts, the guide screen and the hints other screens link to.
+// Reads the user prefs through the repo (the personal glossary words) and shows the manuals card of manualsview.js and the tour of src/app/tour.
+//
+// Contents:
+// - SECTIONS — the guide sections: id, icon, title, a short text and the full steps
+// - DICT — the built-in glossary: term, Hebrew spelling, meaning
+// - sectionCard(), body() — one section card and its text lines
+// - allWords(), wordForm(), dictCard() — the glossary with the user's own words and edits
+// - searchIndex(), searchBox() — the search over sections, button names and text lines
+// - guideView(), openGuide(), guideTitle() — the guide screen and how other screens open it
+// - hint() — the short hint with a guide button for an empty screen
+// - maybeWelcome() — the welcome shown on the first entry into a project the user was invited to
 import { startTour, topicList } from '../tour/index.js';
 import { h, openModal, formModal, confirmDialog, toast } from '../ui.js';
 import { getRepo } from '../store.js';
@@ -7,7 +19,7 @@ import { state, currentProject } from '../store.js';
 import { memberName } from './members.js';
 import { manualsCard } from './manualsview.js';
 
-// Строка, начинающаяся с «• », — пункт списка; «# » — подзаголовок; остальное — абзац.
+// A line that starts with «• » is a list item; «# » is a subheading; anything else is a paragraph.
 const SECTIONS = [
   {
     id: 'intro', icon: '👋', title: 'Что это за приложение',
@@ -303,7 +315,7 @@ const SECTIONS = [
   },
 ];
 
-// Словарик: термин, написание на иврите, значение
+// Glossary: the term, its Hebrew spelling, the meaning
 const DICT = [
   ['Дох (отчёт)', 'דו״ח', 'Отчёт о проделанной за день работе. В работе его называют «дох».'],
   ['Менахель проекта', 'מנהל פרויקט', 'Руководитель проекта.'],
@@ -344,7 +356,7 @@ const DICT = [
   ['Конфигурация двери', '', 'Набор устройств, которые должны стоять на двери.'],
 ];
 
-// Что открыто, и к какому разделу прокрутить (переживает перерисовку экрана)
+// What is open, and which section to scroll to (survives a redraw of the screen)
 const open = new Set(['doh']);
 let focusId = null;
 
@@ -366,13 +378,13 @@ function sectionCard(s, ui) {
   return card;
 }
 
-// Свои слова и правки готовых слов хранятся в личных настройках (на всех устройствах Ивана, во всех проектах):
-// dictWords — добавленные слова, dictEdits — изменённые готовые слова (ключ — исходное слово), dictHidden — убранные готовые слова
+// The user's own words and edits of the built-in words live in the personal prefs (on all of the user's devices, in all projects):
+// dictWords — added words, dictEdits — changed built-in words (the key is the original word), dictHidden — removed built-in words
 const prefs = () => getRepo()?.prefs || {};
 const myWords = () => prefs().dictWords || [];
 const saveP = (patch) => getRepo().saveUserPrefs(patch);
 
-// Все слова словарика: { key, a, he, d, kind: 'mine'|'builtin'|'edited' }
+// All glossary words: { key, a, he, d, kind: 'mine'|'builtin'|'edited' }
 function allWords() {
   const edits = prefs().dictEdits || {}; const hidden = new Set(prefs().dictHidden || []);
   const built = DICT.filter(([a]) => !hidden.has(a)).map(([a, he, d]) => {
@@ -429,7 +441,7 @@ function dictCard() {
     h('div', { style: { marginTop: '6px' } }, list));
 }
 
-// какая часть руководства открыта: шаги (по умолчанию), 'manuals' — инструкции, 'dict' — словарик
+// which part of the guide is open: the steps (default), 'manuals' — the instructions, 'dict' — the glossary
 let guidePart = null;
 export const guideTitle = () => (guidePart === 'manuals' ? 'Шпаргалка (инструкции)' : guidePart === 'dict' ? 'Словарик' : 'Как пользоваться приложением');
 export function openGuide(ui, id, part = null) {
@@ -438,7 +450,7 @@ export function openGuide(ui, id, part = null) {
   ui.open('guide');
 }
 
-// Поиск по руководству: названия разделов, названия кнопок в «…» и строки текста
+// Search over the guide: section titles, button names in «…» and text lines
 function searchIndex() {
   const out = [];
   for (const sec of SECTIONS) {
@@ -501,14 +513,14 @@ export function guideView(ui) {
   return wrap;
 }
 
-// Подсказка на пустом экране: пара слов и кнопка в руководство
+// A hint on an empty screen: a couple of words and a button into the guide
 export function hint(ui, text, sectionId, label = '📖 Подробнее в руководстве') {
   return h('div', { class: 'guide-hint' },
     h('div', {}, text),
     h('div', { class: 'btns' }, h('button', { class: 'sec', onclick: () => openGuide(ui, sectionId) }, label)));
 }
 
-// Приветствие при первом входе в проект, куда пригласили
+// The welcome on the first entry into a project the user was invited to
 const seen = new Set();
 export function maybeWelcome(ui, user) {
   const p = currentProject();
@@ -518,10 +530,10 @@ export function maybeWelcome(ui, user) {
   if (!first || first === me) return;
   const key = `pz_welcome_${p.id}_${user.uid || me}`;
   if (seen.has(key)) return;
-  let stored = false; try { stored = !!localStorage.getItem(key); } catch { /* без хранилища */ }
+  let stored = false; try { stored = !!localStorage.getItem(key); } catch { /* no storage available */ }
   seen.add(key);
   if (stored) return;
-  try { localStorage.setItem(key, '1'); } catch { /* ок */ }
+  try { localStorage.setItem(key, '1'); } catch { /* fine: the welcome is just shown again next time */ }
   const who = memberName(p, first) || first;
   let close = () => {};
   close = openModal('Добро пожаловать', h('div', {},

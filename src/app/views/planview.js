@@ -1,8 +1,8 @@
-// Просмотр листа чертежа: перетаскивание, увеличение пальцами/колесом/кнопками, чёткая картинка при приближении.
-// Рисует поверх свои отметки (overlay), сообщает о нажатиях (onTap) и рамке (onRect, когда rectMode() истина).
+// Viewer of one drawing sheet on a canvas: dragging, zooming by pinch, wheel or buttons, and a sharp tile re-rendered when zoomed in.
+// Renders sheet images through the tohnit worker (wk.call('crop')); draws the caller's marks on top (overlay) and reports taps (onTap) and a frame (onRect, while rectMode() is true).
 import { h } from '../ui.js';
 
-export function createViewer({ wk, pages, height = '58vh', onTap, onRect, rectMode = () => false, overlay, dim = () => 1 }) {  // dim — яркость чертежа (0..1)
+export function createViewer({ wk, pages, height = '58vh', onTap, onRect, rectMode = () => false, overlay, dim = () => 1 }) {  // dim — brightness of the drawing (0..1)
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   let page = 0; let base = null; let baseZ = 1; let tile = null; let tileTimer = null; let rectNow = null;
   const view = { s: 1, ox: 0, oy: 0 };
@@ -31,7 +31,7 @@ export function createViewer({ wk, pages, height = '58vh', onTap, onRect, rectMo
     const pg = pages[page]; baseZ = Math.min(1, 2400 / Math.max(pg.w, pg.h));
     base = await render(page, [0, 0, pg.w, pg.h], baseZ); msg.style.display = 'none'; fit();
   }
-  // чёткая картинка видимой части: с запасом по краям (небольшой сдвиг не требует перерисовки); старая остаётся на месте, пока не готова новая
+  // a sharp image of the visible part: rendered with a margin around it (a small pan needs no re-render); the old one stays in place until the new one is ready
   let busy = false; let again = false;
   function schedTile() { clearTimeout(tileTimer); tileTimer = setTimeout(renderTile, 70); }
   async function renderTile() {
@@ -43,12 +43,12 @@ export function createViewer({ wk, pages, height = '58vh', onTap, onRect, rectMo
     const mx = (x1 - x0) * 0.25; const my = (y1 - y0) * 0.25;
     const clip = [Math.max(0, x0 - mx), Math.max(0, y0 - my), Math.min(pg.w, x1 + mx), Math.min(pg.h, y1 + my)]; if (clip[2] <= clip[0] || clip[3] <= clip[1]) return;
     busy = true;
-    try { const img = await render(page, clip, z); tile = { page, clip, img, z }; draw(); } catch { /* не страшно */ }
+    try { const img = await render(page, clip, z); tile = { page, clip, img, z }; draw(); } catch { /* harmless: the base image stays */ }
     busy = false; if (again) { again = false; renderTile(); }
   }
   function zoomAt(sx, sy, f) { const [px, py] = toPt(sx, sy); view.s = Math.min(20, Math.max(0.05, view.s * f)); view.ox = px - sx / view.s; view.oy = py - sy / view.s; draw(); schedTile(); }
   const zoomBy = (f) => { const r = wrap.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, f); };
-  // показать место листа крупно (например, точку из карточки)
+  // show a place of the sheet enlarged (e.g. the point of an opened card)
   async function focus(x, y, p = page, s = 2.5) {
     if (p !== page || !base) await load(p);
     const r = wrap.getBoundingClientRect(); view.s = s; view.ox = x - r.width / 2 / s; view.oy = y - r.height / 2 / s; tile = null; draw(); schedTile();
@@ -84,16 +84,16 @@ export function createViewer({ wk, pages, height = '58vh', onTap, onRect, rectMo
     h('button', { type: 'button', class: 'sec', style: { padding: '6px 12px' }, onclick: () => zoomBy(1.5) }, '＋'),
     h('button', { type: 'button', class: 'sec', style: { padding: '6px 12px' }, onclick: () => zoomBy(1 / 1.5) }, '－'),
     h('button', { type: 'button', class: 'sec', style: { padding: '6px 10px' }, onclick: () => fit() }, '⤢ Весь лист')];
-  // перерисовать картинку листа, не меняя вида (например, после включения/выключения слоёв чертежа)
+  // re-render the sheet image keeping the view (e.g. after drawing layers are switched on or off)
   async function refreshImage() { const pg = pages[page]; base = await render(page, [0, 0, pg.w, pg.h], baseZ); tile = null; draw(); schedTile(); }
   const api = { el: wrap, view, toScr, toPt, draw, fit, load, focus, zoomBy, zoomBtns, refreshImage, get page() { return page; }, start: () => new Promise((res) => requestAnimationFrame(() => { size(); res(load(page)); })) };
   return api;
 }
 
-// Отметка на плане: кружок + подпись
+// A mark on the plan: a circle + a caption
 export function mark(g, api, it, color, label, { crossed = false, fill = false, minR = 6, rPt = null } = {}) {
   const [x, y] = api.toScr(it.x, it.y); const r = Math.max(minR, (rPt ?? (Math.max(it.w || 8, it.h || 8) / 2 + 2)) * api.view.s);
-  const w0 = it.w || 0; const h0 = it.h || 0; const text = !rPt && w0 && h0 && Math.max(w0, h0) / Math.min(w0, h0) > 1.6;  // надпись — рамка
+  const w0 = it.w || 0; const h0 = it.h || 0; const text = !rPt && w0 && h0 && Math.max(w0, h0) / Math.min(w0, h0) > 1.6;  // a text caption — a frame
   g.lineWidth = 2; g.strokeStyle = color; g.beginPath();
   if (text) { const hw = Math.max(4, (w0 / 2 + 2) * api.view.s); const hh = Math.max(3, (h0 / 2 + 2) * api.view.s); g.rect(x - hw, y - hh, 2 * hw, 2 * hh); } else g.arc(x, y, r, 0, Math.PI * 2);
   if (fill) { g.fillStyle = `${color}33`; g.fill(); }

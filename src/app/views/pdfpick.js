@@ -1,9 +1,9 @@
-// Выбор тохнита (PDF): из этого проекта, с Google Диска (папки «Чертежи» проектов приложения) или с устройства.
-// Возвращает { name, buf, drawing?, fileId? } или null; с multiple: true — массив таких (несколько с Диска галочками или с устройства).
+// Modal picker for a drawing PDF: from this project, from Google Drive (the «Чертежи» folders of the app's projects) or from the device.
+// Resolves to { name, buf, drawing?, fileId? } or null; with multiple: true, to an array of those (several ticked on Drive, or several from the device).
 import { h, openModal, toast } from '../ui.js';
 import { drawingsOf, drawingTitle, loadDrawing, listDrivePdfs, downloadDriveFile } from '../drawings.js';
 
-export function pickPdf({ title = 'Тохнит (PDF)', project = true, extra = [], multiple = false } = {}) {  // extra — только что добавленные чертежи (могли ещё не дойти до списка проекта)
+export function pickPdf({ title = 'Тохнит (PDF)', project = true, extra = [], multiple = false } = {}) {  // extra — drawings just added (they may not have reached the project's list yet)
   return new Promise((resolve) => {
     let done = false; const finish = (v) => { if (done) return; done = true; c(); resolve(v); };
     const drive = h('div', {});
@@ -18,7 +18,7 @@ export function pickPdf({ title = 'Тохнит (PDF)', project = true, extra = 
       drive.replaceChildren(h('div', { class: 'mut' }, 'Ищу на Google Диске…'));
       try {
         const files = await listDrivePdfs();
-        if (multiple && files.length) {  // несколько: галочки + «Добавить отмеченные»
+        if (multiple && files.length) {  // several: checkboxes + «Добавить отмеченные»
           const on = new Set(); const go = h('button', { disabled: true, onclick: async () => {
             go.disabled = true; const sel = files.filter((x) => on.has(x.id)); const got = [];
             for (const [i, x] of sel.entries()) { go.textContent = `Скачиваю ${i + 1} из ${sel.length}…`; try { got.push({ name: x.name, buf: await downloadDriveFile(x.id), fileId: x.id }); } catch (e) { toast(`«${x.name}»: ${e.message}`); } }
