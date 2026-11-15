@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-15 — Ticket 1.5: views 2 documented («Тикет 1.5»)
+
+- 11 files of `src/app/views/` (`planmodal`, `tohnitview`, `planversion`, `planpick`, `planlink`, `planview`, `planassign`, `plannumbers`, `pdfpick`, `import`, `guide`) have an English header (first sentence = the code-map line; `planmodal.js`, `tohnitview.js`, `guide.js` also a Contents list, `planversion.js` a short one) and all 150 Russian comments translated; their entries removed from both `PENDING` lists. Commit `f74dd93`, branch `claude/s01-ticket-05`; deploy of `main` succeeded.
+- Proof: `node tools/same-code.mjs --expect tools/code-map.mjs --expect tools/ru-comments.mjs` — code identical without comments (the two tools differ only by the removed `PENDING` entries), built site byte-identical (28 files); 158/158 tests; `code-map --check` exit 0. `guide.js` texts are UI strings and stayed as they were.
+- Found: nothing wrong; no `KNOWN_ISSUES.md` entry.
+
 ## 2026-11-10 — Ticket 1.4: views 1 documented («Тикет 1.4»)
 
 - 12 files of `src/app/views/` (`points`, `racks`, `pullview`, `racktable`, `pointmerge`, `pointsfile`, `pointchooser`, `cablespick`, `doorchips`, `doorcfgview`, `ownworks`, `latinfix`) have an English header (first sentence = the code-map line; `points.js`, `racks.js`, `pullview.js` also a Contents list) and all 139 Russian comments translated; their entries removed from both `PENDING` lists. Commit `634ed75`, branch `claude/s01-ticket-04`; deploy of `main` succeeded.
