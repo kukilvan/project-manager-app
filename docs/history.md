@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-15 — Ticket 1.6: views 3 documented («Тикет 1.6»)
+
+- The last 18 files of `src/app/views/` (`doh`, `settings`, `wizard`, `catalogview`, `project`, `poolview`, `shilutsettings`, `managersfolder`, `tables`, `todos`, `sheetslist`, `history`, `manualsview`, `members`, `journal`, `projects`, `month`, `log`) have an English header (first sentence = the code-map line; `doh.js` and `settings.js` also a Contents list; `log.js` had none before) and all 164 Russian comments translated; their entries removed from both `PENDING` lists, so `src/app/views/` is clean. Commit `2bb81c2`, branch `claude/s01-ticket-06`; deploy of `main` succeeded.
+- Proof: `node tools/same-code.mjs --expect tools/code-map.mjs --expect tools/ru-comments.mjs` — code identical without comments (the two tools differ only by the removed `PENDING` entries), built site byte-identical (28 files); 158/158 tests; `code-map --check` exit 0.
+- Found: the old header of `settings.js` promised an «installation binding» that the tab does not hold; the new header says what the code does. A stale comment, not a bug: no `KNOWN_ISSUES.md` entry.
+
 ## 2026-11-15 — Ticket 1.5: views 2 documented («Тикет 1.5»)
 
 - 11 files of `src/app/views/` (`planmodal`, `tohnitview`, `planversion`, `planpick`, `planlink`, `planview`, `planassign`, `plannumbers`, `pdfpick`, `import`, `guide`) have an English header (first sentence = the code-map line; `planmodal.js`, `tohnitview.js`, `guide.js` also a Contents list, `planversion.js` a short one) and all 150 Russian comments translated; their entries removed from both `PENDING` lists. Commit `f74dd93`, branch `claude/s01-ticket-05`; deploy of `main` succeeded.

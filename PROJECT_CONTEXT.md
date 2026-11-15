@@ -4,17 +4,17 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 ## Next step
 
-«Тикет 1.6» — ticket 06 of stage 1 «Code documentation»: English headers and comments for the last 18 files of `src/app/views/` (doh, settings, wizard, catalogview, project, poolview, shilutsettings, managersfolder, tables, todos, sheetslist, history, manualsview, members, journal, projects, month, log); file `.scratch/01-code-docs/issues/06-views-3.md`. Model: Sonnet 5.5, effort high (`docs/models.md`: medium ticket).
+«Тикет 1.7» — ticket 07 of stage 1 «Code documentation»: English headers and comments for `src/tohnit/`, `scripts/`, `src/style.css`, `vite.config.js`, the Firestore rules files and the workflows; the comment lines of `firestore.open.rules` (and the two literals in `src/domain/openrules.js` that generate them) are the one real text change; file `.scratch/01-code-docs/issues/07-drawings-scripts-config.md`. Model: Sonnet 5.5, effort high (`docs/models.md`: medium ticket).
 
 Quick fixes «Правка: …» may come at any time; they do not change this step.
 
 ## State
 
-- Version 1.2.0 live at https://kukilvan.github.io/project-manager-app/; everything up to commit `2966523` checked by the owner on the phone (branch `rollback-2026-11-09b`; rollback point before stage 1: `rollback-2026-11-10`, same code). Ticket 1.1 (tools, KI-1, KI-2) live 2026-11-10, commit `036d628`; ticket 1.2 (`src/domain/`) live 2026-11-10, commit `464c2a3`; ticket 1.3 (app core) live 2026-11-10, commit `e5a5f8f`; ticket 1.4 (views 1) live 2026-11-10, commit `634ed75`; ticket 1.5 (views 2) live 2026-11-15, commit `f74dd93`; the built site byte-identical to the checked one each time.
+- Version 1.2.0 live at https://kukilvan.github.io/project-manager-app/; everything up to commit `2966523` checked by the owner on the phone (branch `rollback-2026-11-09b`; rollback point before stage 1: `rollback-2026-11-10`, same code). Ticket 1.1 (tools, KI-1, KI-2) live 2026-11-10, commit `036d628`; ticket 1.2 (`src/domain/`) live 2026-11-10, commit `464c2a3`; ticket 1.3 (app core) live 2026-11-10, commit `e5a5f8f`; ticket 1.4 (views 1) live 2026-11-10, commit `634ed75`; ticket 1.5 (views 2) live 2026-11-15, commit `f74dd93`; ticket 1.6 (views 3) live 2026-11-15, commit `2bb81c2`; the built site byte-identical to the checked one each time.
 - Stage 1: description, spec and slicing accepted 2026-11-10 — all Russian comments translated in this stage; 9 tickets in `.scratch/01-code-docs/issues/` (01 tools, 02 domain, 03 app core, 04–06 views, 07 drawings/scripts/config, 08 tests and Python, 09 architecture and strict checks); every ticket proves «only comments changed, built site byte-identical» with `tools/same-code.mjs` (ticket 01) and goes live without waiting for «Работает»; the owner checks once after the stage review.
 - 2026-11-10: project moved onto this workflow (`docs/history.md`); `HANDOFF.md` split into these docs and removed (original at commit `44ac16d`).
 - Tests: 158, all pass on the owner's Windows PC and on the Linux deploy.
-- Stage 1: baseline 1,751 Russian comments in 144 files; 694 in 57 files left after ticket 1.5 (`node tools/ru-comments.mjs`); 39 of 127 modules still read `(no English header yet)` in `docs/code-map.md`.
+- Stage 1: baseline 1,751 Russian comments in 144 files; 530 in 40 files left after ticket 1.6 (`node tools/ru-comments.mjs`); 21 of 127 modules still read `(no English header yet)` in `docs/code-map.md`.
 - The owner's NAS arrives 2026-11-11 without disks; its setup is a separate project. This app hands it requirements in stage 2.
 - Open tails, status unconfirmed: possible management-sheet tweaks and a list of old Drive files to delete (stage 3); photos on points deferred by the owner.
 
@@ -22,7 +22,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 
 | # | Stage | Status | Sessions (est.) | Ideas |
 |---|---|---|---|---|
-| 1 | Code documentation | tickets 5/9 | 14 | — |
+| 1 | Code documentation | tickets 6/9 | 14 | — |
 | 2 | What the app needs from the NAS | not started | 6 | — |
 | 3 | Management sheets | not started | 8 | — |
 | 4 | PocketBase storage (when the owner trusts the NAS) | not started | 16 | — |
