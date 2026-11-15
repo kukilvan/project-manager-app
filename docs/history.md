@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-15 — Spec 2: NAS requirements («Спека 2»)
+
+- `.scratch/02-nas-requirements/spec.md`: facts checked on a local PocketBase 0.40.6 (official release, checksum matched, run in the scratchpad), Cloudflare docs, the 2026-11-15 server backup and the owner's Drive. Key facts: batch off by default (50 requests, 3 s), one batch = one transaction; ids with `/`, space or `.` are rejected even with a wide pattern; JSON value ≤ 1 MB; `updated` is server time and works as the delta mark; realtime has no keep-alive, PocketBase closes an idle stream after 300 s and Cloudflare cuts it after ≈ 125 s; password sign-up open by default, token 5 days; the default rate limits count every request inside a batch (a batch of > 20 creates fails); superuser IP list honours `CF-Connecting-IP`; static files have no `Cache-Control`, so Cloudflare would keep `sw.js` 2 hours. Data: 15,827 documents, 18.4 MB JSON, history 87 %; PDFs on Drive ≈ 34 MB.
+- Decisions D1–D10: one hostname served by PocketBase (site in `pb_public`, `/api/`, `/_/`); the NAS pulls builds from a public GitHub release `nas-build` (stage 5); server jobs of the NAS copy in an agent container on the NAS, `export-pool.yml` stays on GitHub; no Cloudflare Access, WAF blocks `/_/` and the superuser login; realtime may drop — stage 4 reconnects and delta-reads; drawings stay on Drive; data on the HDD mirror; PocketBase pinned. Exact settings as requirement ids (R-PB, R-SITE, R-NET, R-AUTH, R-GOOG, R-JOB, R-BAK, R-DATA, R-POW), acceptance checks A1–A14.
+- Proposed tickets: 01 the NAS document + ADR 0014 + project spec and glossary (complex); 02 `tools/nas-check.mjs` with tests and the document check (medium). Owner accepted; the NAS project has decided nothing yet.
+
 ## 2026-11-15 — Description 2: NAS requirements («Описание 2»)
 
 - `.scratch/02-nas-requirements/description.md`: stage 2 writes `docs/nas-requirements.md` (11 parts: PocketBase, site on the NAS, Cloudflare Tunnel, sign-in and Google, server jobs, backups, data volume, power and network, acceptance checks, open questions); no code change. Facts: latest backup 2026-11-13 — two projects, ≈ 15,000 documents, full JSON ≈ 18 MB.
