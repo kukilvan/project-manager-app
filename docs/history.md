@@ -2,6 +2,11 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-15 — Stage 2 slicing («Тикеты 2»)
+
+- Two tickets in `.scratch/02-nas-requirements/issues/` accepted: 01 the NAS document, ADR 0014, project spec and `CONTEXT.md` (complex, Opus 5.5); 02 `tools/nas-check.mjs`, `tests/nas-check.test.js` with the document check, code map and `CLAUDE.md` lines (medium, blocked by 01). Branch `claude/s02-tickets`. Ticket files stay `open` until their own sessions.
+- Ticket 01 has no test of its own: the document check lives in ticket 02, so 01 checks size, ids and placeholders by hand. Ticket 02's self-check runs the tool against a local PocketBase 0.40.6 kept in the scratchpad.
+
 ## 2026-11-15 — Spec 2: NAS requirements («Спека 2»)
 
 - `.scratch/02-nas-requirements/spec.md`: facts checked on a local PocketBase 0.40.6 (official release, checksum matched, run in the scratchpad), Cloudflare docs, the 2026-11-15 server backup and the owner's Drive. Key facts: batch off by default (50 requests, 3 s), one batch = one transaction; ids with `/`, space or `.` are rejected even with a wide pattern; JSON value ≤ 1 MB; `updated` is server time and works as the delta mark; realtime has no keep-alive, PocketBase closes an idle stream after 300 s and Cloudflare cuts it after ≈ 125 s; password sign-up open by default, token 5 days; the default rate limits count every request inside a batch (a batch of > 20 creates fails); superuser IP list honours `CF-Connecting-IP`; static files have no `Cache-Control`, so Cloudflare would keep `sw.js` 2 hours. Data: 15,827 documents, 18.4 MB JSON, history 87 %; PDFs on Drive ≈ 34 MB.
