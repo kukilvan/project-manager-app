@@ -80,6 +80,12 @@ The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. 
 
 **Delta read** (code: `updatedAtServer`, `src/domain/sync.js`) — reading only changes since the last load; a full read on Saturdays.
 
+**NAS copy** — the owner's copy of the app on the home NAS: the site and PocketBase behind a Cloudflare Tunnel (ADR 0013, 0014). _Avoid_: server, home server.
+
+**NAS document** (code: `docs/nas-requirements.md`) — what the app requires from the NAS: requirements `R-…` and acceptance checks A1–A14.
+
+**NAS check** (code: `tools/nas-check.mjs`) — the automated acceptance checks of the NAS copy.
+
 ## Development
 
 **Header comment** — the leading comment of a module (`//` lines or one `/* … */` block); its first sentence says what the module holds and is the module's line in the code map.

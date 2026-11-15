@@ -76,6 +76,7 @@ Description: `.scratch/02-nas-requirements/description.md` approved (it override
 - Goal: the owner sets up a home NAS (UGREEN DXP2800, 2×3 TB HDD mirror, 500 GB NVMe) in a separate project; that project needs to know what this app requires to move there.
 - The owner sees at the end: a document for the NAS project (`docs/nas-requirements.md`): PocketBase (container, storage, ports), hosting the site on the NAS, HTTPS access from the phone outside home (Cloudflare Tunnel, own domain), backups, the server jobs now in GitHub Actions, Google sign-in and OAuth origins for the new address, the data volume.
 - Contains: research of what PocketBase needs for this app's data and auth; the list of external dependencies; open questions for the NAS project.
+- Output: `docs/nas-requirements.md` (the NAS document: requirements R-…, acceptance checks A1–A14) and `tools/nas-check.mjs` (the NAS check: the automated part of the acceptance checks, no credentials). Decisions: ADR 0014.
 - Sessions (est.): ≈ 6.
 
 ### Stage 3. Management sheets
@@ -89,11 +90,15 @@ Description: `.scratch/02-nas-requirements/description.md` approved (it override
 - Goal: the app can work with PocketBase on the owner's NAS as a fourth storage implementation behind the same repo interface; Firebase and on-device mode keep working for everyone else (ADR 0012).
 - The owner sees at the end: the app connected to a PocketBase instance works like with Firebase, including fully offline with later sync, history and rollback, members.
 - Contains: storage implementation, sign-in, an offline cache and write queue (PocketBase has no Firestore-like offline persistence — the main risk), management sheets still in Google.
-- Starts when the owner says the NAS is set up and reliable.
+- PocketBase facts checked in stage 2 (PocketBase 0.40.6, `.scratch/02-nas-requirements/spec.md` § 1): the app's ids live in their own field, not as PocketBase ids where they can be names (a catalog id is a name; PocketBase ids reject `/`, space and `.`); batch writes stay ≤ 500 requests and one batch is one transaction; list reads page by 1,000; a JSON value is limited to 1 MB per field (raise per field if needed); the server-set `updated` field is the delta-read mark; realtime is cut after ≈ 125 s idle through the tunnel, so the app reconnects and runs a delta read after every reconnect (a keep-alive hook is optional); the auth token lasts 30 days and is refreshed at every online start; both Google OAuth flows (popup with realtime, and the manual code flow with redirect) are tried on an installed iPhone PWA.
+- Rate limits (NAS document R-PB-6) count every request inside a batch and allow 10 batch calls per second: today `commit` sends all chunks at once, so a mass edit of ≈ 2,500 points would get 429 for some chunks. Chunks go one after another, with a retry on 429.
+- Starts when the NAS acceptance checks A1–A7 and A10–A13 pass (`docs/nas-requirements.md`) and the owner says the NAS is reliable.
 - Sessions (est.): ≈ 16.
 
 ### Stage 5. Move to the NAS
 
 - Goal: a full copy of the app and the owner's data runs on the NAS; the owner tests it in parallel for several days and, if all is well, makes it the main one.
 - The owner sees at the end: the site and PocketBase on the NAS with their data migrated from Firestore; server jobs (backup, sheets) working for it; a way back to Firebase.
+- Contains (ADR 0014): a workflow that builds the NAS variant with `VITE_BASE=/` on every push to `main` and publishes it to the release `nas-build`; `/api/` and `/_/` in the service worker's `navigateFallbackDenylist`; the agent container (site updater, backup export, cleanup, nightly sheets) with its secrets on the NAS; the NAS document updated in the same sessions.
+- After the move the owner checks on the NAS, once its build shows the new commit (ADR 0011 and `docs/workflow.md` updated then).
 - Sessions (est.): ≈ 10.

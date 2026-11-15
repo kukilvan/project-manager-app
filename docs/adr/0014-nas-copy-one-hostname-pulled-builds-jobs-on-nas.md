@@ -1,0 +1,18 @@
+# The NAS copy is one hostname served by PocketBase, pulls its builds from a GitHub release, runs its server jobs on the NAS, and has no Cloudflare Access
+
+Status: accepted (planned, stages 2, 4–5)
+
+Decided in «Спека 2» (2026-11-15) on the open questions of ADR 0013; the NAS project gets them as `docs/nas-requirements.md`. Four decisions, each with the options that lost:
+
+1. **One hostname, served by PocketBase.** `https://<host>/` is the site, `/api/` the PocketBase API, `/_/` its dashboard, all from one PocketBase container (`--publicDir`, which also does the SPA fallback). Same origin: no CORS, one tunnel route, one Google OAuth origin, and the app finds PocketBase at its own origin, so the connect link needs no address and the domain never enters the repo (ADR 0005). Lost: two subdomains (CORS, two routes, the address must travel in the connect link); a separate web server such as Caddy or nginx (one more container for no gain).
+2. **Builds are pulled by the NAS from a public GitHub release.** A workflow builds the NAS variant on every push to `main` and publishes `nas-site.zip` and `nas-site.json` (`commit`, `version`, `builtAt`, `sha256`) to a fixed release `nas-build`. An updater on the NAS checks it every 10 minutes, downloads only a new commit, checks the hash and switches the served folder, keeping the previous builds for rollback. No secret anywhere: the repo is public and nothing reaches into the NAS. Lost: a GitHub job pushing `dist/` through the tunnel (an inbound write path and a deploy secret on GitHub); building on the NAS from git (Node and `npm ci` on the NAS, slower, more to break).
+3. **Server jobs of the NAS copy run on the NAS**, in one agent container (Node 22, cron): backup export, cleanup, nightly sheets and the site updater, talking to PocketBase over the Docker network as a superuser allowed only from the NAS's own networks. The superuser API never has to be reachable from outside, reads are local, and there is no GitHub schedule that switches itself off after 60 idle days. Lost: GitHub Actions reaching PocketBase through the tunnel with a token, which needs superuser auth from the internet. The weekly starter-pool job stays in GitHub Actions (it reads the backup repo); the Firebase jobs stay there while the Firebase copy lives (ADR 0009 for the sheets).
+4. **No Cloudflare Access in front of the app.** An expiring Access cookie breaks an installed iPhone PWA (offline start, background sync, the OAuth popup), and PocketBase sign-in already protects the data. Instead two Cloudflare WAF rules block the dashboard `/_/` and the superuser login from the internet, and PocketBase allows superusers only from the home and Docker networks; the owner administers from home.
+
+## Consequences
+
+- Stage 5 builds the NAS variant with `VITE_BASE=/` and adds `/api/` and `/_/` to the service worker's `navigateFallbackDenylist`, so the OAuth redirect and the dashboard are not answered by the app.
+- The owner checks after a push to `main` on GitHub Pages until the move; after it, on the NAS once its build shows the new commit, at most ≈ 10 minutes later. Stage 5 updates ADR 0011 and `docs/workflow.md` for that.
+- Three secrets live on the NAS from stage 5 (a service-account key, a GitHub token for the backup repo, the jobs superuser), kept by the NAS project, never in this repo (ADR 0005). A job missed while the NAS is off runs at the next start or the next night.
+- The service account's second key keeps its e-mail, so management sheets shared with it keep working (ADR 0009).
+- Administering PocketBase from outside home is impossible by design; if ever needed, it gets a second hostname behind Cloudflare Access, decided then.
