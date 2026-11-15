@@ -1,4 +1,4 @@
-// Checks racks and labels (src/domain/rack.js, points.js): ports, auto layout, U order, shilut colours, cabinet sections.
+// Checks racks and labels (src/domain/rack.js, points.js): ports, auto layout, U order, shilut colors, cabinet sections.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parsePanelPorts, fmtPanelPort, defaultPortLabels, panelConflicts, matchesPanelQuery, isRackCable } from '../src/domain/rack.js';

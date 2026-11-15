@@ -1,8 +1,8 @@
-// Drawing plan, the part shared by the app and the server: status colour, the drawing's points for the «PDF с номерами», and a fingerprint to tell whether it changed.
+// Drawing plan, the part shared by the app and the server: status color, the drawing's points for the «PDF с номерами», and a fingerprint to tell whether it changed.
 // Statuses come from status.js; the server side is src/tohnit/numbered.js.
 import { pointInfo } from './status.js';
 
-// Colour by status: measured — blue, pulled — yellow, then from yellow to green: not everything installed → installed → checked; problem — red
+// Color by status: measured — blue, pulled — yellow, then from yellow to green: not everything installed → installed → checked; problem — red
 export const STATUS_COLORS = [['#9e9e9e', 'новая'], ['#2979ff', 'померяно'], ['#ffb300', 'протянуто частично'], ['#ffd600', 'протянуто'], ['#e4e000', 'захивучено'],
   ['#b5d800', 'установлено не всё'], ['#6ccf00', 'установлено'], ['#00c853', 'проверено'], ['#ff1744', 'проблема']];
 const C = Object.fromEntries(STATUS_COLORS.map(([c, t]) => [t, c]));

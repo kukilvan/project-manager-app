@@ -9,7 +9,7 @@
 // Contents:
 // - COLLECTIONS, docKey, newId — the project subcollections, document-id safety, id generator
 // - createMemoryBackend() — the in-memory backend (tests, on-device storage through `persist`)
-// - read saving — `deltaListen` (cache + changed documents only), the daily read and write counters
+// - delta reads — `deltaListen` (cache + changed documents only), the daily read and write counters
 // - rejected writes and read-state tracking — the data behind the «⚠» and «⬇» badges
 // - createFirestoreBackend(db, uid) — the Firestore backend
 // - createRepo(backend, user) — save with history, soft delete, projects, pool, inbox, members, administrator
@@ -27,7 +27,7 @@ import {
 export const COLLECTIONS = ['points', 'days', 'entries', 'journal', 'catalog', 'types', 'cables', 'devices', 'configs',
   'units', 'culprits', 'delayReasons', 'cabinetSettings', 'todos', 'notes', 'pulls'];
 
-// A Firestore document id cannot contain '/', and in catalogues id = name («Поставка / склад»)
+// A Firestore document id cannot contain '/', and in catalogs id = name («Поставка / склад»)
 export const docKey = (id) => String(id).replace(/\//g, '_');
 
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -210,7 +210,7 @@ function deltaListen(col, key, shape, label, cb, retryDenied = false) {
       cb(snap.docs.map(shape));
     }, onErr(startFull));
   };
-  // saving mode: from the server — only the changes since the last mark; on screen — the whole collection from the phone's memory.
+  // delta read: from the server — only the changes since the last mark; on screen — the whole collection from the phone's memory.
   // Why: a «changed after» query does not see records that have not reached the server yet (they have no server time),
   // and without a connection a new work/record did not appear in the lists until the phone uploaded it. The phone-memory listener
   // (source: 'cache') sees them at once, and what comes from the server also lands in that memory and is shown by it.
@@ -302,7 +302,7 @@ export function createFirestoreBackend(db, uid) {
     },
     // The shared pool: collections pool_types, pool_devices, pool_cables, pool_catalog (everyone reads, only the pool administrator writes)
     listenPool(kind, cb) {
-      // a deletion in the pool is marked deleted:true (not erased), so the saving «changes only» read sees it
+      // a deletion in the pool is marked deleted:true (not erased), so the delta read sees it
       return deltaListen(collection(db, `pool_${kind}`), `pz.sync.${uid}.pool.${kind}`, (d) => d.data(), `Чтение общего пула (${kind})`, (list) => cb(list.filter((x) => !x.deleted)));
     },
     commitPool(writes) {
@@ -418,7 +418,7 @@ export function createRepo(backend, user) {
     restore(pid, coll, id) {
       return api.save(pid, [{ coll, id, action: 'restore', data: { deleted: false, deletedAt: null, deletedBy: null, deletedByName: null } }]);
     },
-    // A new project: the project document + the initial catalogues inside it (all members see the same thing)
+    // A new project: the project document + the initial catalogs inside it (all members see the same thing)
     // refs: { types, devices, cables, catalog } — what was chosen in the wizard from the shared pool (without the old standard set)
     createProject(data, refs = null) {
       const pid = newId();

@@ -1,4 +1,4 @@
-// The same points in different forms: a double FC/B05-06 and singles FC/B05 + FC/B06 — search and merge, carrying the works over.
+// Checks point merge (src/domain/merge.js): the same points in different forms — a double FC/B05-06 and singles FC/B05 + FC/B06 — found and merged, carrying the works over.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildContext, findSameGroups, singlesOf, previewMerge, mergeOps, pullFigures, itogShtuk } from '../src/domain/index.js';

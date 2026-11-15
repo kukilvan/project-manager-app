@@ -1,4 +1,4 @@
-// Colour theme: dark (default), light or follow the phone; applies it to the page and remembers the choice.
+// Color theme: dark (default), light or follow the phone; applies it to the page and remembers the choice.
 // Stored on this device only, in the localStorage key `pz.theme`; used by the settings screen.
 const KEY = 'pz.theme';
 export const THEMES = [['dark', 'Тёмная'], ['light', 'Светлая'], ['auto', 'Как в телефоне']];

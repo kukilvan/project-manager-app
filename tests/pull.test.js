@@ -139,7 +139,7 @@ test('reconcilePull: длину в карточке стёрли или поме
   const pts = { a: { id: 'a', length: 15 }, b: { id: 'b', length: '' }, c: { id: 'c', length: 99 }, d: { id: 'd', length: 40 } };
   const r = reconcilePull(pull, (id) => pts[id]);
   assert.equal(pullTotal(r, 'a'), 15);       // matches — as it was
-  assert.equal(isMeasured(r, 'b'), false);   // erased in the card — without metres again
+  assert.equal(isMeasured(r, 'b'), false);   // erased in the card — without meters again
   assert.equal(isMeasured(r, 'c'), true);    // a pulled one is not touched
   assert.equal(pullTotal(r, 'd'), 40);
   pts.a.length = 22;                         // changed in the card

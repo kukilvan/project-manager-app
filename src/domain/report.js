@@ -155,7 +155,7 @@ function cellOf(col, point, info, ctx, project, lang, nameOf) {
   }
 }
 
-// Highlight rules (no formulas in cells): column → condition → colour
+// Highlight rules (no formulas in cells): column → condition → color
 function rulesFor(cols, lang) {
   const rules = [];
   cols.forEach((c, i) => {
@@ -178,7 +178,7 @@ function rulesFor(cols, lang) {
   return rules;
 }
 
-// Colour of the row's «informational» columns by the point's overall status (the status column is coloured by its own rules)
+// Color of the row's «informational» columns by the point's overall status (the status column is colored by its own rules)
 const ROW_COLOR = { 'Неисправна': COLORS.red, 'Проверена': COLORS.green, 'Установлена': COLORS.green, 'Частично установлена': COLORS.orange,
   'Захивучена': COLORS.yellow, 'Протянута': COLORS.yellow, 'Частично протянута': COLORS.orange };
 function pointsFor(project, ctx, table, nameOf) {

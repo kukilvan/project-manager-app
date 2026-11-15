@@ -76,7 +76,7 @@ One rule per item: the rule, why, how it is checked. Reviews check against this 
 
 ## 10. Comments are in English
 
-**Rule.** Code comments (JS, CSS, Python, YAML, Firestore rules) are written in English. Cyrillic in a comment only inside `«…»`, for UI text or data (`// the «Точки» tab`). Strings stay as they are: UI texts, event-log lines, test names, Russian data.
+**Rule.** Code comments (JS, CSS, Python, YAML, Firestore rules) are written in English. Cyrillic in a comment only inside `«…»`, for UI text or data (`// the «Точки» tab`). Words of `CONTEXT.md` (trade words by their English meaning: detector, not galai), American spelling (color, catalog, meters). Strings stay as they are: UI texts, event-log lines, test names, Russian data.
 
 **Why.** One language for every session that reads the code; a mixed codebase costs more to read and search.
 
@@ -84,7 +84,7 @@ One rule per item: the rule, why, how it is checked. Reviews check against this 
 
 ## 11. A comment-only change keeps the built site identical
 
-**Rule.** A change meant to touch only comments and docs is proved with `node tools/same-code.mjs`: check 1 — the code of every changed file is the same without comments; check 2 — the base commit and the working tree build into byte-identical sites. Code changes a ticket intends are named with `--expect <path>`; the built site is never excused.
+**Rule.** A change meant to touch only comments and docs is proved with `node tools/same-code.mjs`: check 1 — the code of every changed file is the same without comments; check 2 — the base commit and the working tree build into byte-identical sites. Code changes a ticket intends are named with `--expect <path>`; the built site is never excused, with one exception: when check 1 finds `firestore.open.rules` comment-only, the new file is copied into the base build too, so a change of the comment text the setup wizard copies passes check 2 — read it in check 1.
 
 **Why.** Comment and doc changes then need no browser walk and cannot break the live site.
 

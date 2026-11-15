@@ -15,6 +15,7 @@ Bugs decided not to fix now, and rare cases where the app can go wrong (source d
 |---|---|---|---|---|
 | KI-1 | i18n tests import a Windows path without `file://` | `tests/i18n.test.js` | fixed | stage 1, ticket 1.1 |
 | KI-2 | open-rules test fails on CRLF checkout | `tests/domain.test.js`, `src/domain/openrules.js` | fixed | stage 1, ticket 1.1 |
+| KI-3 | two same-code runs at once break each other | `tools/same-code.mjs`, `checkSite` | open | — |
 
 ## Entries
 
@@ -48,3 +49,12 @@ Entry format:
 - Likelihood / impact: always on this PC; test-only, the deploy runs on Linux with LF.
 - Status: fixed (test: «правила открытой версии: без вшитой почты, администратор из meta/admin» passes on Windows) — 2026-11-10, ticket 1.1: `.gitattributes` keeps both rules files LF on every checkout.
 - Found: 2026-11-10, adoption.
+
+## KI-3. Two same-code runs at once break each other
+
+- Where: `tools/same-code.mjs`, `checkSite` and `cleanUp`.
+- What's wrong: check 2 always uses the same temp folder (`<OS temp>/pm-same-code`) and first removes what is there, so that a crashed run leaves nothing behind (spec 01-code-docs, section 11). A second run started while the first is building removes the first run's worktree and outputs.
+- How to reproduce: two sessions (e.g. two worktrees) run `node tools/same-code.mjs` within the same minute → one of them fails with exit 2 (build or git error) or reports missing files.
+- Likelihood / impact: rare (sessions run one step at a time; a quick fix runs the tool only for a comment-only change); the run fails or gives a wrong report — run it again alone. Fix when it happens: a per-run temp folder (`mkdtemp`) plus removal of stale `pm-same-code-*` folders older than an hour.
+- Status: open
+- Found: 2026-11-15, «Ревью 1» (standards pass).

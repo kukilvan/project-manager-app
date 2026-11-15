@@ -66,7 +66,7 @@ def extract(path):
                         if t:
                             r = fitz.Rect(s['bbox']) * rm; x0, y0, x1, y1 = r.x0, r.y0, r.x1, r.y1
                             spans.append(dict(t=t, x0=x0, y0=y0, x1=x1, y1=y1, color=_color_hex(s['color']), font=s['font'], size=round(s['size'], 1)))
-            fills = []  # small filled shapes (icon background): (x0, y0, x1, y1, colour)
+            fills = []  # small filled shapes (icon background): (x0, y0, x1, y1, color)
             for dr in p.get_drawings():
                 f = dr.get('fill')
                 if f is None: continue
@@ -188,7 +188,7 @@ def scan(pdf, work):
                 for gy in range(int(f[1] // 50), int(f[3] // 50) + 1): grid[(gx, gy)].append(f)
         for s in merge_spans(pg['spans']):
             s['page'] = pi
-            if len(s['t']) <= 6:  # short text inside an icon: the fill colour under it (tells icons with the same digits apart)
+            if len(s['t']) <= 6:  # short text inside an icon: the fill color under it (tells icons with the same digits apart)
                 cx, cy = (s['x0'] + s['x1']) / 2, (s['y0'] + s['y1']) / 2
                 inside = [f for f in grid.get((int(cx // 50), int(cy // 50)), []) if f[0] <= cx <= f[2] and f[1] <= cy <= f[3]]
                 if inside: s['bg'] = min(inside, key=lambda f: (f[2] - f[0]) * (f[3] - f[1]))[4]
@@ -276,7 +276,7 @@ def render_page(pdf, page, zoom, clip=None):
     with pdfplumber.open(pdf) as d:
         return d.pages[page].to_image(resolution=72 * zoom).original.convert('RGB')
 
-# Type colours: fixed for the standard types, the rest in order from the reserve (all dark and saturated — readable on a white background)
+# Type colors: fixed for the standard types, the rest in order from the reserve (all dark and saturated — readable on a white background)
 TYPE_COLORS = {'Камера': '#E0007A', 'Дверь': '#0040FF', 'Точка': '#E65C00', 'Вайфай': '#00A040', 'Галай': '#008C9E',
                'Бакар': '#7B1FA2', 'TV': '#C2185B', 'Оптика': '#00695C', 'Интерком': '#5D4BFF', 'Коре биометри': '#AD1457',
                'Лахцан птиха': '#D32F2F', 'Тревожная кнопка': '#B71C1C', 'Магнит индикация': '#2E7D32', 'Рамколь': '#6A1B9A', 'Другое': '#455A64'}
@@ -288,7 +288,7 @@ def natkey(l):
     return [(0, int(x), '') if x.isdigit() else (1, 0, x) for x in re.findall(r'\d+|\D+', l)]
 def _hex2rgb(h): h = h.lstrip('#'); return tuple(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
 def type_colors(types, override=None):
-    """{type: '#rrggbb'} — fixed colours of the standard types + a reserve (30) for the others; override from map.json (colors)."""
+    """{type: '#rrggbb'} — fixed colors of the standard types + a reserve (30) for the others; override from map.json (colors)."""
     out = {}; used = set(); override = override or {}
     for t in types:
         c = override.get(t) or TYPE_COLORS.get(t)
@@ -549,7 +549,7 @@ def build(work, mapfile, out):
             if r.get('match') and not re.search(r['match'], t): continue
             if r.get('page') is not None and s['page'] != r['page']: continue
             if r.get('area') and not (r['area'][0] <= (s['x0'] + s['x1']) / 2 <= r['area'][2] and r['area'][1] <= (s['y0'] + s['y1']) / 2 <= r['area'][3]): continue  # by the text centre
-            if r.get('style') and any(str(s.get(k, '')) != str(v) for k, v in r['style'].items()): continue  # text style (colour, size, font)
+            if r.get('style') and any(str(s.get(k, '')) != str(v) for k, v in r['style'].items()): continue  # text style (color, size, font)
             return r
         return None
     byicon = []; split_log = []; expand_log = []
@@ -774,7 +774,7 @@ def build(work, mapfile, out):
         return any(q['x0'] - 3 <= cx <= q['x1'] + 3 and q['y0'] - 3 <= cy <= q['y1'] + 3 for q in tgrid.get((x['page'], int(cx // 40), int(cy // 40)), []))
     for c, lst in free.items():
         c0 = cl.get(c, {})
-        if not (c.startswith(('b:', 'sym:')) or c0.get('bg')): continue  # icons and letters in coloured frames
+        if not (c.startswith(('b:', 'sym:')) or c0.get('bg')): continue  # icons and letters in colored frames
         lst = [x for x in lst if not covered(x)]
         if len(lst) >= 3: missed.append((c, lst))
     ign = [re.compile(x) for x in mp.get('ignore_missed', [])]
@@ -872,9 +872,9 @@ def _strip_layers(doc, page, hidden_xrefs):
 
 def render_pdf(meta, final, out_pdf):
     """A PDF copy of the drawing for Ivan: disturbing layers cut out, AutoCAD annotation frames around labels removed;
-    every point has a frame in the type colour, invented numbers have a label (without overlaps, a far one — with a leader).
+    every point has a frame in the type color, invented numbers have a label (without overlaps, a far one — with a leader).
     Each type is a layer of its own (switched on/off in the viewer), a table of contents «type → number» (click — it shows the place),
-    at the end — a legend sheet: colour, type, count, numbers. Vector: readable at any zoom."""
+    at the end — a legend sheet: color, type, count, numbers. Vector: readable at any zoom."""
     fitz = _fitz()
     if not fitz: print('PDF с номерами: нужен PyMuPDF'); return
     doc = fitz.open(meta['pdf'])
@@ -1024,9 +1024,9 @@ def _shape_sig(pts, step=0.3):
 
 def symbols(work, name, x0, y0, x1, y1, page=0, tol=0.15, color=None):
     """Find on the sheet all vector icons like the one in the area (x0..y1) — the sample (an icon from the legend or on the plan).
-    An icon = neighbouring lines of one (main) colour; compared by shape (outline length, radius, elongation),
-    independent of the icon rotation and of how CAD split the lines into pieces. Foreign colours (wall, door, leaders) do not interfere.
-    color — the main colour by hand (hex, e.g. 0000ff), if the sample took the wrong one (the script prints the colours in the area).
+    An icon = neighbouring lines of one (main) color; compared by shape (outline length, radius, elongation),
+    independent of the icon rotation and of how CAD split the lines into pieces. Foreign colors (wall, door, leaders) do not interfere.
+    color — the main color by hand (hex, e.g. 0000ff), if the sample took the wrong one (the script prints the colors in the area).
     Found ones are added to scan.json as the text «name» in the group «sym:name» — for the rules icon/near/by_icon. A repeat run with the same name replaces what was found."""
     fitz = _fitz()
     if not fitz: print('Нужен PyMuPDF (pip install pymupdf)'); return
@@ -1038,7 +1038,7 @@ def symbols(work, name, x0, y0, x1, y1, page=0, tol=0.15, color=None):
     if not inside: print('В области нет векторных элементов — увеличь область (координаты как в scan.json / crop)'); return
     cols = collections.Counter()
     cx0, cy0 = (x0 + x1) / 2, (y0 + y1) / 2
-    for hx, r, it in inside:  # main colour: the most outline closer to the centre of the area
+    for hx, r, it in inside:  # main color: the one with the most outline, outline near the center of the area weighs more
         w = 1.0 if abs((r.x0 + r.x1) / 2 - cx0) <= (x1 - x0) * 0.35 and abs((r.y0 + r.y1) / 2 - cy0) <= (y1 - y0) * 0.35 else 0.3
         cols[hx] += w * max(0.5, _plen(it, rm))
     main = (color or '').lower().lstrip('#') or cols.most_common(1)[0][0]
@@ -1055,7 +1055,7 @@ def symbols(work, name, x0, y0, x1, y1, page=0, tol=0.15, color=None):
     print('Образец для каталога (symbols): ' + json.dumps(dict(name=name, **tsig, tol=tol), ensure_ascii=False))
 
 def _page_paths(fitz, p, size):
-    """Small visible paths of the page: (colour, frame, items)."""
+    """Small visible paths of the page: (color, frame, items)."""
     out = []; rm = p.rotation_matrix
     for d in p.get_drawings():
         if _hidden(d.get('layer')): continue
@@ -1067,7 +1067,7 @@ def _page_paths(fitz, p, size):
     return out
 
 def _find_sig(paths, rm, tsig, tol=0.15):
-    """All icons with the shape tsig {color, L, rg, el, size}: neighbouring paths of colour color are glued, the shape is compared."""
+    """All icons with the shape tsig {color, L, rg, el, size}: neighbouring paths of color color are glued, the shape is compared."""
     L = [q for q in paths if q[0] == tsig['color']]; size = tsig['size']
     par = list(range(len(L)))
     def f(i):
@@ -1104,7 +1104,7 @@ def _save_sym(work, sc, name, page, tsig, found, write=True):
         except Exception: pass
 
 def layer_stats(pdf):
-    """[(layer, number of lines/shapes, main colour)] — in descending order."""
+    """[(layer, number of lines/shapes, main color)] — in descending order."""
     fitz = _fitz()
     if not fitz: return []
     try:
@@ -1147,8 +1147,8 @@ def hide(work, regs):
     render_overview(sc['meta']['pdf'], work, sc['clusters'], sc['spans']); print(f'Перерисовано: {work}/overview.png и c/*.png')
 
 def blobs(work, gap=1.5):
-    """Find all coloured icons (not black and not grey): neighbouring lines of one colour are glued into an icon,
-    icons are sorted into kinds (colour + number of lines + outline length — independent of rotation).
+    """Find all colored icons (not black and not grey): neighbouring lines of one color are glued into an icon,
+    icons are sorted into kinds (color + number of lines + outline length — independent of rotation).
     Each kind is a group b:kNN in scan.json (for the icon rules), images b/kNN.png and b/_all.png, a list b/blobs.md."""
     fitz = _fitz()
     if not fitz: print('Нужен PyMuPDF (pip install pymupdf)'); return
@@ -1184,8 +1184,8 @@ def blobs(work, gap=1.5):
                 x0, y0 = min(q[0] for q in c), min(q[1] for q in c); x1, y1 = max(q[2] for q in c), max(q[3] for q in c)
                 if max(x1 - x0, y1 - y0) > 70: continue
                 found.append(dict(page=pi, color=hx, n=len(c), plen=sum(q[4] for q in c), x0=x0, y0=y0, x1=x1, y1=y1))
-    # text inside an icon (a letter/digit in a frame): icons with text are split into kinds by colour + text + size,
-    # without text — by colour + number of parts + outline length (±8%; independent of rotation)
+    # text inside an icon (a letter/digit in a frame): icons with text are split into kinds by color + text + size,
+    # without text — by color + number of parts + outline length (±8%; independent of rotation)
     txt = [s for s in sc['spans'] if not str(s.get('c', '')).startswith(('b:', 'sym:')) and len(s['t']) <= 4]
     for b in found:
         t = [s['t'] for s in txt if s['page'] == b['page'] and b['x0'] - 2 <= (s['x0'] + s['x1']) / 2 <= b['x1'] + 2 and b['y0'] - 2 <= (s['y0'] + s['y1']) / 2 <= b['y1'] + 2]
@@ -1258,7 +1258,7 @@ def tiles(pdf, work, n=3):
                 part = img.crop(box); part.thumbnail((2400, 2400)); part.save(os.path.join(work, f'tile_p{pi + 1}_r{i + 1}c{j + 1}.png'))
     print(f'Части чертежа: {work}/tile_*.png (ряд r, столбец c; перекрытие 10%)')
 
-# ---------------------------------------------------------------- standalone mode (no AI): label catalogue + questions to a person
+# ---------------------------------------------------------------- standalone mode (no AI): label catalog + questions to a person
 def generalize(samples):
     """A template (regex) from examples of the labels of one group. A cabinet prefix before «/» (GA1/, GC/) → [A-Za-z]+\\d*/;
     letters after it — as is (C, D, In…; different ones — via «|»), digits → \\d+.  GA1/C-57, GC/C-15 → ^[A-Za-z]+\\d*/C-\\d+$"""
@@ -1293,9 +1293,9 @@ def load_catalog(path):
     return cat
 
 def auto(pdf, work, catpath, out, floor='', answers_path=None, project=None):
-    """Parsing without AI: scan → junk layers → icons from the catalogue → rules from the catalogue (+ the person's answers) → assembly.
-    Groups the catalogue does not know go to WORK/questions.json (with examples and images) — a person answers them
-    (answers.json: {"c05": "<type>", "c07": "skip"}), the answers can be saved into the catalogue (WORK/learned.json)."""
+    """Parsing without AI: scan → junk layers → icons from the catalog → rules from the catalog (+ the person's answers) → assembly.
+    Groups the catalog does not know go to WORK/questions.json (with examples and images) — a person answers them
+    (answers.json: {"c05": "<type>", "c07": "skip"}), the answers can be saved into the catalog (WORK/learned.json)."""
     if not os.path.exists(os.path.join(work, 'scan.json')):
         import io, contextlib
         with contextlib.redirect_stdout(io.StringIO()): scan(pdf, work)
@@ -1306,14 +1306,14 @@ def auto(pdf, work, catpath, out, floor='', answers_path=None, project=None):
     _set_hide(sc['meta'])
     cat = load_catalog(catpath)
     scope = lambda e: not e.get('project') or (project and e['project'].lower() == project.lower())
-    # drawing scale: icon sizes and distances in the catalogue are set for labels of text_ref pt height (7.8 by default);
-    # on this sheet — the median height of labels the catalogue recognised
+    # drawing scale: icon sizes and distances in the catalog are set for labels of text_ref pt height (7.8 by default);
+    # on this sheet — the median height of labels the catalog recognised
     lab_rx = [re.compile(e['re']) for e in cat['labels'] if scope(e) and '/' in e['re']] or [re.compile(e['re']) for e in cat['labels'] if scope(e)]
     hs = sorted(min(x['x1'] - x['x0'], x['y1'] - x['y0']) for x in sc['spans'] if not x.get('c', '').startswith(('b:', 'sym:')) and any(r.search(x['t'].strip()) for r in lab_rx))
     k = (hs[len(hs) // 2] / float(cat.get('text_ref', 7.8))) if len(hs) >= 5 else 1.0
     if not 0.2 <= k <= 8: k = 1.0
     sc_sym = lambda sym: dict(sym, L=sym['L'] * k, rg=sym['rg'] * k, size=sym['size'] * k)
-    # icons from the catalogue (by shape) — for by_icon / icon
+    # icons from the catalog (by shape) — for by_icon / icon
     fitz = _fitz()
     if fitz and cat['symbols']:
         doc = fitz.open(sc['meta']['pdf'])
@@ -1325,7 +1325,7 @@ def auto(pdf, work, catpath, out, floor='', answers_path=None, project=None):
         json.dump(sc, open(os.path.join(work, 'scan.json'), 'w'), ensure_ascii=False)
     answers = json.load(open(answers_path)) if answers_path and os.path.exists(answers_path) else {}
     rules = []
-    for cid, ans in answers.items():  # the person's answers for this drawing's groups — they outrank the catalogue
+    for cid, ans in answers.items():  # the person's answers for this drawing's groups — they outrank the catalog
         a = ans if isinstance(ans, dict) else ({'skip': True, 'why': 'ответ: не точки'} if ans in ('skip', 'нет', '-') else {'type': ans})
         rules.append(dict(a, clusters=[cid]))
     for e in [x for x in cat['skip'] if scope(x)]:
@@ -1361,7 +1361,7 @@ def auto(pdf, work, catpath, out, floor='', answers_path=None, project=None):
                        style=dict(color=c['color'], size=c['size'])))
     qs.sort(key=lambda q: -q['n'])
     json.dump(qs, open(os.path.join(work, 'questions.json'), 'w'), ensure_ascii=False, indent=1)
-    # what to learn: answers → catalogue entries (a template from the group's examples)
+    # what to learn: answers → catalog entries (a template from the group's examples)
     learned = []
     for cid, ans in answers.items():
         lst = [s['t'] for s in bycl.get(cid, []) if labelish(s['t'])]
@@ -1379,7 +1379,7 @@ def auto(pdf, work, catpath, out, floor='', answers_path=None, project=None):
     print(f'Отчёт: {work}/report.md · вопросы: {work}/questions.json · выучить: {work}/learned.json')
 
 def learn(catpath, learned_path):
-    """Add what was learned (WORK/learned.json after the answers) to the catalogue."""
+    """Add what was learned (WORK/learned.json after the answers) to the catalog."""
     cat = load_catalog(catpath); add = json.load(open(learned_path)); n = 0
     for e in add:
         kind = e.pop('kind', 'labels')

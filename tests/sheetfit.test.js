@@ -1,4 +1,4 @@
-// A new drawing version: recalculating coordinates from the old sheet to the new one and checking every point.
+// Checks a new drawing version (src/domain/sheetfit.js): coordinates recalculated from the old sheet to the new one, every point checked.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { uniquePairs, fitSheets, fitManual, planMove, moveSummary, movePos, versionName, applyFit } from '../src/domain/sheetfit.js';

@@ -1,6 +1,6 @@
 // Shared groups of point types (e.g. «Дверь» holds every door type with its own devices and cables) for type filters.
 // In a type filter the groups come first («▸ Все: Дверь»), then each type on its own; a group filter value is 'grp:<name>'.
-// Reads the type catalogue from store.js (`state.ctx`).
+// Reads the type catalog from store.js (`state.ctx`).
 import { state } from './store.js';
 
 export const GRP = 'grp:';

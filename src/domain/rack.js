@@ -1,4 +1,4 @@
-// Racks and port labels: panel ports of cat7 points, the rack plan, automatic port assignment, label colours and caption texts.
+// Racks and port labels: panel ports of cat7 points, the rack plan, automatic port assignment, label colors and caption texts.
 // «Порт в панели» (panel U + port 1–24) for points with cat7 cables.
 // A point has the field panel: [{ u, p, label? }] — one per cat7 cable (label — the port's own caption on the label).
 // Built on status.js; used by the rack and point views, the daily report view, report.js and shilutsheet.js.
@@ -216,8 +216,8 @@ export function rackProblems(rack, points, ctx, cabinet = '') {
   return out;
 }
 
-// ---------- port label colours ----------
-// Standard colours (own colours are added in the user's settings: { id, ru, he, bg?, fg? })
+// ---------- port label colors ----------
+// Standard colors (own colors are added in the user's settings: { id, ru, he, bg?, fg? })
 export const SHILUT_COLORS = [
   { id: 'yellow', ru: 'жёлтый', he: 'צהוב', bg: '#ffd60a', fg: '#000' },
   { id: 'green', ru: 'зелёный', he: 'ירוק', bg: '#2fb350', fg: '#000' },
@@ -225,7 +225,7 @@ export const SHILUT_COLORS = [
   { id: 'red', ru: 'красный', he: 'אדום', bg: '#ff3b30', fg: '#fff' },
   { id: 'black', ru: 'чёрный', he: 'שחור', bg: '#111111', fg: '#fff' },
 ];
-// Default colour by type name: cameras — green, biometrics/doors (core) — blue, controllers — yellow, Wi-Fi — red, points — black
+// Default color by type name: cameras — green, biometrics/doors (core) — blue, controllers — yellow, Wi-Fi — red, points — black
 export function defaultTypeColor(typeId) {
   const t = String(typeId || '').toLowerCase();
   if (/камер|camera|cctv/.test(t)) return 'green';
@@ -235,12 +235,12 @@ export function defaultTypeColor(typeId) {
   if (/^точк/.test(t)) return 'black';
   return '';
 }
-// The type's colour in the project: its own (project.shilut.typeColors) or the default → a colour object or null
+// The type's color in the project: its own (project.shilut.typeColors) or the default → a color object or null
 export function typeColorOf(project, typeId, extraColors = []) {
   const id = project?.shilut?.typeColors?.[typeId] || defaultTypeColor(typeId);
   return [...SHILUT_COLORS, ...extraColors].find((c) => c.id === id) || null;
 }
-// Text colour on a given background (black/white)
+// Text color on a given background (black/white)
 export function contrastFg(bg) {
   const m = String(bg || '').match(/^#?([0-9a-f]{6})$/i); if (!m) return '#fff';
   const n = parseInt(m[1], 16); const r = n >> 16; const g = (n >> 8) & 255; const b = n & 255;
@@ -248,7 +248,7 @@ export function contrastFg(bg) {
 }
 
 // ---------- captions and names for the port labels ----------
-// project.shilut = { panelModel, typeColors: {type: colour id}, cabNames: {'rack|section': name}, dropCab, tpl: {type: template} }
+// project.shilut = { panelModel, typeColors: {type: color id}, cabNames: {'rack|section': name}, dropCab, tpl: {type: template} }
 // In the user's prefs: panelModels: [{ id, name }], shilutColors: [{ id, ru, he, bg, fg }]
 export const shilutOf = (project) => project?.shilut || {};
 // Whether to drop the rack name from captions: each rack has its own setting (dropCabs), the general dropCab is the fallback

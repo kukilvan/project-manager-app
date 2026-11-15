@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Russian-comment finder: lists every comment with Cyrillic outside «…» in the stage-1 scope (spec 01-code-docs, sections 2 and 6.1).
-// Parses JS with acorn and scans CSS, Python, YAML and Firestore rules by hand; tools/code-map.mjs, tools/same-code.mjs
-// and tests/code-docs.test.js reuse its comment scanners and its path matching.
+// Russian-comment finder: lists every comment with Cyrillic outside «…» in the code of the repo (spec 01-code-docs, sections 2 and 6.1).
+// Parses JS with acorn and scans CSS, Python, YAML and Firestore rules by hand; tools/code-map.mjs reuses its Cyrillic check,
+// tools/same-code.mjs its comment scanners and path matching, and tests/code-docs.test.js all of them.
 //
 // Contents:
 // - commentRanges(), commentsOf() — the comments of one file by its type, with line and character range
@@ -141,6 +141,7 @@ function pyComments(text) {
 }
 
 // YAML (and the shell inside run: | blocks): "#" at the start of a line or after whitespace, outside quotes on that line.
+// A quote opens only where a value or a word starts, so the apostrophe in don't does not hide a comment after it.
 function ymlComments(text) {
   const out = [];
   let pos = 0;
@@ -152,7 +153,7 @@ function ymlComments(text) {
       if (quote) {
         if (quote === '"' && c === '\\') i++;
         else if (c === quote) quote = null;
-      } else if (c === '"' || c === "'") quote = c;
+      } else if ((c === '"' || c === "'") && (i === 0 || /[\s:[{,(=$]/.test(line[i - 1]))) quote = c;
       else if (c === '#' && (i === 0 || /\s/.test(line[i - 1]))) {
         out.push({ start: pos + i, end: pos + line.length, text: line.slice(i + 1) });
         break;
@@ -208,11 +209,12 @@ function walk(root, dir, keep, deep, out) {
   }
 }
 
-// Every file of the scope (spec 6.1), paths relative to root with "/", sorted.
+// Every file of the scope (spec 6.1), paths relative to root with "/", sorted. src/ and scripts/ are read like
+// tools/code-map.mjs reads them (*.js and *.mjs, subfolders too), so every module of the code map is checked (Review 1).
 export function scopeFiles(root) {
   const out = [];
-  walk(root, 'src', /\.(js|css)$/, true, out);
-  walk(root, 'scripts', /\.mjs$/, false, out);
+  walk(root, 'src', /\.(m?js|css)$/, true, out);
+  walk(root, 'scripts', /\.m?js$/, true, out);
   walk(root, 'tests', /\.js$/, false, out);
   walk(root, 'tools', /\.(mjs|py)$/, true, out);
   walk(root, '.github/workflows', /\.ya?ml$/, false, out);

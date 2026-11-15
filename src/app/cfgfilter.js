@@ -1,5 +1,5 @@
 // Filter of points by door configuration for lists and the plan: «Без запирания», «Без конфигурации» and each configuration with its point count.
-// Reads the catalogue from store.js and doorpool.js; door logic comes from src/domain.
+// Reads the catalog from store.js and doorpool.js; door logic comes from src/domain.
 import { state } from './store.js';
 import { usesConfig, doorPartOf, doorCfgOf } from '../domain/index.js';
 import { allDoorCfgs } from './doorpool.js';

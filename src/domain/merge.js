@@ -1,6 +1,6 @@
 // Point merge: the same point recorded in two ways — a double «FC/B05-06» and singles «FC/B05» + «FC/B06» (the old drawing parsing split doubles into singles, the new one keeps them double).
 // This module finds such groups and works out the merge: which form to keep, where the works go (daily report entries, journal, pulls),
-// and what does not add up (the quantity in the report, a work the kept point lacks, different metres).
+// and what does not add up (the quantity in the report, a work the kept point lacks, different meters).
 // Built on doh.js, compose.js and points.js; used by pointsimport.js and the point merge and drawing views.
 import { itogShtuk, pullFigures } from './doh.js';
 import { taskQty, compositionOf, isPortCable } from './compose.js';

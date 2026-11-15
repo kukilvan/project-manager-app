@@ -1,4 +1,4 @@
-// Checks door configuration (src/domain/index.js): parts by devices, rules and auto cables, names, ids and colours.
+// Checks door configuration (src/domain/index.js): parts by devices, rules and auto cables, names, ids and colors.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {

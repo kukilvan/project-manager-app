@@ -174,7 +174,7 @@ export function doorLibraryOps(ctx) {
   return ops;
 }
 
-// ---- readable names: colour by door part (or the device's own colour), badges ----
+// ---- readable names: color by door part (or the device's own color), badges ----
 export const DOOR_ROLE_COLORS = { em: '#e5484d', mh: '#2f7cf6' };
 export const DOOR_PART_COLORS = { lock: '#e5484d', reader: '#9b5cf6', button: '#f08c00', sensor: '#0fa5a0', extra: '#e0479e' };
 export const doorColorOf = (dev) => (dev?.color || DOOR_ROLE_COLORS[doorRole(dev)] || DOOR_PART_COLORS[doorPartOf(dev)] || '#8e8e93');
@@ -187,7 +187,7 @@ export function doorTokens(ctx, cfg) {
   });
   return { items, cables: sortCables(cfg.cables) };
 }
-/** Colour of the door's short label («ЭМ»/«МХ») */
+/** Color of the door's short label («ЭМ»/«МХ») */
 export function doorShortColor(ctx, cfg) {
   if (!isDoorCfg(cfg)) return '';
   const lock = cfg.devices.map((x) => ctx.devices.get(x.deviceId)).find((d) => doorPartOf(d) === 'lock' || ['em', 'mh'].includes(doorRole(d)));

@@ -100,12 +100,12 @@ export function packQueues(queues, cap = PANEL_PORTS) {
 // ---------- the port-label sheet ----------
 // fill mode: points of one type from the chosen racks — in queues made of panels (see packQueues); 1 empty column between types.
 // split mode: as they stand in the panels — a column for each panel (and type); captions in a row with no skipped rows; 1 empty column between types, 2 between racks.
-// mergeColors: types with the same colour count as one type (shared columns / queues)
+// mergeColors: types with the same color count as one type (shared columns / queues)
 function shilutSheet(project, ctx, points, cabs, { mode, colors, modelName, mergeColors, have, title, key }) {
   const portsHere = (c) => new Map([...portsOf(project, ctx, points, c)].filter(([, v]) => v.have === have));   // only the port labels of the needed sheet
   const sh = shilutOf(project); const defModel = modelName(sh.panelModel) || '';
   const colorHe = (typeId) => typeColorOf(project, typeId, colors);
-  const gk = (typeId) => (mergeColors && colorHe(typeId) ? `color:${colorHe(typeId).id}` : typeId);   // column key: the type or (with the tick) the colour
+  const gk = (typeId) => (mergeColors && colorHe(typeId) ? `color:${colorHe(typeId).id}` : typeId);   // column key: the type or (with the tick) the color
   const cols = []; // { gap: n } or { typeId, model, cells: [24] }
   if (mode === MODES.split) {
     cabs.forEach((c, ci) => {
@@ -124,7 +124,7 @@ function shilutSheet(project, ctx, points, cabs, { mode, colors, modelName, merg
       typeOrder.forEach((t, ti) => { if (ti > 0) cols.push({ gap: 1 }); cols.push(...byType.get(t)); });
     });
   } else {
-    // «Queue» — points of one type (colour) from one panel, in the order they stand in the panel. A queue is not cut or reordered.
+    // «Queue» — points of one type (color) from one panel, in the order they stand in the panel. A queue is not cut or reordered.
     const groups = new Map(); let idx = 0;
     cabs.forEach((c) => {
       const placed = portsHere(c);
@@ -143,7 +143,7 @@ function shilutSheet(project, ctx, points, cabs, { mode, colors, modelName, merg
     });
   }
   if (!cols.some((x) => x.cells)) return null;
-  // A — a narrow margin on the left (as in the sample); then the columns; row 1 — empty, 2 — «כולל שקעים», 3 — the model, 4 — the colour, then the captions
+  // A — a narrow margin on the left (as in the sample); then the columns; row 1 — empty, 2 — «כולל שקעים», 3 — the model, 4 — the color, then the captions
   const rows = [[], ['', ...cols.map((x) => (x.cells ? HE_TOTAL : ''))], ['', ...cols.map((x) => (x.cells ? x.model : ''))],
     ['', ...cols.map((x) => (x.cells ? colorHe(x.typeId)?.he || '' : ''))]];
   for (let i = 0; i < PANEL_PORTS; i++) rows.push(['', ...cols.map((x) => (x.cells ? x.cells[i] : ''))]);
@@ -156,7 +156,7 @@ function shilutSheet(project, ctx, points, cabs, { mode, colors, modelName, merg
   };
 }
 
-// → { sheets, warnings }; opts: { mode, cabs: [rack keys], colors: the user's colours, models: [{id,name}] }
+// → { sheets, warnings }; opts: { mode, cabs: [rack keys], colors: the user's colors, models: [{id,name}] }
 export function buildRackSheets(project, ctx, points, { mode = MODES.fill, cabs: keys = null, colors = [], models = [], mergeColors = false } = {}) {
   const all = cabinetsOf(project, points, ctx);
   const chosen = all.filter((c) => !keys || keys.includes(c.key));

@@ -1,4 +1,4 @@
-// Checks the domain (src/domain/index.js): statuses, cables and metres, daily report, journal, labels, doors and devices, manager tables, imports and the server cache.
+// Checks the domain (src/domain/index.js): statuses, cables and meters, daily report, journal, labels, doors and devices, manager tables, imports and the server cache.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -84,7 +84,7 @@ test('строки записей RU/HE по формулам Приложени
   assert.equal(entryLine(e, mk(e)), 'Протяжка cat7: 2 точек');
   assert.equal(entryLine(e, mk(e), 'he'), 'השחלת כבל CAT7: 2 נקודות');
   e = entry('e1', 'D1', 'Протяжка', 'PR_PTS', ['d1'], { cableId: '6005', minutes: 30, note: 'через потолок' });
-  const ctxD = scenario([door], [d], [e]); // 6005 — metres: 3 cables × 20 m = 60 m
+  const ctxD = scenario([door], [d], [e]); // 6005 — meters: 3 cables × 20 m = 60 m
   assert.equal(entryLine(e, ctxD), 'Протяжка 6005: 3 каб., 60 м, 30 мин. через потолок');
   assert.equal(entryLine(e, ctxD, 'he'), 'השחלת כבל 6005: 3 כבלים, 60 מטר, 30 דקות. через потолок');
   e = entry('e1', 'D1', 'Протяжка', 'PR_MAN', [], { cableId: '6005', quantity: 4, meters: 80 });
@@ -249,7 +249,7 @@ test('таблица: язык, «—» для этапов, которых у �
   assert.deepEqual(rows[0], ['נקודה', 'סוג', 'הותקן', 'נבדק', 'שילוט', 'סטטוס']);
   assert.equal(he.sheets[0].rtl, true);
   const byLabel = Object.fromEntries(rows.slice(1).map((r) => [r[0], r]));
-  assert.equal(byLabel['G-01'][3], '—'); assert.equal(byLabel['G-01'][4], '—'); // a galai has no check and no shilut
+  assert.equal(byLabel['G-01'][3], '—'); assert.equal(byLabel['G-01'][4], '—'); // a detector has no check and no shilut
   assert.equal(byLabel['1A-D01'][2], 46300);   // installation date
   assert.equal(byLabel['1A-C01'][5], 'נבדק');
   const ru = buildReport(project, ctx, { ...defaultTables()[1], columns: ['label', 'installed', 'status', 'checkResult'] });
@@ -390,7 +390,7 @@ test('«Что осталось»: чего не хватает точке, с �
     entry('e2', 'D1', 'Хивут', 'HIV_DEV', ['b1']), entry('e3', 'D1', 'Проверка', 'CHK_FLUKE', ['b1']),
   ]);
   assert.deepEqual(missingStages(ctx.points.get('c1'), ctx), ['Установка', 'Проверка']);
-  assert.deepEqual(missingStages(ctx.points.get('b1'), ctx), []); // a bakar has no installation, everything else is done
+  assert.deepEqual(missingStages(ctx.points.get('b1'), ctx), []); // a controller has no installation, everything else is done
   assert.deepEqual(missingStages(ctx.points.get('c2'), ctx), ['Хивут', 'Установка', 'Проверка']);
   const r = remaining(ctx);
   assert.deepEqual(r.map((g) => [g.cabinet, g.items.length]), [['1A', 1], ['2B', 1]]);
@@ -492,7 +492,7 @@ test('точка из устройств: задачи по устройства
   assert.ok(CAT.CHK_DOOR && CAT.INS_BIO);
 
   let ctx = mk([]);
-  // door tasks: 3 pulls, 3 hivuts in the cabinet (per device), 3 installations, door check
+  // door tasks: 3 pulls, 3 terminations in the rack (per device), 3 installations, door check
   const t1 = tasksOf(ctx.points.get('d1'), ctx);
   assert.equal(t1.filter((t) => t.stage === 'Протяжка').length, 3);
   assert.equal(t1.filter((t) => t.workId === 'HIV_DEV').length, 3);
@@ -510,7 +510,7 @@ test('точка из устройств: задачи по устройства
   assert.deepEqual(missingStages(ctx.points.get('d1'), ctx), ['Дотянуть', 'Хивут', 'Установка', 'Проверка']);
   assert.deepEqual(missingDetails(info, ctx)[0], { stage: 'Протяжка', items: ['Мануль хашмали (6005)'] });
 
-  // all on d1 without ticks: pull, hivut, installations (per avizar), door check
+  // all on d1 without ticks: pull, termination, installations (per door accessory), door check
   const all = ['HIV_DEV', 'INS_KORE', 'INS_MAGNIT', 'INS_MANUL', 'CHK_DOOR'].map((w, i) => entry(`E${i + 3}`, 'D1', CAT[w].workType, w, ['d1']));
   const e2 = entry('E2', 'D1', 'Протяжка', 'PR_PTS', ['d1'], { cableId: '6005' });
   ctx = mk([e1, e2, all[0], all[1], all[2]]);
@@ -552,7 +552,7 @@ test('кабели самой точки: дверь 2×6005, авизарим �
   const info = pointInfo(ctx.points.get('x'), ctx);
   assert.equal(info.cables, 2); assert.equal(info.status, 'Протянута'); assert.equal(info.installTotal, 5);
   assert.deepEqual(pullFigures(e, ctx), { count: 2, meters: 20 });
-  assert.equal(tasksOf(ctx.points.get('x'), ctx).filter((t) => t.workId === 'HIV_DEV').length, 1); // hivut of the point cables
+  assert.equal(tasksOf(ctx.points.get('x'), ctx).filter((t) => t.workId === 'HIV_DEV').length, 1); // termination of the point cables
   assert.ok(devicesForWork([ctx.points.get('x')], ctx, null, 'Протяжка').some((d) => d.name === 'Кабели точки'));
   assert.equal(pointInfo(ctx.points.get('y'), ctx).stages.join(','), 'Протяжка,Хивут,Проверка,Шилют');
   // device «Core biometric»: hivuts, check and shilut of its cables come from «Cables», no need to repeat them in the device
@@ -814,7 +814,7 @@ test('словари переводов: шаблоны {} совпадают п
 test('дох дня: одинаковые работы суммируются в одну строку', () => {
   const c2 = { ...cam, id: 'c2', label: '1A-02' }; const c3 = { ...cam, id: 'c3', label: '1A-03' };
   const d = day('D1', '2026-10-05');
-  // keystone hivut: 1 + 1 + 1 = 3; siur: 20 + 15 = 35 min; an entry with a different note — separate; with a delay — separate
+  // keystone termination: 1 + 1 + 1 = 3; «Сиюр» (site walk): 20 + 15 = 35 min; an entry with a different note — separate; with a delay — separate
   const es = [
     entry('e1', 'D1', 'Хивут', 'HIV_KEY', ['c1']), entry('e2', 'D1', 'Время', 'T_SIYUR', [], { minutes: 20 }),
     entry('e3', 'D1', 'Хивут', 'HIV_KEY', ['c2']), entry('e4', 'D1', 'Время', 'T_SIYUR', [], { minutes: 15 }),

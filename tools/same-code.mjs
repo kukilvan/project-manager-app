@@ -23,16 +23,17 @@ import { commentRanges, inPaths, kindOf } from './ru-comments.mjs';
 const lineOf = (text, pos) => text.slice(0, pos).split('\n').length;
 const LINE_BREAK = new RegExp('[\n\r\u2028\u2029]');
 
-// Token stream without comments: type, value and whether a line break comes before the token (it matters for
-// automatic semicolon insertion, so a block comment that loses its line break is a code change).
+// Token stream without comments: type, source text and whether a line break comes before the token (it matters for
+// automatic semicolon insertion, so a block comment that loses its line break is a code change). The source text, not
+// the parsed value, so String.raw`\x41` and String.raw`A` differ; carriage returns are dropped (CRLF checkouts).
 function jsTokens(text) {
   const tokens = [];
   acorn.parse(text, { ecmaVersion: 'latest', sourceType: 'module', allowHashBang: true, onToken: tokens });
   let prevEnd = 0;
   return tokens.map((t, i) => {
-    const v = t.value && typeof t.value === 'object' && 'pattern' in t.value ? `/${t.value.pattern}/${t.value.flags}` : String(t.value);
+    const v = text.slice(t.start, t.end).replace(/\r/g, '');
     // The first token has no statement before it, so a line break (a header comment added above it) cannot change the code.
-    const key = `${t.type.label} ${typeof t.value} ${v}${i > 0 && LINE_BREAK.test(text.slice(prevEnd, t.start)) ? ' (line break before)' : ''}`;
+    const key = `${t.type.label} ${v}${i > 0 && LINE_BREAK.test(text.slice(prevEnd, t.start)) ? ' (line break before)' : ''}`;
     prevEnd = t.end;
     return { key, line: lineOf(text, t.start) };
   });

@@ -55,9 +55,10 @@ test('code map: buildList — every module without an English header is a proble
     fs.writeFileSync(path.join(dir, 'src/app/a.js'), '// Holds A. Talks to B.\n');
     fs.writeFileSync(path.join(dir, 'src/app/b.js'), '// Модуль Б.\n');
     fs.writeFileSync(path.join(dir, 'scripts/c.mjs'), 'export {};\n');
+    fs.writeFileSync(path.join(dir, 'src/app/d.js'), `// ${long(201)}\n`);
     const { lines, problems } = map.buildList(dir);
-    assert.deepEqual(lines, ['- `scripts/c.mjs` — ' + map.NO_HEADER, '- `src/app/a.js` — Holds A.', '- `src/app/b.js` — ' + map.NO_HEADER]);
-    assert.deepEqual(problems, ['scripts/c.mjs: no English header comment', 'src/app/b.js: no English header comment']);
+    assert.deepEqual(lines, ['- `scripts/c.mjs` — ' + map.NO_HEADER, '- `src/app/a.js` — Holds A.', '- `src/app/b.js` — ' + map.NO_HEADER, `- \`src/app/d.js\` — ${long(201)}`]);
+    assert.deepEqual(problems, ['scripts/c.mjs: no English header comment', 'src/app/b.js: no English header comment', 'src/app/d.js: first sentence is 201 characters (limit 200)']);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -112,11 +113,12 @@ test('comments: Python — strings, docstrings, print(__doc__)', () => {
 });
 
 test('comments: YAML and Firestore rules', () => {
-  const yml = "# шапка\nname: 'a # не комментарий'\non:\n  - cron: '0 9 * * 1'   # раз в неделю\nurl: http://x#y\nrun: |\n  echo \"# нет\" # да\n";
+  const yml = "# шапка\nname: 'a # не комментарий'\non:\n  - cron: '0 9 * * 1'   # раз в неделю\nurl: http://x#y\nrun: |\n  echo \"# нет\" # да\n  echo don't # тоже да\n";
   assert.deepEqual(ru.commentsOf('.github/workflows/a.yml', yml), [
     { line: 1, text: ' шапка' },
     { line: 4, text: ' раз в неделю' },
     { line: 7, text: ' да' },
+    { line: 8, text: ' тоже да' },
   ]);
   const rules = "rules_version = '2';\nmatch /databases/{db}/documents {  // база\n  allow read: if x == 'a//b'; // правило\n}\n";
   assert.deepEqual(ru.commentsOf('firestore.rules', rules), [{ line: 2, text: ' база' }, { line: 3, text: ' правило' }]);
@@ -138,10 +140,23 @@ test('paths: inPaths — a folder entry matches the files directly in it', () =>
   assert.equal(ru.inPaths('src/a.js', []), false);
 });
 
+test('comments: scopeFiles — every code-map module is in the scope', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ru-scope-'));
+  try {
+    const files = ['src/a.mjs', 'src/sub/b.js', 'src/style.css', 'scripts/d.mjs', 'scripts/sub/c.js', 'tests/e.test.js', 'tools/f.py', 'tools/sub/g.mjs', 'docs/x.md'];
+    for (const f of files) { fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); fs.writeFileSync(path.join(dir, f), '// x\n'); }
+    const scope = ru.scopeFiles(dir);
+    assert.deepEqual(scope, ['scripts/d.mjs', 'scripts/sub/c.js', 'src/a.mjs', 'src/style.css', 'src/sub/b.js', 'tests/e.test.js', 'tools/f.py', 'tools/sub/g.mjs']);
+    assert.deepEqual(map.listModules(dir).filter((m) => !scope.includes(m)), []);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('same-code: per-file comparison', () => {
   assert.equal(sameCode('src/a.js', 'const a = 1; // старый\n', 'const a = 1; // new\n'), true);
   assert.equal(sameCode('src/a.js', "const a = 'x';\n", "const a = 'y';\n"), false);
   assert.equal(sameCode('src/a.js', 'f(a)\n', 'f(a, b)\n'), false);
+  // the source text of a token counts, not its parsed value
+  assert.equal(sameCode('src/a.js', 'f(String.raw`\\x41`);\n', 'f(String.raw`A`);\n'), false);
   assert.equal(sameCode('src/a.js', 'const a = `x\ny`;\nf(a);\n', 'const a = `x\r\ny`;\r\nf(a);\r\n'), true);
   // a block comment that loses its line break can change automatic semicolon insertion
   assert.equal(sameCode('src/a.js', 'function f() { return /* a\n */ 1; }\n', 'function f() { return /* b */ 1; }\n'), false);

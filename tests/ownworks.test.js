@@ -1,4 +1,4 @@
-// A point's own set of works: add, remove, change the quantity (per point or per cable) — on top of the type, devices and cables.
+// Checks a point's own set of works (src/domain/ownworks.js, src/domain/compose.js): add, remove, change the quantity (per point or per cable) — on top of the type, devices and cables.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildContext, tasksOf, taskQty, pointInfo, workApplicable, workFits, worksSummary, ownWorksPatch, pullFigures } from '../src/domain/index.js';

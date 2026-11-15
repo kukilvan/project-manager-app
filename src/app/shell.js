@@ -234,7 +234,7 @@ export function createShell({ user, onLogout, diag }) {
 
   window.addEventListener('online', () => { state.online = true; render(); });
   window.addEventListener('offline', () => { state.online = false; render(); });
-  // Hebrew: names from the project's catalogues (including those added by hand) are taken from their Hebrew fields
+  // Hebrew: names from the project's catalogs (including those added by hand) are taken from their Hebrew fields
   let lastCtx = null;
   const ctxNames = () => {
     const c = state.ctx; if (!c || c === lastCtx || lang() !== 'he') return; lastCtx = c;

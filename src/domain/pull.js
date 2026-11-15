@@ -1,4 +1,4 @@
-// Cable pulls («Протяжки»): choose points on the plan → «до шкафа» (to the rack) → metres per point → checklist → finish (written into the daily report).
+// Cable pulls («Протяжки»): choose points on the plan → «до шкафа» (to the rack) → meters per point → checklist → finish (written into the daily report).
 // A pull record: { name, createdAt, drawingId, screen, curId, pointIds, base, meters: {id: own}, kept: {id: total from the card},
 //   checked: [id], finished: [id], finishedAt, deleted }
 // Pure; used by the points view and the pull view (src/app/views).

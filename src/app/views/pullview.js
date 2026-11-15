@@ -4,7 +4,8 @@
 //
 // Contents:
 // - localAll(), allPulls(), savePull() — storage: phone + server, the fresher copy wins
-// - openPulls() — the «Протяжки» list; newPull(), renameForm() create and rename a pull
+// - openPulls() — the «Протяжки» list, with a search for the pulls a point was in
+// - newPull(), renameForm() — create a pull on a drawing and rename it
 // - openPull() — working with one pull: step 1 choose points, step 2 «Выбрано N» + «До шкафа», step 3 meters per point, step 4 the «Протяжка» checklist
 import { h, openModal, toast, confirmDialog, formModal } from '../ui.js';
 import { state, getRepo, currentProject, infoOf, subscribe } from '../store.js';

@@ -48,7 +48,7 @@ function build() {
   const lit = (p) => p.re.source.replace(/\(\[\\s\\S\]\*\?\)/g, '').length;
   patterns.sort((a, b) => b.head.length - a.head.length || lit(b) - lit(a));
 }
-/** Add translations on the fly (names from the catalogues: nameHe etc.) */
+/** Add translations on the fly (names from the catalogs: nameHe etc.) */
 export function addTranslations(map) { if (lang() === 'ru') return; extra = new Map([...extra, ...Object.entries(map)]); }
 
 /** Translate a string (if there is no translation — return it as it is) */

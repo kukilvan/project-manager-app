@@ -118,7 +118,8 @@ export function renderMap(mapText, list) {
   return crlf ? out.replace(/\n/g, '\r\n') : out;
 }
 
-// { stale, problems, text, current }: stale when the file differs from the rendered map (carriage returns ignored).
+// { stale, problems, text, current, built }: stale when the file differs from the rendered map (carriage returns ignored);
+// built is the result of buildList().
 export function checkMap(root) {
   const current = fs.readFileSync(path.join(root, MAP_FILE), 'utf8');
   const built = buildList(root);

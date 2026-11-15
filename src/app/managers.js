@@ -26,7 +26,7 @@ export function sheetRequests(sheetId, sh) {
     if (c.kind === 'stage') out.push({ repeatCell: { range: range(first, lastRow, i, i + 1), cell: { userEnteredFormat: { numberFormat: { type: 'DATE', pattern: 'dd/mm/yyyy' }, horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(numberFormat,horizontalAlignment)' } });
     else if (c.kind === 'num' || c.kind === 'status') out.push({ repeatCell: { range: range(first, lastRow, i, i + 1), cell: { userEnteredFormat: { horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat.horizontalAlignment' } });
   });
-  // colour of the information columns by point status: consecutive rows of one colour go in one request
+  // color of the information columns by point status: consecutive rows of one color go in one request
   const infoCols = []; sh.cols.forEach((c, i) => { if (c.kind !== 'stage' && c.kind !== 'status' && c.id !== 'checkResult') infoCols.push(i); });
   const groups = []; infoCols.forEach((i) => { const g = groups[groups.length - 1]; if (g && g[1] === i) g[1] = i + 1; else groups.push([i, i + 1]); });
   const rc = sh.rowColors || [];
