@@ -1,5 +1,5 @@
-// «🧩 Каталог подписей»: правила, по которым разбор чертежа узнаёт точки. Мои правила (выученные из ответов) — смотреть, исправлять, удалять,
-// добавлять по примерам, сохранять в файл и загружать. Встроенные — только посмотреть. «Проверить подпись» — какое правило сработает.
+// «🧩 Каталог подписей» screen: the caption rules the drawing parser uses to recognise points, with an editor for the user's own rules.
+// Own rules (learned from answers) can be viewed, fixed, deleted, added from examples, saved to a file and loaded; built-in rules are view-only; «Проверить подпись» shows which rule fires. Own rules live in the user's prefs (`tohnitLearned`, repo.saveUserPrefs); matching comes from src/tohnit/engine.js and pattern.js.
 import { h, openModal, toast, confirmDialog } from '../ui.js';
 import { getRepo, currentProject } from '../store.js';
 import { matchLabel, prettyRule, learnInto } from '../../tohnit/engine.js';
@@ -8,9 +8,9 @@ import { userCatalog, typePicker, DEFAULT_CATALOG } from './tohnitview.js';
 import { cablesPicker } from './cablespick.js';
 
 const FORMAT = 'polevoy-tohnit-catalog-1';
-let cache = null;  // своё сохранённое — сразу (без сети запись дойдёт позже)
+let cache = null;  // the user's own saved value, at once (without a network the write arrives later)
 const mine = () => { const m = cache || getRepo().prefs?.tohnitLearned || {}; return { labels: [...(m.labels || [])], skip: [...(m.skip || [])], symbols: [...(m.symbols || [])] }; };
-// с другого телефона могли добавить правила, пока окно было открыто: чужие новые (которых не было при открытии) добавляем к сохраняемому
+// another phone may have added rules while the window was open: foreign new ones (absent when it was opened) are added to what is saved
 const sig = (m) => JSON.stringify([m.labels, m.skip, m.symbols]);
 let baseSig = null; let baseKeys = new Set();
 const keyOf = (kind, e) => `${kind}|${e.re || e.symbol || JSON.stringify(e)}|${e.project || ''}`;
@@ -22,11 +22,11 @@ const saveMine = async (m0) => {
     const have = allKeys(m); m = { labels: [...m.labels], skip: [...m.skip], symbols: [...m.symbols] };
     for (const k of ['labels', 'skip', 'symbols']) for (const e of (remote[k] || [])) { const key = keyOf(k, e); if (!baseKeys.has(key) && !have.has(key)) m[k].push(e); }
   }
-  baseSig = sig(m); allKeys(m).forEach((k) => baseKeys.add(k));  // уже виденные ключи не забываем (удалённые не воскресают)
+  baseSig = sig(m); allKeys(m).forEach((k) => baseKeys.add(k));  // keys already seen are not forgotten (deleted rules do not come back)
   cache = m; getRepo().saveUserPrefs({ tohnitLearned: { labels: m.labels, skip: m.skip, symbols: m.symbols } }).catch(() => toast('Не удалось сохранить каталог')); };
 const validRe = (re) => { try { new RegExp(re); return true; } catch { return false; } };
 const same = (a) => (b) => b.re === a.re && (b.project || '') === (a.project || '');
-// правило по-человечески: по частям (если настроено по примерам), иначе — из шаблона
+// a rule in plain words: by parts (if set up from examples), otherwise from the pattern
 const ruleText = (e) => { if (e.parts && e.samples) { const sg = segment(e.samples); if (sg.ok && sg.segs.length === e.parts.length) return describeParts(sg.segs, e.parts); } return prettyRule(e.re); };
 const what = (kind, e) => (kind === 'skip' ? '🚫 не точки' : `→ ${e.type}`);
 
@@ -35,7 +35,7 @@ export function catalogModal() {
   const close = openModal('🧩 Каталог подписей', box, { sticky: true, onClose: () => { cache = null; } });
   void close;
 
-  // проверка подписи
+  // caption check
   const testIn = h('input', { type: 'text', placeholder: 'Например: GA1/C-57 или TV140', autocomplete: 'off', autocapitalize: 'characters' });
   const testOut = h('div', { style: { marginTop: '6px', fontSize: '14px' } });
   const runTest = () => {
@@ -66,7 +66,7 @@ export function catalogModal() {
     if (d?.format !== FORMAT) { toast('Это не файл каталога подписей'); return; }
     const items = [...(d.skip || []).map((e) => ({ kind: 'skip', ...e })), ...(d.labels || []).map((e) => ({ kind: 'labels', ...e })), ...(d.symbols || []).map((e) => ({ kind: 'symbols', ...e }))]
       .filter((e) => e.kind === 'symbols' || (e.re && validRe(e.re)));
-    const { catalog, added } = learnInto(mine(), items.reverse());  // reverse: unshift вернёт исходный порядок
+    const { catalog, added } = learnInto(mine(), items.reverse());  // reverse: unshift brings back the original order
     if (added) await saveMine(catalog);
     toast(added ? `Добавлено правил: ${added}` : 'Новых правил нет'); draw();
   });
@@ -93,10 +93,10 @@ export function catalogModal() {
   draw();
 }
 
-// ---- редактор правила: примеры → части подписи → что значит каждая часть → шаблон ----
-// rule — своё правило (правка) или нет (новое); samples/type — из вопроса при разборе чертежа
+// ---- rule editor: examples → caption parts → what each part means → pattern ----
+// rule — an own rule (edit) or not (new); samples/type — from the question asked during drawing parsing
 export function ruleEditor({ kind = 'labels', rule = null, samples = null, type = '', onSaved } = {}) {
-  if (!rule) cache = null;  // из вопроса при разборе — каталог берём свежий
+  if (!rule) cache = null;  // from the question during drawing parsing: take a fresh catalog
   let skip = kind === 'skip'; let choice = skip ? '__skip' : (rule?.type || type || '');
   let seg = null; let roles = [];
   const ex = h('textarea', { rows: 4, placeholder: 'Примеры подписей, по одной в строке:\nC2/04\nC2/05\nC2/12' });
@@ -114,7 +114,7 @@ export function ruleEditor({ kind = 'labels', rule = null, samples = null, type 
     return { ...buildPattern(seg.segs, roles), parts: roles };
   };
   function check() {
-    const { re, cab } = current(); let rx = null; try { rx = re ? new RegExp(re) : null; } catch { /* ошибка */ }
+    const { re, cab } = current(); let rx = null; try { rx = re ? new RegExp(re) : null; } catch { /* error */ }
     const t = testIn.value.trim();
     testOut.textContent = !t ? '' : !rx ? '⚠️ шаблон с ошибкой' : rx.test(t) ? `✅ подходит${cab ? (() => { const m = t.match(new RegExp(cab)); return m ? ` · шкаф ${m[1]}` : ''; })() : ' · без шкафа'}` : '❌ не подходит';
   }

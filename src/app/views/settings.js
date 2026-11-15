@@ -1,4 +1,14 @@
-// Вкладка «Настройки»: все справочники (выпадающие списки), привязка установки и служебные действия проекта в одном месте.
+// «Настройки» tab: the project's reference lists (dropdown lists) with their item forms, and the entries to the management, rack and sheets screens.
+// Reads the lists from store.js and writes through repo (save with a preview of the result); the shared pool admin opens the same forms for the pool through setFormTarget. Types, devices, cables and works come from src/domain; door configurations are drawn by doorcfgview.js.
+//
+// Contents:
+// - checkList(), custom(), qtyField() — form fields: ticks from a list with «create new» on the fly, and «item × quantity»
+// - REFS — the description of every reference list (types, devices, cables, works, door configurations, units, culprits, delay reasons)
+// - itemForm(key, existing, { onSaved }) — add and edit one item of a list; setFormTarget() points the forms at the shared pool
+// - auditModal() — the check of the lists for links to things that do not exist
+// - groupModal() — a shared group for several point types at once (for example all doors)
+// - refView() — the screen of one reference list; refreshApp() — reset the service worker and cache and reload
+// - settingsView() — the tab itself
 import { POOL_KINDS, usesOf, usesText, DOOR_PARTS, doorPartOf, DOOR_PART_NAMES, doorColorOf } from '../../domain/index.js';
 import { poolButton } from './poolview.js';
 import { allGroups } from '../typegroups.js';
@@ -17,8 +27,8 @@ import { colorField } from './doorchips.js';
 export const WORK_TYPES = ['Протяжка', 'Перетяжка', 'Перенос', 'Хивут', 'Установка', 'Проверка', 'Шилют', 'Доп. работа', 'Время'];
 const STAGES = ['Протяжка', 'Хивут', 'Установка', 'Проверка', 'Шилют'];
 
-// Список галочек: варианты {value,label}; get() возвращает выбранные значения в порядке списка
-// locked(values) → Map значение → «откуда»: такие пункты уже есть на нижнем уровне — серая отмеченная галочка, не сохраняются здесь
+// A list of ticks: options {value, label}; get() returns the chosen values in the order of the list
+// locked(values) → Map value → «where from»: such items already exist on a lower level — a grey ticked box, not saved here
 function checkList(options, { empty = 'Список пуст', onCreate, createLabel = '🆕 Создать новое', onChange, locked } = {}) {
   const boxes = new Map(); const notes = new Map(); const manual = new Map(); let lockMap = new Map(); options = [...options];
   const row = (o) => { const cb = h('input', { type: 'checkbox', onchange: () => onChange?.() }); const note = h('small', { class: 'mut' }); boxes.set(o.value, cb); notes.set(o.value, note); return h('label', { class: 'pickrow' }, cb, h('span', {}, o.label, note)); };
@@ -30,7 +40,7 @@ function checkList(options, { empty = 'Список пуст', onCreate, createL
     });
   };
   const list = h('div', { class: 'picklist', style: { maxHeight: '220px' } }, options.length ? options.map(row) : h('div', { class: 'empty' }, empty));
-  // новый пункт: в начало списка и сразу отмечен
+  // a new item: at the top of the list and ticked at once
   const add = (o) => { if (!options.length) list.replaceChildren(); if (!boxes.has(o.value)) { options.unshift(o); list.prepend(row(o)); } boxes.get(o.value).checked = true; onChange?.(); };
   const el = onCreate ? h('div', {}, list, h('div', { class: 'btns', style: { marginTop: '4px' } }, h('button', { type: 'button', class: 'sec', onclick: () => onCreate(add) }, createLabel))) : list;
   return {
@@ -40,13 +50,13 @@ function checkList(options, { empty = 'Список пуст', onCreate, createL
   };
 }
 const custom = (key, label, options, extra = {}) => ({
-  key, label, type: 'custom', ...extra, build: (api) => { const c = checkList(options, { ...extra, onChange: api.changed }); c.set(api.value); if (extra.locked) setTimeout(() => { try { c.update(api.values()); } catch { /* форма ещё строится */ } }, 0); return c; },
+  key, label, type: 'custom', ...extra, build: (api) => { const c = checkList(options, { ...extra, onChange: api.changed }); c.set(api.value); if (extra.locked) setTimeout(() => { try { c.update(api.values()); } catch { /* the form is still being built */ } }, 0); return c; },
 });
-// «🆕 Новое …» внутри формы: открыть форму справочника поверх, после «Сохранить» вернуться и сразу добавить созданное
+// «🆕 Новое …» inside a form: open the reference-list form on top, and after «Сохранить» come back and add what was created at once
 const workLabel = (d) => `${d.name} · ${d.workType}`;
 const creator = (key, label, after) => ({ createLabel: label, onCreate: (add) => itemForm(key, null, { onSaved: (id, data) => { add({ value: id, label: key === 'catalog' ? workLabel(data) : (data.name || id) }); after?.(id, data); } }) });
 
-// Поле «вариант × количество»: хранится как [{ <key>: значение, count }]
+// An «option × quantity» field: stored as [{ <key>: value, count }]
 const qtyField = (key, label, options, itemKey, extra = {}) => ({
   key, label, type: 'custom', ...extra,
   build: (api) => {
@@ -55,21 +65,21 @@ const qtyField = (key, label, options, itemKey, extra = {}) => ({
     return { el: q.el, get: () => q.get().map((x) => ({ [itemKey]: x.value, count: x.count })) };
   },
 });
-// Работы, которые можно требовать от кабеля/устройства/точки (протяжка учитывается сама; время — не работа по точкам)
+// Works that can be required from a cable, device or point (pulling counts by itself; time is not a work on points)
 const taskWorks = () => [...ctx().catalog.values()].filter((w) => ['Хивут', 'Установка', 'Проверка', 'Шилют', 'Доп. работа'].includes(w.workType) && w.active !== false)
   .sort((a, b) => WORK_TYPES.indexOf(a.workType) - WORK_TYPES.indexOf(b.workType) || a.name.localeCompare(b.name, 'ru'))
   .map((w) => ({ value: w.id, label: `${w.name} · ${w.workType}` }));
 const nameOf = (coll, id) => ctx()[coll].get(id)?.name || id;
 const compText = (list) => (list || []).map((d) => `${nameOf('devices', d.deviceId)}${d.count > 1 ? ` ×${d.count}` : ''}`).join(' + ');
 
-// Формы справочников пишут в проект; администратор пула открывает те же формы для общего пула (target: свой ctx и куда сохранять)
+// The reference-list forms write into the project; the pool admin opens the same forms for the shared pool (target: its own ctx and where to save)
 let formTarget = null;
 export const setFormTarget = (t) => { formTarget = t; };
 const ctx = () => formTarget?.ctx || state.ctx;
 const opts = (map, label) => [...map.values()].map((x) => ({ value: x.id, label: label(x) }));
 
-// ---- описание справочников ----
-// name: поле с названием (если id = название, оно задаётся только при создании)
+// ---- the description of the reference lists ----
+// name: the field with the name (if id = name, it is set only at creation)
 export const REFS = {
   catalog: {
     title: 'Каталог работ', coll: 'catalog', hint: 'Работы, которые выбираются в отчёте. Тип работы определяет, как работа влияет на статус точки.',
@@ -155,7 +165,7 @@ export const REFS = {
     prepare: (v) => ({ name: v.name, nameHe: v.nameHe, cables: v.cables || [], workIds: v.workIds || [], doorPart: v.doorPart || null, short: String(v.short || '').trim() || null, color: v.color || null }),
     usage: (x) => usesOf(ctx(), 'devices', x.id).reduce((n, u) => n + u.n, 0), uses: (x) => usesOf(ctx(), 'devices', x.id),
   },
-  // вход во вкладку «Конфигурации дверей» (сама вкладка рисуется в doorcfgview.js)
+  // entry to the «Конфигурации дверей» tab (the tab itself is drawn in doorcfgview.js)
   configs: { title: 'Конфигурации дверей', coll: 'configs', items: () => [...ctx().configs.values()].filter((c) => Array.isArray(c.devices) && !c.deleted) },
   units: { title: 'Единицы измерения', coll: 'units', hint: 'Шт, м, мин… Показываются в отчёте.', idMode: 'name', nameLabel: 'Единица (русский)', heKey: 'he', heLabel: 'Единица (иврит)',
     items: () => [...ctx().units.values()], line: (x) => [x.id, x.he || '—'], usage: (x) => [...ctx().catalog.values()].filter((w) => w.unit === x.id).length },
@@ -164,16 +174,16 @@ export const REFS = {
   delayReasons: { title: 'Причины задержки точек', coll: 'delayReasons', hint: 'Почему точка не сделана — выбирается в карточке точки.', idMode: 'name', nameLabel: 'Причина (русский)', heKey: 'he', heLabel: 'Причина (иврит)',
     items: () => [...ctx().delayReasons.values()], line: (x) => [x.id, x.he || '—'], usage: (x) => [...ctx().points.values()].filter((p) => p.delayReasonId === x.id).length },
 };
-// упрощённые справочники «русский + иврит»
+// simplified «Russian + Hebrew» reference lists
 ['units', 'culprits', 'delayReasons'].forEach((k) => {
   const r = REFS[k];
   r.fields = () => [{ key: r.heKey, label: r.heLabel, required: true }];
   r.defaults = {}; r.prepare = (v) => ({ [r.heKey]: v[r.heKey] });
 });
 
-export function itemForm(key, existing, { onSaved } = {}) {  // onSaved(id) — для создания «на лету» из другого окна
+export function itemForm(key, existing, { onSaved } = {}) {  // onSaved(id) — for creating «on the fly» from another window
   const def = REFS[key]; const repo = getRepo(); const pid = currentProject().id; const tgt = formTarget;
-  const fields = []; const created = new Map(); // работы, созданные из этой формы (id → их «для каких типов»)
+  const fields = []; const created = new Map(); // works created from this form (id → their «for which types»)
   if (!existing && def.idMode === 'name') fields.push({ key: '_name', label: def.nameLabel, required: true, hint: 'Название потом изменить нельзя — только удалить и создать заново.' });
   fields.push(...def.fields({ existing, created }));
   const live = tgt ? [...tgt.ctx[def.coll].values()] : def.items();
@@ -197,7 +207,7 @@ export function itemForm(key, existing, { onSaved } = {}) {  // onSaved(id) — 
       const err = def.check?.(v); if (err) { toast(err); return false; }
       const data = def.prepare ? def.prepare(v, { existing }) : {};
       const ops = [{ coll: def.coll, id, data: { ...data, deleted: false } }];
-      // новые работы, созданные из формы типа, — отметить этот тип в «Для каких типов точек»
+      // new works created from a type form — tick this type in «Для каких типов точек»
       if (key === 'types') created.forEach((ft, wid) => { if (!ft.includes(id)) ops.push({ coll: 'catalog', id: wid, data: { forTypes: [...ft, id] } }); });
       if (tgt) { tgt.save(ops); tgt.ctx[def.coll].set(id, { ...(existing || {}), ...data, id }); toast('Сохранено в общем пуле'); onSaved?.(id, data); return; }
       repo.save(pid, ops);
@@ -207,9 +217,9 @@ export function itemForm(key, existing, { onSaved } = {}) {  // onSaved(id) — 
   });
 }
 
-// Все id, которые когда-либо были в проекте (вместе с удалёнными) — удалённое из библиотеки не возвращаем
+// All ids that were ever in the project (deleted ones included) — what was deleted from the library is not brought back
 const knownIds = () => Object.fromEntries(['catalog', 'devices', 'cables', 'types'].map((c) => [c, new Set((state.data[c] || []).map((x) => x.id))]));
-// Контекст «как будет после» операций (для предпросмотра)
+// The context «as it will be after» the operations (for the preview)
 function ctxAfter(ops) {
   const data = { ...state.data, projects: [currentProject()] };
   ['catalog', 'devices', 'cables', 'types', 'journal'].forEach((c) => {
@@ -232,7 +242,7 @@ export function auditModal() {
 }
 
 
-// ---- Общая группа для нескольких типов сразу (например, все двери) ----
+// ---- A shared group for several types at once (for example all doors) ----
 function groupModal() {
   const types = [...ctx().types.values()].filter((t) => !isSystemType(t)).sort((a, b) => a.id.localeCompare(b.id, 'ru'));
   const name = h('input', { placeholder: 'Название группы, например: Дверь', value: allGroups()[0] || '' });
@@ -277,7 +287,7 @@ export function refView() {
     h('div', { class: 'card', style: { padding: 0, marginTop: '12px' } }, rows.length ? rows : h('div', { class: 'empty' }, 'Список пуст.')));
 }
 
-// Обновить приложение: сбросить сервис-воркер и кэш (кроме mupdf) и перезагрузить
+// Refresh the app: reset the service worker and the cache (except mupdf) and reload
 export async function refreshApp() {
   toast('Обновляю…');
   try { const regs = await navigator.serviceWorker?.getRegistrations?.() || []; await Promise.all(regs.map((r) => r.update().catch(() => {}))); await Promise.all(regs.map((r) => r.unregister())); } catch { /* ok */ }
@@ -285,7 +295,7 @@ export async function refreshApp() {
   location.reload();
 }
 
-let refsOpen = false;   // справочники в Настройках свёрнуты по умолчанию
+let refsOpen = false;   // the reference lists in Settings are collapsed by default
 export function settingsView(ui) {
   const p = currentProject();
   const row = (icon, title, sub, fn) => h('div', { class: 'item', onclick: fn }, h('div', { class: 'name' }, `${icon} ${title}`, sub ? h('div', { class: 'sub' }, sub) : null));

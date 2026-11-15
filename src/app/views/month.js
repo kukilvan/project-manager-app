@@ -1,4 +1,5 @@
-// Экран «Месяц»: рабочие дни месяца по всем проектам (дата и место, как в отчёте), копирование и отправка.
+// «Месяц» screen: workdays of one month across all projects (date and place as in the daily report), with copy and send.
+// Reads days and projects from store.js; texts come from src/domain (workdaysReport, downtimeByCulprit); copy and the Shortcuts link come from doh.js.
 import { h, toast } from '../ui.js';
 import { allDays, liveProjects, state, currentProject } from '../store.js';
 import { workdaysReport, monthTitle, downtimeByCulprit, hm, dateText } from '../../domain/index.js';
@@ -7,7 +8,7 @@ import { copyText, shortcutUrl, todayIso } from './doh.js';
 let ym = null;
 const shift = (v, d) => { const [y, m] = v.split('-').map(Number); const t = new Date(y, m - 1 + d, 1); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`; };
 
-// Простои по виновникам (текущий проект): нажатие на строку раскрывает записи
+// Downtime by culprit (current project): tapping a row expands its records
 function downtimeCard() {
   const p = currentProject(); if (!p || !state.ctx) return null;
   const { list, totalMinutes } = downtimeByCulprit(state.ctx, ym);

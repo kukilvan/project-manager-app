@@ -1,4 +1,5 @@
-// Экран «Таблицы для руководства»: профили (какие шкафы, типы, статусы и столбцы попадут в Google-таблицу).
+// «Таблицы для руководства» screen: the profiles of management sheets (which racks, types, statuses and columns go into a Google Sheet) and their edit form.
+// Reads and writes project.tables through repo.saveProject; the sheet itself is built by src/domain/report.js and updated by updateTable (project.js); the Drive folder card comes from managersfolder.js.
 import { h, formModal, confirmDialog, toast } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
 import { COLUMNS, STATUS_KEYS, NO_CABINET, tablesOf, buildReport, fileTitle } from '../../domain/index.js';
@@ -7,7 +8,7 @@ import { managersFolderCard, toggleTableInFolder } from './managersfolder.js';
 
 const when = (iso) => new Date(iso).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
 
-// Чек-лист «выбрать часть из всего»: пустой выбор означает «все»
+// Checklist «pick some of all»: an empty selection means «all»
 function pickList(options, selected, onChange) {
   const sel = new Set(selected || []);
   const box = h('div', { class: 'picklist' });
@@ -22,7 +23,7 @@ function pickList(options, selected, onChange) {
   return { el: box, get: () => options.map((o) => o.value).filter((v) => sel.has(v)) };
 }
 
-// Столбцы: галочка «показывать» и порядок стрелками
+// Columns: a «show» tick and the order set with arrows
 function columnList(selected, lang, onChange) {
   const on = new Set(selected || []);
   let order = [...(selected || []), ...COLUMNS.map((c) => c.id).filter((id) => !on.has(id))];

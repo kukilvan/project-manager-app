@@ -1,7 +1,7 @@
-// Мастер нового проекта.
-// Обязательные шаги: данные проекта → типы точек из общего пула → устройства → кабели → работы → итог «Создать проект».
-// Что нужно выбранному уровнем выше — серые отмеченные галочки («нужно для: …»), остальное из пула можно добавить.
-// После создания — необязательные шаги (каждый можно пропустить): участники, чертежи, точки, для руководства.
+// New project wizard: the required steps from the project data to the «Создать проект» summary, then optional steps after the project is created.
+// Required steps: project data → point types from the shared pool → devices → cables → works → summary. What a higher-level choice needs shows as grey ticked boxes («нужно для: …»); the rest of the pool can be added.
+// After creation come optional steps, each can be skipped: members, drawings, points, management.
+// Reads the pool from pool.js and creates the project through repo; the optional steps use repo.invite, drawings.js, tohnitview.js and managersfolder.js.
 import { isLocal } from '../../edition.js';
 import { h, openModal, toast, confirmDialog } from '../ui.js';
 import { state, getRepo, currentProject, setCurrentProject, subscribe } from '../store.js';
@@ -11,7 +11,7 @@ import { pool, poolReady, poolHasData, onPool } from '../pool.js';
 import { typeFilterOptions } from '../typegroups.js';
 
 const nameOf = (kind, x) => (kind === 'types' || kind === 'cables' ? x.id : x.name || x.id);
-const FREE_WORKS = ['Протяжка', 'Перетяжка', 'Перенос', 'Время', 'Доп. работа'];  // работы не по составу точек — отмечены сразу
+const FREE_WORKS = ['Протяжка', 'Перетяжка', 'Перенос', 'Время', 'Доп. работа'];  // works not tied to the composition of points — ticked at once
 
 export function projectWizard(ui) {
   const data = { name: '', contractor: '', object: '', helper: 'Марина', nameHe: '', objectHe: '', helperHe: 'מרינה', oneOff: false, note: '' };
@@ -23,7 +23,7 @@ export function projectWizard(ui) {
   function preselectFree() { [...pool.catalog.values()].filter((w) => FREE_WORKS.includes(w.workType) && w.active !== false).forEach((w) => picked.catalog.add(w.id)); }
   if (poolReady()) { started = true; preselectFree(); }
 
-  // что нужно из-за выбранного уровнем выше: Map id → [кому нужно]
+  // what is needed because of the choice at a higher level: Map id → [who needs it]
   function required() {
     const m = maps(); const need = { devices: new Map(), cables: new Map(), catalog: new Map() };
     const add = (k, id, who) => { if (!need[k].has(id)) need[k].set(id, []); if (!need[k].get(id).includes(who)) need[k].get(id).push(who); };
@@ -91,7 +91,7 @@ export function projectWizard(ui) {
     if (!new URLSearchParams(location.search).get('mem') && !isLocal() && (!poolReady() || noPool)) { toast('Общий пул ещё не скачан на телефон. Подключитесь к интернету, подождите минуту и повторите — иначе проект создастся пустым'); return; }
     const f = finalSet(); const m = maps();
     if (!f.types.size && !(isLocal() && noPool) && !new URLSearchParams(location.search).get('mem') && !(await confirmDialog('Не выбран ни один тип точек: проект создастся без типов, добавлять точки будет нельзя, пока вы не добавите типы из общего пула. Всё равно создать?', { yes: 'Создать без типов' }))) { step = 1; draw(); return; }
-    // на устройстве без пула (стартовый набор не загружен) — встроенный набор справочников
+    // on a device without a pool (the starter pool is not loaded) — the built-in set of reference lists
     const refs = isLocal() && noPool ? null : Object.fromEntries(POOL_KINDS.map((k) => [k, [...f[k]].map((id) => m[k].get(id)).filter(Boolean).map((x) => bare(x))]));
     const pid = getRepo().createProject({ ...data, name: data.name.trim(), oneOff: !!data.oneOff }, refs);
     setCurrentProject(pid, { pending: true });
@@ -100,7 +100,7 @@ export function projectWizard(ui) {
   }
   function draw() {
     const [title, fn] = STEPS[step];
-    // при перерисовке (галочка) не прыгать наверх: запоминаем прокрутку списка и окна
+    // on redraw (a tick) do not jump to the top: remember the scroll of the list and of the window
     const pl = box.querySelector('.picklist'); const keepList = pl?.scrollTop || 0; const body = box.closest('.sheet-body'); const keepBody = body?.scrollTop || 0; const sameStep = box.dataset.step === String(step);
     box.dataset.step = String(step);
     box.replaceChildren(
@@ -116,7 +116,7 @@ export function projectWizard(ui) {
   draw();
 }
 
-// Необязательные шаги после создания: участники, чертежи, точки, для руководства. На каждом — «Пропустить».
+// Optional steps after creation: members, drawings, points, management. Each has «Пропустить».
 function afterCreate(pid, ui) {
   let step = 0; const box = h('div', {});
   const close = openModal('Настройка проекта (можно пропустить)', box, { sticky: true, wide: true, onClose: () => unsub() });
@@ -132,7 +132,7 @@ function afterCreate(pid, ui) {
         if (n) toast(`Приглашено: ${n}`); next();
       } }, 'Пригласить и дальше')];
   }
-  const added = []; // чертежи, добавленные на шаге «Чертежи» (для выбора на шаге «Точки»)
+  const added = []; // drawings added at the «Чертежи» step (to choose from at the «Точки» step)
   function drawings() {
     const rows = h('div', {}); const files = [];
     const paint = () => rows.replaceChildren(...files.map((x) => h('div', { class: 'pickrow' }, h('span', { style: { flex: 1 } }, x.name, x.fileId ? h('small', { class: 'mut' }, '  · с Диска') : null), x.floor)));

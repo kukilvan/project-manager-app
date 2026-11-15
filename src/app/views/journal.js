@@ -1,4 +1,5 @@
-// Вкладка «История»: строки точка × работа (из них считаются статусы) и «Правка» без записи в отчёт.
+// «История» tab: journal rows (point × work, from which statuses are computed) and the «Правка» form that adds or removes rows without a daily report entry.
+// Reads the journal from store.js and writes through repo (save, remove); the point picker comes from doh.js, member names from members.js.
 import { h, formModal, toast } from '../ui.js';
 import { state, getRepo, currentProject, infoOf } from '../store.js';
 import { dateText, workApplicable } from '../../domain/index.js';
@@ -25,10 +26,10 @@ function rows() {
   return out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.label.localeCompare(b.label, 'ru', { numeric: true })));
 }
 
-// presetIds — точки, уже выбранные (например, на плане); тогда окно называется «Работы по выбранным точкам»
+// presetIds — points already selected (for example on the plan); the window is then titled «Работы по выбранным точкам»
 export function editForm(presetIds = null, onDone = null) {
   const repo = getRepo(); const pid = currentProject().id; const ctx = state.ctx;
-  // добавлять отметки — точкам, которым ещё есть что делать; убирать — только там, где отметки есть
+  // marks are added to points that still have something to do; removed only where marks exist
   const anyOpen = (pt) => [...ctx.catalog.values()].some((w) => w.active !== false && workApplicable(pt, ctx, w, infoOf));
   const picker = pointsPicker({ fits: (pt, v) => (v.remove ? (ctx.journalByPoint.get(pt.id) || []).length > 0 : anyOpen(pt)) });
   if (presetIds?.length) picker.set(presetIds);
@@ -38,7 +39,7 @@ export function editForm(presetIds = null, onDone = null) {
     get: () => [...selected],
     update: (v) => {
       const pts = (v.pointIds || []).map((id) => ctx.points.get(id)).filter(Boolean);
-      // добавление — работы, которые ждёт хотя бы одна из точек; удаление — работы, по которым у этих точек есть отметки
+      // adding: works that at least one of the points is waiting for; removing: works that these points have marks for
       const marked = new Set(pts.flatMap((pt) => (ctx.journalByPoint.get(pt.id) || []).map((r) => r.workId)));
       const list = [...ctx.catalog.values()].filter((w) => (v.remove ? marked.has(w.id) : (w.active !== false && pts.some((pt) => workApplicable(pt, ctx, w, infoOf)))));
       const key = `${v.remove ? 'r' : 'a'}:${list.map((w) => w.id).join(',')}`;

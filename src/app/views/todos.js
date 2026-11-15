@@ -1,4 +1,5 @@
-// Вкладка «Дела»: чек-лист проекта и справочные заметки.
+// «Дела» tab: the project's to-do checklist and reference notes with a full-screen note editor.
+// Reads todos and notes from store.js and writes through repo.save; keeps the collapsed-notes state in the `pm.notesCollapsed` and `pm.todosDoneOpen` localStorage keys.
 import { h, formModal, confirmDialog, toast } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
 import { newId } from '../repo.js';
@@ -18,17 +19,17 @@ function todoForm(todo) {
   });
 }
 
-// ---------- заметки ----------
-// сворачивание заметок помнится на этом устройстве
+// ---------- notes ----------
+// the collapsed state of notes is remembered on this device
 const COLL_KEY = 'pm.notesCollapsed';
 const loadCollapsed = () => { try { return new Set(JSON.parse(localStorage.getItem(COLL_KEY) || '[]')); } catch { return new Set(); } };
-const saveCollapsed = (set) => { try { localStorage.setItem(COLL_KEY, JSON.stringify([...set])); } catch { /* нет доступа */ } };
+const saveCollapsed = (set) => { try { localStorage.setItem(COLL_KEY, JSON.stringify([...set])); } catch { /* no access */ } };
 const DONE_KEY = 'pm.todosDoneOpen';
 let quickDraft = ''; let quickRefocus = false;
 let doneOpen = false; try { doneOpen = localStorage.getItem(DONE_KEY) === '1'; } catch { /* ok */ }
 
-// Заметка на весь экран. Пока набираете текст и клавиатура открыта, прячутся заголовок и кнопки — текст занимает всё место над клавиатурой.
-// Сохраняется само (через пару секунд после набора и при выходе), кнопки «Сохранить» нет.
+// A note on the full screen. While you type and the keyboard is open, the header and buttons are hidden so the text takes all the room above the keyboard.
+// It saves itself (a couple of seconds after typing and on exit); there is no «Сохранить» button.
 function noteEditor(note) {
   const repo = getRepo(); const pid = currentProject().id;
   const id = note?.id || newId();
@@ -59,7 +60,7 @@ function noteEditor(note) {
       removed = true; clearTimeout(timer); repo.remove(pid, 'notes', note.id); ed.remove(); if (!root.children.length) document.body.classList.remove('noscroll');
     } }, '🗑') : null);
   const doneBar = h('div', { class: 'noteed-done' }, h('button', { type: 'button', onclick: () => { text.blur(); save(); } }, '✓ Готово'));
-  // набор текста: прячем шапку; заголовок: шапка на месте
+  // typing: hide the header; title focused: the header stays
   text.addEventListener('focus', () => ed.classList.add('typing'));
   text.addEventListener('blur', () => { ed.classList.remove('typing'); save(); });
   title.addEventListener('blur', save);
@@ -74,8 +75,8 @@ export function todosView() {
   const notes = [...state.ctx.notes.values()].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   const toggle = (t) => repo.save(pid, [{ coll: 'todos', id: t.id, data: { done: !t.done, doneAt: t.done ? null : Date.now() } }]);
   const active = todos.filter((t) => !t.done); const done = todos.filter((t) => t.done);
-  // быстрое добавление дела: написать и нажать Enter или «＋»
-  // вкладка перерисовывается при любом изменении данных — недописанный текст и фокус сохраняем
+  // quick add of a to-do: type and press Enter or «＋»
+  // the tab is redrawn on every data change, so the unfinished text and the focus are preserved
   const quick = h('input', { type: 'text', placeholder: 'Новое дело…', enterkeyhint: 'done', value: quickDraft, style: { flex: 1, minWidth: 0 } });
   quick.addEventListener('input', () => { quickDraft = quick.value; });
   if (quickRefocus) { quickRefocus = false; setTimeout(() => quick.isConnected && quick.focus(), 0); }
@@ -90,7 +91,7 @@ export function todosView() {
       doneOpen ? h('div', { class: 'card', style: { padding: 0 } }, done.map(row)) : '');
   };
   if (done.length) fillDone();
-  // заметки: свернуть (виден только заголовок) или развернуть; нажатие на заголовок/текст открывает заметку на весь экран
+  // notes: collapse (only the title is visible) or expand; tapping the title or text opens the note full screen
   const collapsed = loadCollapsed();
   const notesBox = h('div', {});
   const fillNotes = () => {

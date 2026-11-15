@@ -1,6 +1,6 @@
-// «🗂 Общий пул» в каждом справочнике (типы точек, устройства, кабели, работы).
-// Все: смотрят пул и галочками берут нужное в свой проект (взятое потом не меняется при правке пула).
-// Администратор пула (почта Ивана): правит и удаляет в пуле, разбирает «новое из проектов» — смотрит, правит перед добавлением, добавляет или «больше не показывать».
+// «🗂 Общий пул» browser inside every reference list (point types, devices, cables, works).
+// Everyone looks at the pool and takes what they need into their own project with ticks (a taken item does not change later when the pool is edited). The pool admin (the database admin's email) edits and deletes in the pool and reviews «new from projects»: looks at it, edits it before adding, adds it or chooses «больше не показывать».
+// Reads the pool and the admin inbox from pool.js, writes through repo (save, savePool, setInbox); item forms come from settings.js.
 import { h, openModal, toast, confirmDialog } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
 import { POOL_TITLES, POOL_KINDS, poolMaps, takeFromPoolOps, buildContext, isSystemType, usesOf, candidateChanges, changedParts, poolHash } from '../../domain/index.js';
@@ -10,7 +10,7 @@ import { itemForm, setFormTarget } from './settings.js';
 
 const nameOf = (kind, x) => (kind === 'types' || kind === 'cables' ? x.id : x.name || x.id);
 
-// Кнопка у справочника: «🗂 Общий пул» (+ «• N новых» администратору)
+// The button next to a reference list: «🗂 Общий пул» (+ «• N новых» for the admin)
 export function poolButton(kind) {
   const b = h('button', { class: 'sec', onclick: () => poolModal(kind) });
   const paint = () => { const n = inboxCount(kind); b.textContent = n ? `🗂 Общий пул • ${n} новых` : '🗂 Общий пул'; b.className = n ? '' : 'sec'; };
@@ -18,7 +18,7 @@ export function poolButton(kind) {
   return b;
 }
 
-// Состав элемента словами (для просмотра)
+// The composition of an item in words (for viewing)
 function describe(kind, x, maps) {
   const nm = (k, id) => { const y = maps[k].get(id); return y ? nameOf(k, y) : id; };
   const rows = [];
@@ -36,7 +36,7 @@ function describe(kind, x, maps) {
   return h('div', {}, rows.map(([a, b]) => h('div', { style: { margin: '2px 0' } }, h('b', {}, `${a}: `), b)));
 }
 
-// Контекст для форм пула: пул (+ кандидат с зависимостями), остальные справочники — проекта
+// Context for the pool forms: the pool (+ a candidate with its dependencies); the other reference lists are the project's
 function poolCtx(extra = null) {
   const lists = Object.fromEntries(POOL_KINDS.map((k) => [k, [...pool[k].values()]]));
   if (extra) {
@@ -84,8 +84,8 @@ export function poolModal(kind) {
       diff ? h('div', { class: 'card', style: { margin: '6px 0' } }, h('b', {}, 'Что изменится в пуле:'), diff.length ? h('ul', { style: { margin: '4px 0 0', paddingInlineStart: '18px' } }, diff.map((s) => h('li', {}, s))) : h('div', { class: 'mut' }, 'Отличий нет')) : null,
       describe(kind, it, maps), h('div', { class: 'btns' }, ...btns)), {});
   };
-  // правка кандидата перед добавлением: те же формы, сохраняется в пул (у хозяина ничего не меняется)
-  // принять кандидата: сам элемент + все его новые и изменённые части; закрыть и отдельные уведомления этих частей
+  // editing a candidate before adding: the same forms, saved to the pool (nothing changes for its owner)
+  // accept a candidate: the item itself + all its new and changed parts; also close the separate notices of those parts
   const partOps = (cand) => changedParts(cand, poolMaps(pool)).map((p) => ({ coll: p.kind, id: p.item.id, data: p.item }));
   const markWithParts = (cand) => {
     const parts = changedParts(cand, poolMaps(pool));
@@ -109,7 +109,7 @@ export function poolModal(kind) {
     const all = [...pool[kind].values()].filter((x) => !(kind === 'types' && isSystemType(x))).sort((a, b) => nameOf(kind, a).localeCompare(nameOf(kind, b), 'ru', { numeric: true }));
     const shown = all.filter((x) => !q || `${nameOf(kind, x)} ${x.nameHe || ''}`.toLowerCase().includes(q));
     const inb = admin ? inboxOf(kind) : null;
-    const body = box.closest('.sheet-body') || box.parentElement; const keep = body?.scrollTop || 0; // не прыгать наверх после галочки
+    const body = box.closest('.sheet-body') || box.parentElement; const keep = body?.scrollTop || 0; // do not jump to the top after a tick
     const search = h('input', { type: 'search', placeholder: 'Поиск', value: q, oninput: (e) => { q = e.target.value.trim().toLowerCase(); draw(); search.focus(); } });
     const seedBtn = admin && POOL_KINDS.every((k) => !pool[k].size) ? h('div', { class: 'card' },
       h('div', {}, 'Пул пуст. Заполнить его всем из справочников этого проекта (типы точек, устройства, кабели, работы)?'),

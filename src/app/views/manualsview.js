@@ -1,4 +1,5 @@
-// Карточка «Инструкции» в руководстве: список по разделам, добавление (название, раздел, файл), просмотр фото и PDF в приложении.
+// «Инструкции» card in the guide: a list by section, adding (title, section, file) and viewing photos and PDFs inside the app.
+// Data and Google Drive upload live in src/app/manuals.js; PDFs are rendered page by page through the MuPDF worker from tohnitview.js.
 import { h, openModal, formModal, confirmDialog, toast } from '../ui.js';
 import { getRepo } from '../store.js';
 import { startManuals, onManuals, myManuals, addManual, pushManual, loadManual, updateManual, removeManual, canEditManual } from '../manuals.js';

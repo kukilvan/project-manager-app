@@ -1,4 +1,5 @@
-// Все проекты, создание и правка проекта.
+// All projects list plus the create and edit project forms.
+// Reads projects from store.js and writes through repo (saveProject, createProject); new projects open the wizard from wizard.js.
 import { withCreatorGuide } from '../tour/index.js';
 import { projectWizard } from './wizard.js';
 import { h, formModal, confirmDialog, toast } from '../ui.js';
@@ -65,7 +66,7 @@ export function projectsView(ui) {
 
 const repo = () => getRepo();
 const dateOf = (ms) => (ms ? new Date(ms).toLocaleDateString('ru-RU') : '—');
-// Свёрнутый список проектов не из основного списка (архив, удалённые) с кнопкой «Вернуть»
+// Collapsed list of projects that are not in the main list (archived, deleted) with a «Вернуть» button
 function sideList(title, list, subOf, restore, doneText) {
   if (!list.length) return null;
   return h('details', { class: 'card', style: { marginTop: '12px', padding: '10px 14px' } },

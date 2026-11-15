@@ -1,6 +1,6 @@
-// «Для руководства» — папка проекта на Google Диске с общей ссылкой (любой, у кого есть ссылка, может смотреть):
-// в ней выбранные таблицы для руководства и выбранные тохниты с номерами (отдельные копии со своими названиями, легенда на иврите).
-// Обновляет кнопка «🔄 Обновить всё сейчас» и сервер каждую ночь (если что-то поменялось).
+// Management folder «Для руководства»: a view-only shared Google Drive folder of a project with its management sheets and numbered drawings.
+// Anyone with the link can view it. The drawings are separate copies with their own names and a Hebrew legend. Updated by the «🔄 Обновить всё сейчас» button and by the server every night (when something changed).
+// Talks to Google Drive through google.js and drawings.js, builds the sheets with managers.js and racktablecore.js, and keeps its state in project.managers (repo.saveProject).
 import { h, toast } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
 import { tablesOf, withTable } from '../../domain/index.js';
@@ -11,8 +11,8 @@ import { memberNameByUid } from './members.js';
 import { drawingsOf, drawingTitle, loadDrawing, putNumbered, shareWithServer, updateDrawing } from '../drawings.js';
 import { build } from './plannumbers.js';
 
-// Легенда на иврите для папки руководства
-export const HE_LEGEND = true;  // переводы проверены Иваном 2026-10-17
+// Hebrew legend for the management folder
+export const HE_LEGEND = true;  // translations checked by Ivan on 2026-10-17
 const D = 'https://www.googleapis.com/drive/v3/files';
 const mgr = (p) => p.managers || {};
 const when = (iso) => new Date(iso).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
@@ -21,8 +21,8 @@ export const managerName = (d, m) => (m?.name || '').trim() || drawingTitle(d).r
 function saveMgr(patch) { const p = currentProject(); getRepo().saveProject(p.id, { managers: { ...mgr(p), ...patch } }); }
 function saveMgrDrawing(id, patch) { const p = currentProject(); const ds = { ...(mgr(p).drawings || {}) }; ds[id] = { ...(ds[id] || {}), ...patch }; saveMgr({ drawings: ds }); }
 
-// Тихо открыть серверу (ночное обновление) доступ к файлам, выложенным раньше, чем сервер записал свой адрес в проект
-// (например, проект создан мастером и папка для руководства сделана в тот же день). Только если разрешение Google уже есть.
+// Quietly give the server (the nightly update) access to files placed before the server wrote its address into the project
+// (for example, the project was made by the wizard and the management folder was made the same day). Only if Google permission is already granted.
 const accessDone = new Set();
 export async function ensureServerAccess(p = currentProject()) {
   if (!p?.serverEmail || !storedTokenValid()) return;
@@ -43,13 +43,13 @@ export async function updateManagersFolder(retried = false) {
   try {
     toast('Обновляю папку для руководства…');
     const api = realApi(await getToken('mfolder'));
-    // папка и общая ссылка
+    // folder and public link
     const folder = await api.projectFolder(p, 'managers');
     const m = { ...mgr(p) };
     if (m.folderId !== folder || !m.shared) { await api.req('POST', `${D}/${folder}/permissions?fields=id`, { role: 'reader', type: 'anyone' }); m.shared = true; }
     m.folderId = folder; m.link = `https://drive.google.com/drive/folders/${folder}`;
     getRepo().saveProject(p.id, { managers: m });
-    // таблицы
+    // sheets
     let nt = 0;
     for (const t of tablesOf(p)) {
       if (!t.inFolder && !t.fileId) continue;
@@ -59,7 +59,7 @@ export async function updateManagersFolder(retried = false) {
         getRepo().saveProject(p.id, { tables: withTable(currentProject(), t.id, { ...res.patch, serverError: '' }) }); if (t.inFolder) nt++;
       } catch (e) { toast(`Таблица «${t.name}»: ${e.message}`); }
     }
-    // таблица шкафов и шильюта (план + шильют)
+    // rack and shilut sheet (plan + shilut)
     let nr = 0;
     if (rackAuto(currentProject())) {
       try {
@@ -69,7 +69,7 @@ export async function updateManagersFolder(retried = false) {
         getRepo().saveProject(p.id, { rackTable: { ...rt, ...r.patch, serverError: '' } }); nr = 1;
       } catch (e) { if (e.patch) getRepo().saveProject(p.id, { rackTable: { ...currentProject().rackTable, ...e.patch } }); toast(`«${RACK_TITLE}»: ${e.message}`); }
     }
-    // тохниты
+    // drawings
     let nd = 0; const ds = { ...(m.drawings || {}) };
     for (const d of drawingsOf(p)) {
       const md = ds[d.id]; if (!md?.on) continue;
@@ -90,7 +90,7 @@ export async function updateManagersFolder(retried = false) {
   } finally { busy = false; }
 }
 
-/** Блок на экране «Для руководства» */
+/** The block on the «Для руководства» screen */
 export function managersFolderCard(ui) {
   const p = currentProject(); const m = mgr(p);
   const copy = async () => { try { await navigator.clipboard.writeText(m.link); toast('Ссылка скопирована'); } catch { prompt('Скопируйте ссылку', m.link); } };

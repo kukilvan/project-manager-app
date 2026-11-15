@@ -77,20 +77,20 @@ Vanilla JS PWA built by Vite (`vite-plugin-pwa`, service worker `autoUpdate`), n
 - `src/app/typegroups.js` — Shared groups of point types (e.g. «Дверь» holds every door type with its own devices and cables) for type filters.
 - `src/app/ui.js` — Small interface helpers: element creation (`h`), popup windows and forms, confirmation dialog, toast notifications.
 - `src/app/views/cablespick.js` — Cables picker for a point, shown next to the type chooser: the type's default cables appear at once and their kind and count can be changed.
-- `src/app/views/catalogview.js` — (no English header yet)
-- `src/app/views/doh.js` — (no English header yet)
+- `src/app/views/catalogview.js` — «🧩 Каталог подписей» screen: the caption rules the drawing parser uses to recognise points, with an editor for the user's own rules.
+- `src/app/views/doh.js` — «Отчёты» tab: working days, the entries of a day, the daily report text in Russian and Hebrew, copying, and the link to the iPhone Shortcuts command «Doh».
 - `src/app/views/doorcfgview.js` — Doors: the door configuration chooser (pinned / build / shared pool), a form field and the «Конфигурации дверей» tab.
 - `src/app/views/doorchips.js` — Door configuration name as chips (locking filled, other parts in a colored outline, count «×2» on top, cables in grey at the end) and the device color picker.
 - `src/app/views/guide.js` — The in-app guide «Как пользоваться приложением»: sections from the design and the project to serial numbers and MAC, plus the separate «Шпаргалка» and «Словарик» parts.
-- `src/app/views/history.js` — (no English header yet)
+- `src/app/views/history.js` — Change history screen: who changed what and when, with undo of one record and undo of all a member's edits in a period.
 - `src/app/views/import.js` — One-off import of a project's data from a polevoy-import-1 file (prepared from the AppSheet table) and its screen (opened by shell.js).
-- `src/app/views/journal.js` — (no English header yet)
+- `src/app/views/journal.js` — «История» tab: journal rows (point × work, from which statuses are computed) and the «Правка» form that adds or removes rows without a daily report entry.
 - `src/app/views/latinfix.js` — Quick input in Latin letters: the shortcut list («тв = TV») kept in user preferences, and the settings dialog that edits it.
-- `src/app/views/log.js` — (no English header yet)
-- `src/app/views/managersfolder.js` — (no English header yet)
-- `src/app/views/manualsview.js` — (no English header yet)
-- `src/app/views/members.js` — (no English header yet)
-- `src/app/views/month.js` — (no English header yet)
+- `src/app/views/log.js` — Event log screen: build and device diagnostics plus the lines of the on-device event log, with copy and clear.
+- `src/app/views/managersfolder.js` — Management folder «Для руководства»: a view-only shared Google Drive folder of a project with its management sheets and numbered drawings.
+- `src/app/views/manualsview.js` — «Инструкции» card in the guide: a list by section, adding (title, section, file) and viewing photos and PDFs inside the app.
+- `src/app/views/members.js` — Project members: names, invitations and removal (offering to undo the removed member's edits), plus the connect-link card.
+- `src/app/views/month.js` — «Месяц» screen: workdays of one month across all projects (date and place as in the daily report), with copy and send.
 - `src/app/views/ownworks.js` — Form field «Работы на точках» of the «Изменить» dialog (one point or a group, from «Точки», the plan or a rack): the works required now (from type, devices, cables) and an own set on top of them.
 - `src/app/views/pdfpick.js` — Modal picker for a drawing PDF: from this project, from Google Drive (the «Чертежи» folders of the app's projects) or from the device.
 - `src/app/views/planassign.js` — «🗺 Распределить на плане»: a modal where the marks of a drawing whose rack is unclear (one number exists in several racks) are assigned to racks.
@@ -104,19 +104,19 @@ Vanilla JS PWA built by Vite (`vite-plugin-pwa`, service worker `autoUpdate`), n
 - `src/app/views/pointmerge.js` — Dialogs «🔀 Одинаковые точки» (point merge) and «🔌 Кабели не по номеру»: merge a point recorded two ways, and fix cable counts that do not follow the label.
 - `src/app/views/points.js` — Points screens: the point form, the batch generator, the length input, the point card with history, the «Что осталось» list, mass actions and the «Точки» tab.
 - `src/app/views/pointsfile.js` — Preview and adding of points from drawing parsing (JSON format polevoy-points-1).
-- `src/app/views/poolview.js` — (no English header yet)
-- `src/app/views/project.js` — (no English header yet)
-- `src/app/views/projects.js` — (no English header yet)
+- `src/app/views/poolview.js` — «🗂 Общий пул» browser inside every reference list (point types, devices, cables, works).
+- `src/app/views/project.js` — «Проект» tab: the card of the current project, the readiness bars per rack and the Google Drive and Sheets actions of the project.
+- `src/app/views/projects.js` — All projects list plus the create and edit project forms.
 - `src/app/views/pullview.js` — Pulls «🧵 Протяжки»: pick points on the plan → «До шкафа» → meters per point (own numeric keypad) → checklist → «Завершить» (the report form).
 - `src/app/views/racks.js` — Racks and shilut screen «🗄 Шкафы и шильют»: the rack plan — which cat7 points sit in which panels (U) and ports (1–24).
 - `src/app/views/racktable.js` — Rack table «📊 Таблица для шильюта»: card, dialog and generator of one Google Sheets file «תכנון ארונות ושילוט» per project — a plan sheet per rack plus a common shilut (port labels) sheet.
-- `src/app/views/settings.js` — (no English header yet)
-- `src/app/views/sheetslist.js` — (no English header yet)
-- `src/app/views/shilutsettings.js` — (no English header yet)
-- `src/app/views/tables.js` — (no English header yet)
-- `src/app/views/todos.js` — (no English header yet)
+- `src/app/views/settings.js` — «Настройки» tab: the project's reference lists (dropdown lists) with their item forms, and the entries to the management, rack and sheets screens.
+- `src/app/views/sheetslist.js` — «Таблицы»: the user's own Google Sheets from Drive under their own names — a list in the app, tapping opens the sheet.
+- `src/app/views/shilutsettings.js` — Shilut settings: patch-panel models (shared by all the user's projects), colors per point type, rack names and label templates.
+- `src/app/views/tables.js` — «Таблицы для руководства» screen: the profiles of management sheets (which racks, types, statuses and columns go into a Google Sheet) and their edit form.
+- `src/app/views/todos.js` — «Дела» tab: the project's to-do checklist and reference notes with a full-screen note editor.
 - `src/app/views/tohnitview.js` — «📐 Из чертежа»: parses a drawing (PDF) right in the app, without AI, by the caption catalog, and turns the captions into points.
-- `src/app/views/wizard.js` — (no English header yet)
+- `src/app/views/wizard.js` — New project wizard: the required steps from the project data to the «Создать проект» summary, then optional steps after the project is created.
 - `src/domain/compose.js` — Composition of points from devices (the composite model): tasks, stages and statuses of a point computed from cables, devices and its type.
 - `src/domain/context.js` — Builds the calculation context: lookup indexes over a project's data.
 - `src/domain/deviceid.js` — Serial number and MAC address of a device: parses scanned barcodes and QR codes, normalises the values and finds duplicates.

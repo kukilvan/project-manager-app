@@ -1,4 +1,5 @@
-// История изменений: кто, когда и что менял; откат одной записи и откат всех правок пользователя за период.
+// Change history screen: who changed what and when, with undo of one record and undo of all a member's edits in a period.
+// Reads history through repo.loadHistory and writes undo through repo.revertTo; re-syncs journal rows after an entry is undone (syncJournal in doh.js).
 import { lang as uiLang } from '../../i18n/index.js';
 import { h, confirmDialog, toast } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
@@ -15,7 +16,7 @@ const ACTIONS = { create: 'создал', update: 'изменил', delete: 'у�
 let filter = { uid: '', from: null, to: null };
 let cache = null; // { key, rows }
 const HIST_MAX = 2000;
-let truncated = false;   // история за период длиннее, чем загружено
+let truncated = false;   // the history of the period is longer than what was loaded
 
 export function describe(coll, data) {
   if (!data) return '—';
@@ -45,17 +46,17 @@ async function load() {
   return rows;
 }
 
-// Для отката пользователя за период: для каждой записи берём состояние до его ПЕРВОГО изменения в периоде.
+// For undoing a member's edits in a period: for each record, take its state before the member's FIRST change in the period.
 function planUserRollback(rows, uid) {
   const mine = rows.filter((r) => r.by === uid).sort((a, b) => a.at - b.at);
   const plan = new Map();
   mine.forEach((r) => { const k = `${r.coll}/${r.docId}`; if (!plan.has(k)) plan.set(k, { coll: r.coll, docId: r.docId, before: r.before, at: r.at }); });
-  // записи, которые после этого менял кто-то другой — отмечаем как «конфликт»
+  // records that someone else changed afterwards are marked as a «конфликт»
   plan.forEach((v, k) => { v.conflict = rows.some((r) => `${r.coll}/${r.docId}` === k && r.by !== uid && r.at > v.at); });
   return [...plan.values()];
 }
 
-// после отката записи дня её строки журнала (по точкам) приводим в соответствие с вернувшимся списком точек
+// after a daily report entry is undone, bring its journal rows (per point) in line with the restored list of points
 function fixJournal(coll, docId, before) {
   if (coll === 'entries' && before && !before.deleted && Array.isArray(before.pointIds)) syncJournal(docId, before.pointIds);
 }
@@ -66,7 +67,7 @@ export function historyView(ui) {
   const box = h('div', {}, h('div', { class: 'empty' }, 'Загрузка…'));
   const names = new Map((p.memberUids || []).map((u, i) => [u, p.memberEmails?.[i] || u]));
   Object.entries(p.removedMembers || {}).forEach(([u, e]) => { if (!names.has(u)) names.set(u, `${e} (убран)`); });
-  if (state.historyPreselect) { // переход из «Участники → убрать»: выбрать участника и смотреть месяц
+  if (state.historyPreselect) { // coming from «Участники → убрать»: preselect the member and show the last month
     filter.uid = state.historyPreselect; state.historyPreselect = null;
     const d = new Date(); d.setDate(d.getDate() - 30); filter.from = d.toLocaleDateString('sv'); filter.to = todayIso();
   }

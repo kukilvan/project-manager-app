@@ -1,3 +1,5 @@
+// Event log screen: build and device diagnostics plus the lines of the on-device event log, with copy and clear.
+// Reads lines from src/log.js (kept in the `pz.log.v1` localStorage key) and connection state from store.js; the log lines themselves are Russian strings.
 import { h, toast } from '../ui.js';
 import { getLines, clearLog, asText, info, warn } from '../../log.js';
 import { state, currentProject } from '../store.js';

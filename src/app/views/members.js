@@ -1,11 +1,12 @@
-// Участники проекта: имена, приглашения, удаление (с предложением откатить правки участника).
+// Project members: names, invitations and removal (offering to undo the removed member's edits), plus the connect-link card.
+// Reads the project's member fields from store.js and writes through repo (invite, removeMember, renameMember, cancelInvite); the link comes from edition.js.
 import { h, formModal, confirmDialog, toast } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
 import { connection, connectLink, APP_NAME, isLocal } from '../../edition.js';
 
 export const memberKey = (email) => String(email).toLowerCase().replace(/\./g, '_');
 export const memberName = (p, email) => p.memberNames?.[memberKey(email)] || '';
-// Имя (или почта) автора по uid: участники, а также убранные
+// Name (or email) of an author by uid: members and also removed ones
 export function memberNameByUid(p, uid) {
   if (!uid) return '';
   const i = (p.memberUids || []).indexOf(uid);
@@ -75,7 +76,7 @@ export function membersView(ui) {
     connection() ? linkCard() : null);
 }
 
-// Ссылка подключения: коллега открывает её — приложение подключается к этой же базе (мастер настройки ему не нужен)
+// Connect link: a colleague opens it and the app connects to this same database (no setup wizard needed)
 export function linkCard() {
   const url = connectLink();
   const text = `Приложение «${APP_NAME}». Откройте ссылку, войдите своим Google-аккаунтом и примите приглашение в проект:\n${url}`;

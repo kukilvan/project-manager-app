@@ -1,5 +1,5 @@
-// «Таблицы»: свои Google Таблицы с Диска под своими названиями — список в приложении, нажатие открывает таблицу.
-// Список закрепляется за проектом (project.sheetLinks: [{ id, name }]) — у каждого проекта свои таблицы.
+// «Таблицы»: the user's own Google Sheets from Drive under their own names — a list in the app, tapping opens the sheet.
+// The list belongs to the project (project.sheetLinks: [{ id, name }]), so every project has its own sheets; found through the Google Drive API (google.js), saved through repo.saveProject.
 import { h, openModal, toast, confirmDialog, formModal } from '../ui.js';
 import { getRepo, currentProject } from '../store.js';
 import { getToken, realApi, clearToken } from '../google.js';
@@ -12,11 +12,11 @@ const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 const isExcel = (f) => (f.mimeType && f.mimeType !== 'application/vnd.google-apps.spreadsheet') || /\.(xlsx|xlsm|xls)$/i.test(f.name || '');
 const when = (iso) => { try { return new Date(iso).toLocaleDateString('ru-RU'); } catch { return ''; } };
 
-// Все Google Таблицы пользователя (свои и открытые ему), свежие сверху
+// All of the user's Google Sheets (own and shared with them), newest first
 async function listSheets() {
   if (mem()) return window.__gfileList || [{ id: 'S1', name: 'Мега Ор — кабели', modifiedTime: '2026-10-01T10:00:00Z', ownedByMe: true }, { id: 'S2', name: 'Дохот сентябрь', modifiedTime: '2026-09-30T10:00:00Z', ownedByMe: true }, { id: 'S3', name: 'Заказ шильюта', modifiedTime: '2026-08-01T10:00:00Z', ownedByMe: false }];
   const api = realApi(await getToken('sheets'));
-  // Google Таблицы + Excel-файлы (.xlsx, .xlsm, .xls — Google открывает их в Таблицах) + ссылки-ярлыки; в том числе из общих дисков
+  // Google Sheets + Excel files (.xlsx, .xlsm, .xls — Google opens them in Sheets) + shortcuts; including those on shared drives
   const MIMES = ['application/vnd.google-apps.spreadsheet', XLSX, XLSM, 'application/vnd.ms-excel'];
   const q = encodeURIComponent(`(${MIMES.map((m) => `mimeType='${m}'`).join(' or ')} or name contains '.xlsx' or name contains '.xlsm') and mimeType!='application/vnd.google-apps.folder' and trashed=false`);
   const out = []; let page = '';
@@ -27,7 +27,7 @@ async function listSheets() {
   return out;
 }
 
-// «➕ Добавить»: найти таблицы на Диске → выбрать галочками → дать названия → в список
+// «➕ Добавить»: find sheets on Drive → tick them → give names → into the list
 export async function addSheetsFlow(retried = false) {
   let files;
   try { toast('Ищу таблицы на Диске…'); files = await listSheets(); } catch (e) {
@@ -55,7 +55,7 @@ export async function addSheetsFlow(retried = false) {
   fill(); upd();
 }
 
-// Шаг 2: своё название для каждой выбранной таблицы
+// Step 2: a name of its own for each chosen sheet
 function nameThem(pick) {
   const inputs = pick.map((f) => h('input', { type: 'text', value: f.name }));
   const c = openModal('Названия таблиц', h('div', {},
@@ -75,7 +75,7 @@ export function sheetsView(ui) {
     h('div', { class: 'card' },
       h('div', { class: 'mut', style: { marginBottom: '8px' } }, 'Свои Google Таблицы с Диска под своими названиями. Нажатие открывает таблицу в Google Таблицах. Список — у каждого проекта свой.'),
       h('div', { class: 'btns', style: { marginTop: 0 } }, h('button', { onclick: () => addSheetsFlow() }, '➕ Добавить')),
-      // таблицы, добавленные в первой версии (общий список в личных настройках) — перенести в этот проект
+      // sheets added in the first version (a shared list in personal settings) — move them to this project
       old.length ? h('div', { style: { marginTop: '8px' } }, h('button', { class: 'sec', onclick: () => {
         saveLinks([...list, ...old.filter((x) => !list.some((y) => y.id === x.id))]); getRepo().saveUserPrefs({ sheetLinks: [] }); redraw();
       } }, `⤵ Перенести сюда добавленные раньше (${old.length})`)) : null),

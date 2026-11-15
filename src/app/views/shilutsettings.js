@@ -1,4 +1,5 @@
-// Настройки шильюта: модели панелей (общие для всех проектов), цвета по типам, названия шкафов, подписи по шаблонам.
+// Shilut settings: patch-panel models (shared by all the user's projects), colors per point type, rack names and label templates.
+// Panel models and custom colors are saved to the user's prefs (repo.saveUserPrefs); colors per type, rack names and templates go to project.shilut (repo.saveProject); labels come from src/domain/rack.js.
 import { h, openModal, toast, confirmDialog } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
 import {
@@ -100,7 +101,7 @@ export function shilutSettings(ui) {
   const draw = () => box.replaceChildren(modelsCard(), colorsCard(), cabsCard(), tplCard());
   draw();
   const c = openModal('🎨 Настройки шильюта', h('div', {}, box, h('div', { class: 'btns' }, h('button', { onclick: async () => {
-    // подписи, которые поменяются у портов с уже напечатанным шилютом
+    // labels that will change for ports whose shilut is already printed
     const before = p; const after = { ...p, shilut: sh }; const stale = [];
     rackPts.forEach((pt) => (pt.shHave || []).forEach((i) => { if (shilutLabel(pt, i, before, state.ctx) !== shilutLabel(pt, i, after, state.ctx)) stale.push([pt, i]); }));
     if (stale.length && !(await confirmDialog(`У ${stale.length} портов шилют уже отмечен как «есть», а подпись изменится (например, ${stale.slice(0, 3).map(([pt]) => pt.label).join(', ')}). Снять у них отметку «есть шилют», чтобы он попал в заказ заново?`, { yes: 'Снять отметки', no: 'Оставить отметки' }))) {

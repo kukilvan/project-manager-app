@@ -1,4 +1,5 @@
-// Вкладка «Проект»: карточка текущего проекта и сводка по точкам.
+// «Проект» tab: the card of the current project, the readiness bars per rack and the Google Drive and Sheets actions of the project.
+// Talks to Google Drive and Sheets through google.js, managers.js, drivefolders.js and drawings.js (a stub in test mode), to backup.js for backups and to repo.js for read and write counters; points come from store.js.
 import { withCreatorGuide, startTour } from '../tour/index.js';
 import { projectWizard } from './wizard.js';
 import { readsCount, readsToday, readsResetAt, DAILY_READ_LIMIT, writesToday, DAILY_WRITE_LIMIT } from '../repo.js';
@@ -18,7 +19,7 @@ import { memberLabel, memberNameByUid } from './members.js';
 import { hint } from './guide.js';
 import { exportExcel } from '../excel.js';
 
-// Тестовый режим (?mem=1): вместо Google — заглушка, вызовы пишутся в window.__gcalls
+// Test mode (?mem=1): a stub instead of Google; calls are recorded in window.__gcalls
 function testApi() {
   const calls = (window.__gcalls = window.__gcalls || []); const files = (window.__gfiles = window.__gfiles || {});
   return {
@@ -51,15 +52,15 @@ export async function backupNow(retried = false) {
     toast(`Не получилось: ${e.message || e}`); console.error('backup', e);
   } finally { syncing = false; }
 }
-// «📁 Разложить файлы по папкам»: чертежи, таблицы и резервные копии всех проектов — в «Менеджер проектов / <проект> / …» на Диске.
-// Файлы, созданные другими участниками, Диск переложить не даст — они остаются у них.
+// «📁 Разложить файлы по папкам»: drawings, sheets and backups of all projects go to «Менеджер проектов / <project> / …» on Drive.
+// Drive does not let one move files created by other members — they stay with them.
 export async function organizeDrive(retried = false) {
   if (syncing) return; syncing = true;
   try {
     toast('Раскладываю файлы на Диске по папкам проектов…');
     const api = realApi(await getToken('folders')); let moved = 0; let uploaded = 0; const missing = [];
     for (const p of liveProjects()) {
-      // чертежи, которые есть только на устройстве (не ушли на Диск), — загрузить, если файл есть на этом устройстве
+      // drawings that exist only on the device (not uploaded to Drive): upload them if the file is on this device
       for (const d of (p.drawings || []).filter((x) => !x.fileId && !x.deleted)) {
         const buf = await cacheGet(d.id);
         if (!buf) { missing.push(d.title || d.name); continue; }
@@ -70,7 +71,7 @@ export async function organizeDrive(retried = false) {
       const prefix = backupName(p, new Date()).replace(/ \d{4}-\d{2}-\d{2}\.json$/, ' ');
       const olds = (await filesIn(api.req, BACKUP_FOLDER, prefix)).filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f.name.slice(prefix.length)));
       for (const f of olds) if (await api.placeIn(f.id, p, 'backups')) moved++;
-      await api.projectFolder(p);  // папка есть у каждого проекта, даже без файлов
+      await api.projectFolder(p);  // every project has a folder, even without files
     }
     toast(`Готово: переложено файлов — ${moved}${uploaded ? `, загружено чертежей — ${uploaded}` : ''}. Всё в папке «Менеджер проектов» на Диске.${missing.length ? ` Нет на этом устройстве (загрузите с того, где добавляли): ${missing.join(', ')}` : ''}`);
   } catch (e) {
@@ -78,7 +79,7 @@ export async function organizeDrive(retried = false) {
     toast(`Не получилось: ${e.message || e}`); console.error('folders', e);
   } finally { syncing = false; }
 }
-// Обновляет одну таблицу для руководства (по id профиля)
+// Updates one management sheet (by the id of its profile)
 export async function updateTable(tableId, retried = false) {
   const p = currentProject(); if (!p || syncing) return;
   const table = tablesOf(p).find((t) => t.id === tableId) || mainTable(p);
@@ -97,7 +98,7 @@ export async function updateTable(tableId, retried = false) {
     toast(`Не получилось: ${msg}`); console.error('table sync', e);
   } finally { syncing = false; }
 }
-// Основная таблица (кнопка на вкладке «Проект»)
+// The main sheet (the button on the «Проект» tab)
 export const updateManagerTable = (retried) => updateTable(mainTable(currentProject()).id, retried);
 
 export function statusClass(status) {
@@ -107,7 +108,7 @@ export function statusClass(status) {
   return 'pill st-mid';
 }
 
-// Полоски готовности по шкафам: цвет плавно от красного через жёлтый к зелёному
+// Readiness bars per rack: the color goes smoothly from red through yellow to green
 function readiness() {
   const rows = readinessByCabinet(state.ctx);
   if (!rows.length) return null;
@@ -147,7 +148,7 @@ function ctxMetres() {
   return m ? `Метраж по точкам с длиной: ${Math.round(m * 100) / 100} м` : '';
 }
 
-// Чтения базы: сколько осталось от суточного лимита (по этому устройству) и когда лимит сбросится
+// Database reads: how much of the daily limit is left (for this device) and when the limit resets
 function readsLine() {
   const used = readsToday(); const left = Math.max(0, DAILY_READ_LIMIT - used);
   const at = readsResetAt(); const hhmm = at.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -156,7 +157,7 @@ function readsLine() {
   return `📈 Чтений базы: осталось ${left.toLocaleString('ru-RU')} из ${DAILY_READ_LIMIT.toLocaleString('ru-RU')} (с этого телефона; за этот запуск ${readsCount()}). Записей осталось ${w.toLocaleString('ru-RU')} из ${DAILY_WRITE_LIMIT.toLocaleString('ru-RU')}. Лимит сбросится ${day} в ${hhmm}`;
 }
 
-// Ночная копия на сервере: когда была последняя; красным, если давно (копии идут раз в 2 дня)
+// The nightly copy on the server: when the last one was made; red if it is old (copies run every 2 days)
 function autoBackupLine(p) {
   if (!p.serverBackupAt) return h('div', { class: 'mut', style: { width: '100%' } }, 'Автокопия на сервере ещё не запускалась');
   const t = new Date(p.serverBackupAt); const days = (Date.now() - t.getTime()) / 86400000;
