@@ -2,6 +2,13 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-15 — Ticket 2.2: the NAS check tool («Тикет 2.2»)
+
+- `tools/nas-check.mjs`: A1–A9 and the realtime cut time (A7, A7i); `parseArgs`, `judgeA1…A9`, `checkRealtime`, `runChecks` (takes a `fetch` function), `main`; no file read or written, no dependency. `tests/nas-check.test.js`: 31 tests (stubbed responses, a stubbed realtime stream, the CLI, the NAS document check). `CLAUDE.md` Run line and the `docs/code-map.md` tools line. Tests 160 → 191.
+- Beyond the spec: A8 and A9 also SKIP when `sw.js` or the manifest come back as an HTML page with 200 (PocketBase's fallback page before the site is there), not only on 404; `--quick` prints no A7i line; a `--hold` below or equal to 0 is a usage error.
+- Self-check on a local PocketBase 0.40.6 (SHA-256 matched `checksums.txt`; the first start of the downloaded binary was stopped by the auto-mode classifier, the owner allowed it in chat): batch off/on flips A4, password sign-in and a dummy Google provider flip A5 (the text names the part), `--origins *` vs a custom origin flips A6, a stopped server gives exit 2. Binary and data removed from the scratchpad. Node's `fetch` checked to return 3xx with `redirect: 'manual'` and to send an `Origin` header.
+- Live at `3470fb3`; owner checked `--help`. Next: «Ревью 2».
+
 ## 2026-11-15 — Ticket 2.1: the NAS document («Тикет 2.1»)
 
 - `docs/nas-requirements.md` (24,391 bytes): sections 1–12 as spec 2 § 3; 32 requirement ids with phases; a Dockerfile (Alpine 3.22, release zip with SHA-256 re-checked against `checksums.txt`) and a Compose example (`pocketbase`, `cloudflared` 2026.11.0, secrets in `.env`); acceptance checks A1–A14 exactly as spec § 3.10. Added beyond the spec: the placeholder `<docker-subnet>` (superuser IPs need the Docker network's subnet, and the document may hold no real IP); a note that PocketBase also accepts a collection id in the URL, so the WAF rule on `_superusers` is only the outer layer and the superuser IP list is what holds; a "should" that helpers be test users while the OAuth consent screen is in Testing.
