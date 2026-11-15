@@ -1,3 +1,4 @@
+// Checks the backup file (src/app/backup.js): what a copy holds and the counts.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildBackup, backupCount } from '../src/app/backup.js';

@@ -1,8 +1,9 @@
+// Checks the Drive folders of a project (src/app/drivefolders.js): the folder tree and parallel requests.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { projectFolder, moveInto } from '../src/app/drivefolders.js';
 
-// маленький «Диск» в памяти: папки с appProperties, файлы с parents
+// small in-memory «Drive»: folders with appProperties, files with parents
 function fakeDrive() {
   const files = new Map(); let n = 0; const log = [];
   const req = async (method, url, body) => {

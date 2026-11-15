@@ -1,3 +1,4 @@
+// Checks cable pulls and small domain helpers (src/domain/pull.js, latin.js, manuals.js, index.js): pull status, Latin look-alikes, manuals, batches and renaming.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pullStatus, pullTotal, nearestPoint, canDeletePull, isMeasured } from '../src/domain/pull.js';
@@ -99,7 +100,7 @@ test('двери: правила замка, кабели по количест�
   assert.ok(first.get('pt') && first.get('kore'));
   const trimmed = new Map(first); trimmed.delete('pt');
   const again = applyDoorRules(ctx, trimmed, 'em', 2);
-  assert.equal(again.get('pt'), undefined);   // убранное заново не добавляется
+  assert.equal(again.get('pt'), undefined);   // a removed one is not added again
   assert.equal(autoDoorCables(ctx, [{ deviceId: 'em', count: 2 }])[0].count, 4);
   assert.equal(autoDoorCables(ctx, [{ deviceId: 'em', count: 1 }])[0].count, 2);
   assert.deepEqual(usesOf(ctx, 'devices', 'em'), [{ label: 'Конфигурации дверей', n: 1 }]);
@@ -137,14 +138,14 @@ test('reconcilePull: длину в карточке стёрли или поме
   const pull = { pointIds: ['a', 'b', 'c', 'd'], base: 10, meters: mapToPairs({ a: 5, b: 7, c: 3 }), kept: mapToPairs({ d: 40 }), finished: ['c'] };
   const pts = { a: { id: 'a', length: 15 }, b: { id: 'b', length: '' }, c: { id: 'c', length: 99 }, d: { id: 'd', length: 40 } };
   const r = reconcilePull(pull, (id) => pts[id]);
-  assert.equal(pullTotal(r, 'a'), 15);       // совпадает — как было
-  assert.equal(isMeasured(r, 'b'), false);   // стёрли в карточке — снова без метража
-  assert.equal(isMeasured(r, 'c'), true);    // протянутая не трогается
+  assert.equal(pullTotal(r, 'a'), 15);       // matches — as it was
+  assert.equal(isMeasured(r, 'b'), false);   // erased in the card — without metres again
+  assert.equal(isMeasured(r, 'c'), true);    // a pulled one is not touched
   assert.equal(pullTotal(r, 'd'), 40);
-  pts.a.length = 22;                         // изменили в карточке
+  pts.a.length = 22;                         // changed in the card
   const r2 = reconcilePull(pull, (id) => pts[id]);
   assert.equal(pullTotal(r2, 'a'), 22);
-  assert.equal(reconcilePull(r2, (id) => pts[id]), r2);   // повторно ничего не меняется
+  assert.equal(reconcilePull(r2, (id) => pts[id]), r2);   // a repeat changes nothing
 });
 
 test('hasCablesOf: у точки без кабеля метраж не нужен', async () => {

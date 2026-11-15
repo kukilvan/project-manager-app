@@ -1,4 +1,4 @@
-// Свой набор работ точки: добавить, убрать, изменить количество (на точку или на каждый кабель) — поверх типа, устройств и кабелей.
+// A point's own set of works: add, remove, change the quantity (per point or per cable) — on top of the type, devices and cables.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildContext, tasksOf, taskQty, pointInfo, workApplicable, workFits, worksSummary, ownWorksPatch, pullFigures } from '../src/domain/index.js';
@@ -52,25 +52,25 @@ test('метаэм на каждый кабель: двойному бакару
 test('добавить работу, которой нет в составе; убрать работу; вернуть как по составу', () => {
   const ctx = project();
   const c = ctx.points.get('c');
-  // добавить «Наклейка» ×3 на камеру
+  // add «Sticker» ×3 to a camera
   const add = ownWorksPatch(c, ctx, new Map([['LBL', { op: 'set', qty: 3, per: 'point' }]]));
   assert.deepEqual(add, [{ workId: 'LBL', qty: 3 }]);
   const c2 = { ...c, ownWorks: add }; ctx.points.set('c', c2);
   assert.equal(qty(c2, ctx, 'LBL'), 3);
   assert.equal(workFits(c2, ctx, ctx.catalog.get('LBL')), true);
   assert.equal(workApplicable(c2, ctx, ctx.catalog.get('LBL')), true);
-  // убрать установку камеры — не требуется, не подходит, хотя отмечена для типа
+  // remove the camera installation — not required, not suitable, although ticked for the type
   const rm = ownWorksPatch(c2, ctx, new Map([['INS_CAM', { op: 'remove' }]]));
   assert.deepEqual(rm, [{ workId: 'LBL', qty: 3 }, { workId: 'INS_CAM', qty: 0 }]);
   const c3 = { ...c2, ownWorks: rm }; ctx.points.set('c', c3);
   assert.equal(qty(c3, ctx, 'INS_CAM'), 0);
   assert.equal(workFits(c3, ctx, ctx.catalog.get('INS_CAM')), false);
   assert.equal(pointInfo(c3, ctx).stageStats['Установка'].total, 0);
-  // как по составу — свои значения стираются
+  // same as the composition — the own values are erased
   assert.equal(ownWorksPatch(c3, ctx, new Map([['INS_CAM', { op: 'reset' }], ['LBL', { op: 'reset' }]])), null);
-  // количество как по составу «на точку» — своё не записывается
+  // quantity same as the composition «per point» — the own one is not written
   assert.equal(ownWorksPatch(c, ctx, new Map([['INS_CAM', { op: 'set', qty: 1, per: 'point' }]])), null);
-  // убрать работу, которой нет в составе — нечего записывать
+  // remove a work that is not in the composition — nothing to write
   assert.equal(ownWorksPatch(c, ctx, new Map([['LBL', { op: 'remove' }]])), null);
 });
 

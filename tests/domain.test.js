@@ -1,3 +1,4 @@
+// Checks the domain (src/domain/index.js): statuses, cables and metres, daily report, journal, labels, doors and devices, manager tables, imports and the server cache.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -15,7 +16,7 @@ function make(extra = {}) {
     ...extra,
   });
 }
-// Хелпер: день + записи с точками → строки журнала (как делает приложение при сохранении записи)
+// Helper: a day + entries with points → journal rows (as the app does when it saves an entry)
 function scenario(pointsIn, daysIn, entriesIn) {
   const journal = [];
   entriesIn.forEach((e) => (e.pointIds || []).forEach((pid) => journal.push({ id: `${e.id}-${pid}`, entryId: e.id, pointId: pid })));
@@ -58,7 +59,7 @@ test('кабели и метраж: значения типа, переопре�
   const bakar = { id: 'b1', projectId: 'P1', label: '1A-B1', cabinet: '1A', typeId: 'Бакар', length: 10 };
   ctx = make({ points: [bakar, { ...bakar, id: 'b2', cabinet: '1B' }], cabinetSettings: [{ id: 's', projectId: 'P1', cabinet: '1A', typeId: 'Бакар', cables: 4, cable: 'cat7' }] });
   assert.equal(pointInfo(ctx.points.get('b1'), ctx).cables, 4); assert.equal(pointInfo(ctx.points.get('b1'), ctx).metrage, 40);
-  assert.equal(pointInfo(ctx.points.get('b2'), ctx).cables, 2); // другой шкаф — по умолчанию типа
+  assert.equal(pointInfo(ctx.points.get('b2'), ctx).cables, 2); // another cabinet — the type default
 });
 
 test('естественная сортировка точек: 2 раньше 10, подномера, шкаф и тип', () => {
@@ -79,11 +80,11 @@ test('строки записей RU/HE по формулам Приложени
   e = entry('e1', 'D1', 'Проверка', 'CHK_FLUKE', ['c1'], { result: 'Не работает' });
   assert.equal(entryLine(e, mk(e)), 'Проверка кабеля Fluke 1 шт (не работает)');
   assert.equal(entryLine(e, mk(e), 'he'), "בדיקת כבל Fluke 1 יח' (לא תקין)");
-  e = entry('e1', 'D1', 'Протяжка', 'PR_PTS', ['c1', 'c2'], { cableId: 'cat7' }); // cat7 — считаем точки
+  e = entry('e1', 'D1', 'Протяжка', 'PR_PTS', ['c1', 'c2'], { cableId: 'cat7' }); // cat7 — count points
   assert.equal(entryLine(e, mk(e)), 'Протяжка cat7: 2 точек');
   assert.equal(entryLine(e, mk(e), 'he'), 'השחלת כבל CAT7: 2 נקודות');
   e = entry('e1', 'D1', 'Протяжка', 'PR_PTS', ['d1'], { cableId: '6005', minutes: 30, note: 'через потолок' });
-  const ctxD = scenario([door], [d], [e]); // 6005 — метры: 3 кабеля × 20 м = 60 м
+  const ctxD = scenario([door], [d], [e]); // 6005 — metres: 3 cables × 20 m = 60 m
   assert.equal(entryLine(e, ctxD), 'Протяжка 6005: 3 каб., 60 м, 30 мин. через потолок');
   assert.equal(entryLine(e, ctxD, 'he'), 'השחלת כבל 6005: 3 כבלים, 60 מטר, 30 דקות. через потолок');
   e = entry('e1', 'D1', 'Протяжка', 'PR_MAN', [], { cableId: '6005', quantity: 4, meters: 80 });
@@ -94,9 +95,9 @@ test('строки записей RU/HE по формулам Приложени
   e = entry('e1', 'D1', 'Доп. работа', 'EX_TAALA', [], { quantity: 12.5 });
   assert.equal(entryLine(e, mk(e)), 'Установка таалы 12.5 м');
   assert.equal(itogShtuk(e, mk(e)), 12.5);
-  e = entry('e1', 'D1', 'Доп. работа', 'EX_ARON_HIV', [], { quantity: 1, minutes: 90 }); // единица «мин» → строка времени
+  e = entry('e1', 'D1', 'Доп. работа', 'EX_ARON_HIV', [], { quantity: 1, minutes: 90 }); // unit «min» → a time row
   assert.equal(entryLine(e, mk(e)), 'Хивут арона бакары 1 ч 30 мин'); assert.equal(itogShtuk(e, mk(e)), 0);
-  e = entry('e1', 'D1', 'Текст', undefined, [], { note: 'Продолжение протяжки оптики' }); // свободная строка
+  e = entry('e1', 'D1', 'Текст', undefined, [], { note: 'Продолжение протяжки оптики' }); // free-text row
   assert.equal(entryLine(e, mk(e)), 'Продолжение протяжки оптики');
 });
 
@@ -124,7 +125,7 @@ test('журнал: правки без записи, мягкое удален�
   assert.equal(pointInfo(ctx.points.get('c1'), ctx).status, 'Захивучена'); assert.equal(pointInfo(ctx.points.get('c1'), ctx).hived, '2026-10-03');
   const e = entry('e1', 'D1', 'Проверка', 'CHK_FLUKE', ['c1']);
   ctx = make({ points: [cam], days: [day('D1', '2026-10-05')], entries: [{ ...e, deleted: true }], journal: [{ id: 'j1', entryId: 'e1', pointId: 'c1' }] });
-  assert.equal(pointInfo(ctx.points.get('c1'), ctx).status, 'Новая'); // удалённая запись не считается
+  assert.equal(pointInfo(ctx.points.get('c1'), ctx).status, 'Новая'); // a deleted entry does not count
   ctx = make({ points: [{ ...cam, deleted: true }], journal: j });
   assert.equal(ctx.points.size, 0);
 });
@@ -140,8 +141,8 @@ test('генератор точек: диапазон, шаг, ведущие н
   assert.deepEqual(generateLabels({ prefix: '1A-', from: 1, to: 6, step: 2, digits: 2 }), ['1A-01', '1A-03', '1A-05']);
   assert.deepEqual(generateLabels({ prefix: '1A-', from: 1, to: 5, step: 2, digits: 2, pair: true }), ['1A-01-02', '1A-03-04', '1A-05-06']);
   assert.deepEqual(generateLabels({ prefix: 'C', from: 7, to: 8, suffixes: parseSuffixes(' A, B ,, ') }), ['C7A', 'C7B', 'C8A', 'C8B']);
-  assert.deepEqual(generateLabels({ from: 5, to: 1 }), []); // «до» меньше «от»
-  assert.equal(generateLabels({ from: 1, to: 999999 }).length, 2000); // защита от случайного миллиона точек
+  assert.deepEqual(generateLabels({ from: 5, to: 1 }), []); // «to» is less than «from»
+  assert.equal(generateLabels({ from: 1, to: 999999 }).length, 2000); // guard against an accidental million points
 });
 
 test('месячный отчёт: дохи подряд, часы и сводка протяжки', async () => {
@@ -204,7 +205,7 @@ test('тип-дверь определяется по названию «Две�
   assert.ok(!usesConfig({ id: 'Камера' })); assert.ok(!usesConfig(undefined));
 });
 
-// ---- таблицы для руководства (профили и сборка) ----
+// ---- manager tables (profiles and assembly) ----
 const reportData = async () => {
   const { buildContext, POINT_TYPES, CATALOG } = await import('../src/domain/index.js');
   const data = {
@@ -234,7 +235,7 @@ test('таблица: профиль выбирает шкафы, типы, ст
   assert.equal(r.pointCount, 1);
   assert.deepEqual(sh.rows[sh.headerRow], ['Имя в плане', 'Обозначение', 'Протянуто']);
   assert.deepEqual(sh.rows[sh.headerRow + 1], ['C-71', '1A-C01', sheetSerial('2026-10-03')]);
-  // без шкафа выбирается отдельным значением
+  // with no cabinet, picked as a separate value
   const none = buildReport(project, ctx, { ...ext, cabinets: ['__none'], types: [] });
   assert.equal(none.pointCount, 1); assert.equal(none.sheets[0].rows[none.sheets[0].headerRow + 1][1], 'G-01');
   assert.throws(() => buildReport(project, ctx, { ...ext, columns: [] }), /ни один столбец/);
@@ -248,15 +249,15 @@ test('таблица: язык, «—» для этапов, которых у �
   assert.deepEqual(rows[0], ['נקודה', 'סוג', 'הותקן', 'נבדק', 'שילוט', 'סטטוס']);
   assert.equal(he.sheets[0].rtl, true);
   const byLabel = Object.fromEntries(rows.slice(1).map((r) => [r[0], r]));
-  assert.equal(byLabel['G-01'][3], '—'); assert.equal(byLabel['G-01'][4], '—'); // у галая нет проверки и шилюта
-  assert.equal(byLabel['1A-D01'][2], 46300);   // дата установки
+  assert.equal(byLabel['G-01'][3], '—'); assert.equal(byLabel['G-01'][4], '—'); // a galai has no check and no shilut
+  assert.equal(byLabel['1A-D01'][2], 46300);   // installation date
   assert.equal(byLabel['1A-C01'][5], 'נבדק');
   const ru = buildReport(project, ctx, { ...defaultTables()[1], columns: ['label', 'installed', 'status', 'checkResult'] });
   const rr = Object.fromEntries(ru.sheets[0].rows.slice(ru.sheets[0].headerRow + 1).map((r) => [r[0], r]));
   assert.equal(rr['1A-D01'][2], 'Установлена'); assert.equal(rr['1A-C01'][3], 'Работает');
-  // итоги сверху: всего 4, протянуто 1, проверено 1
+  // totals on top: 4 in all, 1 pulled, 1 checked
   assert.deepEqual(ru.sheets[0].rows[3].slice(0, 6), [4, 1, 0, 1, 0, 1]);
-  assert.ok(!JSON.stringify(ru.sheets[0].rows).includes('=')); // формул нет
+  assert.ok(!JSON.stringify(ru.sheets[0].rows).includes('=')); // no formulas
 });
 
 test('таблица: раскладка «шкаф на листе», названия листов и фильтр по статусу', async () => {
@@ -299,7 +300,7 @@ test('таблица: создание файла и пересборка лис
   assert.equal(reqs[0].addSheet.properties.rightToLeft, true);
   const wr = calls.find((c) => c[0] === 'write')[1][0];
   assert.equal(wr.range, "'סטטוס'!A1");
-  // повторно без изменений данных файл не трогаем; чужой файл — понятная ошибка
+  // unchanged data on a repeat run: the file is not touched; a foreign file — a clear error
   const t2 = { ...table, ...r1.patch };
   calls.length = 0;
   const r2 = await syncTable(api, project, ctx, t2, { uid: 'u1' });
@@ -314,7 +315,7 @@ test('сервер: ночное автообновление таблиц', asy
   const { project, data } = await reportData();
   const [main, ext] = defaultTables();
   const proj = { ...project, tables: [{ ...main, fileId: 'F1', by: 'u1' }, { ...ext, fileId: 'F2' }] };
-  assert.deepEqual(autoTables(proj).map((t) => t.id), ['t_main']); // расширенная без галочки не обновляется
+  assert.deepEqual(autoTables(proj).map((t) => t.id), ['t_main']); // an extended table without the tick is not updated
   const calls = []; const files = { F1: { id: 'F1', name: 'x' } };
   const api = {
     fileInfo: async (id) => files[id] || null, rename: async () => {}, sheetsOf: async () => [{ sheetId: 0, title: 'S' }],
@@ -323,7 +324,7 @@ test('сервер: ночное автообновление таблиц', asy
   const r = await updateProjectTables(api, proj, data, new Date('2026-10-11T00:00:00Z'));
   assert.equal(r.patches.t_main.serverError, ''); assert.ok(r.patches.t_main.hash); assert.equal(r.patches.t_main.by, undefined);
   assert.ok(calls.some((c) => c[0] === 'write' && c[1] === 'F1'));
-  // файл недоступен серверу: новый не создаётся, ошибка записывается в профиль
+  // the file is unavailable to the server: no new one is created, the error is written to the profile
   delete files.F1;
   const r2 = await updateProjectTables(api, proj, data, new Date());
   assert.match(r2.patches.t_main.serverError, /не видит файл/);
@@ -333,17 +334,17 @@ test('сервер: ночное автообновление таблиц', asy
 test('экономия чтений: когда читать всё, а когда только изменения', async () => {
   const { decideMode, maxMillis, lastSaturday } = await import('../src/domain/sync.js');
   const now = 1_800_000_000_000; const ok = { last: now - 1000, full: now - 1000, n: 100 };
-  assert.equal(decideMode(null, 100, now), 'full');                         // первый запуск
-  assert.equal(decideMode(ok, 100, now), 'delta');                          // кэш полный
-  assert.equal(decideMode(ok, 120, now), 'delta');                          // в кэше больше, чем помнили
-  assert.equal(decideMode(ok, 80, now), 'full');                            // кэш неполон (например, очищен частично)
-  assert.equal(decideMode(ok, 0, now), 'full');                             // кэш пуст
-  // полная сверка раз в неделю, по субботам: 2026-10-10 суббота, 2026-10-11 воскресенье, 2026-10-16 пятница, 2026-10-17 суббота
+  assert.equal(decideMode(null, 100, now), 'full');                         // first run
+  assert.equal(decideMode(ok, 100, now), 'delta');                          // cache is complete
+  assert.equal(decideMode(ok, 120, now), 'delta');                          // cache holds more than remembered
+  assert.equal(decideMode(ok, 80, now), 'full');                            // cache is incomplete (for example, partly cleared)
+  assert.equal(decideMode(ok, 0, now), 'full');                             // cache is empty
+  // full reconciliation once a week, on Saturdays: 2026-10-10 Saturday, 2026-10-11 Sunday, 2026-10-16 Friday, 2026-10-17 Saturday
   const at = (s) => new Date(`${s}T12:00:00`).getTime();
   assert.equal(new Date(lastSaturday(at('2026-10-10'))).getDay(), 6); assert.equal(new Date(lastSaturday(at('2026-10-14'))).getDate(), 10);
-  assert.equal(decideMode({ ...ok, last: at('2026-10-10'), full: at('2026-10-10') }, 100, at('2026-10-16')), 'delta'); // пятница: всё ещё после субботней сверки
-  assert.equal(decideMode({ ...ok, last: at('2026-10-10'), full: at('2026-10-10') }, 100, at('2026-10-17')), 'full');  // следующая суббота
-  assert.equal(decideMode({ ...ok, last: 0 }, 100, now), 'full');           // нет отметки времени сервера
+  assert.equal(decideMode({ ...ok, last: at('2026-10-10'), full: at('2026-10-10') }, 100, at('2026-10-16')), 'delta'); // Friday: still after the Saturday reconciliation
+  assert.equal(decideMode({ ...ok, last: at('2026-10-10'), full: at('2026-10-10') }, 100, at('2026-10-17')), 'full');  // next Saturday
+  assert.equal(decideMode({ ...ok, last: 0 }, 100, now), 'full');           // no server timestamp
   assert.equal(maxMillis([0, 5, undefined, 9, 3]), 9);
 });
 
@@ -351,10 +352,10 @@ test('срок хранения удалённого: год, затем уда�
   const { isExpiredDeleted, purgeDate, historyCutoff, RETENTION_DAYS } = await import('../src/domain/sync.js');
   const DAY = 86400000; const now = Date.UTC(2027, 9, 10);
   assert.equal(RETENTION_DAYS, 365);
-  assert.equal(isExpiredDeleted({ deleted: true, deletedAt: now - 364 * DAY }, now), false);   // ещё хранится
-  assert.equal(isExpiredDeleted({ deleted: true, deletedAt: now - 366 * DAY }, now), true);    // срок вышел
-  assert.equal(isExpiredDeleted({ deleted: false, deletedAt: now - 900 * DAY }, now), false);  // не удалено — не трогаем
-  assert.equal(isExpiredDeleted({ deleted: true }, now), false);                               // нет даты удаления — не трогаем
+  assert.equal(isExpiredDeleted({ deleted: true, deletedAt: now - 364 * DAY }, now), false);   // still kept
+  assert.equal(isExpiredDeleted({ deleted: true, deletedAt: now - 366 * DAY }, now), true);    // retention period is over
+  assert.equal(isExpiredDeleted({ deleted: false, deletedAt: now - 900 * DAY }, now), false);  // not deleted — leave it
+  assert.equal(isExpiredDeleted({ deleted: true }, now), false);                               // no deletion date — leave it
   assert.equal(isExpiredDeleted(null, now), false);
   assert.equal(purgeDate(now), now + 365 * DAY); assert.equal(purgeDate(0), 0);
   assert.equal(historyCutoff(now), now - 365 * DAY);
@@ -389,7 +390,7 @@ test('«Что осталось»: чего не хватает точке, с �
     entry('e2', 'D1', 'Хивут', 'HIV_DEV', ['b1']), entry('e3', 'D1', 'Проверка', 'CHK_FLUKE', ['b1']),
   ]);
   assert.deepEqual(missingStages(ctx.points.get('c1'), ctx), ['Установка', 'Проверка']);
-  assert.deepEqual(missingStages(ctx.points.get('b1'), ctx), []); // у бакара установки нет, всё остальное сделано
+  assert.deepEqual(missingStages(ctx.points.get('b1'), ctx), []); // a bakar has no installation, everything else is done
   assert.deepEqual(missingStages(ctx.points.get('c2'), ctx), ['Хивут', 'Установка', 'Проверка']);
   const r = remaining(ctx);
   assert.deepEqual(r.map((g) => [g.cabinet, g.items.length]), [['1A', 1], ['2B', 1]]);
@@ -450,20 +451,20 @@ test('несколько видов кабеля: протяжка каждог�
   ctx = make({ types, points: [int], days: [d], entries: [e1, e2], journal: [{ id: 'j1', entryId: 'E1', pointId: 'i1' }, { id: 'j2', entryId: 'E2', pointId: 'i1' }] });
   info = pointInfo(ctx.points.get('i1'), ctx);
   assert.equal(info.pulled, '2026-10-05'); assert.equal(info.status, 'Протянута');
-  // запись протяжки без кабеля (старые данные) засчитывается всем видам
+  // a pull entry without a cable (old data) counts for all kinds
   const e0 = entry('E3', 'D1', 'Протяжка', 'PULL', ['i1']);
   ctx = make({ types, points: [int], days: [d], entries: [e0], journal: [{ id: 'j3', entryId: 'E3', pointId: 'i1' }] });
   assert.equal(pointInfo(ctx.points.get('i1'), ctx).status, 'Протянута');
-  // однокабельная точка: протяжка «чужим» кабелем засчитывается (как раньше)
+  // single-cable point: a pull with a "foreign" cable counts (as before)
   const e4 = entry('E4', 'D1', 'Протяжка', 'PULL', ['c1'], { cableId: '6005' });
   ctx = make({ points: [cam], days: [d], entries: [e4], journal: [{ id: 'j4', entryId: 'E4', pointId: 'c1' }] });
   assert.equal(pointInfo(ctx.points.get('c1'), ctx).status, 'Протянута');
-  // таблица руководства: кабели списком, частичная протяжка
+  // manager table: cables as a list, partial pull
   ctx = make({ types, points: [int], days: [d], entries: [e1], journal: [{ id: 'j1', entryId: 'E1', pointId: 'i1' }] });
   const rep = buildReport(project, ctx, { id: 't', lang: 'ru', columns: ['label', 'cable', 'cables', 'pulled', 'status'] });
   const row = rep.sheets[0].rows.at(-1);
   assert.deepEqual(row, ['1A-INT1', '6005×1 + cat7×1', 2, 'частично 1/2', 'Протянуто 1/2']);
-  // настройка шкафа может убрать доп. кабели ([]) или оставить как в типе (null)
+  // the cabinet setting can remove the extra cables ([]) or keep the type default (null)
   ctx = make({ types, points: [int], cabinetSettings: [{ id: 's', projectId: 'P1', cabinet: '1A', typeId: 'Интерком', extraCables: [] }] });
   assert.equal(pointInfo(ctx.points.get('i1'), ctx).cables, 1);
 });
@@ -491,16 +492,16 @@ test('точка из устройств: задачи по устройства
   assert.ok(CAT.CHK_DOOR && CAT.INS_BIO);
 
   let ctx = mk([]);
-  // задачи двери: 3 протяжки, 3 хивута в шкафу (по устройствам), 3 установки, проверка двери
+  // door tasks: 3 pulls, 3 hivuts in the cabinet (per device), 3 installations, door check
   const t1 = tasksOf(ctx.points.get('d1'), ctx);
   assert.equal(t1.filter((t) => t.stage === 'Протяжка').length, 3);
   assert.equal(t1.filter((t) => t.workId === 'HIV_DEV').length, 3);
   assert.equal(pointInfo(ctx.points.get('d1'), ctx).cables, 3);
-  assert.equal(pointInfo(ctx.points.get('d2'), ctx).cables, 3); // 2 коре + мануль; нипуц без кабеля
+  assert.equal(pointInfo(ctx.points.get('d2'), ctx).cables, 3); // 2 cores + manual; nipuc has no cable
   assert.equal(pointInfo(ctx.points.get('b1'), ctx).cableList.map((c) => `${c.cable}×${c.count}`).join(','), '6005×1,cat7×1');
   assert.deepEqual(devicesForWork([ctx.points.get('d2')], ctx, 'INS_KORE', 'Установка').map((x) => x.deviceId), ['DV_KORE']);
 
-  // протяжка 6005 только коре и магнита на d1
+  // pull of 6005 only for the core and the magnet on d1
   const e1 = entry('E1', 'D1', 'Протяжка', 'PR_PTS', ['d1'], { cableId: '6005', deviceIds: ['DV_KORE', 'DV_MAG'] });
   ctx = mk([e1]);
   let info = pointInfo(ctx.points.get('d1'), ctx);
@@ -509,7 +510,7 @@ test('точка из устройств: задачи по устройства
   assert.deepEqual(missingStages(ctx.points.get('d1'), ctx), ['Дотянуть', 'Хивут', 'Установка', 'Проверка']);
   assert.deepEqual(missingDetails(info, ctx)[0], { stage: 'Протяжка', items: ['Мануль хашмали (6005)'] });
 
-  // всё на d1 без галочек: протяжка, хивут, установки (по каждому авизару), проверка двери
+  // all on d1 without ticks: pull, hivut, installations (per avizar), door check
   const all = ['HIV_DEV', 'INS_KORE', 'INS_MAGNIT', 'INS_MANUL', 'CHK_DOOR'].map((w, i) => entry(`E${i + 3}`, 'D1', CAT[w].workType, w, ['d1']));
   const e2 = entry('E2', 'D1', 'Протяжка', 'PR_PTS', ['d1'], { cableId: '6005' });
   ctx = mk([e1, e2, all[0], all[1], all[2]]);
@@ -519,21 +520,21 @@ test('точка из устройств: задачи по устройства
   info = pointInfo(ctx.points.get('d1'), ctx);
   assert.equal(info.status, 'Проверена'); assert.ok(isFinished(ctx.points.get('d1'), ctx));
 
-  // дох: установка коре на двери с двумя коре — 2 шт; протяжка биометри по видам
+  // doh: installing the core on a door with two cores — 2 pcs; biometric pull by kind
   const e9 = entry('E9', 'D1', 'Установка', 'INS_KORE', ['d2']);
   const e10 = entry('E10', 'D1', 'Протяжка', 'PR_PTS', ['b1'], { cableId: 'cat7' });
   ctx = mk([e9, e10]);
   assert.equal(itogShtuk(e9, ctx), 2);
   assert.deepEqual(pullFigures(e10, ctx), { count: 1, meters: 5 });
   assert.equal(pointInfo(ctx.points.get('b1'), ctx).status, 'Протянуто 1/2');
-  assert.equal(pointInfo(ctx.points.get('d2'), ctx).install, 'Установлено 1/3'); // коре (×2 одной задачей), мануль, нипуц
+  assert.equal(pointInfo(ctx.points.get('d2'), ctx).install, 'Установлено 1/3'); // core (×2 in one task), manual, nipuc
 
-  // таблица: этапы составной точки, «—» для этапа, которого нет
+  // table: stages of a composite point, «—» for a stage it does not have
   const rep = buildReport(project, ctx, { id: 't', lang: 'ru', columns: ['label', 'cable', 'pulled', 'shilut'] });
   const rowB = rep.sheets[0].rows.find((r) => r[0] === '1A-BIO1');
   assert.deepEqual(rowB, ['1A-BIO1', '6005×1 + cat7×1', 'частично 1/2', '']);
   const rowD = rep.sheets[0].rows.find((r) => r[0] === '1A-1.1');
-  assert.equal(rowD[3], '—'); // у двери нет шилюта
+  assert.equal(rowD[3], '—'); // a door has no shilut
 });
 
 test('кабели самой точки: дверь 2×6005, авизарим без кабелей; работы кабеля наследуются без дублирования', async () => {
@@ -551,13 +552,13 @@ test('кабели самой точки: дверь 2×6005, авизарим �
   const info = pointInfo(ctx.points.get('x'), ctx);
   assert.equal(info.cables, 2); assert.equal(info.status, 'Протянута'); assert.equal(info.installTotal, 5);
   assert.deepEqual(pullFigures(e, ctx), { count: 2, meters: 20 });
-  assert.equal(tasksOf(ctx.points.get('x'), ctx).filter((t) => t.workId === 'HIV_DEV').length, 1); // хивут кабелей точки
+  assert.equal(tasksOf(ctx.points.get('x'), ctx).filter((t) => t.workId === 'HIV_DEV').length, 1); // hivut of the point cables
   assert.ok(devicesForWork([ctx.points.get('x')], ctx, null, 'Протяжка').some((d) => d.name === 'Кабели точки'));
   assert.equal(pointInfo(ctx.points.get('y'), ctx).stages.join(','), 'Протяжка,Хивут,Проверка,Шилют');
-  // устройство «Коре биометри»: хивуты, проверка и шилют кабелей берутся из «Кабелей», дублировать в устройстве не нужно
+  // device «Core biometric»: hivuts, check and shilut of its cables come from «Cables», no need to repeat them in the device
   const works = tasksOf(ctx.points.get('z'), ctx).map((t) => t.workId || `pull:${t.cable}`).sort();
   assert.deepEqual(works, ['CHK_FLUKE', 'HIV_DEV', 'HIV_KEY', 'INS_BIO', 'SHL', 'pull:6005', 'pull:cat7']);
-  assert.equal(tasksOf(ctx.points.get('z'), ctx).find((t) => t.workId === 'HIV_DEV').qty, 2); // в шкафу — оба кабеля
+  assert.equal(tasksOf(ctx.points.get('z'), ctx).find((t) => t.workId === 'HIV_DEV').qty, 2); // in the cabinet — both cables
 });
 
 test('устройство, изменённое у точки: свои кабели и работы вместо заданных в «Устройствах»', async () => {
@@ -584,25 +585,25 @@ test('добавление точек из файла: дубли пропуск
   const plan = planPointsImport(ctx, data);
   assert.deepEqual(plan.add.map((p) => p.label), ['1A-C2', 'H240', '1A-INT1', 'X1']);
   assert.deepEqual(plan.skipped, ['1A-01']);
-  assert.equal(plan.errors.length, 1); // повтор 1A-C2; неизвестный тип теперь не ошибка
+  assert.equal(plan.errors.length, 1); // duplicate 1A-C2; an unknown type is no longer an error
   assert.deepEqual(plan.blankTypes, ['Нет такого']);
   assert.ok(plan.warnings.some((w) => w.startsWith('H240')));
   assert.deepEqual(plan.newTypes.map((t) => t.id), ['Интерком']);
-  // то же обозначение в другом шкафу или без шкафа — не помеха; в том же шкафу — пропуск
+  // the same label in another cabinet or with no cabinet is no obstacle; in the same cabinet it is skipped
   const p3 = planPointsImport(ctx, parsePointsFile(JSON.stringify({ format: 'polevoy-points-1', points: [
     { label: '1A-01', typeId: 'Камера', cabinet: '2B' }, { label: '1A-01', typeId: 'Камера' }, { label: '1A-01', typeId: 'Камера', cabinet: '1A' }, { label: '1A-01', typeId: 'Камера', cabinet: '2B' },
   ] })));
   assert.deepEqual(p3.add.map((p) => p.cabinet || ''), ['2B', '']); assert.deepEqual(p3.skipped, ['1A-01']); assert.equal(p3.errors.length, 1);
   assert.equal(p3.alsoIn.get('2B\u00001A-01'), '1A');
-  // требование шкафа: точки без шкафа не добавляются, а возвращаются списком
+  // cabinet required: points without a cabinet are not added, they come back as a list
   const p4 = planPointsImport(ctx, parsePointsFile(JSON.stringify({ format: 'polevoy-points-1', points: [{ label: 'N1', typeId: 'Камера' }, { label: 'N2', typeId: 'Камера', cabinet: '2B' }] })), new Map(), { requireCabinet: true });
   assert.deepEqual(p4.add.map((p) => p.label), ['N2']); assert.deepEqual(p4.noCabinet.map((p) => p.label), ['N1']);
   const p5 = planPointsImport(ctx, parsePointsFile(JSON.stringify({ format: 'polevoy-points-1', cabinet: '1A', points: [{ label: '1A-01', typeId: 'Камера' }, { label: 'N1', typeId: 'Камера' }] })), new Map(), { requireCabinet: true });
-  assert.deepEqual([p5.add.map((p) => p.label), p5.skipped, p5.noCabinet.length], [['N1'], ['1A-01'], 0]);   // шкаф файла подставляется
+  assert.deepEqual([p5.add.map((p) => p.label), p5.skipped, p5.noCabinet.length], [['N1'], ['1A-01'], 0]);   // the cabinet of the file is filled in
   let n = 0; const ops = pointsImportOps(plan, () => `id${n++}`);
   assert.deepEqual(ops.map((o) => o.coll), ['types', 'types', 'points', 'points', 'points', 'points']);
   assert.equal(ops[2].data.floor, '1');
-  // место на листе (pos) сохраняется вместе с размером листа и именем чертежа
+  // the place on the sheet (pos) is kept together with the sheet size and the drawing name
   const d2 = parsePointsFile(JSON.stringify({ format: 'polevoy-points-1', sheet: { pdf: 'plan.pdf', pages: [{ w: 3969, h: 2594 }] },
     points: [{ label: 'C01', typeId: 'Камера', pos: { page: 0, x: 878, y: 2055.7, w: 8, h: 7 } }, { label: 'C02', typeId: 'Камера', pos: { x: 'плохо' } }] }));
   const ops2 = pointsImportOps(planPointsImport(make({}), d2), () => 'x', d2);
@@ -619,13 +620,13 @@ test('общий пул типов: тип из пула переносится 
   const ops = addBundleOps(ctx, pool.get('Лахцан птиха'));
   assert.ok(ops.some((o) => o.coll === 'types' && o.id === 'Лахцан птиха'));
   assert.ok(ops.some((o) => o.coll === 'devices' && o.id === 'DV_LPTIHA'));
-  // мой пул: тип из проекта (с составом) заменяет стандартный
+  // my pool: a type from the project (with its composition) replaces the standard one
   const ctx2 = make({ devices: [{ id: 'DV_X', name: 'Прибор X', cables: [{ cable: 'cat7', count: 2 }], workIds: [] }],
     types: [...POINT_TYPES, { id: 'Камера', nameHe: 'מצלמה', devices: [{ deviceId: 'DV_X', count: 1 }], cables: [], workIds: [] }] });
   const lib = libWith([], [bundleFrom(ctx2, 'Камера')]);
   assert.equal(lib[0].devices[0].id, 'DV_X'); assert.equal(lib[0].cables[0].id, 'cat7');
   assert.equal(typePool(lib).get('Камера').source, 'mine');
-  // файл точек с типом, которого нет в проекте, но он есть в пуле — тип добавляется сам
+  // a points file with a type that is not in the project but is in the pool — the type is added automatically
   const data = parsePointsFile(JSON.stringify({ format: 'polevoy-points-1', points: [{ label: 'APA1', typeId: 'Лахцан птиха' }] }));
   const plan = planPointsImport(ctx, data, pool);
   assert.equal(plan.errors.length, 0); assert.deepEqual(plan.poolTypes.map((b) => b.type.id), ['Лахцан птиха']);
@@ -694,7 +695,7 @@ test('повторы работ: нижний уровень главнее, в 
   });
   const tasks = tasksOf(ctx.points.get('p1'), ctx);
   assert.equal(tasks.filter((t) => t.workId === 'W_INST').length, 1);
-  assert.equal(tasks.find((t) => t.workId === 'W_HK').qty, 1);  // кабель + устройство — не 2
+  assert.equal(tasks.find((t) => t.workId === 'W_HK').qty, 1);  // cable + device — not 2
   assert.equal(tasks.filter((t) => t.workId === 'W_CHK').length, 1);
   assert.deepEqual([...inheritedOfType(ctx, [{ deviceId: 'DV_INT', count: 1 }]).keys()].sort(), ['W_HK', 'W_INST']);
 });
@@ -711,9 +712,9 @@ test('повторы работ не трогают количества: 2 ма
   const t = tasksOf(ctx.points.get('p1'), ctx);
   const q = (dev, w) => t.find((x) => x.deviceId === dev && x.workId === w)?.qty;
   const pull = (dev, c) => t.find((x) => x.deviceId === dev && x.stage === 'Протяжка' && x.cable === c)?.qty;
-  assert.equal(pull('DV_MAG', '6005'), 2); assert.equal(q('DV_MAG', 'W_MAG'), 2); assert.equal(q('DV_MAG', 'W_HS'), 2);   // 2 магнита
-  assert.equal(pull('DV_CR', 'cat7'), 2); assert.equal(q('DV_CR', 'W_HK'), 2); assert.equal(q('DV_CR', 'W_HS'), 2);        // 2 кабеля cat7: кистон — 2, а не 2+1
-  assert.equal(t.filter((x) => x.stage === 'Протяжка' && x.cable === '6005').reduce((n, x) => n + x.qty, 0), 5);         // 2 от магнитов + 3 кабеля точки
+  assert.equal(pull('DV_MAG', '6005'), 2); assert.equal(q('DV_MAG', 'W_MAG'), 2); assert.equal(q('DV_MAG', 'W_HS'), 2);   // 2 magnets
+  assert.equal(pull('DV_CR', 'cat7'), 2); assert.equal(q('DV_CR', 'W_HK'), 2); assert.equal(q('DV_CR', 'W_HS'), 2);        // 2 cat7 cables: keystone — 2, not 2+1
+  assert.equal(t.filter((x) => x.stage === 'Протяжка' && x.cable === '6005').reduce((n, x) => n + x.qty, 0), 5);         // 2 from the magnets + 3 cables of the point
   assert.equal(t.filter((x) => x.workId === 'W_CHK').length, 1);
 });
 
@@ -722,11 +723,11 @@ test('общий пул: кандидаты во входящие и «взят�
   const pool = poolMaps({ types: [{ id: 'Камера', nameHe: 'מצלמה', devices: [{ deviceId: 'DV_C', count: 1 }] }], devices: [{ id: 'DV_C', name: 'Камера', cables: [{ cable: 'cat7', count: 1 }], workIds: ['W_I'] }], cables: [{ id: 'cat7', workIds: [] }], catalog: [{ id: 'W_I', name: 'Установка камеры', workType: 'Установка' }] });
   const ctx = buildContext({ types: [{ id: 'Камера', nameHe: 'מצלמה', devices: [{ deviceId: 'DV_C', count: 2 }], updatedAt: 5 }, { id: 'Новый', devices: [] }], devices: [{ id: 'DV_C', name: 'Камера', cables: [{ cable: 'cat7', count: 1 }], workIds: ['W_I'], updatedAt: 9 }], cables: [{ id: 'cat7', workIds: [] }], catalog: [{ id: 'W_I', name: 'Установка камеры', workType: 'Установка' }] });
   const c = inboxCandidates(ctx, pool);
-  assert.deepEqual(c.map((x) => `${x.kind}:${x.id}`).sort(), ['types:Камера', 'types:Новый']);  // служебные поля не считаются отличием
+  assert.deepEqual(c.map((x) => `${x.kind}:${x.id}`).sort(), ['types:Камера', 'types:Новый']);  // service fields do not count as a difference
   assert.equal(poolHash({ a: 1, updatedAt: 1 }), poolHash({ a: 1, updatedAt: 2 }));
   const empty = buildContext({ types: [], devices: [], cables: [], catalog: [] });
   assert.deepEqual(takeFromPoolOps(empty, pool, 'types', 'Камера').map((o) => `${o.coll}:${o.id}`), ['catalog:W_I', 'cables:cat7', 'devices:DV_C', 'types:Камера']);
-  assert.deepEqual(takeFromPoolOps(ctx, pool, 'types', 'Камера'), []);  // уже есть в проекте — не трогаем
+  assert.deepEqual(takeFromPoolOps(ctx, pool, 'types', 'Камера'), []);  // already in the project — leave it
 });
 
 test('общий пул: изменения части видны и принимаются на уровне типа', async () => {
@@ -738,7 +739,7 @@ test('общий пул: изменения части видны и прини�
   const own = { uid: 'u1' };
   const c = inboxCandidates(ctx, pool).map((x) => ({ ...x, itemId: x.id, owner: own }));
   const type = c.find((x) => x.kind === 'types'); const work = c.find((x) => x.kind === 'catalog' && x.id === 'W_B');
-  assert.ok(type && work); assert.ok(coveredBy(work, c));                 // новая работа принимается вместе с типом
+  assert.ok(type && work); assert.ok(coveredBy(work, c));                 // a new work is accepted together with its type
   const ch = candidateChanges(type, pool);
   assert.ok(ch.includes('Работы на точку: + Хивут кроны'), ch.join(' | '));
   assert.ok(ch.some((s) => s.startsWith('Новая работа «Хивут кроны»')));
@@ -813,7 +814,7 @@ test('словари переводов: шаблоны {} совпадают п
 test('дох дня: одинаковые работы суммируются в одну строку', () => {
   const c2 = { ...cam, id: 'c2', label: '1A-02' }; const c3 = { ...cam, id: 'c3', label: '1A-03' };
   const d = day('D1', '2026-10-05');
-  // хивут кистона: 1 + 1 + 1 = 3; сиюр: 20 + 15 = 35 мин; запись с другим пояснением — отдельно; с задержкой — отдельно
+  // keystone hivut: 1 + 1 + 1 = 3; siur: 20 + 15 = 35 min; an entry with a different note — separate; with a delay — separate
   const es = [
     entry('e1', 'D1', 'Хивут', 'HIV_KEY', ['c1']), entry('e2', 'D1', 'Время', 'T_SIYUR', [], { minutes: 20 }),
     entry('e3', 'D1', 'Хивут', 'HIV_KEY', ['c2']), entry('e4', 'D1', 'Время', 'T_SIYUR', [], { minutes: 15 }),
@@ -837,7 +838,7 @@ test('дох: минуты складываются в часы и остато�
   assert.equal(dur(35), '35 мин'); assert.equal(dur(60), '1 ч'); assert.equal(dur(95), '1 ч 35 мин'); assert.equal(dur(150), '2 ч 30 мин');
   assert.equal(dur(95, 'he'), 'שעה ו-35 דקות'); assert.equal(dur(120, 'he'), 'שעתיים'); assert.equal(dur(200, 'he'), '3 שעות ו-20 דקות'); assert.equal(dur(40, 'he'), '40 דקות');
   assert.equal(dur(95, 'en'), '1 h 35 min');
-  // сумма одинаковых работ во времени за день: 50 + 45 = 95 → «1 ч 35 мин»
+  // sum of identical timed works for a day: 50 + 45 = 95 → «1 h 35 min»
   const d = day('D1', '2026-10-05');
   const es = [entry('e1', 'D1', 'Время', 'T_SIYUR', [], { minutes: 50 }), entry('e2', 'D1', 'Время', 'T_SIYUR', [], { minutes: 45 })];
   assert.equal(doh(d, scenario([{ ...cam, length: 10 }], [d], es)), '05.10.2026\nMegason Mega Or с Марина\n\nСиюр 1 ч 35 мин');

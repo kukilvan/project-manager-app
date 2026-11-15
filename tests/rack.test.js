@@ -1,3 +1,4 @@
+// Checks racks and labels (src/domain/rack.js, points.js): ports, auto layout, U order, shilut colours, cabinet sections.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parsePanelPorts, fmtPanelPort, defaultPortLabels, panelConflicts, matchesPanelQuery, isRackCable } from '../src/domain/rack.js';
@@ -74,25 +75,25 @@ import { blockPort, unblockPort, blockedOf, autoFill as af3, rackProblems as rp3
 test('закрытые порты: точки сдвигаются, лишние становятся нерасставленными', () => {
   const mk = (n, ps) => ({ id: `c${n}`, label: `C${n}`, typeId: 'Cam', cabinet: 'X', panel: ps.map((p) => ({ u: 5, p })) });
   const rack = { height: 42, panels: [{ u: 5 }] };
-  // порты 1..3 заняты, порт 24 тоже; закрываем 2
+  // ports 1..3 are taken, port 24 too; close 2
   const pts = [mk(1, [1]), mk(2, [2]), mk(3, [3]), mk(4, [24])];
   const r = blockPort(rack, pts, 'X', { u: 5, p: 2 });
   assert.deepEqual(r.rack.blocked, [{ u: 5, p: 2 }]);
   assert.deepEqual(r.writes.get('c2'), [{ u: 5, p: 3 }]); assert.deepEqual(r.writes.get('c3'), [{ u: 5, p: 4 }]);
   assert.ok(!r.writes.has('c1') && !r.writes.has('c4')); assert.equal(r.dropped.length, 0);
-  // панель забита целиком — последняя точка не помещается
+  // the whole panel is full — the last point does not fit
   const full = Array.from({ length: 24 }, (_, i) => mk(i + 1, [i + 1]));
   const r2 = blockPort(rack, full, 'X', { u: 5, p: 10 });
   assert.deepEqual(r2.dropped.map((x) => x.id), ['c24']); assert.deepEqual(r2.writes.get('c24'), []);
   assert.deepEqual(r2.writes.get('c10'), [{ u: 5, p: 11 }]);
-  // точка на 2 порта (5,6): закрыли 6 → переезжает на 7-8
+  // a point on 2 ports (5,6): 6 closed → it moves to 7-8
   const two = { id: 'w', label: 'W', typeId: 'AP2', cabinet: 'X', panel: [{ u: 5, p: 5 }, { u: 5, p: 6 }] };
   assert.deepEqual(blockPort(rack, [two], 'X', { u: 5, p: 6 }).writes.get('w'), [{ u: 5, p: 7 }, { u: 5, p: 8 }]);
-  // секции: тот же U в другой секции не затрагивается
+  // sections: the same U in another section is not affected
   const sx = { id: 's', label: 'S', typeId: 'Cam', cabinet: 'X', panel: [{ u: 5, p: 2, s: 'b' }] };
   assert.equal(blockPort(rack, [sx], 'X', { u: 5, p: 2 }).writes.size, 0);
   assert.deepEqual(blockPort(rack, [sx], 'X', { u: 5, p: 2, s: 'b' }).writes.get('s'), [{ u: 5, p: 3, s: 'b' }]);
-  // автораскладка и проверки учитывают крестики
+  // auto layout and checks take the crosses into account
   const ctx = { cables: new Map([['cat7', {}]]), types: new Map([['Cam', { cables: [{ cable: 'cat7', count: 1 }] }]]), configs: new Map() };
   const a = af3([{ id: 'n', label: 'N', typeId: 'Cam' }], ctx, [{ u: 5 }], new Set(), { blocked: blockedOf({ blocked: [{ u: 5, p: 1 }, { u: 5, p: 2 }] }) });
   assert.deepEqual(a.assign.get('n'), [{ u: 5, p: 3 }]);
@@ -126,16 +127,16 @@ test('закрытый порт: лишние точки уходят в сле�
   const wifi = [mk(1, 37, 1, 'AP')];
   const r = blockPort(rack, [...a, ...b, ...wifi], 'X', { u: 38, p: 10 });
   assert.equal(r.dropped.length, 0);
-  assert.deepEqual(r.writes.get('Cam24'), [{ u: 36, p: 1 }]);          // ушла в U36 (U37 — другой тип, пропущена), встала первой
+  assert.deepEqual(r.writes.get('Cam24'), [{ u: 36, p: 1 }]);          // went to U36 (U37 is another type, skipped), became first
   assert.deepEqual(r.writes.get('Cam25'), [{ u: 36, p: 2 }]); assert.deepEqual(r.writes.get('Cam26'), [{ u: 36, p: 3 }]);
   assert.deepEqual(r.writes.get('Cam10'), [{ u: 38, p: 11 }]);
   assert.ok(!r.writes.has('AP1')); assert.deepEqual(r.moved.map((x) => x.id), ['Cam24']);
-  // следующая панель тоже забита — каскад дальше, а когда панелей больше нет — не расставлены
+  // the next panel is full too — cascade onwards, and when there are no more panels — not placed
   const full36 = Array.from({ length: 24 }, (_, i) => mk(100 + i, 36, i + 1));
   const r2 = blockPort(rack, [...a, ...full36], 'X', { u: 38, p: 10 });
   assert.deepEqual(r2.dropped.map((x) => x.id), ['Cam123']); assert.deepEqual(r2.writes.get('Cam123'), []);
   assert.deepEqual(r2.writes.get('Cam24'), [{ u: 36, p: 1 }]); assert.deepEqual(r2.writes.get('Cam100'), [{ u: 36, p: 2 }]);
-  // в точку на 2 порта: переезжает целиком
+  // a point on 2 ports: moves as a whole
   const ap = (n, p) => ({ id: `W${n}`, label: `W${n}`, typeId: 'AP2', cabinet: 'X', panel: [{ u: 38, p }, { u: 38, p: p + 1 }] });
   const wp = Array.from({ length: 12 }, (_, i) => ap(i, 1 + i * 2));
   const r3 = blockPort({ ...rack, panels: [{ u: 38 }, { u: 36 }] }, [...wp, { id: 'W99', label: 'W99', typeId: 'AP2', cabinet: 'X', panel: [{ u: 36, p: 1 }, { u: 36, p: 2 }] }], 'X', { u: 38, p: 4 });
@@ -145,25 +146,25 @@ test('подпись шильюта: название шкафа добавля�
   const ctx = { cables: new Map([['cat7', {}]]), types: new Map([['T', { cables: [{ cable: 'cat7', count: 1 }] }]]), configs: new Map() };
   const mk = (label, cab = 'CCTV1', s) => ({ id: label, label, typeId: 'T', cabinet: cab, panel: [s ? { u: 1, p: 1, s } : { u: 1, p: 1 }] });
   const proj = (sh = {}, subs = null) => ({ racks: { CCTV1: { height: 42, subs, panels: [] } }, shilut: sh });
-  // есть шкаф — как записано; нет — добавляется
+  // there is a cabinet — as written; none — it is added
   assert.equal(shilutLabel(mk('CCTV1-TV01'), 0, proj(), ctx), 'CCTV1-TV01');
   assert.equal(shilutLabel(mk('TV01'), 0, proj(), ctx), 'CCTV1-TV01');
   assert.equal(shilutLabel(mk('INT DESK', '1A'), 0, { racks: {} }, ctx), '1A-INT DESK');
-  // шаблон с {шкаф} — не дублируется; шаблон без {шкаф} — шкаф добавляется
+  // a template with {cabinet} — not duplicated; a template without {cabinet} — the cabinet is added
   assert.equal(shilutLabel(mk('TV01'), 0, proj({ tpl: { T: '{шкаф}-{имя}' } }), ctx), 'CCTV1-TV01');
   assert.equal(shilutLabel(mk('1'), 0, proj({ tpl: { T: 'B{номер}' } }), ctx), 'CCTV1-B1');
-  // галка «убрать» — без шкафа, приставка не добавляется
+  // the «remove» tick — no cabinet, no prefix added
   assert.equal(shilutLabel(mk('TV01'), 0, proj({ dropCabs: { CCTV1: true } }), ctx), 'TV01');
   assert.equal(shilutLabel(mk('CCTV1-TV01'), 0, proj({ dropCabs: { CCTV1: true } }), ctx), 'TV01');
-  // своё название шкафа в настройках: подменяет и приставку у обозначений
+  // own cabinet name in the settings: it replaces the prefix of the labels too
   assert.equal(shilutLabel(mk('CCTV1-TV01'), 0, proj({ cabNames: { 'CCTV1|': 'C1' } }), ctx), 'C1-TV01');
   assert.equal(shilutLabel(mk('TV01'), 0, proj({ cabNames: { 'CCTV1|': 'C1' } }), ctx), 'C1-TV01');
-  // несколько шкафов в одном: название секции
+  // several cabinets in one: the section name
   const subs = [{ id: '', name: 'CCTV1-BMS', height: 42 }, { id: 's2', name: 'CCTV1', height: 42 }];
   assert.equal(shilutLabel(mk('B01'), 0, proj({}, subs), ctx), 'CCTV1-BMS-B01');
   assert.equal(shilutLabel(mk('TV01', 'CCTV1', 's2'), 0, proj({}, subs), ctx), 'CCTV1-TV01');
   assert.equal(shilutLabel(mk('CCTV1-TV02', 'CCTV1', 's2'), 0, proj({}, subs), ctx), 'CCTV1-TV02');
-  // ручная подпись важнее всего
+  // a manual label beats everything
   assert.equal(shilutLabel({ ...mk('TV01'), panel: [{ u: 1, p: 1, label: 'моя' }] }, 0, proj(), ctx), 'моя');
 });
 
@@ -175,8 +176,8 @@ test('{№}: только номер из любого вида обозначе
   assert.equal(L('2B/27', '2B'), '2B-B-27');
   assert.equal(L('05', 'Solar'), 'Solar-B-05');
   assert.equal(L('1A-1A/01', '1A'), '1A-B-01');
-  assert.equal(L('1-25', '1'), '1-B-25');                  // шкаф «1» не принимается за номер
-  assert.equal(L('1A-25-26', '1A', 'Бакар2'), '1A-B-25');  // пара на 2 порта — по номеру порта
+  assert.equal(L('1-25', '1'), '1-B-25');                  // cabinet «1» is not taken for a number
+  assert.equal(L('1A-25-26', '1A', 'Бакар2'), '1A-B-25');  // a pair on 2 ports — by the port number
   assert.equal(numPart('NoDigits'), 'NoDigits');
   assert.equal(numPart('A-12-13'), '12-13');
 });
@@ -185,6 +186,6 @@ test('одинаковые названия: занято только в том
   assert.equal(sameLabelClash({ label: 'A5', cabinet: '1A' }, { label: 'A5', cabinet: '1A' }), true);
   assert.equal(sameLabelClash({ label: 'A5', cabinet: '1A' }, { label: 'A5', cabinet: '2B' }), false);
   assert.equal(sameLabelClash({ label: 'A5', cabinet: '' }, { label: 'A5', cabinet: '1A' }), false);
-  assert.equal(sameLabelClash({ label: 'A5' }, { label: 'A5' }), true);       // два без шкафа — одно место
+  assert.equal(sameLabelClash({ label: 'A5' }, { label: 'A5' }), true);       // two with no cabinet — the same place
   assert.equal(sameLabelClash({ label: 'A5', cabinet: '1A' }, { label: 'A6', cabinet: '1A' }), false);
 });

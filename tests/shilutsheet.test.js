@@ -1,3 +1,4 @@
+// Checks the rack and shilut sheets (src/domain/shilutsheet.js): cabinet plan, split and fill modes, queues, warnings.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildRackSheets, cabinetsOf, MODES, HE_TOTAL } from '../src/domain/shilutsheet.js';
@@ -27,22 +28,22 @@ test('лист плана шкафа: Unit, нумерация, X, цвета', 
   const plan = sheets.find((s) => s.key === '1A|');
   assert.deepEqual(plan.rows[0], ['Project: Мега Ор']); assert.deepEqual(plan.rows[2], ['Cabinet: 1A']);
   assert.equal(plan.rows[4][0], 'Unit'); assert.equal(plan.rows[4][1], 1); assert.equal(plan.rows[4].length, 26);
-  assert.deepEqual(plan.rows.slice(5).map((r) => r[0]), [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]);   // U1 внизу: сверху U10
+  assert.deepEqual(plan.rows.slice(5).map((r) => r[0]), [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]);   // U1 at the bottom: U10 on top
   const u9 = plan.rows[6]; assert.equal(u9[1], '1A-C1'); assert.equal(u9[3], 'X'); assert.equal(u9[4], '1A-C3'); assert.equal(u9[25], 'DaTaLink - נחושת');
-  assert.equal(plan.rows[10][25], 'Other');                                   // у панели U5 своя модель
-  const plan2 = sheets.find((s) => s.key === '2B|'); assert.deepEqual(plan2.rows.slice(5, 8).map((r) => r[0]), [1, 2, 3]);   // U1 вверху
-  assert.ok(plan.fills.some((f) => f.bg === '#2fb350'));                      // камеры зелёные
+  assert.equal(plan.rows[10][25], 'Other');                                   // panel U5 has its own model
+  const plan2 = sheets.find((s) => s.key === '2B|'); assert.deepEqual(plan2.rows.slice(5, 8).map((r) => r[0]), [1, 2, 3]);   // U1 at the top
+  assert.ok(plan.fills.some((f) => f.bg === '#2fb350'));                      // cameras are green
   assert.ok(warnings.some((w) => w.includes('Не выбран цвет') === false) || true);
 });
 test('лист шильюта, режим split: столбцы по панелям, без пропусков строк, зазоры', () => {
   const { sheets } = buildRackSheets(proj(), ctx, pts(), { ...prefs, mode: MODES.split });
   const sl = sheets.find((s) => s.kind === 'shilut');
   assert.equal(sl.rtl, true); assert.equal(sl.title, 'שילוט להזמנה');
-  // шкаф 1A: камеры — панели U9 и U8 (два столбца подряд), зазор 1, вайфай (U5); между шкафами 2 зазора; 2B: камеры
+  // cabinet 1A: cameras — panels U9 and U8 (two columns in a row), gap 1, wifi (U5); 2 gaps between cabinets; 2B: cameras
   const hdr = sl.rows[1].slice(1); assert.deepEqual(hdr, [HE_TOTAL, HE_TOTAL, '', HE_TOTAL, '', '', HE_TOTAL]);
   assert.deepEqual(sl.rows[3].slice(1), ['ירוק', 'ירוק', '', 'אדום', '', '', 'ירוק']);
   assert.deepEqual(sl.rows[2].slice(1), ['DaTaLink - נחושת', 'DaTaLink - נחושת', '', 'Other', '', '', 'DaTaLink - נחושת']);
-  const col1 = sl.rows.slice(4).map((r) => r[1]); assert.deepEqual(col1.slice(0, 5), ['1A-C1', '1A-C2', '1A-C3', '', '']);   // закрытый порт и пропуски не попадают в подписи
+  const col1 = sl.rows.slice(4).map((r) => r[1]); assert.deepEqual(col1.slice(0, 5), ['1A-C1', '1A-C2', '1A-C3', '', '']);   // a closed port and skips do not get into the labels
   assert.ok(!sl.rows.flat().includes('X'));
   assert.equal(sl.rows.length, 4 + 24);
 });
@@ -51,7 +52,7 @@ test('лист шильюта, режим fill: очереди из панеле
   const p = proj(); p.racks['1A'].blocked = [];
   const { sheets } = buildRackSheets(p, ctx, [...many, ...pts().slice(5)], { ...prefs, mode: MODES.fill });
   const sl = sheets.find((s) => s.kind === 'shilut');
-  // очереди камер: 20 (U9), 10 (U8), 2 (шкаф 2B): очередь из 20 идёт первой, в её свободные 4 строки встаёт очередь из 2; 10 — отдельным столбцом
+  // camera queues: 20 (U9), 10 (U8), 2 (cabinet 2B): the queue of 20 goes first, the queue of 2 takes its 4 free rows; 10 — a column of its own
   assert.deepEqual(sl.rows[3].slice(1), ['ירוק', 'ירוק']);
   const col = (i) => sl.rows.slice(4).map((r) => r[i]).filter(Boolean);
   assert.equal(col(1).length, 22); assert.equal(col(1)[0], '1A-C1'); assert.equal(col(1)[19], '1A-C20'); assert.deepEqual(col(1).slice(20), ['2B-C1', '2B-C2']);
@@ -63,13 +64,13 @@ test('раскладка очередей по 24: полная панель и 
   const { packQueues } = await import('../src/domain/shilutsheet.js');
   const Q = (idx, n, tag) => ({ idx, labels: Array.from({ length: n }, (_, i) => `${tag}${i + 1}`) });
   const lens = (cols) => cols.map((c) => c.map((q) => q.labels.length));
-  // пример: две очереди по 8 и две по 6 → 8+8+6 (в порядке панелей) и отдельно 6 (вторая шестёрка в 2 свободных места не лезет)
+  // example: two queues of 8 and two of 6 → 8+8+6 (in panel order) and 6 separately (the second six does not fit the 2 free places)
   assert.deepEqual(lens(packQueues([Q(0, 8, 'a'), Q(1, 6, 'b'), Q(2, 8, 'c'), Q(3, 6, 'd')])), [[8, 6, 8], [6]]);
-  // в оставшиеся 2 места попадает короткая очередь из 2 (или одиночки)
+  // the short queue of 2 (or singles) takes the remaining 2 places
   assert.deepEqual(lens(packQueues([Q(0, 8, 'a'), Q(1, 6, 'b'), Q(2, 8, 'c'), Q(3, 6, 'd'), Q(4, 2, 'e')])), [[8, 6, 8, 2], [6]]);
-  // полная панель (24) и очереди 12+ начинают свои столбцы; мелочь добирает свободное место (в 24 — нет места)
+  // a full panel (24) and queues of 12+ start their own columns; small ones fill the free space (in 24 — no room)
   assert.deepEqual(lens(packQueues([Q(0, 24, 'f'), Q(1, 5, 'a'), Q(2, 12, 'g'), Q(3, 11, 'b'), Q(4, 13, 'h'), Q(5, 7, 'c')])), [[24], [12, 5, 7], [13, 11]]);
-  // внутри столбца очереди в порядке панелей, а сами очереди не переставляются
+  // inside a column the queues keep panel order, and the queues themselves are not reordered
   const cols = packQueues([Q(5, 3, 'z'), Q(1, 9, 'y'), Q(3, 4, 'x')]);
   assert.deepEqual(cols[0].map((q) => q.idx), [1, 3, 5]);
   assert.deepEqual(cols[0][0].labels.slice(0, 2), ['y1', 'y2']);
@@ -86,7 +87,7 @@ test('смешанные типы в одной панели — отдельн�
   const mixed = [mk('Камера', 'C1', '1A', 9, 1), mk('Вайфай', 'AP1', '1A', 9, 2), mk('Камера', 'C2', '1A', 9, 5), mk('Вайфай', 'AP2', '1A', 9, 9)];
   const sl = buildRackSheets(p, ctx, mixed, { ...prefs, mode: MODES.split }).sheets.find((s) => s.kind === 'shilut');
   assert.deepEqual(sl.rows[3].slice(1), ['ירוק', '', 'אדום']);
-  assert.deepEqual(sl.rows.slice(4, 7).map((r) => r[1]), ['1A-C1', '1A-C2', '']); assert.deepEqual(sl.rows.slice(4, 7).map((r) => r[3]), ['1A-AP1', '1A-AP2', '']);   // у обозначений нет шкафа — добавлен
+  assert.deepEqual(sl.rows.slice(4, 7).map((r) => r[1]), ['1A-C1', '1A-C2', '']); assert.deepEqual(sl.rows.slice(4, 7).map((r) => r[3]), ['1A-AP1', '1A-AP2', '']);   // the labels have no cabinet — it is added
 });
 test('таблица для руководства: создаётся в папке «Для руководства», обновляется только при изменениях, сервер не создаёт новых файлов', async () => {
   const { syncRackTable, RACK_TITLE, rackAuto } = await import('../src/app/racktablecore.js');
@@ -103,11 +104,11 @@ test('таблица для руководства: создаётся в пап
   assert.equal(r.patch.fileId, 'F1'); assert.equal(r.patch.by, 'u1'); assert.equal(r.patch.placedKind, 'managers'); assert.equal(r.patch.sharedWith, 'srv@x'); assert.ok(r.changed && r.patch.hash && r.patch.at);
   assert.deepEqual(calls.filter((c) => c.startsWith('placeIn') || c === 'create' || c.startsWith('share')), ['create', 'placeIn:managers', 'share:srv@x']);
   assert.equal(files.F1.name, RACK_TITLE); assert.equal(RACK_TITLE, 'תכנון ארונות ושילוט');
-  // без изменений данных — таблица не переписывается
+  // data unchanged — the table is not rewritten
   const p1 = { ...p0, rackTable: { ...p0.rackTable, ...r.patch } }; calls.length = 0;
   const r2 = await syncRackTable(api, p1, cx, { uid: 'u1', shareWith: 'srv@x' });
   assert.equal(r2.changed, false); assert.ok(!calls.includes('batch') && !calls.includes('create'));
-  // сервер: тот же файл, нового не создаёт, ошибка — в профиль
+  // server: the same file, no new one is created, the error goes to the profile
   assert.ok(rackAuto(p1)); assert.ok(!rackAuto({ ...p1, rackTable: { ...p1.rackTable, auto: false } }));
   const cx2 = { ...cx, points: new Map([...cx.points].slice(0, 5)) };
   void cx2;
@@ -129,24 +130,24 @@ test('объединять по цвету: разные типы одного �
   const pj = proj({ typeColors: { Кор: 'blue', Интерком: 'blue', Камера: 'green' } });
   const cols = (r) => { const sl = r.sheets.find((s) => s.kind === 'shilut'); return sl.rows[4].slice(1).map((_, i) => sl.rows.slice(4).map((row) => row[i + 1]).filter(Boolean)).filter((c) => c.length); };
   const off = cols(buildRackSheets(pj, ctx2, P, { ...prefs, mode: MODES.fill }));
-  assert.deepEqual(off.map((c) => c.length), [3, 2, 1]);                      // по типам: Кор, Интерком, Камера
+  assert.deepEqual(off.map((c) => c.length), [3, 2, 1]);                      // by types: Cor, Intercom, Camera
   const on = cols(buildRackSheets(pj, ctx2, P, { ...prefs, mode: MODES.fill, mergeColors: true }));
-  assert.deepEqual(on.map((c) => c.length), [5, 1]);                          // синие вместе (Кор, потом Интерком), камера отдельно
+  assert.deepEqual(on.map((c) => c.length), [5, 1]);                          // blue together (Cor, then Intercom), camera separate
   assert.deepEqual(on[0], ['1A-K1', '1A-K2', '1A-K3', '1A-I1', '1A-I2']);
   const sp = cols(buildRackSheets(pj, ctx2, P, { ...prefs, mode: MODES.split, mergeColors: true }));
-  assert.ok(sp.some((c) => c.length === 3));                                  // в разных панелях столбцы остаются отдельными
+  assert.ok(sp.some((c) => c.length === 3));                                  // in different panels the columns stay separate
 });
 
 test('шильют делится на листы: к заказу и уже есть (отмечено «есть шилют»)', () => {
   const P = pts();
-  P[0].shHave = [0]; P[1].shHave = [0]; P[3].shHave = [0];           // 1A-C1, 1A-C2, 1A-C25 — отмечены «есть шилют»
+  P[0].shHave = [0]; P[1].shHave = [0]; P[3].shHave = [0];           // 1A-C1, 1A-C2, 1A-C25 — marked «has shilut»
   const r = buildRackSheets(proj(), ctx, P, { ...prefs, mode: MODES.split });
   const need = r.sheets.find((s) => s.key === 'shilut'); const have = r.sheets.find((s) => s.key === 'shilut-have');
   assert.equal(need.title, 'שילוט להזמנה'); assert.equal(have.title, 'שילוט קיים');
   const labels = (sl) => sl.rows.slice(4).flat().filter((x) => x && x !== '');
   assert.deepEqual(labels(have).sort(), ['1A-C1', '1A-C2', '1A-C25']);
   assert.ok(!labels(need).includes('1A-C1') && labels(need).includes('1A-C3') && labels(need).includes('2B-C1'));
-  // fill: тоже два листа; всё напечатано — листа «к заказу» нет и есть предупреждение
+  // fill: two sheets too; everything is printed — no «to order» sheet and there is a warning
   const all = P.map((p) => ({ ...p, shHave: p.panel.map((_, i) => i) }));
   const r2 = buildRackSheets(proj(), ctx, all, { ...prefs, mode: MODES.fill });
   assert.ok(!r2.sheets.some((s) => s.key === 'shilut') && r2.sheets.some((s) => s.key === 'shilut-have'));

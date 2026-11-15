@@ -1,4 +1,4 @@
-// Одинаковые точки в разном виде: двойная FC/B05-06 и одинарные FC/B05 + FC/B06 — поиск и объединение с переносом работ.
+// The same points in different forms: a double FC/B05-06 and singles FC/B05 + FC/B06 — search and merge, carrying the works over.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildContext, findSameGroups, singlesOf, previewMerge, mergeOps, pullFigures, itogShtuk } from '../src/domain/index.js';
@@ -9,7 +9,7 @@ function project() {
     { id: 'b', label: 'FC/B06', typeId: 'T', cabinet: 'FC', length: 40, cableOverride: [{ cable: 'cat7', count: 1 }], port: 6, panel: 'U15' },
     { id: 'd', label: 'FC/B05-06', typeId: 'T', cabinet: 'FC' },
     { id: 'x', label: 'FC/B07', typeId: 'T', cabinet: 'FC', length: 30, cableOverride: [{ cable: 'cat7', count: 1 }] },
-    { id: 'y', label: 'FA/B05', typeId: 'T', cabinet: 'FA' },   // другой шкаф — не пара
+    { id: 'y', label: 'FA/B05', typeId: 'T', cabinet: 'FA' },   // another cabinet — not a pair
   ];
   const data = {
     points: pts, projects: [{ id: 'P' }], days: [{ id: 'D1', date: '2026-11-05' }],
@@ -17,7 +17,7 @@ function project() {
     catalog: [{ id: 'PR', name: 'Протяжка', workType: 'Протяжка' }, { id: 'HV', name: 'Хивут', workType: 'Хивут', unit: 'шт' }],
     entries: [
       { id: 'e1', dayId: 'D1', workType: 'Протяжка', workId: 'PR', cableId: 'cat7', pointIds: ['a', 'b', 'x'] },
-      { id: 'e2', dayId: 'D1', workType: 'Протяжка', workId: 'PR', cableId: 'cat7', pointIds: ['a'] },   // только одна из пары
+      { id: 'e2', dayId: 'D1', workType: 'Протяжка', workId: 'PR', cableId: 'cat7', pointIds: ['a'] },   // only one of the pair
       { id: 'e3', dayId: 'D1', workType: 'Хивут', workId: 'HV', pointIds: ['a', 'b'] },
     ],
     journal: [{ id: 'e1_a', entryId: 'e1', pointId: 'a' }, { id: 'e1_b', entryId: 'e1', pointId: 'b' }, { id: 'e2_a', entryId: 'e2', pointId: 'a' }, { id: 'edit_b_HV', entryId: null, pointId: 'b', editWorkId: 'HV', editDate: '2026-11-06' }],
@@ -36,7 +36,7 @@ test('одинаковые точки: поиск двойной и её оди�
   assert.equal(g.length, 1); assert.equal(g[0].double.id, 'd'); assert.deepEqual(g[0].singles.map((s) => s.id), ['a', 'b']);
   assert.deepEqual(singlesOf('FC/B05-06', 'FC', points).map((s) => s.id), ['a', 'b']);
   assert.equal(singlesOf('FC/B05-06', 'FA', points), null);
-  assert.equal(singlesOf('FC/B07-08', 'FC', points), null);   // FC/B08 нет
+  assert.equal(singlesOf('FC/B07-08', 'FC', points), null);   // no FC/B08
 });
 
 test('одинаковые точки: оставить двойную — работы переходят, количество в отчётах не меняется', () => {
@@ -46,7 +46,7 @@ test('одинаковые точки: оставить двойную — ра�
   const pv = previewMerge(g, 'double', data, ctx);
   const e2 = pv.entries.find((x) => x.id === 'e2'); assert.equal(e2.before, 1); assert.equal(e2.after, 2); assert.equal(e2.keepCount, true);
   assert.ok(pv.notes.some((n) => n.includes('разный метраж')));
-  assert.ok(pv.notes.some((n) => n.includes('отмечена')));   // checked — только у одной
+  assert.ok(pv.notes.some((n) => n.includes('отмечена')));   // checked — on one only
   apply(data, mergeOps(g, 'double', pv, data, ctx)); ctx = buildContext(data);
   const after = Object.fromEntries(data.entries.map((e) => [e.id, e.workType === 'Протяжка' ? JSON.stringify(pullFigures(e, ctx)) : itogShtuk(e, ctx)]));
   assert.deepEqual(after, before);
@@ -85,11 +85,11 @@ test('одинаковые точки: оставить одинарные — �
 
 test('одинаковые точки: одинарные на одной отметке подряд, двойной нет — первая становится двойной', () => {
   const data = project();
-  // убрать двойную: остались FC/B05 + FC/B06 на одной отметке
+  // remove the double: FC/B05 + FC/B06 are left on one mark
   data.points = data.points.filter((p) => p.id !== 'd');
   const pos = { sheet: 'n.pdf', page: 0, x: 100, y: 50, w: 30, h: 6 };
   data.points.find((p) => p.id === 'a').pos = pos; data.points.find((p) => p.id === 'b').pos = { ...pos };
-  data.points.find((p) => p.id === 'x').pos = { ...pos, y: 80 };   // FC/B07 — на другой отметке, не в группе
+  data.points.find((p) => p.id === 'x').pos = { ...pos, y: 80 };   // FC/B07 — on another mark, not in the group
   let ctx = buildContext(data);
   const before = Object.fromEntries(data.entries.map((e) => [e.id, e.workType === 'Протяжка' ? JSON.stringify(pullFigures(e, ctx)) : itogShtuk(e, ctx)]));
   const gs = findSameGroups([...ctx.points.values()]);
@@ -100,7 +100,7 @@ test('одинаковые точки: одинарные на одной отм
   const a = ctx.points.get('a'); assert.equal(a.label, 'FC/B05-06'); assert.deepEqual(a.cableOverride, [{ cable: 'cat7', count: 2 }]);
   assert.ok(!ctx.points.has('b'));
   const after = Object.fromEntries(data.entries.map((e) => [e.id, e.workType === 'Протяжка' ? JSON.stringify(pullFigures(e, ctx)) : itogShtuk(e, ctx)]));
-  assert.deepEqual(after, before);   // в т. ч. запись e2, где была только FC/B05 (1 кабель)
+  assert.deepEqual(after, before);   // including entry e2, which had only FC/B05 (1 cable)
 });
 
 test('кабели по номеру: одинарная точка сети — 1, двойная — 2, тройная — 3; свои значения и не сеть — не трогаются', async () => {
@@ -111,11 +111,11 @@ test('кабели по номеру: одинарная точка сети —
   const ctx = buildContext(data);
   assert.deepEqual(cablesByLabel(ctx.points.get('s'), ctx), [{ cable: 'cat7', count: 1 }]);
   assert.deepEqual(cablesByLabel(ctx.points.get('t'), ctx), [{ cable: 'cat7', count: 3 }]);
-  assert.equal(cablesByLabel(ctx.points.get('d'), ctx), null);   // FC/B05-06 — 2, как у типа
-  assert.equal(cablesByLabel(ctx.points.get('a'), ctx), null);   // своё cat7×1
-  assert.equal(cablesByLabel(ctx.points.get('dr'), ctx), null);  // дверь: 6005×3 — не по номеру
+  assert.equal(cablesByLabel(ctx.points.get('d'), ctx), null);   // FC/B05-06 — 2, as in the type
+  assert.equal(cablesByLabel(ctx.points.get('a'), ctx), null);   // its own cat7×1
+  assert.equal(cablesByLabel(ctx.points.get('dr'), ctx), null);  // door: 6005×3 — not by number
   assert.deepEqual(cablesMismatch([...ctx.points.values()], ctx).map((x) => x.p.id).sort(), ['s', 't', 'y']);
-  // разбор/импорт: новым одинарным сразу 1 кабель
+  // parse/import: new singles get 1 cable at once
   const plan = planPointsImport(ctx, { points: [{ label: 'FC/B60', typeId: 'T', cabinet: 'FC' }, { label: 'FC/B61-62', typeId: 'T', cabinet: 'FC' }] });
   const ops = pointsImportOps(plan, (() => { let i = 0; return () => `n${i++}`; })(), {});
   assert.deepEqual(ops.map((o) => o.data.cableOverride ?? null), [[{ cable: 'cat7', count: 1 }], null]);

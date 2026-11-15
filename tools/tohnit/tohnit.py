@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Parses a PDF drawing (tohnit) into a points file for the field journal (format polevoy-points-1): text extraction, grouping, rules, checks, marked-up PDF. The usage text below is Russian on purpose: it is printed by `print(__doc__)`.
 """Разбор тохнита (PDF-чертежа) в файл точек для «Полевого журнала» (формат polevoy-points-1).
 
 Идея: обозначения точек на CAD-чертежах — это текст. Код вытаскивает ВЕСЬ текст с цветом, шрифтом, размером и
@@ -26,9 +27,9 @@
 """
 import json, os, re, sys, math, collections
 
-VERSION = '2026-10-16b'  # дата версии: python3 tohnit.py version
+VERSION = '2026-10-16b'  # version date: python3 tohnit.py version
 
-# ---------------------------------------------------------------- извлечение текста
+# ---------------------------------------------------------------- text extraction
 def _color_hex(c):
     if c is None: return '000000'
     if isinstance(c, int): return '%06x' % c
@@ -57,7 +58,7 @@ def extract(path):
     if fitz:
         doc = fitz.open(path)
         for p in doc:
-            spans = []; rm = p.rotation_matrix  # координаты текста — без учёта поворота страницы; переводим в повёрнутые
+            spans = []; rm = p.rotation_matrix  # text coordinates ignore the page rotation; convert them to the rotated ones
             for b in p.get_text('dict')['blocks']:
                 for l in b.get('lines', []):
                     for s in l['spans']:
@@ -65,17 +66,17 @@ def extract(path):
                         if t:
                             r = fitz.Rect(s['bbox']) * rm; x0, y0, x1, y1 = r.x0, r.y0, r.x1, r.y1
                             spans.append(dict(t=t, x0=x0, y0=y0, x1=x1, y1=y1, color=_color_hex(s['color']), font=s['font'], size=round(s['size'], 1)))
-            fills = []  # небольшие залитые фигуры (фон значков): (x0, y0, x1, y1, цвет)
+            fills = []  # small filled shapes (icon background): (x0, y0, x1, y1, colour)
             for dr in p.get_drawings():
                 f = dr.get('fill')
                 if f is None: continue
                 r = dr['rect'] * rm
                 if 0 < r.width < 40 and 0 < r.height < 40: fills.append((r.x0, r.y0, r.x1, r.y1, _color_hex(f)))
-            annots = []  # пометки поверх чертежа (от руки, зачёркивания, штампы)
+            annots = []  # marks over the drawing (by hand, strike-throughs, stamps)
             for a in (p.annots() or []):
                 r = a.rect * rm; kind = a.type[1]; txt = (a.info.get('content') or '').strip()
                 if txt and kind in ('Square', 'FreeText', 'Circle', 'Polygon'):
-                    # AutoCAD часто кладёт текст (SHX-шрифты, подписи в рамках) в аннотации — это обычный текст чертежа
+                    # AutoCAD often puts text (SHX fonts, labels in frames) into annotations — it is ordinary drawing text
                     col = (a.colors or {}).get('stroke') or (a.colors or {}).get('fill')
                     spans.append(dict(t=txt.splitlines()[0][:60], x0=r.x0, y0=r.y0, x1=r.x1, y1=r.y1, color=_color_hex(col), font=f'аннотация {kind}', size=2 * round(min(r.width, r.height) / 2)))
                     continue
@@ -87,7 +88,7 @@ def extract(path):
     with pdfplumber.open(path) as pdf:
         for p in pdf.pages:
             words = p.extract_words(keep_blank_chars=False, use_text_flow=False, extra_attrs=['fontname', 'size', 'non_stroking_color'])
-            rot = int(p.rotation or 0) % 360; W, H = float(p.width), float(p.height)  # p.width/height — без поворота
+            rot = int(p.rotation or 0) % 360; W, H = float(p.width), float(p.height)  # p.width/height ignore the rotation
             def tr(x, y):
                 if rot == 90: return H - y, x
                 if rot == 180: return W - x, H - y
@@ -109,7 +110,7 @@ def extract(path):
     return pages, 'pdfplumber'
 
 def _join_stacked(spans, key):
-    """Подпись в две строки: «GD1/» над «D-15.2» → «GD1/D-15.2» (строка, кончающаяся на «/», — приставка к строке под ней)."""
+    """A label in two lines: «GD1/» above «D-15.2» → «GD1/D-15.2» (a line ending in «/» is a prefix of the line under it)."""
     pre = [s for s in spans if s['t'].strip().endswith('/') and len(s['t'].strip()) <= 6 and not s['font'].startswith('аннотация')]
     if not pre: return spans
     used = set(); out = []
@@ -124,42 +125,42 @@ def _join_stacked(spans, key):
     return [s for s in spans if id(s) not in used] + out
 
 def merge_spans(spans):
-    """Соседние фрагменты одной строки и одного стиля («TV» «140», «ACP» «PUP-A1») склеиваются в один (через пробел)."""
+    """Neighbouring fragments of one line and one style («TV» «140», «ACP» «PUP-A1») are glued into one (with a space)."""
     key = lambda s: (s['color'], s['font'], s['size'])
     spans = _join_stacked(spans, key)
     spans = sorted(spans, key=lambda s: (key(s), round((s['y0'] + s['y1']) / 2, 0), s['x0']))
     out = []
     for s in spans:
-        if s['font'].startswith('аннотация'):  # подпись-аннотация — всегда целый текст, с соседями не склеиваем («C» «C», «H=90» «A»)
+        if s['font'].startswith('аннотация'):  # an annotation label is always a whole text, never merged with neighbours («C» «C», «H=90» «A»)
             out.append(dict(s)); continue
         if out and not out[-1]['font'].startswith('аннотация'):
             o = out[-1]
             same = key(o) == key(s) and abs((o['y0'] + o['y1']) / 2 - (s['y0'] + s['y1']) / 2) < s['size'] * 0.3
             gap = s['x0'] - o['x1']
-            both = LABELISH.match(o['t'].split(' ')[-1]) and LABELISH.match(s['t'])  # две целые подписи («D-15.2» «D-14.2») не склеиваем
+            both = LABELISH.match(o['t'].split(' ')[-1]) and LABELISH.match(s['t'])  # two whole labels («D-15.2» «D-14.2») are not merged
             if same and not both and -0.1 * s['size'] <= gap <= 0.6 * s['size']:
                 o['t'] = o['t'] + ' ' + s['t']; o['x1'] = max(o['x1'], s['x1']); o['y0'] = min(o['y0'], s['y0']); o['y1'] = max(o['y1'], s['y1'])
                 continue
         out.append(dict(s))
     return out
 
-# ---------------------------------------------------------------- форма текста и группы
+# ---------------------------------------------------------------- text shape and groups
 def shape(t):
-    """1A-C154 → 9A-A999 (буквы→A, цифры→9, иврит→א)"""
+    """1A-C154 → 9A-A999 (letters→A, digits→9, Hebrew→א)"""
     r = re.sub(r'[0-9]', '9', t)
     r = re.sub(r'[A-Za-z]', 'A', r)
     r = re.sub(r'[\u0590-\u05FF]', 'א', r)
     r = re.sub(r'[А-Яа-яЁё]', 'Б', r)
-    return re.sub(r'(9)9+', r'\g<1>9', re.sub(r'(A)A+', r'\g<1>A', r))  # схлопываем повторы
+    return re.sub(r'(9)9+', r'\g<1>9', re.sub(r'(A)A+', r'\g<1>A', r))  # collapse repeats
 
 LABELISH = re.compile(r'^(?=.*\d)(?=.*[A-Za-z\-/])[A-Za-z0-9][A-Za-z0-9\-./_,()]{0,22}$')
 HEB = re.compile(r'[\u0590-\u05FF]')
 def heb(t):
-    """Иврит в CAD-PDF часто хранится задом наперёд: показываем и прямой, и обратный порядок."""
+    """Hebrew in a CAD PDF is often stored backwards: show both the direct and the reversed order."""
     return f'{t} (наоборот: {t[::-1]})' if HEB.search(t) else t
 
 def labelish(t):
-    """Похоже на обозначение точки: цифры + (латиница, «-» или «/»), без пробелов, коротко; не высота/размер/дата."""
+    """Looks like a point label: digits + (Latin letters, «-» or «/»), no spaces, short; not a height/size/date."""
     t = t.strip()
     if not LABELISH.match(t): return False
     if re.match(r'^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}$', t) or re.match(r'^[+-]?\d+(\.\d+)?[+-]?$', t): return False
@@ -170,9 +171,9 @@ def scan(pdf, work):
     os.makedirs(os.path.join(work, 'c'), exist_ok=True)
     pages, backend = extract(pdf)
     allspans = []
-    for pg in pages:  # подпись-аннотация, повторяющая текст страницы на том же месте, — дубль: убираем
+    for pg in pages:  # an annotation label that repeats the page text at the same place is a duplicate: drop it
         page_txt = [x for x in pg['spans'] if not x['font'].startswith('аннотация')]
-        def dup(a):  # тот же текст на том же месте и того же размера (рядом стоящая такая же буква другого значка — не дубль)
+        def dup(a):  # the same text at the same place and size (a similar letter of another icon standing nearby is not a duplicate)
             k = a['t'].replace(' ', ''); ac = ((a['x0'] + a['x1']) / 2, (a['y0'] + a['y1']) / 2); ah = max(1.0, min(a['x1'] - a['x0'], a['y1'] - a['y0']))
             for x in page_txt:
                 if x['t'].replace(' ', '') != k: continue
@@ -181,13 +182,13 @@ def scan(pdf, work):
             return False
         pg['spans'] = page_txt + [a for a in pg['spans'] if a['font'].startswith('аннотация') and not dup(a)]
     for pi, pg in enumerate(pages):
-        grid = collections.defaultdict(list)  # сетка 50pt для быстрого поиска фона
+        grid = collections.defaultdict(list)  # 50 pt grid for a fast background lookup
         for f in pg.get('fills', []):
             for gx in range(int(f[0] // 50), int(f[2] // 50) + 1):
                 for gy in range(int(f[1] // 50), int(f[3] // 50) + 1): grid[(gx, gy)].append(f)
         for s in merge_spans(pg['spans']):
             s['page'] = pi
-            if len(s['t']) <= 6:  # короткий текст внутри значка: цвет заливки под ним (отличает значки с одинаковыми цифрами)
+            if len(s['t']) <= 6:  # short text inside an icon: the fill colour under it (tells icons with the same digits apart)
                 cx, cy = (s['x0'] + s['x1']) / 2, (s['y0'] + s['y1']) / 2
                 inside = [f for f in grid.get((int(cx // 50), int(cy // 50)), []) if f[0] <= cx <= f[2] and f[1] <= cy <= f[3]]
                 if inside: s['bg'] = min(inside, key=lambda f: (f[2] - f[0]) * (f[3] - f[1]))[4]
@@ -206,7 +207,7 @@ def scan(pdf, work):
     meta = dict(pdf=os.path.abspath(pdf), backend=backend, pages=[dict(w=p['w'], h=p['h']) for p in pages],
                 annots=[dict(a, page=pi) for pi, p in enumerate(pages) for a in p.get('annots', [])])
     json.dump(dict(meta=meta, clusters=clusters, spans=allspans), open(os.path.join(work, 'scan.json'), 'w'), ensure_ascii=False)
-    # отчёт по группам: сначала те, где много «похожего на обозначения»
+    # report by groups: first those with many «label-like» texts
     lines = [f'# Группы текста: {os.path.basename(pdf)}', '', f'Страниц: {len(pages)}, фрагментов текста: {len(allspans)}, движок: {backend}', '',
              'Колонки: группа · цвет текста (и фона значка) · шрифт · размер · всего · похожих на обозначение · формы текста · примеры', '']
     for c in sorted(clusters, key=lambda c: (-c['labelish'], -c['n'])):
@@ -235,35 +236,35 @@ def scan(pdf, work):
     print('\n'.join(lines[:60]))
     print(f'\nГотово: {work}/clusters.md, overview*.png, c/<группа>.png (примеры групп с окружением)')
 
-# ---------------------------------------------------------------- картинки
+# ---------------------------------------------------------------- images
 _DL = {}
-_HIDE = []  # regex слоёв, которые не рисовать (рамки колонн, штриховки, сетка осей…)
+_HIDE = []  # regex of layers not to draw (column frames, hatching, axis grid…)
 def _hidden(name): return any(re.search(h, name or '', re.I) for h in _HIDE)
 def _open_hidden(fitz, pdf):
     doc = fitz.open(pdf)
     if _HIDE:
         try:
             for u in doc.layer_ui_configs():
-                if _hidden(u['text']): doc.set_layer_ui_config(u['number'], 2)  # 2 = выключить
+                if _hidden(u['text']): doc.set_layer_ui_config(u['number'], 2)  # 2 = off
         except Exception: pass
     return doc
 def _set_hide(meta, extra=()):
     global _HIDE
     _HIDE = list(meta.get('hide', [])) + list(extra); _DL.clear()
 def _dl_clip(fitz, p, dl, zoom, clip):
-    # список отрисовки страницы уже в повёрнутых координатах (как scan.json)
+    # the page display list already in rotated coordinates (as in scan.json)
     return dl.get_pixmap(matrix=fitz.Matrix(zoom, zoom), clip=fitz.Rect(*clip), alpha=False)
 
 def render_page(pdf, page, zoom, clip=None):
-    """Картинка страницы (или области clip = (x0, y0, x1, y1) в координатах с учётом поворота)."""
+    """A page image (or of the area clip = (x0, y0, x1, y1) in coordinates with the rotation applied)."""
     fitz = _fitz()
     from PIL import Image
     if fitz:
         key = (pdf, page)
-        if key not in _DL:  # список отрисовки страницы строится один раз — вырезки потом быстрые
+        if key not in _DL:  # the page display list is built once — crops are then fast
             doc = _open_hidden(fitz, pdf); p = doc[page]; _DL[key] = (doc, p, p.get_displaylist())
         doc, p, dl = _DL[key]
-        if clip:  # clip — в координатах повёрнутой страницы (как scan.json)
+        if clip:  # clip is in rotated-page coordinates (as in scan.json)
             pix = p.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False, clip=fitz.Rect(*clip)) if dl is None else _dl_clip(fitz, p, dl, zoom, clip)
         else:
             pix = p.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
@@ -275,7 +276,7 @@ def render_page(pdf, page, zoom, clip=None):
     with pdfplumber.open(pdf) as d:
         return d.pages[page].to_image(resolution=72 * zoom).original.convert('RGB')
 
-# Цвета типов: постоянные для стандартных, остальным — по порядку из запаса (все тёмные и насыщенные — читаются на белой подложке)
+# Type colours: fixed for the standard types, the rest in order from the reserve (all dark and saturated — readable on a white background)
 TYPE_COLORS = {'Камера': '#E0007A', 'Дверь': '#0040FF', 'Точка': '#E65C00', 'Вайфай': '#00A040', 'Галай': '#008C9E',
                'Бакар': '#7B1FA2', 'TV': '#C2185B', 'Оптика': '#00695C', 'Интерком': '#5D4BFF', 'Коре биометри': '#AD1457',
                'Лахцан птиха': '#D32F2F', 'Тревожная кнопка': '#B71C1C', 'Магнит индикация': '#2E7D32', 'Рамколь': '#6A1B9A', 'Другое': '#455A64'}
@@ -283,11 +284,11 @@ PALETTE = ['#1565C0', '#D81B60', '#00897B', '#F4511E', '#5E35B1', '#43A047', '#C
            '#00838F', '#AD1457', '#283593', '#2E7D32', '#BF360C', '#6A1B9A', '#00796B', '#E91E63', '#3949AB', '#558B2F',
            '#D84315', '#4527A0', '#0097A7', '#C2185B', '#1E88E5', '#7CB342', '#FF3D00', '#512DA8', '#009688', '#F50057']
 def natkey(l):
-    """Естественный порядок: 1D2 < 1D10 < 2D1, 9 < 10."""
+    """Natural order: 1D2 < 1D10 < 2D1, 9 < 10."""
     return [(0, int(x), '') if x.isdigit() else (1, 0, x) for x in re.findall(r'\d+|\D+', l)]
 def _hex2rgb(h): h = h.lstrip('#'); return tuple(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
 def type_colors(types, override=None):
-    """{тип: '#rrggbb'} — постоянные цвета стандартных типов + запас (30 шт.) для остальных; override из map.json (colors)."""
+    """{type: '#rrggbb'} — fixed colours of the standard types + a reserve (30) for the others; override from map.json (colors)."""
     out = {}; used = set(); override = override or {}
     for t in types:
         c = override.get(t) or TYPE_COLORS.get(t)
@@ -298,8 +299,8 @@ def type_colors(types, override=None):
     return out
 
 def place_labels(items, fs, measure):
-    """Подписи без наложений: items — [(ключ, текст, (x0,y0,x1,y1) значка)]; пробуем места вокруг значка (справа, слева,
-    сверху, снизу, по диагоналям), потом дальше. → {ключ: (рамка подписи, нужна ли выноска)}."""
+    """Labels without overlaps: items — [(key, text, (x0,y0,x1,y1) of the icon)]; try places around the icon (right, left,
+    above, below, diagonals), then further. → {key: (label frame, whether a leader is needed)}."""
     placed = []; out = {}
     boxes = [b for _, _, b in items]
     def hit(r, lst): return sum(1 for q in lst if r[0] < q[2] and r[2] > q[0] and r[1] < q[3] and r[3] > q[1])
@@ -331,7 +332,7 @@ def render_overview(pdf, work, clusters, spans):
     for pi, pg in enumerate(meta['pages']):
         z = 2400 / pg['w']; img = render_page(pdf, pi, z)
         img.save(os.path.join(work, f'overview{"" if pi == 0 else pi + 1}.png'))
-        # примеры групп: до 6 вырезок с окружением, крупно
+        # group examples: up to 6 crops with their surroundings, enlarged
         big = 3.0; bimg = None
         shown = 0
         for c in sorted(clusters, key=lambda c: (-c['labelish'], -c['short'])):
@@ -339,7 +340,7 @@ def render_overview(pdf, work, clusters, spans):
             shown += 1
             if shown > 60: break
             allc = [s for s in spans if s['c'] == c['id'] and s['page'] == pi]
-            ex = [allc[int(i * len(allc) / 6)] for i in range(min(6, len(allc)))] if allc else []  # примеры из разных мест
+            ex = [allc[int(i * len(allc) / 6)] for i in range(min(6, len(allc)))] if allc else []  # examples from different places
             if not ex: continue
             crops = []
             for s in ex:
@@ -353,21 +354,21 @@ def render_overview(pdf, work, clusters, spans):
             ImageDraw.Draw(sheet).text((6, 6), f"{c['id']}  #{c['color']}{' / фон #' + c['bg'] if c['bg'] else ''}  {c['size']}  примеры: {' | '.join(c['samples'][:5])}", fill='black', font=_font(18))
             sheet.save(os.path.join(work, 'c', f"{c['id']}{'' if pi == 0 else '_p%d' % (pi + 1)}.png"))
 
-# ---------------------------------------------------------------- сборка точек по map.json
+# ---------------------------------------------------------------- building points by map.json
 def sort_num(label):
     m = re.findall(r'\d+(?:\.\d+)?', label)
     return float(m[-1]) if m else 0
 
 def _snake(lst, start='left', strips=None):
-    """Порядок нумерации: полосы поперёк направления start→другой край; в полосе — туда-обратно (змейка)."""
+    """Numbering order: strips across the direction start→other edge; inside a strip — back and forth (snake)."""
     out = []
     for pg in sorted({x[0]['page'] for x in lst}):
         L = [x for x in lst if x[0]['page'] == pg]
-        def uv(x):  # u — вдоль направления нумерации, v — поперёк
+        def uv(x):  # u — along the numbering direction, v — across it
             cx, cy = (x[0]['x0'] + x[0]['x1']) / 2, (x[0]['y0'] + x[0]['y1']) / 2
             return {'left': (cx, cy), 'right': (-cx, cy), 'top': (cy, cx), 'bottom': (-cy, cx)}.get(start, (cx, cy))
         us = [uv(x)[0] for x in L]; lo, hi = min(us), max(us); vs = [uv(x)[1] for x in L]
-        cell = 2.5 * math.sqrt(max(1.0, (hi - lo)) * max(1.0, max(vs) - min(vs)) / len(L))  # ширина полосы ~ по плотности точек
+        cell = 2.5 * math.sqrt(max(1.0, (hi - lo)) * max(1.0, max(vs) - min(vs)) / len(L))  # strip width ~ by point density
         k = int(strips) if strips else max(1, round((hi - lo) / cell))
         w = (hi - lo) / k or 1
         band = lambda x: min(k - 1, int((uv(x)[0] - lo) / w))
@@ -375,8 +376,8 @@ def _snake(lst, start='left', strips=None):
     return out
 
 def _zones(lst, mp, r0):
-    """Деление значков на части чертежа: вручную (zones: [[x0,y0,x1,y1], …] по порядку) или автоматически —
-    группы значков, между которыми большой пустой промежуток (zone_gap pt; по умолчанию 3.5 × обычного расстояния до соседа)."""
+    """Splitting icons into drawing parts: by hand (zones: [[x0,y0,x1,y1], …] in order) or automatically —
+    groups of icons with a big empty gap between them (zone_gap pt; 3.5 × the usual distance to a neighbour by default)."""
     ctr = lambda x: ((x[0]['x0'] + x[0]['x1']) / 2, (x[0]['y0'] + x[0]['y1']) / 2)
     zones = r0.get('zones', mp.get('zones'))
     if zones == 'off' or zones is False or len(lst) < 4: return [lst]
@@ -402,7 +403,7 @@ def _zones(lst, mp, r0):
     return list(g.values())
 
 def _zoned(lst, mp, r0, start):
-    """Нумерация по частям чертежа: часть целиком, потом следующая — ближайшая к концу предыдущей (без прыжков через лист)."""
+    """Numbering by drawing parts: a whole part, then the next — the one nearest to the end of the previous (no jumps across the sheet)."""
     zs = _zones(lst, mp, r0)
     if len(zs) == 1: return _path(lst, start)
     ctr = lambda x: ((x[0]['x0'] + x[0]['x1']) / 2, (x[0]['y0'] + x[0]['y1']) / 2)
@@ -413,7 +414,7 @@ def _zoned(lst, mp, r0, start):
     opp = {'left': 'right', 'right': 'left', 'top': 'bottom', 'bottom': 'top'}
     while True:
         d = start
-        if out:  # следующая часть — с того её края, который ближе к концу предыдущей, и дальше к другому краю
+        if out:  # the next part — from the edge closer to the end of the previous one, and on towards the other edge
             last = ctr(out[-1])
             a1 = min(cur, key=lambda x: key(ctr(x))); a2 = max(cur, key=lambda x: key(ctr(x)))
             d = start if math.dist(last, ctr(a1)) <= math.dist(last, ctr(a2)) else opp.get(start, 'right')
@@ -424,8 +425,8 @@ def _zoned(lst, mp, r0, start):
     return out
 
 def _path(lst, start='left', entry=None):
-    """Порядок нумерации «цепочкой»: от крайней точки со стороны start к ближайшей следующей; шаг назад (к start) штрафуется,
-    поэтому номера идут подряд по соседям и в целом от start к другому краю. Потом цепочка распрямляется (2-opt)."""
+    """Numbering order as a «chain»: from the extreme point on the start side to the nearest next one; a step back (towards start) is penalised,
+    so the numbers run in a row over neighbours and overall from start to the other edge. Then the chain is straightened (2-opt)."""
     out = []
     for pg in sorted({x[0]['page'] for x in lst}):
         L = [x for x in lst if x[0]['page'] == pg]
@@ -434,14 +435,14 @@ def _path(lst, start='left', entry=None):
             return {'left': (cx, cy), 'right': (-cx, cy), 'top': (cy, cx), 'bottom': (-cy, cx)}.get(start, (cx, cy))
         P = [uv(x) for x in L]; n = len(P)
         cost = lambda i, j: math.dist(P[i], P[j]) + 2.0 * max(0.0, P[i][0] - P[j][0])
-        if entry is not None:  # продолжение с предыдущей части: начинаем с ближайшего к ней значка
+        if entry is not None:  # continuing from the previous part: start from the icon nearest to it
             e = uv(({'x0': entry[0], 'x1': entry[0], 'y0': entry[1], 'y1': entry[1]},))
             cur = min(range(n), key=lambda i: math.dist(P[i], e))
         else: cur = min(range(n), key=lambda i: (P[i][0], P[i][1]))
         seq = [cur]; left = set(range(n)) - {cur}
         while left:
             cur = min(left, key=lambda j: cost(seq[-1], j)); seq.append(cur); left.remove(cur)
-        if 3 < n <= 200:  # 2-opt: убрать перекрёстки цепочки (первая точка остаётся первой)
+        if 3 < n <= 200:  # 2-opt: remove the crossings of the chain (the first point stays first)
             total = lambda s: sum(cost(s[i], s[i + 1]) for i in range(len(s) - 1))
             best = total(seq); improved = True; it = 0
             while improved and it < 20:
@@ -455,7 +456,7 @@ def _path(lst, start='left', entry=None):
     return out
 
 def _load_prev(path, meta):
-    """Прошлый файл точек (ревизия чертежа): [{label, typeId, page, x, y}] — только точки с координатами."""
+    """Previous points file (drawing revision): [{label, typeId, page, x, y}] — only points with coordinates."""
     if not path: return None
     try: d = json.load(open(path))
     except Exception as e: print(f'previous не прочитан: {e}'); return []
@@ -465,13 +466,13 @@ def _load_prev(path, meta):
         ps = q.get('pos')
         if not ps: continue
         pg = ps.get('page', 0); ow = old_pages[min(pg, len(old_pages) - 1)]; nw = meta['pages'][min(pg, len(meta['pages']) - 1)]
-        kx, ky = nw['w'] / ow['w'], nw['h'] / ow['h']  # лист другого размера — пересчёт
+        kx, ky = nw['w'] / ow['w'], nw['h'] / ow['h']  # a sheet of another size — recalculate
         out.append(dict(label=q['label'], typeId=q['typeId'], page=pg, x=ps['x'] * kx, y=ps['y'] * ky, size=max(ps.get('w', 8), ps.get('h', 8))))
     return out
 
 def _keep_numbers(lst, prefix, digits, prev, log):
-    """Номера придуманных точек: если есть прошлая версия — значок на том же месте получает свой прежний номер,
-    новые значки — следующие свободные номера. Без прошлой версии — просто 1, 2, 3… по порядку."""
+    """Numbers of invented points: with a previous version, an icon in the same place keeps its old number,
+    new icons get the next free numbers. Without a previous version — just 1, 2, 3… in order."""
     if not prev: return [f"{prefix}{n:0{digits}d}" for n in range(1, len(lst) + 1)]
     rx = re.compile('^' + re.escape(prefix) + r'(\d+)(?:\.\d+)?$')
     olds = {}
@@ -523,7 +524,7 @@ def _sample_sheet(pdf, lst, path, title):
     ImageDraw.Draw(sh).text((6, 6), title, fill='black', font=_font(18)); sh.save(path)
 
 def _split_glued(s):
-    """«GD1/ D-15.2 D-14.2» → «GD1/D-15.2», «GD1/D-14.2» (часть, кончающаяся на «/», — приставка к следующим). Место — по доле символов."""
+    """«GD1/ D-15.2 D-14.2» → «GD1/D-15.2», «GD1/D-14.2» (a part ending in «/» is a prefix of the following ones). The place — by share of characters."""
     t = s['t']; toks = [(m.start(), m.group()) for m in re.finditer(r'\S+', t)]
     out = []; pre = ''
     for pos, tok in toks:
@@ -537,7 +538,7 @@ def build(work, mapfile, out):
     spans = sc['spans']; meta = sc['meta']
     _set_hide(meta, mp.get('hide_layers', [])); meta['colors'] = mp.get('colors', {})
     rules = mp.get('rules', [])
-    free = collections.defaultdict(list); taken = []  # что не взято ни одним правилом / взято (для проверки «пропущенных значков»)
+    free = collections.defaultdict(list); taken = []  # what no rule took / what was taken (for checking «missed icons»)
     renames = [(re.compile(a), b) for a, b in mp.get('rename', [])]
     cab_re = re.compile(mp['cabinet_regex']) if mp.get('cabinet_regex') else None
     used_clusters = {c for r in rules for c in (r.get('clusters') or [])}
@@ -547,8 +548,8 @@ def build(work, mapfile, out):
             if r.get('clusters') and s['c'] not in r['clusters']: continue
             if r.get('match') and not re.search(r['match'], t): continue
             if r.get('page') is not None and s['page'] != r['page']: continue
-            if r.get('area') and not (r['area'][0] <= (s['x0'] + s['x1']) / 2 <= r['area'][2] and r['area'][1] <= (s['y0'] + s['y1']) / 2 <= r['area'][3]): continue  # по центру текста
-            if r.get('style') and any(str(s.get(k, '')) != str(v) for k, v in r['style'].items()): continue  # стиль текста (цвет, размер, шрифт)
+            if r.get('area') and not (r['area'][0] <= (s['x0'] + s['x1']) / 2 <= r['area'][2] and r['area'][1] <= (s['y0'] + s['y1']) / 2 <= r['area'][3]): continue  # by the text centre
+            if r.get('style') and any(str(s.get(k, '')) != str(v) for k, v in r['style'].items()): continue  # text style (colour, size, font)
             return r
         return None
     byicon = []; split_log = []; expand_log = []
@@ -558,7 +559,7 @@ def build(work, mapfile, out):
         t = s['t'].strip()
         rule = pick(s, t)
         if rule is None and re.search(r'\s', t) and not s.get('split_from'):
-            parts = _split_glued(s)  # «GD1/ D-15.2 D-14.2» — две подписи слиплись в одну строку
+            parts = _split_glued(s)  # «GD1/ D-15.2 D-14.2» — two labels stuck together in one line
             if parts and all((lambda r: r is not None and not r.get('skip'))(pick(q, q['t'])) for q in parts):
                 split_log.append(f"«{t}» → {', '.join(q['t'] for q in parts)}"); queue[0:0] = parts; continue
         if rule is None:
@@ -576,18 +577,18 @@ def build(work, mapfile, out):
         if rule.get('by_icon'):
             byicon.append(dict(label=label, orig=t, s=s, rule=rule)); continue
         m = re.match(r'^(.*?[A-Za-z])(\d+)-(\d+)$', label) if rule.get('expand') else None
-        if m and int(m.group(2)) < int(m.group(3)) <= int(m.group(2)) + 99:  # диапазон в подписи: GD1/U01-04 → U01, U02, U03, U04
+        if m and int(m.group(2)) < int(m.group(3)) <= int(m.group(2)) + 99:  # a range in the label: GD1/U01-04 → U01, U02, U03, U04
             w = len(m.group(2)); expand_log.append(f"{label} → {int(m.group(3)) - int(m.group(2)) + 1} точек")
             for n in range(int(m.group(2)), int(m.group(3)) + 1):
                 pts.append(dict(label=f'{m.group(1)}{n:0{w}d}', orig=t, typeId=rule['type'], s=s, rule=rule, note=f'из подписи {label} на чертеже'))
             continue
         pts.append(dict(label=label, orig=t, typeId=rule['type'], s=s, rule=rule))
-    # тип подписи — по значку рядом (by_icon: {"sym:tri": "Магнит индикация", "sym:hex": "Галай"}): каждый значок достаётся одной подписи, ближайшей
+    # label type — by the icon nearby (by_icon: {"sym:tri": "<type A>", "sym:hex": "<type B>"}): each icon goes to one label, the nearest
     icon_log = []
     if byicon:
         groups = {g for b in byicon for g in b['rule']['by_icon']}
         icn = [x for x in spans if x['c'] in groups]
-        def edge(a, b):  # расстояние от центра значка до прямоугольника подписи
+        def edge(a, b):  # distance from the icon centre to the label rectangle
             cx, cy = (b['x0'] + b['x1']) / 2, (b['y0'] + b['y1']) / 2
             return math.hypot(max(a['x0'] - cx, 0, cx - a['x1']), max(a['y0'] - cy, 0, cy - a['y1']))
         pairs = []
@@ -615,7 +616,7 @@ def build(work, mapfile, out):
                 if not typ: unknown.append(b['s']); continue
                 b['typeId'] = typ
             pts.append(b)
-    # тип по тексту рядом (near_text: [{"re": "אלקטרומגנט|טנגאורטקלא", "type": "Дверь ЭМ 3 кабеля", "dist": 60}]) — например, табличка двери
+    # type by the text nearby (near_text: [{"re": "אלקטרומגנט|טנגאורטקלא", "type": "<type>", "dist": 60}]) — for example, a door plate
     nt_log = []
     for p in pts:
         nt = p['rule'].get('near_text')
@@ -625,7 +626,7 @@ def build(work, mapfile, out):
             rx = re.compile(cond['re']); dmax = float(cond.get('dist', 60))
             hits = [x for x in spans if x['page'] == s0['page'] and rx.search(x['t']) and math.hypot(max(s0['x0'] - (x['x0'] + x['x1']) / 2, 0, (x['x0'] + x['x1']) / 2 - s0['x1']), max(s0['y0'] - (x['y0'] + x['y1']) / 2, 0, (x['y0'] + x['y1']) / 2 - s0['y1'])) <= dmax]
             if hits: p['typeId'] = cond['type']; nt_log.append(f"{p['label']} → {cond['type']} (рядом «{hits[0]['t'][:30]}»)"); break
-    # значок рядом с точкой другого типа (BRFC/APA/OB у двери): обозначение = обозначение ближайшей точки + суффикс
+    # an icon near a point of another type (BRFC/APA/OB at a door): label = the label of the nearest point + suffix
     ctr = lambda s: ((s['x0'] + s['x1']) / 2, (s['y0'] + s['y1']) / 2)
     used_lab = collections.Counter()
     for s, r in nears:
@@ -644,7 +645,7 @@ def build(work, mapfile, out):
         near_log.append(f"{'⚠️ ' if amb or used_lab[base] > 1 else ''}{lab}: ближайшая {best['label']} {d1:.0f} pt" + (f", следующая {ranked[1]['label']} {d2:.0f} pt" if d2 is not None else '')
                         + (' — неоднозначно, проверить' if amb else '') + (' — к этой точке уже привязан такой же значок' if used_lab[base] > 1 else ''))
         pts.append(dict(label=lab, orig=s['t'], typeId=r['type'], s=s, rule=dict(r, cabinet=r.get('cabinet')), derived=True, near=best['label']))
-    # значок, у которого рядом уже есть подписанная точка (only_unlabeled: {type, dist}), не дублируем
+    # an icon with an already labelled point nearby (only_unlabeled: {type, dist}) is not duplicated
     for prefix in list(icons):
         keep = []
         for s0, r in icons[prefix]:
@@ -655,8 +656,8 @@ def build(work, mapfile, out):
             keep.append((s0, r))
         icons[prefix] = keep
     prev_pts = _load_prev(mp.get('previous'), meta); prev_log = []
-    # значки без номеров: каждый вид (prefix) с 1, от края start (по умолчанию слева) к другому краю; соседние номера — рядом.
-    # order: path (по умолчанию, цепочка по соседям) | snake (полосы туда-обратно) | rows (строками)
+    # icons without numbers: each kind (prefix) from 1, from the start edge (left by default) to the other edge; neighbouring numbers — side by side.
+    # order: path (default, a chain over neighbours) | snake (strips back and forth) | rows (by rows)
     for prefix, lst in icons.items():
         r0 = lst[0][1] if lst else {}
         order = r0.get('order', mp.get('order', 'path')); start = r0.get('start', mp.get('start', 'left'))
@@ -667,22 +668,22 @@ def build(work, mapfile, out):
             per = int(r.get('per_icon', 1))
             for k in range(per):
                 pts.append(dict(label=base if per == 1 else f'{base}.{k + 1}', orig=s['t'], typeId=r['type'], s=s, rule=r, invented=True))
-    # шкаф, этаж
+    # cabinet, floor
     for p in pts:
         if 'cabinet' in p['rule'] and not p.get('near') and p['rule']['cabinet'] is not None:
-            p['cabinet'] = p['rule']['cabinet']; continue  # шкаф задан правилом явно ('' — без шкафа)
+            p['cabinet'] = p['rule']['cabinet']; continue  # the cabinet is set by the rule explicitly ('' — no cabinet)
         cab = p['rule'].get('cabinet')
         if not cab and p.get('near'): cab = next((q.get('cabinet') or (cab_re.search(q['label']).group(1) if cab_re and cab_re.search(q['label']) else '') for q in pts if q['label'] == p['near']), '')
         if not cab and cab_re:
             m = cab_re.search(p['label'])
             if m: cab = m.group(1)
-        if not cab and mp.get('cabinets') and p.get('s'):  # ближайший шкаф по координатам (шкафы: [{id, x, y}])
+        if not cab and mp.get('cabinets') and p.get('s'):  # the nearest cabinet by coordinates (cabinets: [{id, x, y}])
             cab = min(mp['cabinets'], key=lambda c: math.dist((c['x'], c['y']), ctr(p['s'])))['id']
         p['cabinet'] = cab or mp.get('default_cabinet', '')
-    # исключения/добавления вручную
+    # manual exclusions/additions
     excl = set(mp.get('exclude', []))
-    pts = [p for p in pts if p['label'] not in excl and p.get('near') not in excl]  # исключённая точка забирает и привязанные к ней значки
-    # дубли: одно обозначение в разных местах — предупреждение; в одном месте (наложение слоёв) — склеиваем
+    pts = [p for p in pts if p['label'] not in excl and p.get('near') not in excl]  # an excluded point takes the icons tied to it too
+    # duplicates: one label in different places — a warning; in one place (layers overlapping) — merge
     byl = collections.defaultdict(list)
     for p in pts: byl[p['label']].append(p)
     final = []; dups = []
@@ -693,15 +694,15 @@ def build(work, mapfile, out):
                 keep.append(p)
         if len(keep) > 1: dups.append((lab, len(keep)))
         final.append(keep[0])
-        for i, p in enumerate(keep[1:], 2):  # второй и далее — с пометкой, чтобы Иван решил
+        for i, p in enumerate(keep[1:], 2):  # the second and later — marked, so that Ivan decides
             q = dict(p); q['label'] = f"{lab}#{i}"; q['dup'] = True; final.append(q)
-    for p in final:  # переименование конкретных точек (в том числе дублей «#2»): relabel {"R-C10#2": "R-C11"}
+    for p in final:  # renaming specific points (including duplicates «#2»): relabel {"R-C10#2": "R-C11"}
         if p['label'] in mp.get('relabel', {}): p['label'] = mp['relabel'][p['label']]; p.pop('dup', None)
-    for e in mp.get('add', []):  # вручную; с координатами (x, y) — нарисуется на check.png
+    for e in mp.get('add', []):  # by hand; with coordinates (x, y) — drawn on check.png
         s0 = dict(x0=e['x'] - 6, y0=e['y'] - 6, x1=e['x'] + 6, y1=e['y'] + 6, page=e.get('page', 0), t=e['label']) if 'x' in e else None
         final.append(dict(label=e['label'], typeId=e['type'], cabinet=e.get('cabinet', mp.get('default_cabinet', '')), s=s0, rule={}, note=e.get('note', 'добавлено вручную')))
     final.sort(key=lambda p: (p['cabinet'], p['typeId'], sort_num(p['label']), p['label']))
-    # проверки
+    # checks
     probs = []
     for p in final:
         b = []
@@ -710,12 +711,12 @@ def build(work, mapfile, out):
         if not re.search(r'\d', p['label']): b.append('нет цифр')
         if len(p['label']) > 30: b.append('очень длинное — предложить Ивану короткую форму')
         if b: probs.append(f"{p['label']}: {', '.join(b)}")
-    # пропуски в сериях: префикс + номер
+    # gaps in series: prefix + number
     series = collections.defaultdict(list)
     for p in final:
         m = re.match(r'^(.*?)(\d+)$', p['label'])
         if m and '.' not in p['label'][-4:]: series[(m.group(1), p['typeId'])].append(int(m.group(2)))
-    pairs = collections.defaultdict(set)  # двери вида 1A-17.1 / 1A-17.2
+    pairs = collections.defaultdict(set)  # doors like 1A-17.1 / 1A-17.2
     for p in final:
         m = re.match(r'^(.*?)(\d+)\.(\d+)$', p['label'])
         if m: series[(m.group(1), p['typeId'])].append(int(m.group(2))); pairs[(m.group(1), int(m.group(2)))].add(int(m.group(3)))
@@ -730,7 +731,7 @@ def build(work, mapfile, out):
         if len(nums) >= 4:
             miss = [n for n in range(nums[0], nums[-1] + 1) if n not in nums]
             if miss and len(miss) <= max(3, len(nums) // 3): gaps.append(f"{pre}… ({typ}): нет {', '.join(str(x) for x in miss[:12])}{' …' if len(miss) > 12 else ''}")
-    # результат
+    # result
     floor = mp.get('floor', '')
     pdata = []
     for p in final:
@@ -739,7 +740,7 @@ def build(work, mapfile, out):
         elif p.get('orig') and p['orig'].replace(' ', '') != p['label']: d['planName'] = p['orig']
         if p.get('dup'): d['note'] = (d.get('note', '') + ' повтор обозначения на чертеже — проверить').strip()
         if p.get('note'): d['note'] = p['note']
-        if p.get('s'):  # место на листе (pt PDF, с учётом поворота; начало — левый верхний угол): для плана в приложении и сравнения ревизий
+        if p.get('s'):  # place on the sheet (PDF pt, rotation applied; origin — top left): for the plan in the app and for comparing revisions
             sp = p['s']; d['pos'] = dict(page=sp['page'], x=round((sp['x0'] + sp['x1']) / 2, 1), y=round((sp['y0'] + sp['y1']) / 2, 1),
                                           w=round(sp['x1'] - sp['x0'], 1), h=round(sp['y1'] - sp['y0'], 1))
         pdata.append(d)
@@ -748,7 +749,7 @@ def build(work, mapfile, out):
     if mp.get('types'): res['types'] = mp['types']
     if mp.get('devices'): res['devices'] = mp['devices']
     json.dump(res, open(out, 'w'), ensure_ascii=False, indent=1)
-    # отчёт
+    # report
     cnt = collections.Counter((p['cabinet'] or '—', p['typeId']) for p in final)
     rep = [f"# Итог разбора: {os.path.basename(meta['pdf'])}", '', f'Точек: {len(final)}', ''] + [f'- {c} · {t}: {n}' for (c, t), n in sorted(cnt.items())]
     if skipped: rep += ['', '## Отброшено правилами'] + [f'- {k}: {v}' for k, v in skipped.items()]
@@ -761,19 +762,19 @@ def build(work, mapfile, out):
     if split_log: rep += ['', '## Слипшиеся подписи разделены'] + [f'- {x}' for x in split_log]
     if expand_log: rep += ['', '## Диапазоны развёрнуты в отдельные точки'] + [f'- {x}' for x in expand_log]
     if nt_log: rep += ['', '## Тип по тексту рядом (near_text)'] + [f'- {x}' for x in nt_log[:80]]
-    # значки/коды, которых много, но ни одно правило их не взяло — возможно, пропущен целый вид точек
+    # icons/codes that are many but no rule took — perhaps a whole kind of point is missed
     missed = []
     cl = {c['id']: c for c in sc['clusters']}
     tgrid = collections.defaultdict(list)
     for q in taken:
         for gx in range(int((q['x0'] - 3) // 40), int((q['x1'] + 3) // 40) + 1):
             for gy in range(int((q['y0'] - 3) // 40), int((q['y1'] + 3) // 40) + 1): tgrid[(q['page'], gx, gy)].append(q)
-    def covered(x):  # на этом месте уже есть взятый (или осознанно отброшенный) текст/значок — тот же значок другим способом
+    def covered(x):  # the place already has a taken (or deliberately dropped) text/icon — the same icon in another way
         cx, cy = (x['x0'] + x['x1']) / 2, (x['y0'] + x['y1']) / 2
         return any(q['x0'] - 3 <= cx <= q['x1'] + 3 and q['y0'] - 3 <= cy <= q['y1'] + 3 for q in tgrid.get((x['page'], int(cx // 40), int(cy // 40)), []))
     for c, lst in free.items():
         c0 = cl.get(c, {})
-        if not (c.startswith(('b:', 'sym:')) or c0.get('bg')): continue  # значки и буквы в цветных рамках
+        if not (c.startswith(('b:', 'sym:')) or c0.get('bg')): continue  # icons and letters in coloured frames
         lst = [x for x in lst if not covered(x)]
         if len(lst) >= 3: missed.append((c, lst))
     ign = [re.compile(x) for x in mp.get('ignore_missed', [])]
@@ -811,7 +812,7 @@ def build(work, mapfile, out):
     print(f'\nФайл точек: {out}\nПроверочная картинка: {work}/check*.png')
 
 def render_check(meta, work, final, unknown):
-    """Чертёж с разметкой: зелёная рамка — точка (подпись — обозначение и тип), красная — похоже на обозначение, но не взято."""
+    """A marked-up drawing: a green frame — a point (the label — label and type), a red one — looks like a label but not taken."""
     from PIL import ImageDraw
     for pi, pg in enumerate(meta['pages']):
         z = min(4.0, 4200 / pg['w'])
@@ -840,18 +841,18 @@ def render_check(meta, work, final, unknown):
         d.rectangle([10, y, 40, y + 24], outline=(255, 0, 0, 255), width=4); d.text((50, y), 'не взято правилами — проверить', fill=(0, 0, 0, 255), font=_font(24))
         suf = '' if pi == 0 else f'_p{pi + 1}'
         small = img.copy(); small.thumbnail((2600, 2600)); small.save(os.path.join(work, f'check{suf}.png'))
-        W, H = img.size  # 4 части крупно — для просмотра с телефона
+        W, H = img.size  # 4 parts enlarged — for viewing on a phone
         for i, (a, b) in enumerate([(0, 0), (1, 0), (0, 1), (1, 1)]):
             part = img.crop((int(a * W / 2) - (40 if a else 0), int(b * H / 2) - (40 if b else 0), int((a + 1) * W / 2), int((b + 1) * H / 2)))
             part.thumbnail((2400, 2400)); part.save(os.path.join(work, f'check{suf}_{i + 1}.png'))
 
 def _strip_layers(doc, page, hidden_xrefs):
-    """Вырезать из содержимого страницы всё, что нарисовано в скрытых слоях (/OC … BDC … EMC) — в любом просмотрщике их не будет."""
+    """Cut out of the page content everything drawn in hidden layers (/OC … BDC … EMC) — no viewer will show it."""
     res = doc.xref_get_key(page.xref, 'Resources/Properties')
     props = dict(re.findall(r'/([^\s/<>\[\]()]+)\s+(\d+)\s+0\s+R', res[1])) if res and res[1] else {}
     names = {n.encode() for n, x in props.items() if int(x) in hidden_xrefs}
     if not names: return 0
-    page.clean_contents()  # одна склеенная последовательность команд
+    page.clean_contents()  # one merged command sequence
     xref = page.get_contents()[0]; data = doc.xref_stream(xref)
     tok = re.compile(rb'\((?:\\.|[^\\)])*\)|<[0-9A-Fa-f\s]*>|/OC\s*/([^\s/<>\[\]()]+)\s*BDC|\bBDC\b|\bBMC\b|\bEMC\b')
     stack = []; cut = []; removed = 0
@@ -870,10 +871,10 @@ def _strip_layers(doc, page, hidden_xrefs):
     return removed
 
 def render_pdf(meta, final, out_pdf):
-    """Копия чертежа PDF для Ивана: мешающие слои вырезаны, рамки-аннотации AutoCAD вокруг надписей удалены;
-    у каждой точки рамка цвета типа, у придуманных номеров — подпись (без наложений, далёкая — с выноской).
-    Каждый тип — свой слой (включается/выключается в просмотрщике), оглавление «тип → номер» (нажал — показало место),
-    в конце — лист-легенда: цвет, тип, количество, номера. Векторный: читается при любом увеличении."""
+    """A PDF copy of the drawing for Ivan: disturbing layers cut out, AutoCAD annotation frames around labels removed;
+    every point has a frame in the type colour, invented numbers have a label (without overlaps, a far one — with a leader).
+    Each type is a layer of its own (switched on/off in the viewer), a table of contents «type → number» (click — it shows the place),
+    at the end — a legend sheet: colour, type, count, numbers. Vector: readable at any zoom."""
     fitz = _fitz()
     if not fitz: print('PDF с номерами: нужен PyMuPDF'); return
     doc = fitz.open(meta['pdf'])
@@ -891,15 +892,15 @@ def render_pdf(meta, final, out_pdf):
     toc = collections.defaultdict(list); removed_ann = 0
     for pi, p in enumerate(doc):
         if hidden: _strip_layers(doc, p, hidden)
-        for an in list(p.annots() or []):  # невидимые рамки AutoCAD вокруг каждой надписи (сам текст нарисован на чертеже)
+        for an in list(p.annots() or []):  # invisible AutoCAD frames around every label (the text itself is drawn on the drawing)
             if (an.info.get('title') or '').strip() == 'AutoCAD SHX Text': p.delete_annot(an); removed_ann += 1
         dm = p.derotation_matrix
         pts = [q for q in final if q.get('s') and q['s']['page'] == pi]
         if not pts: continue
         hs = sorted(max(q['s']['x1'] - q['s']['x0'], q['s']['y1'] - q['s']['y0']) for q in pts)
-        fs = max(3.5, min(14.0, hs[len(hs) // 2] * 1.0))  # размер подписи — как значок
+        fs = max(3.5, min(14.0, hs[len(hs) // 2] * 1.0))  # label size — like the icon
         lw = max(0.5, fs / 8)
-        items = []; seen = set(); sh = p.new_shape()  # всё рисуется одной вставкой (быстро на больших чертежах)
+        items = []; seen = set(); sh = p.new_shape()  # everything is drawn in one insertion (fast on large drawings)
         for q in pts:
             sp = q['s']; col = _hex2rgb(tc[q['typeId']])
             r = fitz.Rect(sp['x0'] - 1, sp['y0'] - 1, sp['x1'] + 1, sp['y1'] + 1)
@@ -912,7 +913,7 @@ def render_pdf(meta, final, out_pdf):
         pos = place_labels([(k, t, b) for k, t, b, _ in items], fs, lambda t: fitz.get_text_length(t, fontname='hebo', fontsize=fs))
         for key, lab, b, q in items:
             (x0, y0, x1, y1), far = pos[key]; col = _hex2rgb(tc[q['typeId']]); oc = layer[q['typeId']]
-            if far:  # выноска от значка к подписи
+            if far:  # leader from the icon to the label
                 cx, cy = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
                 tx, ty = min(max(cx, x0), x1), min(max(cy, y0), y1)
                 sh.draw_line(fitz.Point(cx, cy) * dm, fitz.Point(tx, ty) * dm); sh.finish(color=col, width=lw * 0.8, oc=oc)
@@ -920,11 +921,11 @@ def render_pdf(meta, final, out_pdf):
             sh.insert_text(fitz.Point(x0 + fs * 0.2, y1 - fs * 0.27) * dm, lab, fontsize=fs, fontname='hebo',
                            color=(0.85, 0, 0) if q.get('dup') else col, rotate=p.rotation, oc=oc)
         sh.commit(overlay=True)
-    # лист-легенда
+    # legend sheet
     lp_draw = doc.new_page(width=842, height=595); y = 96
     fontfile = next((f for f in ['/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', '/usr/share/fonts/dejavu/DejaVuSans.ttf', 'C:/Windows/Fonts/arial.ttf', '/Library/Fonts/Arial.ttf'] if os.path.exists(f)), None)
     fobj = fitz.Font(fontfile=fontfile) if fontfile else fitz.Font('helv')
-    def txt(page, xy, t, size, color=(0, 0, 0)):  # кириллица — через шрифт с кириллицей
+    def txt(page, xy, t, size, color=(0, 0, 0)):  # Cyrillic — through a font with Cyrillic
         if fontfile: page.insert_text(xy, t, fontsize=size, fontname='dv', fontfile=fontfile, color=color)
         else: page.insert_text(xy, t, fontsize=size, fontname='helv', color=color)
     txt(lp_draw, (40, 55), 'Легенда номеров — ' + os.path.basename(meta['pdf']), 16)
@@ -942,7 +943,7 @@ def render_pdf(meta, final, out_pdf):
             line += l + ', '
         if line: txt(lp_draw, (70, y), line.rstrip(', '), 8, (0.2, 0.2, 0.2)); y += 11
         y += 10
-    # оглавление: тип → номера (переход к месту)
+    # table of contents: type → numbers (jump to the place)
     outline = []
     for t in types:
         ent = sorted(dict(((l, pi), c) for l, pi, c in toc[t]).items(), key=lambda e: natkey(e[0][0]))
@@ -954,8 +955,8 @@ def render_pdf(meta, final, out_pdf):
     outline.append([1, 'Легенда', len(doc)])
     try:
         doc.set_toc(outline)
-        # переход к точке: /FitR — показать прямоугольник вокруг значка (в координатах PDF без поворота, начало снизу слева);
-        # так одинаково работает в любом просмотрщике и на повёрнутых листах (XYZ на повёрнутом листе уводит в угол)
+        # jump to a point: /FitR — show a rectangle around the icon (in PDF coordinates without rotation, origin bottom left);
+        # works the same in any viewer and on rotated sheets (XYZ on a rotated sheet leads to the corner)
         dests = [e for e in outline if len(e) > 3]
         for e, item in zip(dests, [x for x in doc.get_toc(simple=False) if x[0] == 2]):
             pi = e[3]['page']; pg = doc[pi]; c = fitz.Point(*e[3]['view']) * pg.derotation_matrix
@@ -968,14 +969,14 @@ def render_pdf(meta, final, out_pdf):
     print(f'PDF с номерами: {out_pdf} (слоёв убрано: {len(hidden)}, рамок надписей удалено: {removed_ann})')
 
 def crop(pdf, x0, y0, x1, y1, out, page=0):
-    """Вырезать область чертежа крупно (координаты PDF с учётом поворота, как в scan.json)."""
-    if os.path.isdir(pdf):  # crop WORK/ … — тот же чертёж, со скрытыми слоями
+    """Cut a drawing area out, enlarged (PDF coordinates with the rotation applied, as in scan.json)."""
+    if os.path.isdir(pdf):  # crop WORK/ … — the same drawing, with hidden layers
         meta = json.load(open(os.path.join(pdf, 'scan.json')))['meta']; _set_hide(meta); pdf = meta['pdf']
     x0, y0, x1, y1 = map(float, (x0, y0, x1, y1)); z = min(8.0, 2400 / max(1.0, x1 - x0, y1 - y0))
     render_page(pdf, int(page), z, clip=(x0, y0, x1, y1)).save(out); print(out)
 
 def _plen(items, rm):
-    """Длина контура пути (не меняется при повороте значка)."""
+    """Length of a path outline (does not change when the icon is rotated)."""
     L = 0.0
     for it in items:
         k = it[0]
@@ -988,7 +989,7 @@ def _plen(items, rm):
     return L
 
 def _pts(items, rm, step=0.3):
-    """Точки вдоль контуров пути (pt листа, с поворотом), шаг ~step."""
+    """Points along path outlines (sheet pt, rotated), step ~step."""
     out = []
     def seg(a, b):
         n = max(1, int(math.dist(a, b) / step))
@@ -1010,8 +1011,8 @@ def _pts(items, rm, step=0.3):
 def fitz_point(x, y): return (x, y)
 
 def _shape_sig(pts, step=0.3):
-    """Подпись формы, не зависящая от поворота и от того, как CAD разбил/продублировал линии:
-    длина (по уникальным клеткам сетки), радиус инерции, вытянутость."""
+    """A shape signature independent of the rotation and of how CAD split/duplicated the lines:
+    length (by unique grid cells), radius of gyration, elongation."""
     cells = {(round(x / step), round(y / step)) for x, y in pts}
     if len(cells) < 3: return None
     xs = [c[0] * step for c in cells]; ys = [c[1] * step for c in cells]; n = len(cells)
@@ -1022,11 +1023,11 @@ def _shape_sig(pts, step=0.3):
     return dict(L=n * step, rg=math.sqrt(tr), el=(l2 / l1) if l1 > 0 else 1.0, cx=mx, cy=my)
 
 def symbols(work, name, x0, y0, x1, y1, page=0, tol=0.15, color=None):
-    """Найти на листе все такие же векторные значки, как в области (x0..y1) — образец (значок из легенды или на плане).
-    Значок = соседние линии одного (главного) цвета; сравнение — по форме (длина контуров, радиус, вытянутость),
-    не зависит от поворота значка и от того, как CAD разбил линии на куски. Чужие цвета (стена, дверь, выноски) не мешают.
-    color — главный цвет вручную (hex, напр. 0000ff), если образец взялся не тот (скрипт печатает цвета в области).
-    Найденные добавляются в scan.json как текст «name» в группе «sym:name» — для правил icon/near/by_icon. Повторный запуск с тем же именем заменяет найденное."""
+    """Find on the sheet all vector icons like the one in the area (x0..y1) — the sample (an icon from the legend or on the plan).
+    An icon = neighbouring lines of one (main) colour; compared by shape (outline length, radius, elongation),
+    independent of the icon rotation and of how CAD split the lines into pieces. Foreign colours (wall, door, leaders) do not interfere.
+    color — the main colour by hand (hex, e.g. 0000ff), if the sample took the wrong one (the script prints the colours in the area).
+    Found ones are added to scan.json as the text «name» in the group «sym:name» — for the rules icon/near/by_icon. A repeat run with the same name replaces what was found."""
     fitz = _fitz()
     if not fitz: print('Нужен PyMuPDF (pip install pymupdf)'); return
     sc = json.load(open(os.path.join(work, 'scan.json'))); pdf = sc['meta']['pdf']; page = int(page)
@@ -1037,7 +1038,7 @@ def symbols(work, name, x0, y0, x1, y1, page=0, tol=0.15, color=None):
     if not inside: print('В области нет векторных элементов — увеличь область (координаты как в scan.json / crop)'); return
     cols = collections.Counter()
     cx0, cy0 = (x0 + x1) / 2, (y0 + y1) / 2
-    for hx, r, it in inside:  # главный цвет: больше всего контура ближе к центру области
+    for hx, r, it in inside:  # main colour: the most outline closer to the centre of the area
         w = 1.0 if abs((r.x0 + r.x1) / 2 - cx0) <= (x1 - x0) * 0.35 and abs((r.y0 + r.y1) / 2 - cy0) <= (y1 - y0) * 0.35 else 0.3
         cols[hx] += w * max(0.5, _plen(it, rm))
     main = (color or '').lower().lstrip('#') or cols.most_common(1)[0][0]
@@ -1054,7 +1055,7 @@ def symbols(work, name, x0, y0, x1, y1, page=0, tol=0.15, color=None):
     print('Образец для каталога (symbols): ' + json.dumps(dict(name=name, **tsig, tol=tol), ensure_ascii=False))
 
 def _page_paths(fitz, p, size):
-    """Мелкие видимые пути страницы: (цвет, рамка, items)."""
+    """Small visible paths of the page: (colour, frame, items)."""
     out = []; rm = p.rotation_matrix
     for d in p.get_drawings():
         if _hidden(d.get('layer')): continue
@@ -1066,7 +1067,7 @@ def _page_paths(fitz, p, size):
     return out
 
 def _find_sig(paths, rm, tsig, tol=0.15):
-    """Все значки с формой tsig {color, L, rg, el, size}: соседние пути цвета color склеиваются, сравнение формы."""
+    """All icons with the shape tsig {color, L, rg, el, size}: neighbouring paths of colour color are glued, the shape is compared."""
     L = [q for q in paths if q[0] == tsig['color']]; size = tsig['size']
     par = list(range(len(L)))
     def f(i):
@@ -1103,7 +1104,7 @@ def _save_sym(work, sc, name, page, tsig, found, write=True):
         except Exception: pass
 
 def layer_stats(pdf):
-    """[(слой, число линий/фигур, главный цвет)] — по убыванию."""
+    """[(layer, number of lines/shapes, main colour)] — in descending order."""
     fitz = _fitz()
     if not fitz: return []
     try:
@@ -1121,7 +1122,7 @@ CLUTTER_STRONG = r'KOTERET|HATCH|GRID|AXIS|COLUMN|ZIRIM'
 CLUTTER_MAYBE = r'DIM|LEV|FURN|SANIT|MAAKE|TEXT_BEAM|STAIRS|MADREGOT|TRIBUNE|WINDOW'
 SYSTEM_LAYERS = r'CCTV|CTV|CAM|ACC|ACS|COMM|TEL|DATA|ALR|ALARM|INT|SEC|BITACHON|LOW|WIFI|AP\b|FIBER|TV'
 def clutter_layers(lay):
-    """Слои-мусор: серые (архитектура «в подложке»), штриховки, рамки колонн, сетка осей. Слои систем не предлагаются."""
+    """Junk layers: grey (architecture «in the underlay»), hatching, column frames, axis grid. System layers are not proposed."""
     strong, maybe = [], []
     for n, c, col in lay:
         if not c or re.search(SYSTEM_LAYERS, n, re.I): continue
@@ -1136,9 +1137,9 @@ def layers(work):
     for n, c, col in layer_stats(sc['meta']['pdf']): print(f"{'СКРЫТ  ' if _hidden(n) else ''}{n}\t{c}\t{col}")
 
 def hide(work, regs):
-    """Скрыть слои на всех картинках (overview, c/, crop, check). Повторный вызов заменяет список; без regex — показать все."""
+    """Hide layers on all images (overview, c/, crop, check). A repeat call replaces the list; without a regex — show all."""
     path = os.path.join(work, 'scan.json'); sc = json.load(open(path))
-    if 'auto' in regs:  # предложенные scan слои-мусор (точные имена)
+    if 'auto' in regs:  # layers that scan proposed as junk (exact names)
         regs = [r for r in regs if r != 'auto'] + ['^' + re.escape(n) + '$' for n in sc['meta'].get('suggest_hide', [])]
     sc['meta']['hide'] = regs; json.dump(sc, open(path, 'w'), ensure_ascii=False); _set_hide(sc['meta'])
     off = [n for n, c, col in layer_stats(sc['meta']['pdf']) if _hidden(n)]
@@ -1146,9 +1147,9 @@ def hide(work, regs):
     render_overview(sc['meta']['pdf'], work, sc['clusters'], sc['spans']); print(f'Перерисовано: {work}/overview.png и c/*.png')
 
 def blobs(work, gap=1.5):
-    """Найти все цветные значки (не чёрные и не серые): соседние линии одного цвета склеиваются в значок,
-    значки раскладываются по видам (цвет + число линий + длина контура — от поворота не зависит).
-    Каждый вид — группа b:kNN в scan.json (для правил icon), картинки b/kNN.png и b/_all.png, список b/blobs.md."""
+    """Find all coloured icons (not black and not grey): neighbouring lines of one colour are glued into an icon,
+    icons are sorted into kinds (colour + number of lines + outline length — independent of rotation).
+    Each kind is a group b:kNN in scan.json (for the icon rules), images b/kNN.png and b/_all.png, a list b/blobs.md."""
     fitz = _fitz()
     if not fitz: print('Нужен PyMuPDF (pip install pymupdf)'); return
     sc = json.load(open(os.path.join(work, 'scan.json'))); meta = sc['meta']; pdf = meta['pdf']; _set_hide(meta)
@@ -1161,7 +1162,7 @@ def blobs(work, gap=1.5):
             c = d.get('color') if d.get('color') is not None else d.get('fill')
             if c is None: continue
             hx = _color_hex(c); rgb = [int(hx[i:i + 2], 16) for i in (0, 2, 4)]
-            if max(rgb) - min(rgb) < 30: continue  # чёрный/серый — архитектура
+            if max(rgb) - min(rgb) < 30: continue  # black/grey — architecture
             r = d['rect'] * rm
             if r.width > 60 or r.height > 60: continue
             items[hx].append((r.x0, r.y0, r.x1, r.y1, _plen(d['items'], rm)))
@@ -1183,8 +1184,8 @@ def blobs(work, gap=1.5):
                 x0, y0 = min(q[0] for q in c), min(q[1] for q in c); x1, y1 = max(q[2] for q in c), max(q[3] for q in c)
                 if max(x1 - x0, y1 - y0) > 70: continue
                 found.append(dict(page=pi, color=hx, n=len(c), plen=sum(q[4] for q in c), x0=x0, y0=y0, x1=x1, y1=y1))
-    # текст внутри значка (буква/цифра в рамке): значки с текстом делятся на виды по цвету + тексту + размеру,
-    # без текста — по цвету + числу частей + длине контура (±8%; от поворота не зависит)
+    # text inside an icon (a letter/digit in a frame): icons with text are split into kinds by colour + text + size,
+    # without text — by colour + number of parts + outline length (±8%; independent of rotation)
     txt = [s for s in sc['spans'] if not str(s.get('c', '')).startswith(('b:', 'sym:')) and len(s['t']) <= 4]
     for b in found:
         t = [s['t'] for s in txt if s['page'] == b['page'] and b['x0'] - 2 <= (s['x0'] + s['x1']) / 2 <= b['x1'] + 2 and b['y0'] - 2 <= (s['y0'] + s['y1']) / 2 <= b['y1'] + 2]
@@ -1195,7 +1196,7 @@ def blobs(work, gap=1.5):
         else: k = next((k for k in kinds if not k['inner'] and k['color'] == b['color'] and k['n'] == b['n'] and abs(k['plen'] - b['plen']) <= 0.08 * k['plen'] + 0.5), None)
         if not k: k = dict(color=b['color'], n=b['n'], plen=b['plen'], inner=b['inner'], sz=b['sz'], items=[]); kinds.append(k)
         k['items'].append(b)
-    kinds = [k for k in kinds if k['plen'] >= 6 and (k['inner'] or k['sz'] >= 4)]  # точки/обрывки линий — не значки
+    kinds = [k for k in kinds if k['plen'] >= 6 and (k['inner'] or k['sz'] >= 4)]  # dots/line stubs are not icons
     kinds.sort(key=lambda k: (-len(k['items']), k['color']))
     sc['spans'] = [q for q in sc['spans'] if not str(q.get('c', '')).startswith('b:')]
     sc['clusters'] = [c for c in sc['clusters'] if not c['id'].startswith('b:')]
@@ -1225,7 +1226,7 @@ def blobs(work, gap=1.5):
         for cr in crops: sheet.paste(cr, (x, 36)); x += cr.width + 10
         ImageDraw.Draw(sheet).text((6, 6), f"{kid[2:]}  #{k['color']}  {len(k['items'])} шт." + (f'  внутри: {it}' if it else ''), fill='black', font=_font(18))
         sheet.save(os.path.join(work, 'b', f'{kid[2:]}.png')); allimg.append((kid[2:], crops[0], len(k['items'])))
-    # одна картинка: по одному примеру каждого вида — удобно сверять с легендой
+    # one image: one example of each kind — convenient to check against the legend
     if allimg:
         cols = 6; cw, ch = 220, 250; rows = (len(allimg) + cols - 1) // cols
         sheet = Image.new('RGB', (cols * cw, rows * ch), 'white'); dr = ImageDraw.Draw(sheet)
@@ -1238,7 +1239,7 @@ def blobs(work, gap=1.5):
     print('\n'.join(lines)); print(f'\nКартинки: {work}/b/_all.png (по одному каждого вида), {work}/b/kNN.png')
 
 def find(work, what, group=None):
-    """Найти текст (regex) или показать всю группу: текст, группа, координаты (для crop/area/add)."""
+    """Find text (regex) or show a whole group: text, group, coordinates (for crop/area/add)."""
     sc = json.load(open(os.path.join(work, 'scan.json')))
     rows = [q for q in sc['spans'] if (q.get('c') == group if group else re.search(what, q['t'], re.I) or re.search(what, q['t'][::-1], re.I))]
     for q in sorted(rows, key=lambda q: (q['page'], q['y0'], q['x0'])):
@@ -1246,7 +1247,7 @@ def find(work, what, group=None):
     print(f'— {len(rows)} шт.')
 
 def tiles(pdf, work, n=3):
-    """Чертёж без текстового слоя (скан, фото): крупные части n×n с перекрытием 10% — для чтения глазами."""
+    """A drawing without a text layer (scan, photo): large n×n parts with 10% overlap — for reading by eye."""
     os.makedirs(work, exist_ok=True)
     pages, _ = extract(pdf)
     for pi, pg in enumerate(pages):
@@ -1257,10 +1258,10 @@ def tiles(pdf, work, n=3):
                 part = img.crop(box); part.thumbnail((2400, 2400)); part.save(os.path.join(work, f'tile_p{pi + 1}_r{i + 1}c{j + 1}.png'))
     print(f'Части чертежа: {work}/tile_*.png (ряд r, столбец c; перекрытие 10%)')
 
-# ---------------------------------------------------------------- автономный режим (без ИИ): каталог подписей + вопросы человеку
+# ---------------------------------------------------------------- standalone mode (no AI): label catalogue + questions to a person
 def generalize(samples):
-    """Шаблон (regex) по примерам подписей одной группы. Приставка шкафа до «/» (GA1/, GC/) → [A-Za-z]+\\d*/;
-    буквы после неё — как есть (C, D, In…; разные — через «|»), цифры → \\d+.  GA1/C-57, GC/C-15 → ^[A-Za-z]+\\d*/C-\\d+$"""
+    """A template (regex) from examples of the labels of one group. A cabinet prefix before «/» (GA1/, GC/) → [A-Za-z]+\\d*/;
+    letters after it — as is (C, D, In…; different ones — via «|»), digits → \\d+.  GA1/C-57, GC/C-15 → ^[A-Za-z]+\\d*/C-\\d+$"""
     items = [x.replace(' ', '') for x in samples if x and x.strip()]
     if not items: return None
     from collections import Counter, defaultdict
@@ -1292,9 +1293,9 @@ def load_catalog(path):
     return cat
 
 def auto(pdf, work, catpath, out, floor='', answers_path=None, project=None):
-    """Разбор без ИИ: скан → мусорные слои → значки из каталога → правила из каталога (+ ответы человека) → сборка.
-    Группы, которые каталог не знает, попадают в WORK/questions.json (с примерами и картинками) — на них отвечает человек
-    (answers.json: {"c05": "Камера", "c07": "skip"}), ответы можно сохранить в каталог (WORK/learned.json)."""
+    """Parsing without AI: scan → junk layers → icons from the catalogue → rules from the catalogue (+ the person's answers) → assembly.
+    Groups the catalogue does not know go to WORK/questions.json (with examples and images) — a person answers them
+    (answers.json: {"c05": "<type>", "c07": "skip"}), the answers can be saved into the catalogue (WORK/learned.json)."""
     if not os.path.exists(os.path.join(work, 'scan.json')):
         import io, contextlib
         with contextlib.redirect_stdout(io.StringIO()): scan(pdf, work)
@@ -1305,14 +1306,14 @@ def auto(pdf, work, catpath, out, floor='', answers_path=None, project=None):
     _set_hide(sc['meta'])
     cat = load_catalog(catpath)
     scope = lambda e: not e.get('project') or (project and e['project'].lower() == project.lower())
-    # масштаб чертежа: размеры значков и расстояния в каталоге заданы для подписей высотой text_ref pt (по умолчанию 7.8);
-    # на этом листе — медиана высоты подписей, которые узнал каталог
+    # drawing scale: icon sizes and distances in the catalogue are set for labels of text_ref pt height (7.8 by default);
+    # on this sheet — the median height of labels the catalogue recognised
     lab_rx = [re.compile(e['re']) for e in cat['labels'] if scope(e) and '/' in e['re']] or [re.compile(e['re']) for e in cat['labels'] if scope(e)]
     hs = sorted(min(x['x1'] - x['x0'], x['y1'] - x['y0']) for x in sc['spans'] if not x.get('c', '').startswith(('b:', 'sym:')) and any(r.search(x['t'].strip()) for r in lab_rx))
     k = (hs[len(hs) // 2] / float(cat.get('text_ref', 7.8))) if len(hs) >= 5 else 1.0
     if not 0.2 <= k <= 8: k = 1.0
     sc_sym = lambda sym: dict(sym, L=sym['L'] * k, rg=sym['rg'] * k, size=sym['size'] * k)
-    # значки из каталога (по форме) — для by_icon / icon
+    # icons from the catalogue (by shape) — for by_icon / icon
     fitz = _fitz()
     if fitz and cat['symbols']:
         doc = fitz.open(sc['meta']['pdf'])
@@ -1324,7 +1325,7 @@ def auto(pdf, work, catpath, out, floor='', answers_path=None, project=None):
         json.dump(sc, open(os.path.join(work, 'scan.json'), 'w'), ensure_ascii=False)
     answers = json.load(open(answers_path)) if answers_path and os.path.exists(answers_path) else {}
     rules = []
-    for cid, ans in answers.items():  # ответы человека по группам этого чертежа — главнее каталога
+    for cid, ans in answers.items():  # the person's answers for this drawing's groups — they outrank the catalogue
         a = ans if isinstance(ans, dict) else ({'skip': True, 'why': 'ответ: не точки'} if ans in ('skip', 'нет', '-') else {'type': ans})
         rules.append(dict(a, clusters=[cid]))
     for e in [x for x in cat['skip'] if scope(x)]:
@@ -1341,7 +1342,7 @@ def auto(pdf, work, catpath, out, floor='', answers_path=None, project=None):
     mapfile = os.path.join(work, 'auto_map.json'); json.dump(mp, open(mapfile, 'w'), ensure_ascii=False, indent=1)
     import io, contextlib
     with contextlib.redirect_stdout(io.StringIO()): build(work, mapfile, out)
-    # вопросы: группы, где много «похожего на обозначения», но ни одно правило не взяло большинство
+    # questions: groups with many «label-like» texts where no rule took most of them
     sc = json.load(open(os.path.join(work, 'scan.json')))
     compiled = [(re.compile(r['match']) if r.get('match') else None, r) for r in rules if not r.get('clusters')]
     bycl = collections.defaultdict(list)
@@ -1360,7 +1361,7 @@ def auto(pdf, work, catpath, out, floor='', answers_path=None, project=None):
                        style=dict(color=c['color'], size=c['size'])))
     qs.sort(key=lambda q: -q['n'])
     json.dump(qs, open(os.path.join(work, 'questions.json'), 'w'), ensure_ascii=False, indent=1)
-    # что выучить: ответы → записи каталога (шаблон по примерам группы)
+    # what to learn: answers → catalogue entries (a template from the group's examples)
     learned = []
     for cid, ans in answers.items():
         lst = [s['t'] for s in bycl.get(cid, []) if labelish(s['t'])]
@@ -1378,7 +1379,7 @@ def auto(pdf, work, catpath, out, floor='', answers_path=None, project=None):
     print(f'Отчёт: {work}/report.md · вопросы: {work}/questions.json · выучить: {work}/learned.json')
 
 def learn(catpath, learned_path):
-    """Добавить выученное (WORK/learned.json после ответов) в каталог."""
+    """Add what was learned (WORK/learned.json after the answers) to the catalogue."""
     cat = load_catalog(catpath); add = json.load(open(learned_path)); n = 0
     for e in add:
         kind = e.pop('kind', 'labels')
@@ -1387,8 +1388,8 @@ def learn(catpath, learned_path):
     json.dump(cat, open(catpath, 'w'), ensure_ascii=False, indent=1); print(f'В каталог добавлено правил: {n}')
 
 def evaluate(out, truth_path, pos_tol=25.0):
-    """Сравнить результат с эталоном. Эталон: файл точек (с pos) или {"counts": {"тип": N}}.
-    Сопоставление: обозначение + тип; если есть координаты — ещё и место (±pos_tol pt)."""
+    """Compare the result with the reference. The reference: a points file (with pos) or {"counts": {"type": N}}.
+    Matching: label + type; with coordinates — also the place (±pos_tol pt)."""
     res = json.load(open(out)); tr = json.load(open(truth_path))
     got = res['points']
     if 'counts' in tr:
@@ -1422,7 +1423,7 @@ def evaluate(out, truth_path, pos_tol=25.0):
     return len(match) / max(1, n)
 
 def merge(out, files):
-    """Несколько файлов точек (по этажам) → один. Повторы обозначений сообщаются."""
+    """Several points files (by floors) → one. Repeated labels are reported."""
     allp = []; seen = {}; dup = []; types = {}; devices = {}
     for f in files:
         d = json.load(open(f))
@@ -1439,7 +1440,7 @@ def merge(out, files):
 
 if __name__ == '__main__':
     try:
-        import signal; signal.signal(signal.SIGPIPE, signal.SIG_DFL)  # «… | head» без BrokenPipe
+        import signal; signal.signal(signal.SIGPIPE, signal.SIG_DFL)  # «… | head» without BrokenPipe
     except Exception: pass
     if len(sys.argv) >= 2 and sys.argv[1] == 'version': print(VERSION)
     elif len(sys.argv) >= 4 and sys.argv[1] == 'scan': scan(sys.argv[2], sys.argv[3])

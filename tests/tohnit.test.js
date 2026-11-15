@@ -1,3 +1,4 @@
+// Checks the drawing parser engine (src/tohnit/engine.js): label templates, merging, rules, questions, learning.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { generalize, mergeSpans, buildPoints, autoParse, learnInto, labelish } from '../src/tohnit/engine.js';
@@ -81,7 +82,7 @@ test('тохнит: конструктор шаблона по частям по
   assert.equal(re, '^C\\d+\\/\\d{2}$'); assert.equal(cab, '');
   const rx = new RegExp(re); assert.ok(rx.test('C3/77')); assert.ok(!rx.test('C2/123')); assert.ok(!rx.test('D2/04'));
   assert.equal(describeParts(sg.segs, ['const', 'any', 'const', 'num']), 'C (любое) / №(2 цифры)');
-  const g = segment(['GA1/C-57', 'GB/C-1']); assert.ok(g.ok);  // у GB нет цифры — часть необязательная
+  const g = segment(['GA1/C-57', 'GB/C-1']); assert.ok(g.ok);  // GB has no digit — the part is optional
   const gb = buildPattern(g.segs, ['cab', 'cab', 'const', 'const', 'const', 'numAny']);
   assert.equal('GB/C-1'.match(new RegExp(gb.cab))[1], 'GB'); assert.equal('GA1/C-57'.match(new RegExp(gb.cab))[1], 'GA1');
   assert.equal(segment(['C2/04', 'TV140']).ok, false);
@@ -90,7 +91,7 @@ test('тохнит: конструктор шаблона по частям по
   const { buildPoints } = await import('../src/tohnit/engine.js');
   const sp = { t: 'C2/04', x0: 0, y0: 0, x1: 20, y1: 8, page: 0, c: 'c1' };
   const { points } = buildPoints([sp], [{ match: re, type: 'Камера', cab }], { cabinetRegex: '^([A-Za-z]+\\d*)/' });
-  assert.equal(points[0].cabinet, '');  // «C2» — не шкаф
+  assert.equal(points[0].cabinet, '');  // «C2» is not a cabinet
 });
 
 test('тохнит: ответ с кабелями (RJ45 X2 → Точка, 2 кабеля) — у точек и в выученном правиле', () => {
@@ -108,7 +109,7 @@ test('тохнит: значки без номеров — такие же по 
   const sp = (t, x, y, bg = 'ff0000') => ({ t, x0: x, y0: y, x1: x + 6, y1: y + 8, color: '', font: 'аннотация Square', size: 8, bg, page: 0 });
   const spans = [sp('A', 0, 0), sp('A', 100, 0), sp('A', 10, 50), sp('A', 500, 500, ''), sp('B', 20, 20)];
   const r = pickSimilar(spans, [{ paths: [] }], 0, 3, 4);
-  assert.equal(r.kind, 'text'); assert.equal(r.items.length, 3);  // «A» без фона — другой вид
+  assert.equal(r.kind, 'text'); assert.equal(r.items.length, 3);  // «A» without a background — another kind
   const o = chainOrder(r.items);
   assert.deepEqual(o.map((i) => [i.x, i.y]), [[3, 4], [13, 54], [103, 4]]);
   assert.deepEqual(numberLabels('W', 3), ['W01', 'W02', 'W03']);
@@ -122,9 +123,9 @@ test('тохнит: PDF с номерами — пометки у точек и 
   const { numberedPdf } = await import('../src/tohnit/numbered.js');
   const out = numberedPdf(mupdf, data, [{ label: 'W01', typeId: 'Вайфай', pos: { page: 0, x: 50, y: 50, w: 10, h: 10 } }, { label: 'C01', typeId: 'Камера', pos: { page: 0, x: 100, y: 80, w: 10, h: 10 } }]);
   const doc = mupdf.Document.openDocument(out, 'application/pdf').asPDF();
-  assert.equal(doc.countPages(), 2); assert.equal(doc.loadPage(0).getAnnotations().length, 6);  // у каждой: кружок + рамка подписи + текст
+  assert.equal(doc.countPages(), 2); assert.equal(doc.loadPage(0).getAnnotations().length, 6);  // each one: circle + label frame + text
   assert.ok(doc.loadPage(1).getAnnotations().some((a) => /Камера: 1/.test(a.getContents())));
-  // точка на надписи чертежа: только рамка вокруг надписи; две точки на одной отметке — одна подпись «TV13-14»
+  // a point on a drawing label: only the frame around the label; two points on one mark — one label «TV13-14»
   const out2 = numberedPdf(mupdf, data, [{ label: 'A1', typeId: 'T', pos: { page: 0, x: 50, y: 50, w: 30, h: 8 } }, { label: 'TV13', typeId: 'TV', pos: { page: 0, x: 200, y: 150, w: 10, h: 10 } }, { label: 'TV14', typeId: 'TV', pos: { page: 0, x: 200, y: 150, w: 10, h: 10 } }]);
   const an = mupdf.Document.openDocument(out2, 'application/pdf').asPDF().loadPage(0).getAnnotations();
   assert.equal(an.length, 4); assert.ok(an.some((a) => a.getType() === 'FreeText' && a.getContents() === 'TV13-14'));
@@ -133,7 +134,7 @@ test('тохнит: PDF с номерами — пометки у точек и 
 test('тохнит: нумерация по областям — сначала одна кучка строками, потом следующая', async () => {
   const { regionOrder } = await import('../src/tohnit/icons.js');
   const it = (x, y) => ({ page: 0, x, y });
-  // левая кучка 2×2 и правая кучка 2×2 далеко
+  // left cluster 2×2 and right cluster 2×2 far apart
   const items = [it(510, 10), it(10, 30), it(30, 10), it(530, 30), it(10, 10), it(30, 30), it(510, 30), it(530, 10)];
   assert.deepEqual(regionOrder(items).map((i) => `${i.x},${i.y}`), ['10,10', '30,10', '10,30', '30,30', '510,10', '530,10', '510,30', '530,30']);
 });
@@ -143,7 +144,7 @@ test('тохнит: подписи разного вида (Z7, M24, 30x20(h)) �
   const pages = [{ w: 1000, h: 1000, fills: [], annots: [], paths: [], layers: {}, spans: ['Z7', 'M24', '30x20(h)', 'Z8', 'Z9'].map((t, i) => span(t, i * 100)) }];
   const cat = { labels: [], skip: [], symbols: [] };
   const q = autoParse({ pages }, cat, {}).questions[0];
-  if (!q) return;  // группа не похожа на обозначения — вопроса нет, запоминать нечего
+  if (!q) return;  // the group does not look like labels — no question, nothing to remember
   const r = autoParse({ pages }, cat, { answers: { [q.cluster]: 'skip' } });
   assert.equal(r.learned.length, 0);
 });
@@ -163,7 +164,7 @@ test('план: одинаковое обозначение в разных шк
   const P = (id, label, cabinet) => ({ id, label, cabinet });
   const f = (label, cabinet) => ({ label, cabinet, pos: { page: 0, x: 1, y: 1, w: 10, h: 5 } });
   const r = matchLabels([P('a', 'C5', '1A'), P('b', 'C5', '2B'), P('c', 'C7', '1A')], [f('C5', '2B'), f('C5', '1A'), f('C7', '2B'), f('C7', '')]);
-  assert.deepEqual(r.exact.map((x) => `${x.f.cabinet}:${x.p.id}`), ['2B:b', '1A:a', ':c']);   // C7 в 2B не липнет к C7 из 1A
+  assert.deepEqual(r.exact.map((x) => `${x.f.cabinet}:${x.p.id}`), ['2B:b', '1A:a', ':c']);   // C7 in 2B does not stick to C7 from 1A
   assert.deepEqual(r.unlinked.map((x) => `${x.label}/${x.cabinet}`), ['C7/2B']);
 });
 
@@ -178,7 +179,7 @@ test('сервер: PDF с номерами пересобирается тол�
   const r1 = await updateProjectNumbered(api, mupdf, project, data);
   assert.equal(up.length, 1); assert.equal(up[0][0], 'NUM'); assert.ok(r1.patches.D1.numberedHash);
   d.numberedHash = r1.patches.D1.numberedHash;
-  await updateProjectNumbered(api, mupdf, project, data); assert.equal(up.length, 1);  // без изменений — не трогаем
+  await updateProjectNumbered(api, mupdf, project, data); assert.equal(up.length, 1);  // no changes — leave it
   data.points[0].label = 'C02';
   await updateProjectNumbered(api, mupdf, project, data); assert.equal(up.length, 2);
 });
@@ -202,7 +203,7 @@ test('план: подпись без шкафа при одинаковом н�
   const f = (label, cabinet, x) => ({ label, cabinet, pos: { page: 0, x, y: 1, w: 10, h: 5 } });
   const r = matchLabels([P('a', 'C5', '1A'), P('b', 'C5', '2B'), P('c', 'C7', '1A')], [f('C5', '', 1), f('C5', '', 50), f('C7', '', 9)]);
   assert.deepEqual(r.ambiguous.map((x) => `${x.f.label}:${x.cands.length}`), ['C5:2', 'C5:2']);
-  assert.deepEqual(r.exact.map((x) => x.p.id), ['c']);   // C7 есть только в одном шкафу — привязана сразу
-  const known = matchLabels([P('a', 'C5', '1A'), P('b', 'C5', '2B')], [f('C5', '2B', 1)]);   // шкаф на подписи известен — всё ясно
+  assert.deepEqual(r.exact.map((x) => x.p.id), ['c']);   // C7 exists in one cabinet only — bound at once
+  const known = matchLabels([P('a', 'C5', '1A'), P('b', 'C5', '2B')], [f('C5', '2B', 1)]);   // the cabinet is known from the label — all clear
   assert.deepEqual(known.exact.map((x) => x.p.id), ['b']); assert.equal(known.ambiguous.length, 0);
 });

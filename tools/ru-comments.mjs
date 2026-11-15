@@ -16,8 +16,6 @@ import * as acorn from 'acorn';
 
 // Paths still waiting for their ticket (spec section 9). Each ticket deletes its own entries; ticket 09 deletes the list.
 export const PENDING = [
-  // ticket 08
-  'tests/', 'tools/tohnit/',
 ];
 
 // An entry ending in "/" matches the files directly in that folder (not subfolders); any other entry matches one file.

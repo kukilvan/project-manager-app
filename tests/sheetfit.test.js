@@ -1,21 +1,21 @@
-// Новая версия чертежа: пересчёт координат со старого листа на новый и проверка каждой точки.
+// A new drawing version: recalculating coordinates from the old sheet to the new one and checking every point.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { uniquePairs, fitSheets, fitManual, planMove, moveSummary, movePos, versionName, applyFit } from '../src/domain/sheetfit.js';
 
-// старый лист — кусок нового в другом масштабе: новый = 0.48·старый + (1200, 150)
+// the old sheet is a piece of the new one at another scale: new = 0.48·old + (1200, 150)
 const T = (x, y) => ({ x: 0.48 * x + 1200, y: 0.48 * y + 150 });
 const mk = (t, x, y, w = 40, h = 8, page = 0) => ({ t, x, y, w, h, page });
 function sheets() {
   const old = []; const neu = [];
-  for (let i = 0; i < 30; i++) {   // 30 номеров, по разу на каждом листе
+  for (let i = 0; i < 30; i++) {   // 30 numbers, once on each sheet
     const x = 100 + (i % 6) * 400; const y = 200 + Math.floor(i / 6) * 350; const t = `FA/C-${String(i + 1).padStart(2, '0')}`;
     old.push(mk(t, x, y)); const n = T(x, y); neu.push(mk(t, n.x + (i % 3) * 0.4, n.y, 19.2, 3.8));
   }
-  // значки CR без номеров (повторяются)
+  // CR icons without numbers (they repeat)
   [[300, 500], [900, 500], [1500, 900]].forEach(([x, y]) => { old.push(mk('CR', x, y, 12, 8)); const n = T(x, y); neu.push(mk('CR', n.x, n.y, 5.8, 3.8)); });
-  neu.push(mk('CR', 400, 400, 5.8, 3.8));   // новый CR в новой части листа
-  // случайные совпадения текста (номер помещения, который на новом листе в другом месте) — не должны сбить пересчёт
+  neu.push(mk('CR', 400, 400, 5.8, 3.8));   // a new CR in a new part of the sheet
+  // chance text matches (a room number that is elsewhere on the new sheet) must not throw it off
   old.push(mk('ROOM-101', 50, 50)); neu.push(mk('ROOM-101', 2700, 1600));
   return { old, neu };
 }
@@ -23,7 +23,7 @@ function sheets() {
 test('новая версия чертежа: пересчёт находится по общим надписям, случайные совпадения отброшены', () => {
   const { old, neu } = sheets();
   const pairs = uniquePairs(old, neu);
-  assert.equal(pairs.length, 31);   // 30 номеров + ROOM-101 (CR повторяется — не годится)
+  assert.equal(pairs.length, 31);   // 30 numbers + ROOM-101 (CR repeats — not suitable)
   const fits = fitSheets(pairs, [{ w: 2863, h: 1757 }]);
   const f = fits.get(0);
   assert.ok(f.ok); assert.equal(f.newPage, 0); assert.equal(f.inliers, 30);
@@ -33,7 +33,7 @@ test('новая версия чертежа: пересчёт находитс�
 
 test('новая версия чертежа: точки — на месте, сдвинута, пропала, значок, вручную', () => {
   const { old, neu } = sheets();
-  // FA/C-05 на новом листе сдвинули, FA/C-07 убрали
+  // FA/C-05 was moved on the new sheet, FA/C-07 removed
   const i5 = neu.findIndex((s) => s.t === 'FA/C-05'); neu[i5] = { ...neu[i5], x: neu[i5].x + 60 };
   const i7 = neu.findIndex((s) => s.t === 'FA/C-07'); neu.splice(i7, 1);
   const fits = fitSheets(uniquePairs(old, neu), [{ w: 2863, h: 1757 }]);
@@ -43,7 +43,7 @@ test('новая версия чертежа: точки — на месте, с
     { id: 'p5', label: 'FA/C-05', pos: pos('FA/C-05') },
     { id: 'p7', label: 'FA/C-07', pos: pos('FA/C-07') },
     { id: 'c1', label: 'CR01', pos: { page: 0, x: 300, y: 500, w: 12, h: 8, sheet: 'old.pdf', text: 'CR' } },
-    { id: 'c2', label: 'CR02', pos: { page: 0, x: 900, y: 520, w: 12, h: 12, sheet: 'old.pdf' } },  // рядом с CR, но не на нём
+    { id: 'c2', label: 'CR02', pos: { page: 0, x: 900, y: 520, w: 12, h: 12, sheet: 'old.pdf' } },  // next to a CR, but not on it
     { id: 'm1', label: 'X-1', pos: { page: 0, x: 2000, y: 1500, w: 8, h: 8, sheet: 'old.pdf' } },
   ];
   const sheet = { name: 'new.pdf', pages: [{ w: 2863, h: 1757 }] };
@@ -54,7 +54,7 @@ test('новая версия чертежа: точки — на месте, с
   assert.equal(by.p5.kind, 'moved'); assert.ok(by.p5.to.x - by.p5.pos.x > 50);
   assert.equal(by.p7.kind, 'missing'); assert.ok(Math.abs(by.p7.pos.x - T(pos('FA/C-07').x, 0).x) < 1);
   assert.equal(by.c1.kind, 'ok'); assert.equal(by.c1.under, 'CR'); assert.equal(by.c1.pos.text, 'CR');
-  assert.equal(by.c2.kind, 'plain');   // под точкой надписи не было — только пересчёт
+  assert.equal(by.c2.kind, 'plain');   // there was no label under the point — recalculation only
   assert.equal(by.m1.kind, 'plain'); assert.ok(Math.abs(by.m1.pos.x - T(2000, 1500).x) < 1); assert.ok(Math.abs(by.m1.pos.w - 3.84) < 0.1);
   assert.deepEqual(moveSummary(plan), { ok: 2, moved: 1, missing: 1, lost: 0, plain: 2, nofit: 0 });
 });
