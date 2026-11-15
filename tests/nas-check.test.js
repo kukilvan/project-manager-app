@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   parseArgs, judgeA1, judgeA2, judgeA3a, judgeA3b, judgeA4, judgeA5, judgeA6, judgeA8, judgeA9,
-  checkRealtime, runChecks, formatResult, summaryLine, exitCode, main, USAGE,
+  checkRealtime, runChecks, formatResult, summaryLine, exitCode, main, USAGE, USER_AGENT, DEFAULT_HOLD_S, SUPERUSERS_ID,
 } from '../tools/nas-check.mjs';
 
 // A response snapshot as the tool's judges expect it
@@ -24,8 +24,9 @@ test('args: no address or --help prints the usage', () => {
 });
 
 test('args: https address, defaults, --quick and --hold', () => {
-  assert.deepEqual(parseArgs(['https://pm.example.com']), { base: 'https://pm.example.com', local: false, quick: false, hold: 150 });
-  assert.deepEqual(parseArgs(['https://pm.example.com/']), { base: 'https://pm.example.com', local: false, quick: false, hold: 150 });
+  assert.equal(DEFAULT_HOLD_S, 150);
+  assert.deepEqual(parseArgs(['https://pm.example.com']), { base: 'https://pm.example.com', local: false, quick: false, hold: DEFAULT_HOLD_S });
+  assert.deepEqual(parseArgs(['https://pm.example.com/']), { base: 'https://pm.example.com', local: false, quick: false, hold: DEFAULT_HOLD_S });
   assert.equal(parseArgs(['https://pm.example.com', '--quick']).quick, true);
   assert.equal(parseArgs(['--hold', '20', 'https://pm.example.com']).hold, 20);
   assert.equal(parseArgs(['https://pm.example.com', '--hold', '2.5']).hold, 2.5);
@@ -34,8 +35,8 @@ test('args: https address, defaults, --quick and --hold', () => {
 test('args: a remote http:// address is refused, local ones are allowed', () => {
   assert.match(parseArgs(['http://pm.example.com']).error, /http:\/\//);
   assert.match(parseArgs(['http://192.168.1.5:8090']).error, /http:\/\//);
-  assert.deepEqual(parseArgs(['http://127.0.0.1:8090']), { base: 'http://127.0.0.1:8090', local: true, quick: false, hold: 150 });
-  assert.deepEqual(parseArgs(['http://localhost:8090']), { base: 'http://localhost:8090', local: true, quick: false, hold: 150 });
+  assert.deepEqual(parseArgs(['http://127.0.0.1:8090']), { base: 'http://127.0.0.1:8090', local: true, quick: false, hold: DEFAULT_HOLD_S });
+  assert.deepEqual(parseArgs(['http://localhost:8090']), { base: 'http://localhost:8090', local: true, quick: false, hold: DEFAULT_HOLD_S });
 });
 
 test('args: bad input is an error, not a throw', () => {
@@ -74,11 +75,18 @@ test('A3: the dashboard and the superuser login are blocked', () => {
   assert.equal(judgeA3a(res(200, '<html>PocketBase</html>')).status, 'FAIL');
   assert.match(judgeA3a(res(200, '<html>')).text, /reachable/);
   assert.equal(judgeA3a(res(404)).status, 'FAIL');
-  assert.equal(judgeA3b(res(403, 'blocked')).status, 'PASS');
-  const open = judgeA3b(json(400, { message: 'Failed to authenticate.' }));
+  const blocked = res(403, 'blocked');
+  const answered = json(400, { message: 'Failed to authenticate.' });
+  assert.equal(judgeA3b(blocked, blocked).status, 'PASS');
+  const open = judgeA3b(answered, blocked);
   assert.equal(open.status, 'FAIL');
-  assert.match(open.text, /not blocked/);
-  assert.equal(judgeA3b(res(500)).status, 'FAIL');
+  assert.match(open.text, /by name: it is not blocked/);
+  // the Cloudflare rule covers the name but not the collection id
+  const byId = judgeA3b(blocked, answered);
+  assert.equal(byId.status, 'FAIL');
+  assert.match(byId.text, new RegExp(`by id ${SUPERUSERS_ID}: it is not blocked`));
+  assert.equal(judgeA3b(res(500), blocked).status, 'FAIL');
+  assert.equal(judgeA3b(blocked, { error: 'timeout after 15 s' }).status, 'FAIL');
 });
 
 test('A4: batch is on', () => {
@@ -125,6 +133,7 @@ test('A8: the app files are not cached at the edge; skipped while the site is no
   assert.equal(judgeA8(res(200, '<html>placeholder</html>', { 'content-type': 'text/html' }), res(200)).status, 'SKIP');
   assert.equal(judgeA8(res(500, 'oops'), res(500)).status, 'FAIL');
   assert.equal(judgeA8({ error: 'timeout' }, res(200)).status, 'FAIL');
+  assert.equal(judgeA8(sw('MISS'), res(502, 'Bad gateway')).status, 'FAIL');
 });
 
 test('A9: the site is the app built for /', () => {
@@ -138,6 +147,9 @@ test('A9: the site is the app built for /', () => {
   assert.equal(judgeA9(page, res(200, '<html>placeholder</html>', { 'content-type': 'text/html' })).status, 'SKIP');
   assert.equal(judgeA9(res(200, '<html></html>', { 'content-type': 'text/html' }), manifest('/')).status, 'FAIL');
   assert.equal(judgeA9(page, { error: 'timeout' }).status, 'FAIL');
+  // a broken site is a FAIL, not "the site is not there"
+  assert.equal(judgeA9(page, res(500, 'oops')).status, 'FAIL');
+  assert.equal(judgeA9(page, res(200, 'not json', { 'content-type': 'text/plain' })).status, 'FAIL');
 });
 
 // ---------- output ----------
@@ -246,6 +258,7 @@ function nasFetch({ site = false, overrides = {} } = {}) {
     'GET http://pm.example.com/api/health': () => new Response('', { status: 301, headers: { location: 'https://pm.example.com/api/health' } }),
     'GET https://pm.example.com/_/': () => new Response('blocked', { status: 403 }),
     'POST https://pm.example.com/api/collections/_superusers/auth-with-password': () => new Response('blocked', { status: 403 }),
+    [`POST https://pm.example.com/api/collections/${SUPERUSERS_ID}/auth-with-password`]: () => new Response('blocked', { status: 403 }),
     'POST https://pm.example.com/api/batch': () => jsonRes(400, { data: { requests: { code: 'validation_required' } } }),
     'GET https://pm.example.com/api/collections/users/auth-methods': () => jsonRes(200, { password: { enabled: false }, oauth2: { enabled: true, providers: [{ name: 'google' }] } }),
     'OPTIONS https://pm.example.com/api/health': () => new Response(null, { status: 204 }),
@@ -257,7 +270,7 @@ function nasFetch({ site = false, overrides = {} } = {}) {
   const rt = realtimeFetch([{}]);
   return async (url, init = {}) => {
     if (url.endsWith('/api/realtime')) return rt(url, init);
-    assert.equal(init.headers['user-agent'], 'project-manager-nas-check');
+    assert.equal(init.headers['user-agent'], USER_AGENT);
     const handler = routes[`${init.method || 'GET'} ${url}`];
     if (!handler) throw new Error(`unexpected request: ${init.method || 'GET'} ${url}`);
     return handler();
@@ -300,7 +313,7 @@ test('runChecks: a local address skips A2, A3, A8 and makes no Cloudflare reques
   };
   const { results } = await runChecks({ base: 'http://127.0.0.1:8090', local: true, quick: true, fetch: fetchFn });
   assert.deepEqual(ids(results), ['PASS:A1', 'SKIP:A2', 'SKIP:A3a', 'SKIP:A3b', 'PASS:A4', 'PASS:A5', 'PASS:A6', 'PASS:A7', 'SKIP:A8', 'SKIP:A9']);
-  assert.ok(!urls.some((u) => u.includes('http://127.0.0.1/') || u.includes('_superusers') || u.includes('/_/') || u.includes('sw.js')));
+  assert.ok(!urls.some((u) => u.includes('http://127.0.0.1/') || u.includes('_superusers') || u.includes(SUPERUSERS_ID) || u.includes('/_/') || u.includes('sw.js')));
 });
 
 test('runChecks: a hanging request is a FAIL of that check (timeout)', async () => {
@@ -361,12 +374,13 @@ test('main: a failed check exits 1; an unreachable host exits 2 with "cannot rea
 
 // ---------- the NAS document ----------
 
-const DOC = 'docs/nas-requirements.md';
+// Resolved from this file, like the other tests: the suite may run from any folder
+const DOC = new URL('../docs/nas-requirements.md', import.meta.url);
 
 test('NAS document: exists, within 30,000 bytes, sections in order', () => {
-  assert.ok(fs.existsSync(DOC), `${DOC} is missing`);
+  assert.ok(fs.existsSync(DOC), 'docs/nas-requirements.md is missing');
   const text = fs.readFileSync(DOC, 'utf8');
-  assert.ok(Buffer.byteLength(text) <= 30000, `${DOC} is over 30,000 bytes`);
+  assert.ok(Buffer.byteLength(text) <= 30000, 'docs/nas-requirements.md is over 30,000 bytes');
   const titles = [...text.matchAll(/^## (\d+)\. (.+)$/gm)].map((m) => [Number(m[1]), m[2]]);
   assert.deepEqual(titles.map((t) => t[0]), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   const expected = ['Summary', 'PocketBase', 'The site on the NAS', 'Access from outside', 'Sign-in', 'Server jobs', 'Backups', 'Data volume', 'Power and network', 'Acceptance checks', 'Open questions', 'What changes in later stages'];
@@ -383,13 +397,21 @@ test('NAS document: every requirement id is defined once; the acceptance table h
   assert.deepEqual(rows, Array.from({ length: 14 }, (_, i) => `A${i + 1}`));
 });
 
+test('NAS document: the WAF rule blocks the superuser collection by name and by the id A3b probes', () => {
+  const text = fs.readFileSync(DOC, 'utf8');
+  const rule = text.slice(text.indexOf('**R-NET-4'), text.indexOf('**R-NET-5'));
+  assert.ok(rule.includes('"/api/collections/_superusers/"'));
+  assert.ok(rule.includes(`"/api/collections/${SUPERUSERS_ID}/"`));
+});
+
 test('NAS document: only placeholders — no real e-mail, IPv4 address or host', () => {
   const text = fs.readFileSync(DOC, 'utf8');
   const emails = text.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) || [];
   assert.deepEqual(emails.filter((e) => !/@example\.com$/.test(e)), []);
   const ips = text.match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g) || [];
   assert.deepEqual(ips.filter((ip) => !['127.0.0.1', '0.0.0.0'].includes(ip)), []);
-  const allowed = [/^<host$/, /^github\.com$/, /^example\.com$/, /^[a-z0-9.-]*\.example\.com$/, /(^|\.)cloudflare\.com$/, /(^|\.)google\.com$/, /(^|\.)googleapis\.com$/, /(^|\.)pocketbase\.io$/];
+  // spec 6: github.com, example.com, <host>, and Cloudflare and Google documentation hosts
+  const allowed = [/^<host$/, /^github\.com$/, /^([a-z0-9-]+\.)?example\.com$/, /^developers\.cloudflare\.com$/, /^(developers|support|cloud)\.google\.com$/];
   const hosts = [...text.matchAll(/https:\/\/([^\s/)`'">,;]+)/g)].map((m) => m[1]);
   assert.deepEqual(hosts.filter((h) => !allowed.some((re) => re.test(h))), []);
 });

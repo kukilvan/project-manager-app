@@ -50,7 +50,7 @@ Written when a decision is hard to reverse, surprising without context, or a rea
 ```text
 # <The decision, as a statement>
 
-Status: accepted | superseded by NNNN
+Status: accepted | accepted (planned, stages N–M) | superseded by NNNN
 
 Context and decision in 1–3 paragraphs; options considered and why they lost.
 

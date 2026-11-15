@@ -19,6 +19,8 @@ export const REQUEST_TIMEOUT_MS = 15000;
 export const CONNECT_TIMEOUT_MS = 10000;
 export const DEFAULT_HOLD_S = 150;
 export const BODY_CUT = 120;
+// The id of PocketBase's _superusers collection, fixed in its code (checked in 0.40.6): the API accepts it in place of the name.
+export const SUPERUSERS_ID = 'pbc_3142635823';
 const FOREIGN_ORIGIN = 'https://example.com';
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost']);
 
@@ -70,14 +72,16 @@ export function parseArgs(argv) {
 // ---------- results and responses ----------
 // A response snapshot is { status, headers (a Headers), text }, or { error } when there was no HTTP answer.
 
-const cut = (t) => String(t ?? '').slice(0, BODY_CUT).replace(/\s+/g, ' ').trim();
-const describe = (res) => (res.error ? `no answer: ${res.error}` : `${res.status} ${cut(res.text)}`.trim());
+const clip = (t) => String(t ?? '').slice(0, BODY_CUT).replace(/\s+/g, ' ').trim();
+const describe = (res) => (res.error ? `no answer: ${res.error}` : `${res.status} ${clip(res.text)}`.trim());
 const pass = (id, text) => ({ id, status: 'PASS', text });
 const skip = (id, text) => ({ id, status: 'SKIP', text });
 const info = (id, text) => ({ id, status: 'INFO', text });
 const fail = (id, text, expected, res) => ({ id, status: 'FAIL', text, expected, got: describe(res) });
 const asJson = (res) => { try { return JSON.parse(res.text); } catch { return null; } };
 const isHtml = (res) => /text\/html/i.test(res.headers?.get('content-type') || '');
+// A file of the site is missing: 404, or the index.html that PocketBase serves in place of an unknown path.
+const missingFile = (res) => !res.error && (res.status === 404 || (res.status === 200 && isHtml(res)));
 const secs = (s) => String(s >= 10 ? Math.round(s) : Math.round(s * 10) / 10);
 
 export function judgeA1(res) {
@@ -102,11 +106,15 @@ export function judgeA3a(res) {
   return fail('A3a', 'the dashboard /_/ did not answer 403', expected, res);
 }
 
-export function judgeA3b(res) {
-  const expected = '403 (blocked by the Cloudflare rule)';
-  if (!res.error && res.status === 403) return pass('A3b', 'the superuser login is blocked (403)');
-  if (!res.error && res.status === 400) return fail('A3b', 'PocketBase answered the superuser login: it is not blocked', expected, res);
-  return fail('A3b', 'the superuser login did not answer 403', expected, res);
+// Two probes: the login by the collection's name and by its id. PocketBase answers a wrong password with 400, so 400 means not blocked.
+export function judgeA3b(byName, byId) {
+  const expected = '403 (blocked by the Cloudflare rule) for the login by name and by id';
+  for (const [res, how] of [[byName, 'by name'], [byId, `by id ${SUPERUSERS_ID}`]]) {
+    if (!res.error && res.status === 403) continue;
+    if (!res.error && res.status === 400) return fail('A3b', `PocketBase answered the superuser login ${how}: it is not blocked`, expected, res);
+    return fail('A3b', `the superuser login ${how} did not answer 403`, expected, res);
+  }
+  return pass('A3b', 'the superuser login is blocked by name and by id (403)');
 }
 
 export function judgeA4(res) {
@@ -140,9 +148,10 @@ export function judgeA6(res) {
 export function judgeA8(first, second) {
   const expected = 'a second answer for sw.js that is not served from the Cloudflare cache (cf-cache-status not HIT)';
   if (first.error) return fail('A8', 'sw.js request failed', expected, first);
-  if (first.status === 404 || (first.status === 200 && isHtml(first))) return skip('A8', 'no sw.js yet: the site is not there');
+  if (missingFile(first)) return skip('A8', 'no sw.js yet: the site is not there');
   if (first.status !== 200) return fail('A8', 'sw.js did not answer 200', expected, first);
   if (second.error) return fail('A8', 'second sw.js request failed', expected, second);
+  if (second.status !== 200) return fail('A8', 'second sw.js request did not answer 200', expected, second);
   const cache = second.headers.get('cf-cache-status');
   if (/^hit$/i.test(cache || '')) return fail('A8', 'Cloudflare serves sw.js from its cache (cf-cache-status: HIT): add the Bypass cache rule', expected, { status: second.status, text: 'cf-cache-status: HIT' });
   return pass('A8', `sw.js is not served from the edge cache (cf-cache-status: ${cache || 'absent'})`);
@@ -151,8 +160,10 @@ export function judgeA8(first, second) {
 export function judgeA9(index, manifest) {
   const expected = 'an HTML page with rel="manifest" and a manifest with start_url "/"';
   if (manifest.error) return fail('A9', 'manifest request failed', expected, manifest);
-  const m = manifest.status === 200 && !isHtml(manifest) ? asJson(manifest) : null;
-  if (!m) return skip('A9', 'no manifest yet: the site is not there');
+  if (missingFile(manifest)) return skip('A9', 'no manifest yet: the site is not there');
+  if (manifest.status !== 200) return fail('A9', 'the manifest did not answer 200', expected, manifest);
+  const m = asJson(manifest);
+  if (!m) return fail('A9', 'the manifest is not JSON', expected, manifest);
   if (m.start_url !== '/') return fail('A9', `the app is built for another base (manifest start_url is ${JSON.stringify(m.start_url)})`, expected, { status: manifest.status, text: manifest.text });
   if (index.error || index.status !== 200 || !/rel=["']manifest["']/i.test(index.text)) return fail('A9', 'the start page does not link the manifest', expected, index);
   return pass('A9', 'the site is the app built for / (manifest start_url "/")');
@@ -269,7 +280,11 @@ export async function runChecks({ base, local, quick = false, hold = DEFAULT_HOL
   if (local) { emit(skip('A3a', localSkip)); emit(skip('A3b', localSkip)); }
   else {
     emit(judgeA3a(await get('/_/')));
-    emit(judgeA3b(await post('/api/collections/_superusers/auth-with-password', { identity: 'check@example.com', password: 'x' })));
+    const probe = { identity: 'check@example.com', password: 'x' };
+    emit(judgeA3b(
+      await post('/api/collections/_superusers/auth-with-password', probe),
+      await post(`/api/collections/${SUPERUSERS_ID}/auth-with-password`, probe),
+    ));
   }
 
   emit(judgeA4(await post('/api/batch', { requests: [] })));
@@ -280,7 +295,8 @@ export async function runChecks({ base, local, quick = false, hold = DEFAULT_HOL
   if (local) emit(skip('A8', localSkip));
   else {
     const first = await get('/sw.js');
-    emit(judgeA8(first, first.error || first.status !== 200 || isHtml(first) ? first : await get('/sw.js')));
+    // the second request only when the first found the file
+    emit(judgeA8(first, first.status === 200 && !missingFile(first) ? await get('/sw.js') : first));
   }
 
   const [index, manifest] = [await get('/'), await get('/manifest.webmanifest')];

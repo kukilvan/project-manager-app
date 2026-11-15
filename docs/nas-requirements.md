@@ -7,7 +7,7 @@ This document tells the NAS project exactly what to set up so the owner's copy o
 Conventions:
 
 - **Placeholders**, never real values: `<host>` — the public hostname of the app (for example `pm.example.com`); `<domain>` — the owner's domain; `<nas-lan-ip>` — the NAS address on the home network; `<lan-subnet>` — the home network in CIDR form; `<docker-subnet>` — the subnet of the Docker network of the containers below (`docker network inspect`). Real values, keys, tokens and passwords stay with the NAS project and never come into this repo (it is public).
-- Every requirement has an id `R-<AREA>-<n>` and a phase: **now** — can be done before any app change; **stage 4** — when the app gets PocketBase storage; **stage 5** — when the owner's copy moves to the NAS. "Must" and "must not" are checkable; "should" is a recommendation with its reason.
+- Every requirement has an id `R-<AREA>-<n>` and a phase: **now** — can be done before any app change; **stage 4** — when the app gets PocketBase storage; **stage 5** — when the owner's copy moves to the NAS. "Must" and "must not" are checkable; a requirement written as a setting ("keep 7 days") is a must too; "should" is a recommendation with its reason.
 
 ## 1. Summary
 
@@ -43,7 +43,7 @@ home network --> http://<nas-lan-ip>:8090/_/  (the owner administers from home)
 Why: PocketBase holds the data and serves the site; its version, flags and settings decide whether the app works and stays safe.
 
 - **R-PB-1 (now)** PocketBase **0.40.6**, linux amd64 (the DXP2800 is x86-64), in Docker. There is no official image: build it with the Dockerfile below, which checks the release zip's SHA-256 (`0e1f609158ed945f809f8a02ae012aa0427129c66ebb63c1aee76f2c0309373f` for `pocketbase_0.40.6_linux_amd64.zip`, from the release's `checksums.txt`). The version must not change automatically: no Watchtower or similar on these containers. PocketBase is before 1.0 and minor versions break things; the version changes only when this document says so.
-- **R-PB-2 (now)** Start flags exactly: `serve --http=0.0.0.0:8090 --dir=/pb/pb_data --publicDir=/pb/pb_public --migrationsDir=/pb/pb_migrations --hooksDir=/pb/pb_hooks --origins=https://<host> --encryptionEnv=PB_ENCRYPTION_KEY --dev=false`. Environment: `PB_ENCRYPTION_KEY` (32 random characters), `GOMEMLIMIT=512MiB`, `TZ=UTC`. Open-files limit ≥ 4096. Restart policy `unless-stopped`. Health check `GET /api/health`. `--dev=false` matters: otherwise every SQL statement is logged.
+- **R-PB-2 (now)** Start flags exactly: `serve --http=0.0.0.0:8090 --dir=/pb/pb_data --publicDir=/pb/pb_public --migrationsDir=/pb/pb_migrations --hooksDir=/pb/pb_hooks --origins=https://<host> --encryptionEnv=PB_ENCRYPTION_KEY --dev=false`. Environment: `PB_ENCRYPTION_KEY` (exactly 32 random characters, for example from `openssl rand -hex 16`; with any other length PocketBase does not start: `crypto/aes: invalid key size`, and the container restarts in a loop), `GOMEMLIMIT=512MiB`, `TZ=UTC`. Open-files limit ≥ 4096. Restart policy `unless-stopped`. Health check `GET /api/health`. `--dev=false` matters: otherwise every SQL statement is logged.
 - **R-PB-3 (now)** Storage on the HDD mirror (RAID 1): `pb_data` in a dedicated shared folder; `pb_data/backups` mounted from a **separate** folder (R-BAK-1, R-BAK-2). `pb_public`, `pb_migrations` and `pb_hooks` are folders the app fills (stages 4–5); until then `pb_public` holds a one-line placeholder `index.html`. Reason: the data is small (under 1 GB for years), SQLite on HDD is ample for 2–6 people, and the mirror survives one disk failure. If the NVMe becomes a storage pool with its own redundancy, the NAS project may move the data there.
 - **R-PB-4 (now)** Port 8090 is published on `<nas-lan-ip>` only (the owner's dashboard). It must never be forwarded on the router. The tunnel reaches PocketBase over the Docker network.
 - **R-PB-5 (now)** Dashboard → Settings → Application:
@@ -64,7 +64,7 @@ Why: PocketBase holds the data and serves the site; its version, flags and setti
   | `/api/` | `@auth` | 5,000 | 10 s |
 
   From stage 5 the agent container's address goes in the excluded list.
-- **R-PB-7 (now)** Superusers: one personal account for the owner with a strong password; from stage 5 a separate `jobs` superuser for the agent. MFA with e-mail OTP should be turned on once SMTP is set (the `superuser otp` command is the fallback); it is not required, because superuser access is LAN-only (R-PB-5, R-NET-4).
+- **R-PB-7 (now)** Superusers: one personal account for the owner with a strong password; from stage 5 a separate `jobs` superuser for the agent. Create one from the NAS shell with `docker exec <pocketbase container> /pb/pocketbase superuser upsert <email> <password> --dir=/pb/pb_data --encryptionEnv=PB_ENCRYPTION_KEY`, or with the one-time installer link PocketBase prints in its log at the first start (with `<nas-lan-ip>` in place of `0.0.0.0`). Every PocketBase command run in the container needs the same `--dir` and `--encryptionEnv` as `serve`; without them it fails with «missing encryption key». MFA with e-mail OTP should be turned on once SMTP is set (the `superuser otp` command is the fallback); it is not required, because superuser access is LAN-only (R-PB-5, R-NET-4).
 - **R-PB-8 (stage 4)** Collections, API rules and indexes come as migration files from this repo into `pb_migrations`; the NAS project must not create collections by hand. A migration applies when PocketBase starts. How the files reach the NAS (by hand or by the agent) is decided in stage 4.
 - **R-PB-9 (now)** Settings → Logs: keep 7 days; IP logging on.
 
@@ -159,9 +159,9 @@ Why: phones must reach the NAS from anywhere over HTTPS, without a VPN app and w
 - **R-NET-3 (now)** Off for `<host>`: Cloudflare Access, Rocket Loader, Email Address Obfuscation, Bot Fight Mode. They rewrite pages or challenge the app's own requests; an expiring Access cookie breaks an installed iPhone app (offline start, background sync, the sign-in popup).
 - **R-NET-4 (now)** Two WAF custom rules on `<host>`, action **Block**:
   1. `starts_with(http.request.uri.path, "/_/")` — the dashboard;
-  2. `starts_with(http.request.uri.path, "/api/collections/_superusers/")` — superuser sign-in and records.
+  2. `starts_with(http.request.uri.path, "/api/collections/_superusers/") or starts_with(http.request.uri.path, "/api/collections/pbc_3142635823/")` — superuser sign-in and records, by the collection's name and by its id (PocketBase accepts both; the id is fixed in PocketBase's code).
 
-  These are the outer layer. What really holds is R-PB-5: PocketBase also accepts a collection's id instead of its name in the URL, and the superuser IP list blocks that path too.
+  These are the outer layer. What really holds is R-PB-5: a superuser login with the right password from outside gets 403 even without these rules. The id is in rule 2 because PocketBase answers a wrong password with 400 and a right one with 403, so a login attempt that reaches it tells an outsider whether a guessed password is right.
 - **R-NET-5 (now)** Limits that matter (explanation): request body up to 100 MB on the free plan (the app sends at most 1–2 MB per batch); Cloudflare waits at most **125 s** for data from the origin, so an idle realtime stream is cut after ≈ 125 s (PocketBase itself closes it after 300 s idle; the app reconnects and re-reads changes, stage 4); one hostname, so CORS is not involved.
 - **R-NET-6 (now, should)** A down-alert: Cloudflare's Tunnel health notification (an e-mail when the tunnel is down), or a free external monitor on `https://<host>/api/health` every 5 minutes. Reason: helpers notice an outage only as "changes do not arrive".
 
@@ -171,9 +171,9 @@ Why: phones must reach the NAS from anywhere over HTTPS, without a VPN app and w
 
 Why: users sign in with their Google accounts, and the app talks to Google Drive and Sheets from the new address.
 
-- **R-AUTH-1 (now)** PocketBase `users` collection: password sign-in **off** (by default it is on and anyone may register by password); OAuth2 **on** with the Google provider (Client ID and secret of R-GOOG-1); field mapping: name → `name`, avatar URL → `avatar`. Creating a user by Google sign-in stays allowed: who sees which project is decided by the collection rules (stage 4), as in Firestore today.
+- **R-AUTH-1 (now)** PocketBase `users` collection: password sign-in **off** (by default it is on); OAuth2 **on** with the Google provider (Client ID and secret of R-GOOG-1); field mapping: name → `name`, avatar URL → `avatar`. Creating a user by Google sign-in stays allowed: who sees which project is decided by the collection rules (stage 4), as in Firestore today. Password sign-in off does not stop the records API from creating users (the default create rule lets anyone; such a user cannot sign in and sees nothing); stage 4's migrations set the `users` rules (R-PB-8) so that users come only from Google sign-in.
 - **R-AUTH-2 (now)** Auth token duration for users: **30 days** (2,592,000 s; the default is 5 days). The app refreshes it at every online start (stage 4). Reason: a helper's phone may stay offline or unused for weeks, and 5 days would force a new Google sign-in.
-- **R-GOOG-1 (now)** The OAuth client is the owner's existing Google Cloud web client — the one whose Client ID is in the owner's app connection (it already has the Drive and Sheets scopes). Its client secret goes only into PocketBase settings (encrypted by `PB_ENCRYPTION_KEY`). If the client's consent screen is in "Testing" status, every helper's Google account should be on its test-user list, otherwise their sign-in is refused.
+- **R-GOOG-1 (now)** The OAuth client is the owner's existing Google Cloud web client — the one whose Client ID the owner's connect link carries (it already has the Drive and Sheets scopes). Its client secret goes only into PocketBase settings (encrypted by `PB_ENCRYPTION_KEY`). If the client's consent screen is in "Testing" status, every helper's Google account should be on its test-user list, otherwise their sign-in is refused.
 - **R-GOOG-2 (now)** On that client (Google Cloud Console → APIs & Services → Credentials) add:
   - authorized JavaScript origin `https://<host>`;
   - authorized redirect URIs `https://<host>/api/oauth2-redirect` (PocketBase popup sign-in) and `https://<host>/` (the manual code flow, and the app's Drive sign-in on iPhone, which redirects back to the app's own address).
@@ -187,7 +187,7 @@ Why: today GitHub Actions run the backups and the nightly sheets against Firebas
 | Today (GitHub Actions) | NAS copy | Runs | Needs |
 |---|---|---|---|
 | `server-backup.yml` → Firestore JSON into `polevoy-backups` | PocketBase built-in backup (R-BAK-1) + a JSON export in the `polevoy-import-1` backup format into `polevoy-backups` (R-BAK-3) | PocketBase cron; agent, daily | a GitHub fine-grained token, contents write on `polevoy-backups` only |
-| `server-cleanup.mjs` | the same rule (hard-delete what was soft-deleted over a year ago) on PocketBase | agent, after the export | `jobs` superuser |
+| `server-cleanup.mjs` | the same rule (permanently delete what was marked deleted over a year ago, and history entries older than a year) on PocketBase | agent, after the export | `jobs` superuser |
 | `server-drive-backup.mjs` | the off-site copy of the backup zips (R-BAK-2) | UGOS Cloud Sync or agent | Drive access of the chosen method |
 | `server-tables.yml` (00:00 UTC, retry 07:20 UTC) | the same sheets, reading PocketBase | agent, same times | a **new key of the same service account** (same e-mail, so the sheets already shared with it keep working); `jobs` superuser; internet to Google |
 | `export-pool.yml` (Mondays) | unchanged, stays in GitHub Actions (it reads `polevoy-backups`) | GitHub | nothing new |
