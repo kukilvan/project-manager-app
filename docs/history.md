@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-16 — Ticket 3.2: sections by point type («Тикет 3.2»)
+
+- `src/domain/report.js`: `typeOrderOf(table, ctx)` (ids of `typeOrder` that still exist, then the rest by name), `pointsCountText(n, lang)` (Russian plural, «נקודה אחת»), grouping in `sheetOf` when `sections !== false` with «Без типа» / «ללא סוג» last, section rows «<type> — <count>», two empty rows between groups, `sectionRows`, `pointRuns` per group, `rowColors` `''` on section and empty rows; `defaultTables()` writes `sections: true, rackSheet: true`. `src/domain/export.js`: builds with `sections: false, rackSheet: false` (Excel unchanged).
+- `src/app/managers.js`: section rows white, bold 12, navy text, 28 px, alignment cleared, thick `#1F3B5C` frame, no inner vertical lines; order of borders: point rows, section frames, header frame.
+- Decisions: section look is formatted after the column formats (they would centre the row's cells). The owner saw the result on the PC and the phone: works; the grey strip under the frozen rows (PC) and the grey area right of the last column (phone) are Google Sheets display.
+
 ## 2026-11-16 — Ticket 3.1: points sheet look («Тикет 3.1»)
 
 - `src/domain/managers.js`: `stampText(date, lang)` (Israel time, 24 h). `src/domain/report.js`: legend row A–F and an empty row under the totals, sheet fields `stamp` (E2, outside `rows` and the hash), `frozenRows`, `frozenCols`, `legendRow`, `legend`, `sectionRows` (empty until ticket 02), `pointRuns`; `buildReport(…, { nameOf, now })`; `STYLE_V` 4; the `blank` rule and `COLORS.pink` removed.
