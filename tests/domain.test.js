@@ -1114,7 +1114,6 @@ test('лист шкафов: числа, проценты вниз, «—» дл
     ['2B', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     ['Без шкафа', 1, 0, 0, 0, 0, 0, 0, '—', '—', 0, 0],  // a detector has no check stage
     ['Итого', 4, 1, 0.25, 0, 0, 1, 0.25, 1, 0.33, 0, 0]]); // checked: 1 of 3 points whose type has the stage → 33%, rounded down
-  assert.deepEqual(sh.greens, []);
   assert.equal(sh.stamp.row, 1); assert.equal(sh.stamp.col, 4); assert.equal(sh.frozenRows, 5); assert.equal(sh.frozenCols, 1);
   // Hebrew: texts of the spec
   const he = (await rackOf(project, ctx, { lang: 'he' })).sheets.at(-1);
@@ -1133,9 +1132,7 @@ test('лист шкафов: 199 из 200 — 99%, не зелёный; 100% —
   const sh = (await rackOf(project, ctx, {})).sheets.at(-1);
   assert.deepEqual(sh.rows.slice(5).map((r) => r[0]), ['2', '9', '10', 'Итого']);                       // natural order, not 10 before 2
   assert.deepEqual(sh.rows[6].slice(0, 4), ['9', 200, 199, 0.99]);                                        // 199 of 200 → 99%
-  assert.ok(!sh.greens.some(([r, c]) => r === 6 && c === 2));
   assert.deepEqual(sh.rows[7].slice(0, 4), ['10', 1, 1, 1]);                                              // 100%: the number 1 shown with the «0%» format
-  assert.ok(sh.greens.some(([r, c]) => r === 7 && c === 2));
   // rack «2» has a detector with a stray check row: the detector has no check stage, so it is not counted (the base is the camera only)
   assert.deepEqual(sh.rows[5].slice(0, 4), ['2', 2, 0, 0]); assert.deepEqual(sh.rows[5].slice(8, 10), [0, 0]);
   const total = sh.rows.at(-1); assert.equal(total[1], 203); assert.deepEqual(total.slice(2, 4), [200, 0.98]);  // (199 + 1) of 203 points → 98%
@@ -1147,7 +1144,7 @@ test('лист шкафов: фильтры профиля, пустой наб�
   const only = (await rackOf(project, ctx, { cabinets: ['1A'], types: ['Камера'] })).sheets.at(-1);
   assert.deepEqual(only.rows.slice(5).map((r) => r.slice(0, 2)), [['1A', 1], ['Итого', 1]]);
   const none = (await rackOf(project, ctx, { statuses: ['Неисправна'] })).sheets.at(-1);
-  assert.deepEqual(none.rows.slice(5), [['Итого', 0, '—', '—', '—', '—', '—', '—', '—', '—', 0, 0]]); assert.deepEqual(none.greens, []);
+  assert.deepEqual(none.rows.slice(5), [['Итого', 0, '—', '—', '—', '—', '—', '—', '—', '—', 0, 0]]);
   const off = await rackOf(project, ctx, { rackSheet: false });
   assert.deepEqual(off.sheets.map((x) => x.title), ['Статус']);
   const on = await rackOf(project, ctx, {});
@@ -1159,8 +1156,8 @@ test('лист шкафов: фильтры профиля, пустой наб�
   assert.equal(r.sheets.at(-1).kind, 'racks');
 });
 
-test('лист шкафов: запросы — слияния, формат процентов, зелёное только у полных этапов, закреплённый столбец', async () => {
-  const { sheetRequests, rebuildSheets } = await import('../src/app/managers.js');
+test('лист шкафов: запросы — слияния, проценты, цвет прогресса, рамки блоков, линии между шкафами, закреплённый столбец', async () => {
+  const { sheetRequests, rebuildSheets, progressColor } = await import('../src/app/managers.js');
   const pts = [{ id: 'a', label: 'C-1', typeId: 'Камера', cabinet: '1A' }, { id: 'b', label: 'C-2', typeId: 'Камера', cabinet: '2B' }];
   const journal = [{ id: 'j1', pointId: 'a', editDate: '2026-10-03', editWorkId: 'PR_PTS' }, { id: 'j2', pointId: 'b', editDate: '2026-10-03', editWorkId: 'PR_PTS' }, { id: 'j3', pointId: 'a', editDate: '2026-10-04', editWorkId: 'CHK_FLUKE' }];
   const { ctx, project } = await rackData(pts, journal);
@@ -1171,13 +1168,29 @@ test('лист шкафов: запросы — слияния, формат п�
   const pct = reqs.filter((q) => q.repeatCell && q.repeatCell.cell.userEnteredFormat.numberFormat);
   assert.deepEqual(pct.map((q) => q.repeatCell.range.startColumnIndex), [3, 5, 7, 9]);
   pct.forEach((q) => assert.deepEqual(q.repeatCell.cell.userEnteredFormat.numberFormat, { type: 'PERCENT', pattern: '0%' }));
-  // pulled is 100% in 1A, 2B and the total; checked only in 1A (1 of 1; the total is 1 of 2)
-  const isGreen = (q) => q.repeatCell && JSON.stringify(q.repeatCell.cell.userEnteredFormat.backgroundColor) === JSON.stringify({ red: 0xC6 / 255, green: 0xE5 / 255, blue: 0xC9 / 255 });
-  const greens = reqs.filter(isGreen).map((q) => [q.repeatCell.range.startRowIndex, q.repeatCell.range.startColumnIndex, q.repeatCell.range.endColumnIndex]);
-  assert.deepEqual(greens.sort((x, y) => x[0] - y[0] || x[1] - y[1]), [[5, 2, 4], [5, 8, 10], [6, 2, 4], [7, 2, 4]]);
-  assert.ok(reqs.some((q) => q.updateBorders && q.updateBorders.range.startRowIndex === sh.totalRow && q.updateBorders.top.style === 'SOLID_THICK'));
+  // progress colours: 0 and «—» stay white, 100% is the green, in between a blend from dark yellow; both cells of a stage get the colour
+  assert.equal(progressColor(0), ''); assert.equal(progressColor('—'), ''); assert.equal(progressColor(1), '#c6e5c9'); assert.equal(progressColor(0.01), '#e6b424');
+  assert.notEqual(progressColor(0.99), '#c6e5c9'); assert.notEqual(progressColor(0.5), progressColor(0.75));
+  const hexOf = (c) => '#' + [c.red, c.green, c.blue].map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
+  const fills = reqs.filter((q) => q.repeatCell && q.repeatCell.range.startRowIndex >= 5 && q.repeatCell.fields === 'userEnteredFormat.backgroundColor' && q.repeatCell.range.endColumnIndex - q.repeatCell.range.startColumnIndex === 2)
+    .map((q) => [q.repeatCell.range.startRowIndex, q.repeatCell.range.startColumnIndex, hexOf(q.repeatCell.cell.userEnteredFormat.backgroundColor)]);
+  // 1A: pulled 1 of 1 and checked 1 of 1; 2B: pulled; total: pulled 2 of 2, checked 1 of 2 (a blend)
+  assert.deepEqual(fills.map((f) => f.slice(0, 2)), [[5, 2], [5, 8], [6, 2], [7, 2], [7, 8]]);
+  assert.deepEqual(fills.filter((f) => f[2] === '#c6e5c9').map((f) => f.slice(0, 2)), [[5, 2], [5, 8], [6, 2], [7, 2]]);
+  assert.equal(fills[4][2], progressColor(0.5));
+  const bd = (f) => reqs.filter((q) => q.updateBorders && f(q.updateBorders));
+  assert.ok(bd((u) => u.range.startRowIndex === sh.totalRow && u.top && u.top.style === 'SOLID_THICK').length >= 1);
+  // teal lines between racks, dotted line inside a stage, navy blocks that start in the header, the thick outer frame
+  assert.equal(bd((u) => u.innerHorizontal && u.innerHorizontal.style === 'SOLID_MEDIUM' && u.range.startRowIndex === 5 && u.range.endRowIndex === 7).length, 1);
+  assert.equal(bd((u) => u.innerVertical && u.innerVertical.style === 'DOTTED').length, 4);
+  const blocks = bd((u) => u.left && u.left.style === 'SOLID_MEDIUM' && u.range.startRowIndex === 3);
+  assert.deepEqual(blocks.map((q) => [q.updateBorders.range.startColumnIndex, q.updateBorders.range.endColumnIndex]), [[0, 2], [2, 4], [4, 6], [6, 8], [8, 10], [10, 12]]);
+  const frame = bd((u) => u.top && u.top.style === 'SOLID_THICK' && u.range.startRowIndex === 3);
+  assert.equal(frame.length, 1); assert.equal(frame[0].updateBorders.range.endRowIndex, sh.totalRow + 1);
   assert.ok(!reqs.some((q) => q.setBasicFilter || q.addConditionalFormatRule));                         // no filter and no highlight rules
-  assert.deepEqual(reqs.filter((q) => q.updateDimensionProperties).map((q) => q.updateDimensionProperties.properties.pixelSize), [110, 95, 70, 60, 70, 60, 70, 60, 70, 60, 110, 85]);
+  const dims = reqs.filter((q) => q.updateDimensionProperties).map((q) => q.updateDimensionProperties);
+  assert.deepEqual(dims.filter((d) => d.range.dimension === 'COLUMNS').map((d) => d.properties.pixelSize), [110, 95, 70, 60, 70, 60, 70, 60, 70, 60, 110, 85]);
+  assert.deepEqual(dims.filter((d) => d.range.dimension === 'ROWS').map((d) => [d.range.startIndex, d.properties.pixelSize]), [[3, 34], [4, 24], [5, 30], [7, 34]]);
   // rebuild: the rack sheet is added with one frozen column and five frozen rows
   const calls = [];
   await rebuildSheets({ sheetsOf: async () => [], batch: async (id, q) => calls.push(q), write: async () => {} }, 'F', [sh]);

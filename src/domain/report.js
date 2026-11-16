@@ -307,11 +307,9 @@ function rackSheetOf(title, items, project, ctx, table, now) {
     [RACK_T.rack[lang], T.sum.total[lang], ...['pulled', 'hived', 'installed', 'checked'].flatMap((k) => [T.sum[k][lang], '']), T.sum.partial[lang], T.sum.faulty[lang]],
     ['', '', ...RACK_STAGES.flatMap(() => [RACK_T.count[lang], '%']), '', '']];
   const first = rows.length;
-  // `greens`: [row, first column] of a stage done at 100% (count and percent cells)
-  const greens = [];
-  tallies.forEach((tl, i) => { rows.push(rowOf(tl)); RACK_STAGES.forEach((_, k) => { if (tl[1].base[k] > 0 && tl[1].done[k] === tl[1].base[k]) greens.push([first + i, 2 + 2 * k]); }); });
+  tallies.forEach((tl) => rows.push(rowOf(tl)));
   const widths = [110, 95, ...RACK_STAGES.flatMap(() => [70, 60]), 110, 85];
-  return { kind: 'racks', title, rtl: lang === 'he', rows, headerRow: 3, headerRows: [3, 5], rackRows: [first, rows.length - 1], totalRow: rows.length - 1, greens, stageCols: [2, 4, 6, 8],
+  return { kind: 'racks', title, rtl: lang === 'he', rows, headerRow: 3, headerRows: [3, 5], rackRows: [first, rows.length - 1], totalRow: rows.length - 1, stageCols: [2, 4, 6, 8],
     cols: widths.map((w, i) => ({ id: `rack${i}`, kind: i === 0 ? 'text' : 'num', width: w })), rules: [], summaryRows: [], rowColors: [], count: items.length,
     stamp: { row: 1, col: 4, text: stampText(now, lang) }, frozenRows: 5, frozenCols: 1 };
 }
