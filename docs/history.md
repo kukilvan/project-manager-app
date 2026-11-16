@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-16 — Spec 3: management sheets («Спека 3»)
+
+- `.scratch/03-management-sheets/spec.md`: points sheet rows (title, project and update stamp in E2, totals, legend A–F, empty row, header; 7 or 5 frozen rows), sections by type (column A only, not merged, default alignment so the text overflows; thick `#1F3B5C` frame; «Без типа» last for no or deleted type; Russian plural, «נקודה אחת»), no pink rule, thin borders per point block, header frame; the rack sheet (12 columns, percent base = points whose type has the stage, rounded down, «—» for base 0, green only at 100%, frozen column A); `buildReport(…, { now })`, stamp out of the hash, date-only write on unchanged data with a rebuild fallback, `STYLE_V` 4; profile fields `sections`, `rackSheet` (absent = on) and `typeOrder` (`typeOrderOf`: listed, then by name); form strings with English and Hebrew; a guide line.
+- Open questions answered: date on every refresh; the basic filter stays (viewers' sorts are their own; an editor's sort → a known issue in ticket 04); Excel export unchanged; one rack sheet for «perCabinet»; rack-sheet name kept, the clashing rack sheet gets « (2)».
+- New Sheets requests (`updateBorders`, `mergeCells`, row height, frozen column, percent format) not checked against a real response: ticket 01 checks them on a test spreadsheet if the owner allows; `batchUpdate` is all-or-nothing, so a bad request leaves the old sheet. Four tickets proposed (01 look and stamp, 02 sections, 03 rack sheet, 04 form and guide).
+
 ## 2026-11-16 — Description 3: management sheets («Описание 3»)
 
 - `.scratch/03-management-sheets/description.md` and mockups `status-sheet.html`, `progress-by-rack.html`, `table-profile-form.html`. Owner's and management's remarks: points grouped by type with a section row (name and count; white, large bold dark-blue text, thick dark-blue frame), two empty rows between sections; the column header keeps its colour and gets the same outer frame; update date on row 2; a legend row then one empty row (7 frozen rows); a not-done stage stays white instead of pink; thin borders; the whole row keeps its status colour; no percents in the totals row; a new sheet «Progress by rack» (counts and percents, green only at 100%). Both new parts in every profile, by two ticks on by default; the section order by ↑↓ arrows on the profile's types list (proposed, accepted at «Коммит»). The rack and label sheet stays as it is.
