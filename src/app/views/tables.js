@@ -72,8 +72,7 @@ export function tableForm(table) {
   const repo = getRepo(); const p = currentProject(); const ctx = state.ctx; const list = tablesOf(p);
   const mine = [...ctx.points.values()].filter((x) => x.projectId === p.id);
   const cabs = [...new Set(mine.map((x) => x.cabinet || NO_CABINET))].sort((a, b) => (a === NO_CABINET ? 1 : b === NO_CABINET ? -1 : a.localeCompare(b, 'ru', { numeric: true })));
-  const types = [...ctx.types.values()].map((t) => t.id);
-  const base = table || { name: '', lang: 'ru', cabinets: [], types: [], statuses: [], layout: 'one', summary: true,
+  const base = table || { name: '', lang: 'ru', cabinets: [], types: [], statuses: [], layout: 'one', summary: true, sections: true, rackSheet: true,
     columns: ['label', 'planName', 'cabinet', 'floor', 'type', 'cable', 'status', 'pulled', 'hived', 'installed', 'checked'] };
   formModal({
     title: table ? `Таблица «${table.name}»` : 'Новая таблица', submitLabel: 'Сохранить',
@@ -88,6 +87,8 @@ export function tableForm(table) {
       { key: 'columns', label: 'Столбцы (порядок стрелками)', type: 'custom', required: true, build: (api) => columnList(base.columns, base.lang, api.changed) },
       { key: 'layout', label: 'Раскладка', type: 'select', options: [{ value: 'one', label: 'Все точки одним листом' }, { value: 'perCabinet', label: 'Каждый шкаф на отдельном листе' }] },
       { key: 'summary', label: 'Итоги сверху (всего, протянуто, захивучено…)', type: 'checkbox' },
+      { key: 'sections', label: 'Разделы по типам точек', type: 'checkbox', hint: 'Перед точками каждого типа — строка с его названием и числом точек' },
+      { key: 'rackSheet', label: 'Лист „Итоги по шкафам“', type: 'checkbox', hint: 'Отдельный лист: сколько точек каждого шкафа протянуто, установлено, проверено, в процентах' },
       { key: 'auto', label: 'Обновлять автоматически каждую ночь (в 2–3 часа)', type: 'checkbox', hint: 'Работает после первого «Обновить» в приложении и если проект открыт серверу (см. ниже на карточке)' },
       { key: 'main', label: 'Основная таблица для руководства', type: 'checkbox', hint: 'Её обновляет кнопка в ☰ → Данные → «Обновить таблицу для руководства»', visible: () => !table?.main },
     ],
