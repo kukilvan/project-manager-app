@@ -111,7 +111,7 @@ const stagesOf = (type) => (type ? [...(type.stages || [])] : null);
 
 
 // layout version: when it changes the tables are rebuilt even if the data is the same
-const STYLE_V = 4;
+const STYLE_V = 5;
 const COLORS = { green: '#C6E5C9', grey: '#EFEFEF', orange: '#FFE0B2', red: '#F4B6B6', yellow: '#FFF2B3' };
 
 // Values of one cell
