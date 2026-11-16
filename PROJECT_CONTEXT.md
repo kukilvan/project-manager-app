@@ -1,10 +1,10 @@
 # Project context
 
-Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live in `docs/history.md`. Updated: 2026-11-15.
+Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live in `docs/history.md`. Updated: 2026-11-16.
 
 ## Next step
 
-«Описание 3» — description of stage 3 «Management sheets» (`docs/project-spec.md`, stage 3): the owner's remarks on the look of the management sheets, and a list of old Google Drive files for the owner to delete (AppSheet-era template sheets, empty debug sheets; sessions never delete from Drive). Output `.scratch/03-management-sheets/description.md`. Model: Opus 5.5, effort high (`docs/models.md`).
+«Спека 3» — spec of stage 3 «Management sheets» from `.scratch/03-management-sheets/description.md` (approved 2026-11-16): sections by point type, the «Progress by rack» sheet, legend, update date, less pink, profile ticks and type order; answer its open questions. Output `.scratch/03-management-sheets/spec.md`. Model: Opus 5.5, effort high (`docs/models.md`).
 
 Quick fixes «Правка: …» may come at any time; they do not change this step.
 
@@ -18,7 +18,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 - Tests: 192, all pass on the owner's Windows PC and on the Linux deploy.
 - Stage 1: baseline 1,751 Russian comments in 144 files, 0 left; every one of the 127 modules in `docs/code-map.md` has an English header; the map has its architecture section; `PENDING` is gone, so `tools/code-map.mjs` and `tools/ru-comments.mjs` (and `tests/code-docs.test.js`) are strict; `tools/tohnit/__pycache__` is no longer tracked.
 - The owner's NAS arrives 2026-11-11 without disks; its setup is a separate project, which builds from `docs/nas-requirements.md` (the owner gives it the GitHub link and says when the version line changes).
-- Open tails, status unconfirmed: possible management-sheet tweaks and a list of old Drive files to delete (stage 3); photos on points deferred by the owner.
+- Stage 3 description accepted 2026-11-16 (`.scratch/03-management-sheets/description.md`, mockups in `mockups/`): it also holds the list of old Drive files for the owner to delete (AppSheet is no longer needed). Photos on points deferred by the owner.
 
 ## Stages
 
@@ -26,7 +26,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 |---|---|---|---|---|
 | 1 | Code documentation | done | 14 | — |
 | 2 | What the app needs from the NAS | done | 6 | — |
-| 3 | Management sheets | not started | 8 | — |
+| 3 | Management sheets | spec | 8 | — |
 | 4 | PocketBase storage (when the owner trusts the NAS) | not started | 16 | — |
 | 5 | Move to the NAS | not started | 10 | — |
 

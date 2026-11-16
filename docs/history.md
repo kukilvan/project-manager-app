@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-16 — Description 3: management sheets («Описание 3»)
+
+- `.scratch/03-management-sheets/description.md` and mockups `status-sheet.html`, `progress-by-rack.html`, `table-profile-form.html`. Owner's and management's remarks: points grouped by type with a section row (name and count; white, large bold dark-blue text, thick dark-blue frame), two empty rows between sections; the column header keeps its colour and gets the same outer frame; update date on row 2; a legend row then one empty row (7 frozen rows); a not-done stage stays white instead of pink; thin borders; the whole row keeps its status colour; no percents in the totals row; a new sheet «Progress by rack» (counts and percents, green only at 100%). Both new parts in every profile, by two ticks on by default; the section order by ↑↓ arrows on the profile's types list (proposed, accepted at «Коммит»). The rack and label sheet stays as it is.
+- Old Drive files listed by a read-only search for the owner to delete: the old template sheet, an early template-based sheet, the AppSheet data sheet (it changed on 2026-11-16, so AppSheet goes off first), its copy and the «appsheet» folder; three groups for the owner to decide. Nothing deleted by the session.
+- Ten open questions for the spec (date write on unchanged data, percent base, points without a type, per-rack layout, the filter, texts, frozen rows, Excel export, storing the type order, sheet-name clash).
+
 ## 2026-11-15 — Review 2: stage 2 closed («Ревью 2»)
 
 - `.scratch/02-nas-requirements/review.md`: the whole stage (`2deeaa5..20d6edf`) against the spec and coding standards, two parallel passes, then runs on a real PocketBase 0.40.6 (Windows binary) and on the NAS document's Dockerfile and Compose example built in Docker (downloads allowed by the owner; all removed from the scratchpad and Docker at the end).

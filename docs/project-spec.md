@@ -81,6 +81,8 @@ Description: `.scratch/02-nas-requirements/description.md` approved (it override
 
 ### Stage 3. Management sheets
 
+Description approved: `.scratch/03-management-sheets/description.md` (it overrides this section).
+
 - Goal: the owner's remarks on the look of the management sheets (collected in the stage description), and a list of old files on Google Drive to delete — AppSheet-era template sheets and empty debug sheets. The owner deletes them; sessions never delete from Drive.
 - The owner sees at the end: the sheets as asked; the list of old files.
 - Sessions (est.): ≈ 8.
