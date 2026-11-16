@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-16 — Ticket 3.3: rack sheet («Тикет 3.3»)
+
+- `src/domain/report.js`: `rackSheetOf` (racks in natural order, «Без шкафа» last; per stage the base = points whose type has the stage, done only inside the base, percent ⌊done × 100 / base⌋ / 100, «—» for base 0; partly installed and faults as in the totals; total row), the sheet is last when `rackSheet !== false`, a rack sheet of «perCabinet» with the same name gets « (2)»; `STYLE_V` 7.
+- `src/app/managers.js`: `rackSheetRequests` (merges, `0%` format, row heights 34/24/30/34, frozen rows 5 and column A), `progressColor(p)` (white for 0 and «—», else a blend from `#E6B422` to `#C6E5C9`; both cells of a stage), blocks (rack + total, each stage, partly + faults) framed in navy through the header, dotted line inside a stage, teal `#12A3A3` medium lines between racks, thick navy top of the total row and outer frame.
+- Decisions: the owner asked for the look in four rounds on browser mockups (gradient, readability, frames through the header, line colour between racks: teal); rack names centred (left and right-to-left alignment both looked wrong on the Hebrew sheet). Two slips fixed on the way: a look-only change needs a `STYLE_V` bump or files stay «актуальна» (shipped without it first), and the phone needs ☰ → «Обновить приложение». Checked by the owner on the phone and the PC.
+
 ## 2026-11-16 — Ticket 3.2: sections by point type («Тикет 3.2»)
 
 - `src/domain/report.js`: `typeOrderOf(table, ctx)` (ids of `typeOrder` that still exist, then the rest by name), `pointsCountText(n, lang)` (Russian plural, «נקודה אחת»), grouping in `sheetOf` when `sections !== false` with «Без типа» / «ללא סוג» last, section rows «<type> — <count>», two empty rows between groups, `sectionRows`, `pointRuns` per group, `rowColors` `''` on section and empty rows; `defaultTables()` writes `sections: true, rackSheet: true`. `src/domain/export.js`: builds with `sections: false, rackSheet: false` (Excel unchanged).
