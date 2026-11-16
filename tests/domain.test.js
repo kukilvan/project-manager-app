@@ -309,6 +309,118 @@ test('таблица: создание файла и пересборка лис
   await assert.rejects(() => syncTable(api, project, ctx, { ...t2, by: 'u1' }, { uid: 'u2' }), /другой участник/);
 });
 
+test('таблица: время обновления в израильском времени, летом и зимой, на двух языках', async () => {
+  const { stampText } = await import('../src/domain/index.js');
+  assert.equal(stampText(new Date('2026-11-16T00:00:00Z'), 'he'), 'עודכן: 16/11/2026 02:00');
+  assert.equal(stampText(new Date('2026-11-16T00:00:00Z'), 'ru'), 'Обновлено: 16/11/2026 02:00');
+  assert.equal(stampText(new Date('2026-07-01T00:00:00Z'), 'he'), 'עודכן: 01/07/2026 03:00');
+  assert.equal(stampText(new Date('2026-07-01T00:00:00Z'), 'ru'), 'Обновлено: 01/07/2026 03:00');
+  assert.equal(stampText(new Date('2026-12-31T22:30:00Z'), 'ru'), 'Обновлено: 01/01/2027 00:30'); // midnight is 00, not 24
+});
+
+test('таблица: строки сверху — итоги, легенда цветов, пустая строка, шапка; время вне строк', async () => {
+  const { buildReport, defaultTables } = await import('../src/domain/index.js');
+  const { ctx, project } = await reportData();
+  const now = new Date('2026-11-16T00:00:00Z');
+  const ru = buildReport(project, ctx, { ...defaultTables()[1], columns: ['label', 'status'] }, { now }).sheets[0];
+  assert.equal(ru.headerRow, 6); assert.equal(ru.frozenRows, 7); assert.equal(ru.legendRow, 4);
+  assert.deepEqual(ru.rows[4], ['Выполнено', 'В работе', 'Частично', 'Неисправность', '— не относится к типу', 'Пусто — ещё не сделано']);
+  assert.deepEqual(ru.rows[5], []);
+  assert.deepEqual(ru.rows[6], ['Обозначение', 'Статус']);
+  assert.deepEqual(ru.stamp, { row: 1, col: 4, text: 'Обновлено: 16/11/2026 02:00' });
+  assert.ok(!JSON.stringify(ru.rows).includes('Обновлено')); // the stamp is not in rows, so not in the hash
+  assert.deepEqual(ru.pointRuns, [[7, ru.rows.length]]); assert.deepEqual(ru.sectionRows, []);
+  assert.equal(ru.rowColors.length, ru.rows.length - 7);
+  // without totals the legend is row 3 (index 2) and the header index 4
+  const he = buildReport(project, ctx, { ...defaultTables()[0], summary: false, columns: ['label'] }, { now }).sheets[0];
+  assert.equal(he.headerRow, 4); assert.equal(he.frozenRows, 5); assert.equal(he.legendRow, 2);
+  assert.deepEqual(he.rows[2], ['בוצע', 'בתהליך', 'בוצע חלקית', 'תקלה', '— לא רלוונטי לסוג', 'ריק — טרם בוצע']);
+  assert.deepEqual(he.rows[4], ['נקודה']); assert.equal(he.stamp.text, 'עודכן: 16/11/2026 02:00');
+  // no points: the legend and the header stay, no point rows to frame
+  const none = buildReport(project, ctx, { ...defaultTables()[1], columns: ['label'], statuses: ['Неисправна'] }, { now }).sheets[0];
+  assert.equal(none.rows.length, 7); assert.deepEqual(none.pointRuns, []);
+});
+
+test('таблица: время обновления не входит в хэш, другое содержимое — входит', async () => {
+  const { buildReport, defaultTables } = await import('../src/domain/index.js');
+  const { ctx, project } = await reportData();
+  const t = { ...defaultTables()[0], columns: ['label', 'installed'] };
+  const a = buildReport(project, ctx, t, { now: new Date('2026-11-16T00:00:00Z') });
+  const b = buildReport(project, ctx, t, { now: new Date('2026-11-17T09:30:00Z') });
+  assert.equal(a.hash, b.hash); assert.notEqual(a.sheets[0].stamp.text, b.sheets[0].stamp.text);
+  assert.notEqual(a.hash, buildReport(project, ctx, { ...t, lang: 'ru' }).hash);
+  assert.ok(buildReport(project, ctx, t).sheets[0].stamp.text.startsWith('עודכן: ')); // `now` defaults to the current time
+});
+
+test('таблица: запросы форматирования — легенда, рамки, без розового, закрепление строк', async () => {
+  const { buildReport, defaultTables } = await import('../src/domain/index.js');
+  const { sheetRequests } = await import('../src/app/managers.js');
+  const { ctx, project } = await reportData();
+  const sh = buildReport(project, ctx, { ...defaultTables()[1], columns: ['label', 'pulled', 'installed'] }).sheets[0];
+  assert.ok(!sh.rules.some((r) => r.kind === 'blank'));
+  assert.ok(sh.rules.some((r) => r.kind === 'number')); assert.ok(sh.rules.some((r) => r.kind === 'eq' && r.text === '—'));
+  const reqs = sheetRequests(7, sh);
+  const text = JSON.stringify(reqs);
+  assert.ok(!text.includes('COUNTA') && !text.includes('0.9882352')); // no «empty cell → pink» rule, no pink anywhere
+  const borders = reqs.map((q, i) => ({ b: q.updateBorders, i })).filter((x) => x.b);
+  const legend = borders.find((x) => x.b.range.startRowIndex === sh.legendRow);
+  assert.equal(legend.b.range.endColumnIndex, 6); assert.equal(legend.b.top.style, 'SOLID');
+  const run = borders.find((x) => x.b.range.startRowIndex === 7);
+  assert.equal(run.b.range.endRowIndex, sh.rows.length); assert.equal(run.b.top.style, 'SOLID'); assert.equal(run.b.innerHorizontal.style, 'SOLID');
+  const head = borders.find((x) => x.b.range.startRowIndex === sh.headerRow);
+  assert.equal(head.b.top.style, 'SOLID_THICK'); assert.equal(head.b.innerVertical.style, 'SOLID');
+  assert.ok(run.i < head.i); // the header frame is sent after the point-row borders
+  assert.equal(reqs.filter((q) => q.repeatCell && q.repeatCell.range.startRowIndex === sh.legendRow).length, 6);
+  const wrap = reqs.find((q) => q.repeatCell && q.repeatCell.range.startRowIndex === sh.legendRow);
+  assert.equal(wrap.repeatCell.cell.userEnteredFormat.wrapStrategy, 'WRAP');
+  assert.ok(reqs.some((q) => q.repeatCell && q.repeatCell.range.startRowIndex === 1 && q.repeatCell.range.startColumnIndex === 4)); // the stamp cell look
+  assert.equal(reqs.find((q) => q.setBasicFilter).setBasicFilter.filter.range.startRowIndex, sh.headerRow);
+});
+
+test('таблица: пересборка пишет время в E2 вместе со значениями и закрепляет строки до шапки', async () => {
+  const { syncTable } = await import('../src/app/managers.js');
+  const { defaultTables } = await import('../src/domain/index.js');
+  const { ctx, project } = await reportData();
+  const calls = [];
+  const api = {
+    fileInfo: async () => ({ id: 'F1', name: 'x' }), rename: async () => {}, sheetsOf: async () => [{ sheetId: 0, title: 'Sheet1' }],
+    batch: async (id, reqs) => calls.push(['batch', reqs]), write: async (id, data) => calls.push(['write', data]),
+  };
+  const table = { ...defaultTables()[0], fileId: 'F1' };
+  await syncTable(api, project, ctx, table, { now: new Date('2026-11-16T00:00:00Z') });
+  assert.equal(calls.find((c) => c[0] === 'batch')[1][0].addSheet.properties.gridProperties.frozenRowCount, 7);
+  const data = calls.find((c) => c[0] === 'write')[1];
+  assert.deepEqual(data.map((d) => d.range), ["'סטטוס'!A1", "'סטטוס'!E2"]);
+  assert.deepEqual(data[1].values, [['עודכן: 16/11/2026 02:00']]);
+});
+
+test('таблица: данные не менялись — одна запись времени, без пересборки; если запись не прошла — пересборка', async () => {
+  const { syncTable } = await import('../src/app/managers.js');
+  const { defaultTables } = await import('../src/domain/index.js');
+  const { ctx, project } = await reportData();
+  const calls = []; let failStamp = false;
+  const api = {
+    fileInfo: async () => ({ id: 'F1', name: 'x' }), rename: async (id, name) => calls.push(['rename', name]), sheetsOf: async () => [{ sheetId: 0, title: 'Sheet1' }],
+    batch: async (id, reqs) => calls.push(['batch', reqs]),
+    write: async (id, data) => { if (failStamp && data.length === 1) throw new Error('Unable to parse range'); calls.push(['write', data]); },
+  };
+  const first = await syncTable(api, project, ctx, { ...defaultTables()[0], fileId: 'F1' }, { now: new Date('2026-11-16T00:00:00Z') });
+  const table = { ...defaultTables()[0], fileId: 'F1', hash: first.patch.hash };
+  calls.length = 0;
+  const same = await syncTable(api, project, ctx, table, { now: new Date('2026-11-17T01:00:00Z') });
+  assert.equal(same.changed, false); assert.equal(same.patch.hash, undefined); assert.match(same.message, /данные не менялись/);
+  assert.deepEqual(calls.filter((c) => c[0] !== 'rename').map((c) => c[0]), ['write']); // exactly one write, no batch
+  assert.deepEqual(calls.find((c) => c[0] === 'write')[1], [{ range: "'סטטוס'!E2", values: [['עודכן: 17/11/2026 03:00']] }]);
+  // an editor renamed the tab: the stamp write fails and the file is rebuilt
+  failStamp = true; calls.length = 0;
+  const rebuilt = await syncTable(api, project, ctx, table, { now: new Date('2026-11-17T01:00:00Z') });
+  assert.equal(rebuilt.changed, true); assert.equal(rebuilt.patch.hash, first.patch.hash);
+  assert.deepEqual(calls.filter((c) => c[0] !== 'rename').map((c) => c[0]), ['batch', 'write']);
+  // the rebuild fails too: the error comes out with the patch, as before
+  api.batch = async () => { throw new Error('boom'); };
+  await assert.rejects(() => syncTable(api, project, ctx, table, { now: new Date() }), (e) => e.message === 'boom' && !!e.patch);
+});
+
 test('сервер: ночное автообновление таблиц', async () => {
   const { updateProjectTables, applyPatches, autoTables } = await import('../scripts/server-tables-lib.mjs');
   const { defaultTables } = await import('../src/domain/index.js');
@@ -316,14 +428,19 @@ test('сервер: ночное автообновление таблиц', asy
   const [main, ext] = defaultTables();
   const proj = { ...project, tables: [{ ...main, fileId: 'F1', by: 'u1' }, { ...ext, fileId: 'F2' }] };
   assert.deepEqual(autoTables(proj).map((t) => t.id), ['t_main']); // an extended table without the tick is not updated
-  const calls = []; const files = { F1: { id: 'F1', name: 'x' } };
+  const calls = []; const stamps = []; const files = { F1: { id: 'F1', name: 'x' } };
   const api = {
     fileInfo: async (id) => files[id] || null, rename: async () => {}, sheetsOf: async () => [{ sheetId: 0, title: 'S' }],
-    batch: async (id, reqs) => calls.push(['batch', id, reqs.length]), write: async (id) => calls.push(['write', id]),
+    batch: async (id, reqs) => calls.push(['batch', id, reqs.length]),
+    write: async (id, data) => { calls.push(['write', id]); data.filter((d) => d.range.endsWith('!E2')).forEach((d) => stamps.push(d.values[0][0])); },
   };
   const r = await updateProjectTables(api, proj, data, new Date('2026-10-11T00:00:00Z'));
   assert.equal(r.patches.t_main.serverError, ''); assert.ok(r.patches.t_main.hash); assert.equal(r.patches.t_main.by, undefined);
   assert.ok(calls.some((c) => c[0] === 'write' && c[1] === 'F1'));
+  assert.deepEqual(stamps, ['עודכן: 11/10/2026 03:00']); // the stamp is the job's start time (Israel summer time)
+  // the same data the next night: only the stamp is written
+  const r1 = await updateProjectTables(api, { ...proj, tables: applyPatches(proj, r.patches) }, data, new Date('2026-10-12T00:00:00Z'));
+  assert.equal(r1.report[0], 'Для руководства: без изменений'); assert.equal(stamps.at(-1), 'עודכן: 12/10/2026 03:00');
   // the file is unavailable to the server: no new one is created, the error is written to the profile
   delete files.F1;
   const r2 = await updateProjectTables(api, proj, data, new Date());

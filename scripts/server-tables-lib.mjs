@@ -24,7 +24,7 @@ export async function updateProjectTables(api, project, data, now = new Date()) 
   const patches = {}; const report = [];
   for (const table of autoTables(project)) {
     try {
-      const r = await syncTable(api, project, ctx, table, { uid: '__server', nameOf: (u) => nameByUid(project, u), noCreate: true });
+      const r = await syncTable(api, project, ctx, table, { uid: '__server', nameOf: (u) => nameByUid(project, u), noCreate: true, now });
       const { by, ...rest } = r.patch; void by;
       patches[table.id] = { ...rest, serverAt: now.toISOString(), serverError: '' };
       report.push(`${table.name}: ${r.changed ? `обновлена (точек ${r.rep.pointCount})` : 'без изменений'}`);

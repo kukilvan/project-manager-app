@@ -1,4 +1,4 @@
-// Management sheets: the app itself creates a Google Sheet (no template) and writes the ready values into it.
+// Management sheets: the app itself creates a Google Sheet (no template) and writes the ready values and the update stamp into it.
 // The report content comes from src/domain (`buildReport`); the Sheets api object is passed in (`realApi` of google.js in the app, the server job's own one in scripts/server-tables-lib.mjs).
 import { buildReport } from '../domain/index.js';
 
@@ -7,13 +7,26 @@ const rgb = (hex) => { let h = String(hex || '#000000').replace('#', ''); if (h.
 const colLetter = (n) => { let s = ''; let x = n + 1; while (x > 0) { const m = (x - 1) % 26; s = String.fromCharCode(65 + m) + s; x = Math.floor((x - 1) / 26); } return s; };
 const esc = (t) => String(t).replace(/'/g, "''");
 
-// Formatting requests for one sheet: widths, header, dates, highlighting, filter
+const border = (style, hex) => ({ style, color: rgb(hex) });
+const THIN = '#D0D4D9'; const NAVY = '#1F3B5C';
+
+// Formatting requests for one sheet: widths, legend, stamp, header, borders, dates, highlighting, filter
 export function sheetRequests(sheetId, sh) {
   const out = []; const nCols = sh.cols.length; const first = sh.headerRow + 1; const lastRow = Math.max(sh.rows.length, first + 1);
   const range = (r0, r1, c0, c1) => ({ sheetId, startRowIndex: r0, endRowIndex: r1, startColumnIndex: c0, endColumnIndex: c1 });
   sh.cols.forEach((c, i) => out.push({ updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: i, endIndex: i + 1 }, properties: { pixelSize: c.width || 110 }, fields: 'pixelSize' } }));
   out.push({ repeatCell: { range: range(0, 1, 0, 1), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 14 } } }, fields: 'userEnteredFormat.textFormat' } });
   out.push({ repeatCell: { range: range(1, 2, 0, 1), cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat' } });
+  // update stamp (E2): plain grey text, not bold
+  out.push({ repeatCell: { range: range(1, 2, 4, 5), cell: { userEnteredFormat: { textFormat: { bold: false, foregroundColor: rgb('#5F6368') } } }, fields: 'userEnteredFormat.textFormat' } });
+  // colour legend: one framed cell per colour, text centred and wrapped
+  if (sh.legendRow !== undefined && sh.legend?.length) {
+    sh.legend.forEach((l, i) => out.push({ repeatCell: { range: range(sh.legendRow, sh.legendRow + 1, i, i + 1), cell: { userEnteredFormat: {
+      backgroundColor: rgb(l.color), textFormat: { foregroundColor: rgb(l.textColor || '#000000') }, horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE', wrapStrategy: 'WRAP' } },
+    fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)' } }));
+    const edge = border('SOLID', '#C4C8CC');
+    out.push({ updateBorders: { range: range(sh.legendRow, sh.legendRow + 1, 0, sh.legend.length), top: edge, bottom: edge, left: edge, right: edge, innerVertical: edge } });
+  }
   if (sh.summaryRows.length) {
     out.push({ repeatCell: { range: range(2, 3, 0, 7), cell: { userEnteredFormat: { textFormat: { bold: true }, backgroundColor: rgb('#E8EEF5'), horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(textFormat,backgroundColor,horizontalAlignment)' } });
     out.push({ repeatCell: { range: range(3, 4, 0, 7), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 12 }, backgroundColor: rgb('#D3E3F5'), horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(textFormat,backgroundColor,horizontalAlignment)' } });
@@ -40,11 +53,15 @@ export function sheetRequests(sheetId, sh) {
   sh.rules.forEach((r) => {
     const cell = `${colLetter(r.col)}${rowNo}`;
     const cond = r.kind === 'number' ? { type: 'CUSTOM_FORMULA', values: [{ userEnteredValue: `=ISNUMBER(${cell})` }] }
-      : r.kind === 'blank' ? { type: 'CUSTOM_FORMULA', values: [{ userEnteredValue: `=(COUNTA($A${rowNo}:$${colLetter(Math.max(nCols - 1, 0))}${rowNo})>0)*(LEN(${cell})=0)` }] }
-        : { type: r.kind === 'eq' ? 'TEXT_EQ' : 'TEXT_STARTS_WITH', values: [{ userEnteredValue: r.text }] };
+      : { type: r.kind === 'eq' ? 'TEXT_EQ' : 'TEXT_STARTS_WITH', values: [{ userEnteredValue: r.text }] };
     const format = { backgroundColor: rgb(r.color), ...(r.textColor ? { textFormat: { foregroundColor: rgb(r.textColor) } } : {}) };
     out.push({ addConditionalFormatRule: { rule: { ranges: [range(first, lastRow, r.col, r.col + 1)], booleanRule: { condition: cond, format } }, index: 0 } });
   });
+  // borders: thin around every block of point rows first, then the header frame (later borders win on shared edges)
+  const thin = border('SOLID', THIN);
+  (sh.pointRuns || []).forEach(([r0, r1]) => out.push({ updateBorders: { range: range(r0, r1, 0, nCols), top: thin, bottom: thin, left: thin, right: thin, innerHorizontal: thin, innerVertical: thin } }));
+  const frame = border('SOLID_THICK', NAVY);
+  out.push({ updateBorders: { range: range(sh.headerRow, sh.headerRow + 1, 0, nCols), top: frame, bottom: frame, left: frame, right: frame, innerVertical: border('SOLID', '#8FA3BA') } });
   out.push({ setBasicFilter: { filter: { range: range(sh.headerRow, Math.max(sh.rows.length, sh.headerRow + 1), 0, nCols) } } });
   return out;
 }
@@ -56,17 +73,21 @@ export async function rebuildSheets(api, fileId, sheets) {
   const ids = sheets.map((_, i) => base + i);
   const requests = [];
   sheets.forEach((sh, i) => requests.push({ addSheet: { properties: { sheetId: ids[i], title: `__pz${i}`, index: i, rightToLeft: sh.rtl,
-    gridProperties: { rowCount: Math.max(50, sh.rows.length + 20), columnCount: Math.max(sh.cols.length, ...sh.rows.map((r) => r.length), 7), frozenRowCount: sh.headerRow + 1 } } } }));
+    gridProperties: { rowCount: Math.max(50, sh.rows.length + 20), columnCount: Math.max(sh.cols.length, ...sh.rows.map((r) => r.length), 7), frozenRowCount: sh.frozenRows ?? sh.headerRow + 1, frozenColumnCount: sh.frozenCols || 0 } } } }));
   old.forEach((o) => requests.push({ deleteSheet: { sheetId: o.sheetId } }));
   sheets.forEach((sh, i) => requests.push({ updateSheetProperties: { properties: { sheetId: ids[i], title: sh.title, rightToLeft: !!sh.rtl }, fields: 'title,rightToLeft' } }));
   sheets.forEach((sh, i) => requests.push(...sheetRequests(ids[i], sh)));
   await api.batch(fileId, requests);
-  await api.write(fileId, sheets.map((sh) => ({ range: `'${esc(sh.title)}'!A1`, values: sh.rows })));
+  // the stamp cell goes into the same values write
+  await api.write(fileId, sheets.flatMap((sh) => [{ range: `'${esc(sh.title)}'!A1`, values: sh.rows }, stampWrite(sh)]));
 }
 
-// Updates one sheet of the project. Returns { patch, link, changed, message }: patch — profile fields to save
-export async function syncTable(api, project, ctx, table, { force = false, uid = '', nameOf, noCreate = false, shareWith = '' } = {}) {
-  const rep = buildReport(project, ctx, table, { nameOf });
+// The stamp cell of a sheet as a values-write item: «'<title>'!E2» ← the update text
+const stampWrite = (sh) => ({ range: `'${esc(sh.title)}'!${colLetter(sh.stamp.col)}${sh.stamp.row + 1}`, values: [[sh.stamp.text]] });
+
+// Updates one sheet of the project (`now` — the time of the update stamp). Returns { patch, link, changed, message }: patch — profile fields to save
+export async function syncTable(api, project, ctx, table, { force = false, uid = '', nameOf, noCreate = false, shareWith = '', now = new Date() } = {}) {
+  const rep = buildReport(project, ctx, table, { nameOf, now });
   const patch = {};
   let fileId = table.fileId || '';
   let oldHash = table.hash || '';
@@ -89,7 +110,12 @@ export async function syncTable(api, project, ctx, table, { force = false, uid =
   if (shareWith && api.share && table.sharedWith !== shareWith) { try { await api.share(fileId, shareWith); patch.sharedWith = shareWith; } catch (e) { console.warn('share', e); } }
   let changed = false;
   try {
-    if (force || rep.hash !== oldHash) {
+    let rebuild = force || rep.hash !== oldHash;
+    if (!rebuild) {
+      // data unchanged: only the «Обновлено» cells; if that fails (e.g. an editor renamed a tab), rebuild the file instead
+      try { await api.write(fileId, rep.sheets.map(stampWrite)); } catch (e) { console.warn('stamp write', e); rebuild = true; }
+    }
+    if (rebuild) {
       await rebuildSheets(api, fileId, rep.sheets);
       patch.hash = rep.hash; changed = true;
     }

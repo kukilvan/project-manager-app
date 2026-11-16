@@ -1,11 +1,11 @@
-// Management sheets: profiles (what to show) and building the sheets with values only, no formulas.
+// Management sheets: profiles (what to show) and building the sheets (colour legend, update stamp, point rows) with values only, no formulas.
 // Profile: { id, name, main, lang: 'he'|'ru', cabinets: [], types: [], statuses: [], columns: [id…], layout: 'one'|'perCabinet', summary }
 // An empty list of racks/types/statuses = «all».
 // Built on points.js, status.js, doorcfg.js, managers.js and rack.js; export.js reuses it for the Excel export.
 import { comparePoints, cableListOf, cablesCountOf, metrageOf } from './points.js';
 import { pointInfo, usesConfig } from './status.js';
 import { doorCfgOf } from './doorcfg.js';
-import { sheetSerial, hashOf, TITLE_PREFIX } from './managers.js';
+import { sheetSerial, hashOf, stampText, TITLE_PREFIX } from './managers.js';
 import { panelText } from './rack.js';
 
 export const NO_CABINET = '__none';
@@ -43,6 +43,16 @@ export const STATUS_KEYS = ['Новая', 'Посчитана', 'Частичн�
 const STATUS_HE = { 'Новая': 'טרם נמשך', 'Посчитана': 'טרם נמשך', 'Протянута': 'נמשך', 'Захивучена': 'חווט', 'Установлена': 'הותקן', 'Проверена': 'נבדק', 'Неисправна': 'תקלה' };
 export const statusKeyOf = (info) => (info.status.startsWith('Установлено ') ? 'Частично установлена'
   : info.status.startsWith('Протянуто ') ? 'Частично протянута' : info.status);
+
+// Colour legend (one cell per colour, always columns A–F): the point row colors and the stage-cell colors it explains
+const LEGEND = [
+  { color: '#C6E5C9', ru: 'Выполнено', he: 'בוצע' },
+  { color: '#FFF2B3', ru: 'В работе', he: 'בתהליך' },
+  { color: '#FFE0B2', ru: 'Частично', he: 'בוצע חלקית' },
+  { color: '#F4B6B6', ru: 'Неисправность', he: 'תקלה' },
+  { color: '#EFEFEF', textColor: '#8C8C8C', ru: '— не относится к типу', he: '— לא רלוונטי לסוג' },
+  { color: '#FFFFFF', ru: 'Пусто — ещё не сделано', he: 'ריק — טרם בוצע' },
+];
 
 const T = {
   title: { ru: 'Статус выполнения точек', he: 'סטטוס התקדמות נקודות' },
@@ -99,8 +109,8 @@ const stagesOf = (type) => (type ? [...(type.stages || [])] : null);
 
 
 // layout version: when it changes the tables are rebuilt even if the data is the same
-const STYLE_V = 3;
-const COLORS = { green: '#C6E5C9', grey: '#EFEFEF', pink: '#FCE8E8', orange: '#FFE0B2', red: '#F4B6B6', yellow: '#FFF2B3' };
+const STYLE_V = 4;
+const COLORS = { green: '#C6E5C9', grey: '#EFEFEF', orange: '#FFE0B2', red: '#F4B6B6', yellow: '#FFF2B3' };
 
 // Values of one cell
 function cellOf(col, point, info, ctx, project, lang, nameOf) {
@@ -163,7 +173,6 @@ function rulesFor(cols, lang) {
       rules.push({ col: i, kind: 'number', color: COLORS.green }, { col: i, kind: 'eq', text: '—', color: COLORS.grey, textColor: '#8C8C8C' });
       if (c.id === 'installed') rules.push({ col: i, kind: 'starts', text: T.partial[lang], color: COLORS.orange });
       if (c.id === 'pulled') rules.push({ col: i, kind: 'starts', text: T.partialPull[lang], color: COLORS.orange });
-      rules.push({ col: i, kind: 'blank', color: COLORS.pink });
     } else if (c.id === 'status') {
       const t = (k) => (lang === 'he' ? STATUS_HE[k] : k);
       rules.push({ col: i, kind: 'eq', text: t('Проверена'), color: COLORS.green }, { col: i, kind: 'eq', text: t('Установлена'), color: COLORS.green },
@@ -189,7 +198,7 @@ function pointsFor(project, ctx, table, nameOf) {
       && (!sts.size || sts.has(statusKeyOf(info))));
 }
 
-function sheetOf(title, items, project, ctx, table, cols, nameOf) {
+function sheetOf(title, items, project, ctx, table, cols, nameOf, now) {
   const lang = table.lang === 'ru' ? 'ru' : 'he';
   const rows = [[T.title[lang]], [displayName(project, lang)]];
   if (table.summary) {
@@ -197,18 +206,24 @@ function sheetOf(title, items, project, ctx, table, cols, nameOf) {
     const keys = ['total', 'pulled', 'hived', 'installed', 'partial', 'checked', 'faulty'];
     const vals = [items.length, n((x) => x.info.pulled), n((x) => x.info.hived), n((x) => x.info.install === 'Установлено'),
       n((x) => x.info.install.startsWith('Установлено ')), n((x) => x.info.checked), n((x) => x.info.status === 'Неисправна')];
-    rows.push(keys.map((k) => T.sum[k][lang]), vals, []);
-  } else rows.push([]);
+    rows.push(keys.map((k) => T.sum[k][lang]), vals);
+  }
+  const legendRow = rows.length;
+  rows.push(LEGEND.map((l) => l[lang]), []);
   const headerRow = rows.length;
   rows.push(cols.map((c) => c[lang]));
   items.forEach(({ point, info }) => rows.push(cols.map((c) => cellOf(c, point, info, ctx, project, lang, nameOf))));
+  // the stamp (E2) is not in `rows`, so it is not in the hash; rebuildSheets and the date-only write put it into the cell
   return { title, rtl: lang === 'he', rows, headerRow, summaryRows: table.summary ? [2, 3] : [],
     cols: cols.map((c) => ({ id: c.id, kind: c.kind || 'text', width: c.w })), rules: rulesFor(cols, lang), count: items.length,
+    stamp: { row: 1, col: 4, text: stampText(now, lang) }, frozenRows: headerRow + 1, frozenCols: 0,
+    legendRow, legend: LEGEND.map((l) => ({ color: l.color, textColor: l.textColor })), sectionRows: [],
+    pointRuns: items.length ? [[headerRow + 1, rows.length]] : [],
     rowColors: items.map(({ info }) => ROW_COLOR[statusKeyOf(info)] || '') };
 }
 
-// Returns { title, sheets, hash, pointCount, colCount } for writing to a Google Sheet
-export function buildReport(project, ctx, table, { nameOf } = {}) {
+// Returns { title, sheets, hash, pointCount, colCount } for writing to a Google Sheet; `now` is the moment of the refresh (the update stamp)
+export function buildReport(project, ctx, table, { nameOf, now = new Date() } = {}) {
   const lang = table.lang === 'ru' ? 'ru' : 'he';
   const cols = (table.columns || []).map((id) => colById.get(id)).filter(Boolean);
   if (!cols.length) throw new Error('В таблице не выбран ни один столбец');
@@ -222,9 +237,9 @@ export function buildReport(project, ctx, table, { nameOf } = {}) {
       let name = safeSheet(k === NO_CABINET ? T.noCabinet[lang] : k); let i = 2; const base = name;
       while (used.has(name.toLowerCase())) { name = `${base} (${i})`; i += 1; }
       used.add(name.toLowerCase());
-      return sheetOf(name, list, project, ctx, table, cols, nameOf);
+      return sheetOf(name, list, project, ctx, table, cols, nameOf, now);
     });
-  } else sheets = [sheetOf(lang === 'he' ? 'סטטוס' : 'Статус', items, project, ctx, table, cols, nameOf)];
+  } else sheets = [sheetOf(lang === 'he' ? 'סטטוס' : 'Статус', items, project, ctx, table, cols, nameOf, now)];
   const title = fileTitle(project, table);
   return { title, sheets, pointCount: items.length, colCount: cols.length, hash: hashOf([STYLE_V, title, lang, sheets.map((x) => [x.title, x.rtl, x.rows, x.cols.map((c) => c.id), x.rowColors])]) };
 }

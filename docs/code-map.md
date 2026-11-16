@@ -60,7 +60,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/app/google.js` — Access to Google Drive and Sheets on the user's behalf (on a button press, a separate consent is needed): tokens, sign-in flows and the Drive/Sheets api object.
 - `src/app/keyboard.js` — Keeps input windows visible above the iPhone on-screen keyboard, which covers the page instead of shrinking it.
 - `src/app/localdb.js` — On-device storage for the «на этом телефоне» mode: every document lives in IndexedDB (`pm-local`), a working copy in memory.
-- `src/app/managers.js` — Management sheets: the app itself creates a Google Sheet (no template) and writes the ready values into it.
+- `src/app/managers.js` — Management sheets: the app itself creates a Google Sheet (no template) and writes the ready values and the update stamp into it.
 - `src/app/manuals.js` — Manuals for the guide (diagrams, wiring photos, tables, PDFs), shared by all projects.
 - `src/app/migrate.js` — Moves projects from the «на устройстве» mode into the Firebase database (after setting up one's own database or joining by invitation).
 - `src/app/nodoubletap.js` — Stops a double tap from zooming the screen on iPhone (app opened from the home-screen icon).
@@ -132,7 +132,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/domain/generator.js` — Batch point generator (section 2.4): prefix + number (+ «-» and the next number for a pair) (+ suffix).
 - `src/domain/index.js` — Re-exports the pure domain modules as one import point for the app.
 - `src/domain/latin.js` — Cyrillic ↔ Latin in point names: look-alike letters, layout-independent search and quick-input shortcuts.
-- `src/domain/managers.js` — Small shared helpers of the management sheets: file names, dates for Google Sheets and the data hash.
+- `src/domain/managers.js` — Small shared helpers of the management sheets: file names, dates for Google Sheets, the update stamp text and the data hash.
 - `src/domain/manuals.js` — Manuals of the guide: photos of diagrams, PDFs, tables.
 - `src/domain/merge.js` — Point merge: the same point recorded in two ways — a double «FC/B05-06» and singles «FC/B05» + «FC/B06» (the old drawing parsing split doubles into singles, the new one keeps them double).
 - `src/domain/month.js` — Month report: the sum of all daily reports of a month (RU) and «דוח חודשי» in Hebrew (section 5.2 of the technical specification).
@@ -145,7 +145,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/domain/pull.js` — Cable pulls («Протяжки»): choose points on the plan → «до шкафа» (to the rack) → meters per point → checklist → finish (written into the daily report).
 - `src/domain/rack.js` — Racks and port labels: panel ports of cat7 points, the rack plan, automatic port assignment, label colors and caption texts.
 - `src/domain/remaining.js` — «What is left»: points where termination, installation or checking is not done yet (taking the point type's stages into account).
-- `src/domain/report.js` — Management sheets: profiles (what to show) and building the sheets with values only, no formulas.
+- `src/domain/report.js` — Management sheets: profiles (what to show) and building the sheets (colour legend, update stamp, point rows) with values only, no formulas.
 - `src/domain/seed.js` — Starting reference lists for a new project: work catalog, point types, cables, devices, units, culprits and delay reasons (section 4 of the functional description).
 - `src/domain/sheetfit.js` — New drawing version («тохнит»): moving points from the old sheet to the new one when the new sheet has another size, a different crop or another scale.
 - `src/domain/shilutsheet.js` — Rack table for Google Drive: a «rack plan» sheet for each rack (section) and a common sheet of port labels.
