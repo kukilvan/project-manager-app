@@ -12,9 +12,9 @@ Second goal: Google Drive still holds files from the AppSheet era and early trie
 
 Mockups (rough, made-up project and labels): `mockups/status-sheet.html`, `mockups/progress-by-rack.html`, `mockups/table-profile-form.html`.
 
-1. **Sections by point type.** In the points sheet, the points are grouped by type. Before each group there is a section row with the type's name and its number of points («בקרה — 120 נקודות», in a Russian sheet «Контроллер — 120 точек»). One empty row separates the last point of a type from the next section row. Sections come in the order the profile sets (decision 4).
+1. **Sections by point type.** In the points sheet, the points are grouped by type. Before each group there is a section row with the type's name and its number of points («בקרה — 120 נקודות», in a Russian sheet «Контроллер — 120 точек»). The section row is white with large bold dark-blue text and a thick dark-blue frame around the whole row. Two empty rows separate the last point of a type from the next section row. Sections come in the order the profile sets (decision 4).
 2. **Update date.** Row 2, next to the project name: «עודכן: 16/11/2026 02:00» (Israel time), in a Russian sheet «Обновлено: …».
-3. **Colour legend.** The empty row under the totals becomes a legend: one cell per colour with its meaning (done, in progress, partly done, fault, «—» not used by this type, empty — not done yet). One empty row follows it, then the column header.
+3. **Colour legend.** The empty row under the totals becomes a legend: one cell per colour with its meaning (done, in progress, partly done, fault, «—» not used by this type, empty — not done yet). One empty row follows it, then the column header. The column header stays dark blue; it gets the same thick dark-blue outer frame as the section rows (thin light lines between its cells stay), so their edges line up.
 4. **Less pink.** A stage not done yet stays white (now pink). The row of a point keeps the colour of its status, as now. Thin light-grey cell borders make rows easier to follow.
 5. **Totals row unchanged.** Counts only, no percents (percents live on the rack sheet).
 6. **New sheet «Progress by rack»** («התקדמות לפי ארון», in a Russian sheet «Итоги по шкафам») in the same file: one row per rack and a total row; for each stage the count and the percent of the rack's points; partly installed and faults as counts. Only a stage done at 100% is green, nothing else is coloured. The profile's filters (racks, types, statuses) apply to it too.
@@ -63,7 +63,7 @@ Mockups (rough, made-up project and labels): `mockups/status-sheet.html`, `mocku
 3. **The whole row keeps its status colour** — the owner chose the current look over colouring only status cells; the sheet must not get more colourful.
 4. **Section order:** the owner wants the order of the types list but cannot set it today. Proposal in this description: the profile's point-types list gets ↑↓ arrows (as the columns list has), and the sections follow it; with no type ticked (all types) the order is still the list's order. The owner confirms or changes this at «Коммит».
 5. **In every profile, with ticks**, both on by default.
-6. **One empty row** after the legend and between sections (owner's remark on the mockup).
+6. **Spacing and look of sections** (owner's remarks on the mockup, chosen from several variants): one empty row after the legend, two empty rows between sections; the section row white with large bold dark-blue text in a thick dark-blue frame; the column header in the same frame, its colour unchanged.
 7. **AppSheet is not needed** — its files go into the delete list.
 8. **The rack sheet «תכנון ארונות ושילוט» stays as it is.**
 
