@@ -234,10 +234,11 @@ test('таблица: профиль выбирает шкафы, типы, ст
   const sh = r.sheets[0];
   assert.equal(r.pointCount, 1);
   assert.deepEqual(sh.rows[sh.headerRow], ['Имя в плане', 'Обозначение', 'Протянуто']);
-  assert.deepEqual(sh.rows[sh.headerRow + 1], ['C-71', '1A-C01', sheetSerial('2026-10-03')]);
+  assert.deepEqual(sh.rows[sh.headerRow + 1], ['Камера — 1 точка']); // the section row comes first
+  assert.deepEqual(sh.rows[sh.headerRow + 2], ['C-71', '1A-C01', sheetSerial('2026-10-03')]);
   // with no cabinet, picked as a separate value
   const none = buildReport(project, ctx, { ...ext, cabinets: ['__none'], types: [] });
-  assert.equal(none.pointCount, 1); assert.equal(none.sheets[0].rows[none.sheets[0].headerRow + 1][1], 'G-01');
+  assert.equal(none.pointCount, 1); assert.equal(none.sheets[0].rows[none.sheets[0].headerRow + 2][1], 'G-01');
   assert.throws(() => buildReport(project, ctx, { ...ext, columns: [] }), /ни один столбец/);
 });
 
@@ -322,7 +323,7 @@ test('таблица: строки сверху — итоги, легенда �
   const { buildReport, defaultTables } = await import('../src/domain/index.js');
   const { ctx, project } = await reportData();
   const now = new Date('2026-11-16T00:00:00Z');
-  const ru = buildReport(project, ctx, { ...defaultTables()[1], columns: ['label', 'status'] }, { now }).sheets[0];
+  const ru = buildReport(project, ctx, { ...defaultTables()[1], columns: ['label', 'status'], sections: false }, { now }).sheets[0];
   assert.equal(ru.headerRow, 6); assert.equal(ru.frozenRows, 7); assert.equal(ru.legendRow, 4);
   assert.deepEqual(ru.rows[4], ['Выполнено', 'В работе', 'Частично', 'Неисправность', '— не относится к типу', 'Пусто — ещё не сделано']);
   assert.deepEqual(ru.rows[5], []);
@@ -356,7 +357,7 @@ test('таблица: запросы форматирования — леген
   const { buildReport, defaultTables } = await import('../src/domain/index.js');
   const { sheetRequests } = await import('../src/app/managers.js');
   const { ctx, project } = await reportData();
-  const sh = buildReport(project, ctx, { ...defaultTables()[1], columns: ['label', 'pulled', 'installed'] }).sheets[0];
+  const sh = buildReport(project, ctx, { ...defaultTables()[1], columns: ['label', 'pulled', 'installed'], sections: false }).sheets[0];
   assert.ok(!sh.rules.some((r) => r.kind === 'blank'));
   assert.ok(sh.rules.some((r) => r.kind === 'number')); assert.ok(sh.rules.some((r) => r.kind === 'eq' && r.text === '—'));
   const reqs = sheetRequests(7, sh);
@@ -959,4 +960,132 @@ test('дох: минуты складываются в часы и остато�
   const d = day('D1', '2026-10-05');
   const es = [entry('e1', 'D1', 'Время', 'T_SIYUR', [], { minutes: 50 }), entry('e2', 'D1', 'Время', 'T_SIYUR', [], { minutes: 45 })];
   assert.equal(doh(d, scenario([{ ...cam, length: 10 }], [d], es)), '05.10.2026\nMegason Mega Or с Марина\n\nСиюр 1 ч 35 мин');
+});
+
+// ---- sections by point type ----
+const sectionData = async (extra = []) => {
+  const { buildContext, POINT_TYPES, CATALOG } = await import('../src/domain/index.js');
+  const mk = (id, label, typeId, cabinet = '1A') => ({ id, projectId: 'p1', label, typeId, cabinet });
+  const data = {
+    projects: [{ id: 'p1', name: 'Mega Or', nameHe: 'מגה אור' }],
+    points: [mk('a', 'C-01', 'Камера'), mk('b', 'D-01', 'Дверь'), mk('c', 'C-02', 'Камера'), mk('d', 'G-01', 'Галай'), mk('e', 'X-01', undefined), mk('f', 'X-02', 'Призрак'), ...extra],
+    types: POINT_TYPES, catalog: CATALOG, cables: [{ id: 'cat7', nameHe: 'כבל CAT7' }], journal: [],
+  };
+  return { ctx: buildContext(data), project: data.projects[0] };
+};
+const sectionTexts = (sh) => sh.sectionRows.map((r) => sh.rows[r][0]);
+
+test('разделы: порядок по typeOrder, остальные типы по имени, «Без типа» последним', async () => {
+  const { buildReport, defaultTables } = await import('../src/domain/index.js');
+  const { ctx, project } = await sectionData();
+  const base = { ...defaultTables()[1], columns: ['label', 'type'], summary: false };
+  // no typeOrder: by name («Галай», «Дверь», «Камера»), then «Без типа» (no type and a deleted type)
+  assert.deepEqual(sectionTexts(buildReport(project, ctx, base).sheets[0]), ['Галай — 1 точка', 'Дверь — 1 точка', 'Камера — 2 точки', 'Без типа — 2 точки']);
+  const ordered = buildReport(project, ctx, { ...base, typeOrder: ['Камера', 'Призрак', 'Дверь'] }).sheets[0];
+  assert.deepEqual(sectionTexts(ordered), ['Камера — 2 точки', 'Дверь — 1 точка', 'Галай — 1 точка', 'Без типа — 2 точки']);
+  // the points of «Без типа» are in the last section, in the usual order
+  const last = ordered.rows.slice(ordered.sectionRows[3] + 1).map((r) => r[0]);
+  assert.deepEqual(last, ['X-01', 'X-02']);
+  // Hebrew: nameHe of the type, «ללא סוג», «נקודה אחת» / «N נקודות»
+  const he = buildReport(project, ctx, { ...base, lang: 'he', typeOrder: ['Камера'] }).sheets[0];
+  assert.deepEqual(sectionTexts(he), ['מצלמה — 2 נקודות', 'גלאי — נקודה אחת', 'דלת — נקודה אחת', 'ללא סוג — 2 נקודות']);
+});
+
+test('разделы: формы числа точек по-русски и по-еврейски', async () => {
+  const { pointsCountText } = await import('../src/domain/index.js');
+  assert.deepEqual([1, 2, 5, 21, 12, 11, 22, 25, 14, 101].map((n) => pointsCountText(n, 'ru')),
+    ['1 точка', '2 точки', '5 точек', '21 точка', '12 точек', '11 точек', '22 точки', '25 точек', '14 точек', '101 точка']);
+  assert.equal(pointsCountText(1, 'he'), 'נקודה אחת'); assert.equal(pointsCountText(2, 'he'), '2 נקודות'); assert.equal(pointsCountText(12, 'he'), '12 נקודות');
+});
+
+test('разделы: две пустые строки между группами, ни одной в начале и в конце; цвета строк', async () => {
+  const { buildReport, defaultTables } = await import('../src/domain/index.js');
+  const { ctx, project } = await sectionData();
+  const sh = buildReport(project, ctx, { ...defaultTables()[1], columns: ['label', 'status'], summary: false }).sheets[0];
+  const first = sh.headerRow + 1;
+  assert.equal(sh.sectionRows[0], first);                                   // right under the header
+  sh.sectionRows.slice(1).forEach((r) => { assert.deepEqual(sh.rows[r - 1], []); assert.deepEqual(sh.rows[r - 2], []); assert.notDeepEqual(sh.rows[r - 3], []); });
+  assert.notDeepEqual(sh.rows[sh.rows.length - 1], []);                      // nothing after the last group
+  assert.equal(sh.pointRuns.length, 4);
+  sh.pointRuns.forEach(([r0, r1], i) => { assert.equal(r0, sh.sectionRows[i] + 1); assert.ok(r1 > r0); });
+  assert.equal(sh.rowColors.length, sh.rows.length - first);
+  sh.sectionRows.forEach((r) => assert.equal(sh.rowColors[r - first], ''));
+  for (let r = first; r < sh.rows.length; r += 1) if (!sh.rows[r].length) assert.equal(sh.rowColors[r - first], '');
+  // a profile with one type has one section, and a type ticked in `types` without points has none
+  const one = buildReport(project, ctx, { ...defaultTables()[1], columns: ['label'], types: ['Камера'] }).sheets[0];
+  assert.deepEqual(sectionTexts(one), ['Камера — 2 точки']);
+  const none = buildReport(project, ctx, { ...defaultTables()[1], columns: ['label'], types: ['Бакар'] }).sheets[0];
+  assert.deepEqual(none.sectionRows, []); assert.deepEqual(none.pointRuns, []);
+});
+
+test('разделы: галочка выключена — прежний порядок, без строк разделов и пустых строк', async () => {
+  const { buildReport, defaultTables } = await import('../src/domain/index.js');
+  const { ctx, project } = await sectionData();
+  const t = { ...defaultTables()[1], columns: ['label'], summary: false };
+  const off = buildReport(project, ctx, { ...t, sections: false }).sheets[0];
+  // today's order, as comparePoints sorts them
+  assert.deepEqual(off.rows.slice(off.headerRow + 1).map((r) => r[0]), ['X-01', 'G-01', 'D-01', 'C-01', 'C-02', 'X-02']);
+  assert.deepEqual(off.sectionRows, []); assert.deepEqual(off.pointRuns, [[off.headerRow + 1, off.rows.length]]);
+  const on = buildReport(project, ctx, t);
+  assert.notEqual(on.hash, buildReport(project, ctx, { ...t, sections: false }).hash);
+  assert.equal(on.pointCount, 6);
+});
+
+test('разделы: «шкаф на листе» — разделы и числа на каждом листе свои', async () => {
+  const { buildReport, defaultTables } = await import('../src/domain/index.js');
+  const { ctx, project } = await sectionData([{ id: 'g', projectId: 'p1', label: 'C-09', typeId: 'Камера', cabinet: '2B' }]);
+  const r = buildReport(project, ctx, { ...defaultTables()[1], columns: ['label'], summary: false, layout: 'perCabinet' });
+  assert.deepEqual(r.sheets.map((x) => x.title), ['1A', '2B']);
+  assert.deepEqual(sectionTexts(r.sheets[0]), ['Галай — 1 точка', 'Дверь — 1 точка', 'Камера — 2 точки', 'Без типа — 2 точки']);
+  assert.deepEqual(sectionTexts(r.sheets[1]), ['Камера — 1 точка']);
+});
+
+test('разделы: typeOrderOf при отсутствующем, неполном и устаревшем typeOrder; defaultTables с галочками', async () => {
+  const { typeOrderOf, defaultTables } = await import('../src/domain/index.js');
+  const { ctx } = await sectionData();
+  const all = [...ctx.types.keys()].sort((a, b) => a.localeCompare(b, 'ru', { numeric: true }));
+  assert.deepEqual(typeOrderOf({}, ctx), all);
+  assert.deepEqual(typeOrderOf({ typeOrder: ['Дверь', 'Камера'] }, ctx), ['Дверь', 'Камера', ...all.filter((x) => x !== 'Дверь' && x !== 'Камера')]);
+  // a deleted id is skipped and a repeat counts once
+  assert.deepEqual(typeOrderOf({ typeOrder: ['Удалён', 'Камера', 'Камера'] }, ctx), ['Камера', ...all.filter((x) => x !== 'Камера')]);
+  defaultTables().forEach((t) => { assert.equal(t.sections, true); assert.equal(t.rackSheet, true); });
+});
+
+test('разделы: запросы форматирования — строка раздела, высота, рамка толстая, порядок рамок', async () => {
+  const { buildReport, defaultTables } = await import('../src/domain/index.js');
+  const { sheetRequests } = await import('../src/app/managers.js');
+  const { ctx, project } = await sectionData();
+  const sh = buildReport(project, ctx, { ...defaultTables()[1], columns: ['label', 'pulled', 'installed'], summary: false }).sheets[0];
+  const reqs = sheetRequests(7, sh);
+  const idx = (f) => reqs.map((q, i) => (f(q) ? i : -1)).filter((i) => i >= 0);
+  sh.sectionRows.forEach((r) => {
+    const look = reqs.find((q) => q.repeatCell && q.repeatCell.range.startRowIndex === r && q.repeatCell.range.endColumnIndex === 3 && q.repeatCell.cell.userEnteredFormat.textFormat);
+    assert.equal(look.repeatCell.cell.userEnteredFormat.textFormat.bold, true); assert.equal(look.repeatCell.cell.userEnteredFormat.textFormat.fontSize, 12);
+    assert.equal(look.repeatCell.cell.userEnteredFormat.horizontalAlignment, undefined);
+    assert.match(look.repeatCell.fields, /horizontalAlignment/); // cleared, not set
+    const h = reqs.find((q) => q.updateDimensionProperties && q.updateDimensionProperties.range.dimension === 'ROWS' && q.updateDimensionProperties.range.startIndex === r);
+    assert.equal(h.updateDimensionProperties.properties.pixelSize, 28);
+    const fr = reqs.find((q) => q.updateBorders && q.updateBorders.range.startRowIndex === r);
+    assert.equal(fr.updateBorders.top.style, 'SOLID_THICK'); assert.equal(fr.updateBorders.left.style, 'SOLID_THICK'); assert.equal(fr.updateBorders.innerVertical.style, 'NONE');
+    assert.equal(fr.updateBorders.range.endColumnIndex, 3); assert.equal(fr.updateBorders.range.endRowIndex, r + 1);
+  });
+  // order: point-row borders, then section frames, then the header frame
+  const runs = idx((q) => q.updateBorders && sh.pointRuns.some(([a, b]) => q.updateBorders.range.startRowIndex === a && q.updateBorders.range.endRowIndex === b));
+  const frames = idx((q) => q.updateBorders && sh.sectionRows.includes(q.updateBorders.range.startRowIndex));
+  const head = idx((q) => q.updateBorders && q.updateBorders.range.startRowIndex === sh.headerRow);
+  assert.equal(runs.length, 4); assert.equal(frames.length, 4);
+  assert.ok(Math.max(...runs) < Math.min(...frames)); assert.ok(Math.max(...frames) < head[0]);
+  // the section row is formatted after the column formats (they would center its cells)
+  const colFormat = idx((q) => q.repeatCell && q.repeatCell.range.startRowIndex === sh.headerRow + 1 && q.repeatCell.range.startColumnIndex === 1);
+  assert.ok(Math.max(...colFormat) < idx((q) => q.repeatCell && q.repeatCell.range.startRowIndex === sh.sectionRows[0] && q.repeatCell.range.endColumnIndex === 3 && q.repeatCell.cell.userEnteredFormat.textFormat)[0]);
+  assert.equal(reqs.find((q) => q.setBasicFilter).setBasicFilter.filter.range.endRowIndex, sh.rows.length);
+});
+
+test('разделы: выгрузка в Excel без строк разделов', async () => {
+  const { exportSheets } = await import('../src/domain/index.js');
+  const { ctx, project } = await sectionData();
+  const pts = exportSheets(project, ctx)[0];
+  assert.equal(pts.name, 'Точки');
+  assert.equal(pts.rows.length, 1 + 6);                                      // the header and the points only
+  assert.ok(pts.rows.slice(1).every((r) => r[0] && !String(r[0]).includes(' — ')));
 });

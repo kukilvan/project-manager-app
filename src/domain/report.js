@@ -1,6 +1,6 @@
 // Management sheets: profiles (what to show) and building the sheets (colour legend, update stamp, point rows) with values only, no formulas.
-// Profile: { id, name, main, lang: 'he'|'ru', cabinets: [], types: [], statuses: [], columns: [id…], layout: 'one'|'perCabinet', summary }
-// An empty list of racks/types/statuses = «all».
+// Profile: { id, name, main, lang: 'he'|'ru', cabinets: [], types: [], statuses: [], columns: [id…], layout: 'one'|'perCabinet', summary, sections, rackSheet, typeOrder: [type id…] }
+// An empty list of racks/types/statuses = «all». `sections` (absent = on) puts a heading row «<type> — <count>» before the points of each type, in `typeOrderOf` order.
 // Built on points.js, status.js, doorcfg.js, managers.js and rack.js; export.js reuses it for the Excel export.
 import { comparePoints, cableListOf, cablesCountOf, metrageOf } from './points.js';
 import { pointInfo, usesConfig } from './status.js';
@@ -58,6 +58,7 @@ const T = {
   title: { ru: 'Статус выполнения точек', he: 'סטטוס התקדמות נקודות' },
   project: { ru: 'Проект', he: 'פרויקט' },
   noCabinet: { ru: 'Без шкафа', he: 'ללא ארון' },
+  noType: { ru: 'Без типа', he: 'ללא סוג' },
   partial: { ru: 'частично', he: 'הותקן חלקית' },
   partialPull: { ru: 'частично', he: 'חלקית' },
   ok: { ru: 'Работает', he: 'תקין' },
@@ -71,9 +72,9 @@ const T = {
 
 // ---------- profiles ----------
 export const defaultTables = () => [
-  { id: 't_main', name: 'Для руководства', main: true, lang: 'he', cabinets: [], types: [], statuses: [], layout: 'one', summary: true,
+  { id: 't_main', name: 'Для руководства', main: true, lang: 'he', cabinets: [], types: [], statuses: [], layout: 'one', summary: true, sections: true, rackSheet: true,
     columns: ['label', 'planName', 'type', 'cabinet', 'floor', 'cable', 'pulled', 'hived', 'installed', 'checked'] },
-  { id: 't_ext', name: 'Расширенная', main: false, lang: 'ru', cabinets: [], types: [], statuses: [], layout: 'one', summary: true,
+  { id: 't_ext', name: 'Расширенная', main: false, lang: 'ru', cabinets: [], types: [], statuses: [], layout: 'one', summary: true, sections: true, rackSheet: true,
     columns: ['label', 'planName', 'cabinet', 'floor', 'type', 'cable', 'cables', 'length', 'port', 'config', 'delay', 'status',
       'pulled', 'hived', 'installed', 'checked', 'checkResult', 'shilut', 'lastBy', 'note'] },
 ];
@@ -198,6 +199,34 @@ function pointsFor(project, ctx, table, nameOf) {
       && (!sts.size || sts.has(statusKeyOf(info))));
 }
 
+// Order of the point types for sections: the ids of `table.typeOrder` that still exist, then the other types by name (deleted ones are skipped, not removed)
+export function typeOrderOf(table, ctx) {
+  const known = ctx.types;
+  const listed = [...new Set(table.typeOrder || [])].filter((id) => known.has(id));
+  const rest = [...known.keys()].filter((id) => !listed.includes(id)).sort((a, b) => String(a).localeCompare(String(b), 'ru', { numeric: true }));
+  return [...listed, ...rest];
+}
+
+// «N точек» in the sheet's language: Hebrew «נקודה אחת» / «N נקודות»; Russian by the usual plural rule
+export function pointsCountText(n, lang) {
+  if (lang === 'he') return n === 1 ? 'נקודה אחת' : `${n} נקודות`;
+  const m10 = n % 10; const m100 = n % 100;
+  return `${n} ${m10 === 1 && m100 !== 11 ? 'точка' : (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) ? 'точки' : 'точек'}`;
+}
+
+// Points of one sheet grouped by type: [{ name, items }] in the profile's type order, «Без типа» (no type or a deleted type) last; empty groups are left out
+function groupsByType(items, table, ctx, lang) {
+  const byType = new Map();
+  const noType = [];
+  items.forEach((it) => {
+    if (it.point.typeId && ctx.types.has(it.point.typeId)) { if (!byType.has(it.point.typeId)) byType.set(it.point.typeId, []); byType.get(it.point.typeId).push(it); } else noType.push(it);
+  });
+  const groups = typeOrderOf(table, ctx).filter((id) => byType.has(id))
+    .map((id) => ({ name: lang === 'he' ? (ctx.types.get(id)?.nameHe || id) : id, items: byType.get(id) }));
+  if (noType.length) groups.push({ name: T.noType[lang], items: noType });
+  return groups;
+}
+
 function sheetOf(title, items, project, ctx, table, cols, nameOf, now) {
   const lang = table.lang === 'ru' ? 'ru' : 'he';
   const rows = [[T.title[lang]], [displayName(project, lang)]];
@@ -212,14 +241,26 @@ function sheetOf(title, items, project, ctx, table, cols, nameOf, now) {
   rows.push(LEGEND.map((l) => l[lang]), []);
   const headerRow = rows.length;
   rows.push(cols.map((c) => c[lang]));
-  items.forEach(({ point, info }) => rows.push(cols.map((c) => cellOf(c, point, info, ctx, project, lang, nameOf))));
+  const first = rows.length;
+  const sectionRows = []; const pointRuns = []; const rowColors = [];
+  const pushPoint = ({ point, info }) => { rows.push(cols.map((c) => cellOf(c, point, info, ctx, project, lang, nameOf))); rowColors.push(ROW_COLOR[statusKeyOf(info)] || ''); };
+  if (table.sections !== false) {
+    // a section row (the name and the count in column A), its points, two empty rows before the next section; section and empty rows get no color
+    groupsByType(items, table, ctx, lang).forEach((g, i) => {
+      if (i) { rows.push([], []); rowColors.push('', ''); }
+      sectionRows.push(rows.length); rows.push([`${g.name} — ${pointsCountText(g.items.length, lang)}`]); rowColors.push('');
+      const r0 = rows.length; g.items.forEach(pushPoint); pointRuns.push([r0, rows.length]);
+    });
+  } else {
+    items.forEach(pushPoint);
+    if (items.length) pointRuns.push([first, rows.length]);
+  }
   // the stamp (E2) is not in `rows`, so it is not in the hash; rebuildSheets and the date-only write put it into the cell
   return { title, rtl: lang === 'he', rows, headerRow, summaryRows: table.summary ? [2, 3] : [],
     cols: cols.map((c) => ({ id: c.id, kind: c.kind || 'text', width: c.w })), rules: rulesFor(cols, lang), count: items.length,
     stamp: { row: 1, col: 4, text: stampText(now, lang) }, frozenRows: headerRow + 1, frozenCols: 0,
-    legendRow, legend: LEGEND.map((l) => ({ color: l.color, textColor: l.textColor })), sectionRows: [],
-    pointRuns: items.length ? [[headerRow + 1, rows.length]] : [],
-    rowColors: items.map(({ info }) => ROW_COLOR[statusKeyOf(info)] || '') };
+    legendRow, legend: LEGEND.map((l) => ({ color: l.color, textColor: l.textColor })), sectionRows,
+    pointRuns, rowColors };
 }
 
 // Returns { title, sheets, hash, pointCount, colCount } for writing to a Google Sheet; `now` is the moment of the refresh (the update stamp)

@@ -12,7 +12,7 @@ export function exportSheets(project, ctx, { nameOf = (u) => s(u) } = {}) {
   const sheets = [];
 
   // 1. Points: all columns
-  const table = { id: 'x', name: 'x', main: false, lang: 'ru', cabinets: [], types: [], statuses: [], layout: 'one', summary: false, columns: COLUMNS.map((c) => c.id) };
+  const table = { id: 'x', name: 'x', main: false, lang: 'ru', cabinets: [], types: [], statuses: [], layout: 'one', summary: false, sections: false, rackSheet: false, columns: COLUMNS.map((c) => c.id) };
   const rep = buildReport(project, ctx, table, { nameOf });
   const sh = rep.sheets[0];
   sheets.push({ name: 'Точки', rows: sh.rows.slice(sh.headerRow), widths: sh.cols.map((c) => Math.round(c.width / 7)) });

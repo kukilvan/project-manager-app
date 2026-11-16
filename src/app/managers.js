@@ -1,5 +1,5 @@
 // Management sheets: the app itself creates a Google Sheet (no template) and writes the ready values and the update stamp into it.
-// The report content comes from src/domain (`buildReport`); the Sheets api object is passed in (`realApi` of google.js in the app, the server job's own one in scripts/server-tables-lib.mjs).
+// The report content comes from src/domain (`buildReport`); `sheetRequests` formats the legend, the section rows (thick frame, 28 px) and the point blocks; the Sheets api object is passed in (`realApi` of google.js in the app, the server job's own one in scripts/server-tables-lib.mjs).
 import { buildReport } from '../domain/index.js';
 
 // «#fff» and «#ffffff» mean the same (the short form used to come out red)
@@ -10,7 +10,7 @@ const esc = (t) => String(t).replace(/'/g, "''");
 const border = (style, hex) => ({ style, color: rgb(hex) });
 const THIN = '#D0D4D9'; const NAVY = '#1F3B5C';
 
-// Formatting requests for one sheet: widths, legend, stamp, header, borders, dates, highlighting, filter
+// Formatting requests for one sheet: widths, legend, stamp, header, section rows, borders, dates, highlighting, filter
 export function sheetRequests(sheetId, sh) {
   const out = []; const nCols = sh.cols.length; const first = sh.headerRow + 1; const lastRow = Math.max(sh.rows.length, first + 1);
   const range = (r0, r1, c0, c1) => ({ sheetId, startRowIndex: r0, endRowIndex: r1, startColumnIndex: c0, endColumnIndex: c1 });
@@ -39,6 +39,12 @@ export function sheetRequests(sheetId, sh) {
     if (c.kind === 'stage') out.push({ repeatCell: { range: range(first, lastRow, i, i + 1), cell: { userEnteredFormat: { numberFormat: { type: 'DATE', pattern: 'dd/mm/yyyy' }, horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(numberFormat,horizontalAlignment)' } });
     else if (c.kind === 'num' || c.kind === 'status') out.push({ repeatCell: { range: range(first, lastRow, i, i + 1), cell: { userEnteredFormat: { horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat.horizontalAlignment' } });
   });
+  // section rows: white, bold 12, navy text, 28 px high; alignment cleared (the text runs over the empty cells); the frame comes with the borders below
+  (sh.sectionRows || []).forEach((r) => {
+    out.push({ repeatCell: { range: range(r, r + 1, 0, nCols), cell: { userEnteredFormat: { backgroundColor: rgb('#FFFFFF'), textFormat: { bold: true, fontSize: 12, foregroundColor: rgb(NAVY) }, verticalAlignment: 'MIDDLE' } },
+      fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,numberFormat)' } });
+    out.push({ updateDimensionProperties: { range: { sheetId, dimension: 'ROWS', startIndex: r, endIndex: r + 1 }, properties: { pixelSize: 28 }, fields: 'pixelSize' } });
+  });
   // color of the information columns by point status: consecutive rows of one color go in one request
   const infoCols = []; sh.cols.forEach((c, i) => { if (c.kind !== 'stage' && c.kind !== 'status' && c.id !== 'checkResult') infoCols.push(i); });
   const groups = []; infoCols.forEach((i) => { const g = groups[groups.length - 1]; if (g && g[1] === i) g[1] = i + 1; else groups.push([i, i + 1]); });
@@ -57,10 +63,11 @@ export function sheetRequests(sheetId, sh) {
     const format = { backgroundColor: rgb(r.color), ...(r.textColor ? { textFormat: { foregroundColor: rgb(r.textColor) } } : {}) };
     out.push({ addConditionalFormatRule: { rule: { ranges: [range(first, lastRow, r.col, r.col + 1)], booleanRule: { condition: cond, format } }, index: 0 } });
   });
-  // borders: thin around every block of point rows first, then the header frame (later borders win on shared edges)
+  // borders: thin around every block of point rows first, then the section frames, then the header frame (later borders win on shared edges)
   const thin = border('SOLID', THIN);
   (sh.pointRuns || []).forEach(([r0, r1]) => out.push({ updateBorders: { range: range(r0, r1, 0, nCols), top: thin, bottom: thin, left: thin, right: thin, innerHorizontal: thin, innerVertical: thin } }));
   const frame = border('SOLID_THICK', NAVY);
+  (sh.sectionRows || []).forEach((r) => out.push({ updateBorders: { range: range(r, r + 1, 0, nCols), top: frame, bottom: frame, left: frame, right: frame, innerVertical: { style: 'NONE' } } }));
   out.push({ updateBorders: { range: range(sh.headerRow, sh.headerRow + 1, 0, nCols), top: frame, bottom: frame, left: frame, right: frame, innerVertical: border('SOLID', '#8FA3BA') } });
   out.push({ setBasicFilter: { filter: { range: range(sh.headerRow, Math.max(sh.rows.length, sh.headerRow + 1), 0, nCols) } } });
   return out;
