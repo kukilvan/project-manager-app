@@ -1187,10 +1187,10 @@ test('лист шкафов: запросы — слияния, проценты
   assert.deepEqual(blocks.map((q) => [q.updateBorders.range.startColumnIndex, q.updateBorders.range.endColumnIndex]), [[0, 2], [2, 4], [4, 6], [6, 8], [8, 10], [10, 12]]);
   const frame = bd((u) => u.top && u.top.style === 'SOLID_THICK' && u.range.startRowIndex === 3);
   assert.equal(frame.length, 1); assert.equal(frame[0].updateBorders.range.endRowIndex, sh.totalRow + 1);
-  // rack names are left-aligned in both languages (the Hebrew sheet is right-to-left, but the names stay on the left)
+  // rack names are centred in both languages
   const nameAlign = (rq) => rq.find((q) => q.repeatCell && q.repeatCell.range.startRowIndex === 5 && q.repeatCell.range.endColumnIndex === 1 && q.repeatCell.cell.userEnteredFormat.backgroundColor).repeatCell.cell.userEnteredFormat.horizontalAlignment;
-  assert.equal(nameAlign(reqs), 'LEFT');
-  assert.equal(nameAlign(sheetRequests(9, (await rackOf(project, ctx, { lang: 'he' })).sheets.at(-1))), 'LEFT');
+  assert.equal(nameAlign(reqs), 'CENTER');
+  assert.equal(nameAlign(sheetRequests(9, (await rackOf(project, ctx, { lang: 'he' })).sheets.at(-1))), 'CENTER');
   assert.ok(!reqs.some((q) => q.setBasicFilter || q.addConditionalFormatRule));                         // no filter and no highlight rules
   const dims = reqs.filter((q) => q.updateDimensionProperties).map((q) => q.updateDimensionProperties);
   assert.deepEqual(dims.filter((d) => d.range.dimension === 'COLUMNS').map((d) => d.properties.pixelSize), [110, 95, 70, 60, 70, 60, 70, 60, 70, 60, 110, 85]);

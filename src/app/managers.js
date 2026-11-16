@@ -33,13 +33,13 @@ function rackSheetRequests(sheetId, sh) {
   [[0, 1], [1, 2], [10, 11], [11, 12]].forEach(([c0, c1]) => out.push({ mergeCells: { range: range(h0, h1, c0, c1), mergeType: 'MERGE_ALL' } }));
   sh.stageCols.forEach((c) => out.push({ mergeCells: { range: range(h0, h0 + 1, c, c + 2), mergeType: 'MERGE_ALL' } }));
   height(h0, h0 + 1, 34); height(h0 + 1, h1, 24); height(h1, sh.totalRow, 30); height(sh.totalRow, end, 34);
-  // body: centred, the counts grey, the percents bold in «0%»; rack names bold on grey, aligned left (also in the right-to-left Hebrew sheet); «Всего» on pale grey; total row bold on light blue
+  // body: centred, the counts grey, the percents bold in «0%»; rack names bold on grey, centred; «Всего» on pale grey; total row bold on light blue
   fmt(range(h1, end, 0, nCols), { horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE', textFormat: { foregroundColor: rgb('#555555') } }, 'userEnteredFormat(horizontalAlignment,verticalAlignment,textFormat)');
   fmt(range(h1, end, 1, 2), { backgroundColor: rgb('#F7F8FA'), textFormat: { foregroundColor: rgb('#444444') } }, 'userEnteredFormat(backgroundColor,textFormat)');
   fmt(range(h1, end, 10, 12), { textFormat: { foregroundColor: rgb('#222222') } }, 'userEnteredFormat.textFormat');
   sh.stageCols.forEach((c) => fmt(range(h1, end, c + 1, c + 2), { numberFormat: { type: 'PERCENT', pattern: '0%' }, horizontalAlignment: 'CENTER', textFormat: { bold: true, fontSize: 11, foregroundColor: rgb('#000000') } },
     'userEnteredFormat(numberFormat,horizontalAlignment,textFormat)'));
-  fmt(range(h1, end, 0, 1), { backgroundColor: rgb('#EEF1F5'), horizontalAlignment: 'LEFT', textFormat: { bold: true, fontSize: 11, foregroundColor: rgb('#222222') } }, 'userEnteredFormat(backgroundColor,horizontalAlignment,textFormat)');
+  fmt(range(h1, end, 0, 1), { backgroundColor: rgb('#EEF1F5'), horizontalAlignment: 'CENTER', textFormat: { bold: true, fontSize: 11, foregroundColor: rgb('#222222') } }, 'userEnteredFormat(backgroundColor,horizontalAlignment,textFormat)');
   fmt(range(sh.totalRow, end, 0, nCols), { backgroundColor: rgb('#DCE6F2'), textFormat: { bold: true, foregroundColor: rgb('#000000') } }, 'userEnteredFormat(backgroundColor,textFormat.bold,textFormat.foregroundColor)');
   fmt(range(sh.totalRow, end, 0, 1), { horizontalAlignment: 'CENTER' }, 'userEnteredFormat.horizontalAlignment');
   // progress colours on both cells of a stage (count and percent), after the row backgrounds; 0 and «—» stay white
