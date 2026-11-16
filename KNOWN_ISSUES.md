@@ -65,7 +65,7 @@ Entry format:
 - Where: the points sheet of a management file; sections come from `sectionRows` in `src/domain/report.js`.
 - What's wrong: when someone with edit access sorts the sheet (Data → Sort range), the section heading rows and the empty rows between sections move with the points and end up scattered, until the next rebuild.
 - How to reproduce: open the management sheet with edit rights, select the points, sort by any column → section rows are mixed into the points.
-- Likelihood / impact: rare (the sheet is for reading; viewers are not affected and cannot sort the shared file); cosmetic and temporary. Workaround: change anything in the app or wait for a data change, the next refresh writes the sheet again from scratch. Not fixed because rebuilding on every press of «Обновить» would cost a full rewrite even when nothing changed (ADR 0009).
+- Likelihood / impact: rare (the sheet is for reading; a viewer's sort or filter is temporary and only theirs, so other people do not see it); cosmetic and temporary. Workaround: change anything in the app or wait for a data change, the next refresh writes the sheet again from scratch. Not fixed because rebuilding on every press of «Обновить» would cost a full rewrite even when nothing changed (ADR 0009).
 - Status: open
 - Found: 2026-11-16, spec 3 (§9).
 

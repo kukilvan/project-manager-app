@@ -181,6 +181,8 @@ The header texts reuse the totals texts (`T.sum`).
 - Only a stage done at 100% (done = base > 0) is coloured: both its count and percent cells green `#C6E5C9` — rack rows and the total row. No other colour, no highlight rules, no filter.
 - Frozen: rows 1–5 and column A. Widths: A 110, B 95, count 70, percent 60, K 110, L 85 px.
 
+Changed in ticket 3.3 by the owner on browser mockups (`docs/history.md`, 2026-11-16) and live in this form: header level 1 `#3C6EA5` with white bold text, level 2 `#DCE6F2` with navy text; every stage with done > 0 gets a progress colour on both its cells, a blend from dark yellow `#E6B422` (1%) to the green `#C6E5C9` (100%), 0 and «—» white; rack names bold and centred on `#EEF1F5`; the blocks (rack + total points, each stage, partly installed + faults) framed in navy (`SOLID_MEDIUM`) from the top of the header to the total row, a dotted line between a stage's count and percent, teal `#12A3A3` lines between racks, a thick navy outer frame and top of the total row; row heights 34 / 24 / 30 / 34 px. The code: `rackSheetRequests` in `src/app/managers.js`.
+
 ## 5. Profile and form
 
 ### 5.1 Data (`project.tables[]`)

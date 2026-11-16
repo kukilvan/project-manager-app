@@ -32,7 +32,8 @@ function rackSheetRequests(sheetId, sh) {
   fmt(range(h1 - 1, h1, 2, 10), { backgroundColor: rgb('#DCE6F2'), textFormat: { bold: true, fontSize: 10, foregroundColor: rgb(NAVY) } }, 'userEnteredFormat(backgroundColor,textFormat)');
   [[0, 1], [1, 2], [10, 11], [11, 12]].forEach(([c0, c1]) => out.push({ mergeCells: { range: range(h0, h1, c0, c1), mergeType: 'MERGE_ALL' } }));
   sh.stageCols.forEach((c) => out.push({ mergeCells: { range: range(h0, h0 + 1, c, c + 2), mergeType: 'MERGE_ALL' } }));
-  height(h0, h0 + 1, 34); height(h0 + 1, h1, 24); height(h1, sh.totalRow, 30); height(sh.totalRow, end, 34);
+  height(h0, h0 + 1, 34); height(h0 + 1, h1, 24); height(sh.totalRow, end, 34);
+  if (r1 > r0) height(r0, r1, 30); // no rack rows (no point passes the filters): an empty row range would fail the whole batch
   // body: centred, the counts grey, the percents bold in «0%»; rack names bold on grey, centred; «Всего» on pale grey; total row bold on light blue
   fmt(range(h1, end, 0, nCols), { horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE', textFormat: { foregroundColor: rgb('#555555') } }, 'userEnteredFormat(horizontalAlignment,verticalAlignment,textFormat)');
   fmt(range(h1, end, 1, 2), { backgroundColor: rgb('#F7F8FA'), textFormat: { foregroundColor: rgb('#444444') } }, 'userEnteredFormat(backgroundColor,textFormat)');

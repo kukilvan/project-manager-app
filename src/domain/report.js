@@ -297,7 +297,7 @@ function rackSheetOf(title, items, project, ctx, table, now) {
   const lang = table.lang === 'ru' ? 'ru' : 'he';
   const byRack = new Map();
   items.forEach((it) => { const k = it.point.cabinet || NO_CABINET; if (!byRack.has(k)) byRack.set(k, []); byRack.get(k).push(it); });
-  const keys = [...byRack.keys()].sort((x, y) => (x === NO_CABINET) - (y === NO_CABINET) || (x === NO_CABINET ? 0 : String(x).localeCompare(String(y), undefined, { numeric: true })));
+  const keys = [...byRack.keys()].sort((x, y) => (x === NO_CABINET) - (y === NO_CABINET) || (x === NO_CABINET ? 0 : String(x).localeCompare(String(y), 'ru', { numeric: true }))); // a fixed locale: the phone and the night job sort alike, so the hash matches
   const tallies = keys.map((k) => [k === NO_CABINET ? T.noCabinet[lang] : k, rackTally(byRack.get(k), ctx)]);
   const sum = { total: 0, base: RACK_STAGES.map(() => 0), done: RACK_STAGES.map(() => 0), partial: 0, faulty: 0 };
   tallies.forEach(([, t]) => { sum.total += t.total; sum.partial += t.partial; sum.faulty += t.faulty; RACK_STAGES.forEach((_, k) => { sum.base[k] += t.base[k]; sum.done[k] += t.done[k]; }); });

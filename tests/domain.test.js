@@ -1194,10 +1194,27 @@ test('лист шкафов: запросы — слияния, проценты
   assert.ok(!reqs.some((q) => q.setBasicFilter || q.addConditionalFormatRule));                         // no filter and no highlight rules
   const dims = reqs.filter((q) => q.updateDimensionProperties).map((q) => q.updateDimensionProperties);
   assert.deepEqual(dims.filter((d) => d.range.dimension === 'COLUMNS').map((d) => d.properties.pixelSize), [110, 95, 70, 60, 70, 60, 70, 60, 70, 60, 110, 85]);
-  assert.deepEqual(dims.filter((d) => d.range.dimension === 'ROWS').map((d) => [d.range.startIndex, d.properties.pixelSize]), [[3, 34], [4, 24], [5, 30], [7, 34]]);
+  assert.deepEqual(dims.filter((d) => d.range.dimension === 'ROWS').map((d) => [d.range.startIndex, d.properties.pixelSize]), [[3, 34], [4, 24], [7, 34], [5, 30]]);
   // rebuild: the rack sheet is added with one frozen column and five frozen rows
   const calls = [];
   await rebuildSheets({ sheetsOf: async () => [], batch: async (id, q) => calls.push(q), write: async () => {} }, 'F', [sh]);
   const grid = calls[0][0].addSheet.properties.gridProperties;
   assert.equal(grid.frozenColumnCount, 1); assert.equal(grid.frozenRowCount, 5);
+});
+
+test('лист шкафов: без точек — ни одного пустого диапазона в запросах (иначе Google отклонит всё обновление)', async () => {
+  const { sheetRequests } = await import('../src/app/managers.js');
+  const { ctx, project } = await reportData();
+  const sh = (await rackOf(project, ctx, { statuses: ['Неисправна'] })).sheets.at(-1);
+  assert.equal(sh.totalRow, 5);
+  const empty = sheetRequests(9, sh).filter((q) => { const v = Object.values(q)[0]; const g = v.range || {};
+    return g.startIndex >= g.endIndex || g.startRowIndex >= g.endRowIndex || g.startColumnIndex >= g.endColumnIndex; });
+  assert.deepEqual(empty, []);
+});
+
+test('лист шкафов: порядок шкафов не зависит от языка устройства (телефон и ночной сервер дают один хеш)', async () => {
+  const { ctx, project } = await rackData([{ id: 'a', label: 'C-1', typeId: 'Камера', cabinet: 'A1' }, { id: 'b', label: 'C-2', typeId: 'Камера', cabinet: 'Щ1' },
+    { id: 'c', label: 'C-3', typeId: 'Камера', cabinet: '10' }, { id: 'd', label: 'C-4', typeId: 'Камера', cabinet: '2' }]);
+  const sh = (await rackOf(project, ctx, {})).sheets.at(-1);
+  assert.deepEqual(sh.rows.slice(5, -1).map((r) => r[0]), ['2', '10', 'Щ1', 'A1']); // the Russian collation, as the profile form sorts racks
 });
