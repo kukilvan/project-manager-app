@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-16 — Ticket 3.1: points sheet look («Тикет 3.1»)
+
+- `src/domain/managers.js`: `stampText(date, lang)` (Israel time, 24 h). `src/domain/report.js`: legend row A–F and an empty row under the totals, sheet fields `stamp` (E2, outside `rows` and the hash), `frozenRows`, `frozenCols`, `legendRow`, `legend`, `sectionRows` (empty until ticket 02), `pointRuns`; `buildReport(…, { nameOf, now })`; `STYLE_V` 4; the `blank` rule and `COLORS.pink` removed.
+- `src/app/managers.js`: requests for the legend, stamp look, thin `#D0D4D9` borders per point run and the thick `#1F3B5C` header frame (point borders first); `frozenRowCount` from `frozenRows`; `rebuildSheets` writes the stamp into the same values write; `syncTable(…, { now })` with unchanged data writes only the stamp cells and rebuilds when that write fails. `scripts/server-tables-lib.mjs` passes the night job's `now`. `exportSheets` already cut rows from the header down, so Excel is unchanged.
+- Decisions: the stamp is a fixed cell E2 on every points sheet; the date-only write failing means a full rebuild (new hash, `changed: true`). Checked on a real test spreadsheet through the Sheets connector (the owner deletes the file): `updateBorders` with `color`, `SOLID_THICK`, `frozenRowCount` 7 accepted. The connector itself rejects parenthesized `fields` masks; the app's own Sheets API calls are unaffected.
+
 ## 2026-11-16 — Tickets 3: slicing of the management sheets stage («Тикеты 3»)
 
 - `.scratch/03-management-sheets/issues/`: 01 points sheet look (legend, stamp, no pink, borders, header frame, date-only write with rebuild fallback, `STYLE_V` 4), 02 sections by type (`typeOrderOf`, section rows and frames, export flags), 03 rack sheet (`rackSheetOf`, merges, percents, frozen column), 04 profile form with type arrows and two ticks, translations, guide line, glossary and known issue. Order 01 → 02 → 03 → 04; 02 and 03 touch the same modules, so never in parallel.
