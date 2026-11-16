@@ -151,6 +151,10 @@
 "“🔄 Update the management sheet” and “📊 Open the management sheet”: the app builds the sheets; what goes in is set in “More → For management”.",
 "„🔄 עדכון הטבלה להנהלה” ו„📊 פתיחת הטבלה להנהלה”: האפליקציה בונה את הטבלאות; מה ייכנס אליהן מוגדר ב„עוד ← להנהלה”."
 ],
+"• В таблице для руководства точки идут разделами по типам (порядок — стрелками в списке «Типы точек» формы таблицы), есть лист «Итоги по шкафам» с процентами, а во второй строке — «Обновлено»: время последнего обновления, ночью или кнопкой. Разделы и лист выключаются галочками в форме таблицы.": [
+"• In the management sheet the points come in sections by type (the order is set with the arrows in the “Point types” list of the sheet's form), there is a “Progress by cabinet” sheet with percentages, and the second row shows “Updated”: the time of the last refresh, at night or by the button. Sections and the sheet are turned off with ticks in the sheet's form.",
+"• בטבלה להנהלה הנקודות מסודרות במקטעים לפי סוג (הסדר נקבע בחצים ברשימת „סוגי נקודות” בטופס הטבלה), יש גיליון „התקדמות לפי ארון” עם אחוזים, ובשורה השנייה מופיע „עודכן”: זמן העדכון האחרון, בלילה או בכפתור. את המקטעים ואת הגיליון אפשר לכבות בתיבות הסימון בטופס הטבלה."
+],
 "«📥 Импорт данных (замена всего проекта)» — только для восстановления из копии. Текущие данные проекта заменяются.": [
 "“📥 Import data (replaces the whole project)” — only for restoring from a backup. The current project data is replaced.",
 "„📥 ייבוא נתונים (מחליף את כל הפרויקט)” — רק לשחזור מגיבוי. נתוני הפרויקט הנוכחיים מוחלפים."

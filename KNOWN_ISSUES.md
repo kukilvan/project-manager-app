@@ -16,6 +16,7 @@ Bugs decided not to fix now, and rare cases where the app can go wrong (source d
 | KI-1 | i18n tests import a Windows path without `file://` | `tests/i18n.test.js` | fixed | stage 1, ticket 1.1 |
 | KI-2 | open-rules test fails on CRLF checkout | `tests/domain.test.js`, `src/domain/openrules.js` | fixed | stage 1, ticket 1.1 |
 | KI-3 | two same-code runs at once break each other | `tools/same-code.mjs`, `checkSite` | open | — |
+| KI-4 | an editor's sort of the points sheet scatters section and empty rows | management sheet (Google Sheets), `src/domain/report.js` | open | — |
 
 ## Entries
 
@@ -58,3 +59,13 @@ Entry format:
 - Likelihood / impact: rare (sessions run one step at a time; a quick fix runs the tool only for a comment-only change); the run fails or gives a wrong report — run it again alone. Fix when it happens: a per-run temp folder (`mkdtemp`) plus removal of stale `pm-same-code-*` folders older than an hour.
 - Status: open
 - Found: 2026-11-15, «Ревью 1» (standards pass).
+
+## KI-4. An editor's sort of the points sheet scatters section and empty rows
+
+- Where: the points sheet of a management file; sections come from `sectionRows` in `src/domain/report.js`.
+- What's wrong: when someone with edit access sorts the sheet (Data → Sort range), the section heading rows and the empty rows between sections move with the points and end up scattered, until the next rebuild.
+- How to reproduce: open the management sheet with edit rights, select the points, sort by any column → section rows are mixed into the points.
+- Likelihood / impact: rare (the sheet is for reading; viewers are not affected and cannot sort the shared file); cosmetic and temporary. Workaround: change anything in the app or wait for a data change, the next refresh writes the sheet again from scratch. Not fixed because rebuilding on every press of «Обновить» would cost a full rewrite even when nothing changed (ADR 0009).
+- Status: open
+- Found: 2026-11-16, spec 3 (§9).
+

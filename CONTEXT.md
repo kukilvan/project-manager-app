@@ -78,6 +78,12 @@ The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. 
 
 **Management sheets** (code: `src/domain/report.js`, `src/app/managers.js`; UI: «Таблицы для руководства») — Google Sheets for management by **profile** (racks, types, statuses, columns), values only.
 
+**Section** (code: `sectionRows`; UI: «Разделы по типам точек») — a heading row before the points of one type with its name and count.
+
+**Rack sheet** (UI: «Итоги по шкафам», Hebrew «התקדמות לפי ארון») — the per-rack progress sheet in the same file.
+
+**Update stamp** (code: `stamp`) — «עודכן: …» in E2, the time of the last refresh, written even when the data is unchanged.
+
 **Delta read** (code: `updatedAtServer`, `src/domain/sync.js`) — reading only changes since the last load; a full read on Saturdays.
 
 **NAS copy** — the owner's copy of the app on the home NAS: the site and PocketBase behind a Cloudflare Tunnel (ADR 0013, 0014). _Avoid_: server, home server.

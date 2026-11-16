@@ -1,8 +1,9 @@
 // «Таблицы для руководства» screen: the profiles of management sheets (which racks, types, statuses and columns go into a Google Sheet) and their edit form.
 // Reads and writes project.tables through repo.saveProject; the sheet itself is built by src/domain/report.js and updated by updateTable (project.js); the Drive folder card comes from managersfolder.js.
+// The form sets the point types (tick + arrows: `typeOrder` is the order of sections, `types` the ticked filter) and the ticks for sections and the rack sheet.
 import { h, formModal, confirmDialog, toast } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
-import { COLUMNS, STATUS_KEYS, NO_CABINET, tablesOf, buildReport, fileTitle } from '../../domain/index.js';
+import { COLUMNS, STATUS_KEYS, NO_CABINET, tablesOf, buildReport, fileTitle, typeOrderOf } from '../../domain/index.js';
 import { updateTable } from './project.js';
 import { managersFolderCard, toggleTableInFolder } from './managersfolder.js';
 
@@ -43,6 +44,30 @@ function columnList(selected, lang, onChange) {
   return { el: box, get: () => order.filter((id) => on.has(id)) };
 }
 
+// Point types: a «show» tick (none ticked = all), the order of sections set with arrows
+function typeList(order0, selected, onChange) {
+  const on = new Set(selected || []);
+  const order = [...order0];
+  const box = h('div', { class: 'picklist' });
+  const render = () => {
+    box.replaceChildren(
+      h('label', { class: 'pickrow' }, h('input', { type: 'checkbox', checked: on.size === 0, onchange: () => { on.clear(); render(); onChange(); } }), h('span', {}, 'Все')),
+      ...order.map((id, i) => {
+        const move = (d) => { const j = i + d; if (j < 0 || j >= order.length) return; [order[i], order[j]] = [order[j], order[i]]; render(); onChange(); };
+        return h('div', { class: 'pickrow' },
+          h('input', { type: 'checkbox', checked: on.has(id), onchange: (e) => { e.target.checked ? on.add(id) : on.delete(id); render(); onChange(); } }),
+          h('span', {}, id),
+          h('button', { type: 'button', class: 'sec', style: { padding: '2px 10px' }, onclick: () => move(-1) }, '▲'),
+          h('button', { type: 'button', class: 'sec', style: { padding: '2px 10px' }, onclick: () => move(1) }, '▼'));
+      }));
+  };
+  render();
+  return { el: box, get: () => ({ typeOrder: [...order], types: order.filter((id) => on.has(id)) }) };
+}
+
+// The «types» custom field returns { typeOrder, types }; the profile stores them as two fields
+const typesOf = (v) => ({ types: v.types?.types || [], typeOrder: v.types?.typeOrder || [] });
+
 export function tableForm(table) {
   const repo = getRepo(); const p = currentProject(); const ctx = state.ctx; const list = tablesOf(p);
   const mine = [...ctx.points.values()].filter((x) => x.projectId === p.id);
@@ -52,13 +77,13 @@ export function tableForm(table) {
     columns: ['label', 'planName', 'cabinet', 'floor', 'type', 'cable', 'status', 'pulled', 'hived', 'installed', 'checked'] };
   formModal({
     title: table ? `Таблица «${table.name}»` : 'Новая таблица', submitLabel: 'Сохранить',
-    values: { name: base.name, fileName: base.fileName || fileTitle(p, base), lang: base.lang, layout: base.layout || 'one', summary: base.summary !== false, main: !!base.main, auto: base.auto === undefined ? !!base.main : !!base.auto },
+    values: { name: base.name, fileName: base.fileName || fileTitle(p, base), lang: base.lang, layout: base.layout || 'one', summary: base.summary !== false, sections: base.sections !== false, rackSheet: base.rackSheet !== false, main: !!base.main, auto: base.auto === undefined ? !!base.main : !!base.auto },
     fields: [
       { key: 'name', label: 'Название таблицы', required: true, hint: 'Для себя: например «Для руководства» или «Для заказчика»' },
       { key: 'fileName', label: 'Название файла в Google Диске', hint: 'Применится при следующем «Обновить». Пусто — название по умолчанию' },
       { key: 'lang', label: 'Язык таблицы', type: 'select', options: [{ value: 'he', label: 'Иврит (справа налево)' }, { value: 'ru', label: 'Русский' }] },
       { key: 'cabinets', label: 'Шкафы', type: 'custom', build: (api) => pickList(cabs.map((c) => ({ value: c, label: c === NO_CABINET ? 'Без шкафа' : `Шкаф ${c}` })), base.cabinets, api.changed) },
-      { key: 'types', label: 'Типы точек', type: 'custom', build: (api) => pickList(types.map((t) => ({ value: t, label: t })), base.types, api.changed) },
+      { key: 'types', label: 'Типы точек (порядок разделов стрелками)', type: 'custom', hint: 'Ничего не отмечено — все типы. Разделы в таблице идут в этом порядке.', build: (api) => typeList(typeOrderOf(base, ctx), base.types, api.changed) },
       { key: 'statuses', label: 'Статусы точек', type: 'custom', hint: 'Например, только «Неисправна» — получится список проблем', build: (api) => pickList(STATUS_KEYS.map((t) => ({ value: t, label: t })), base.statuses, api.changed) },
       { key: 'columns', label: 'Столбцы (порядок стрелками)', type: 'custom', required: true, build: (api) => columnList(base.columns, base.lang, api.changed) },
       { key: 'layout', label: 'Раскладка', type: 'select', options: [{ value: 'one', label: 'Все точки одним листом' }, { value: 'perCabinet', label: 'Каждый шкаф на отдельном листе' }] },
@@ -67,7 +92,7 @@ export function tableForm(table) {
       { key: 'main', label: 'Основная таблица для руководства', type: 'checkbox', hint: 'Её обновляет кнопка в ☰ → Данные → «Обновить таблицу для руководства»', visible: () => !table?.main },
     ],
     preview: (v) => {
-      try { const r = buildReport(p, ctx, { ...base, ...v, lang: v.lang || 'he', layout: v.layout || 'one' }); return `Будет точек: ${r.pointCount}, столбцов: ${r.colCount}, листов: ${r.sheets.length}`; } catch (e) { return e.message; }
+      try { const r = buildReport(p, ctx, { ...base, ...v, ...typesOf(v), lang: v.lang || 'he', layout: v.layout || 'one' }); return `Будет точек: ${r.pointCount}, столбцов: ${r.colCount}, листов: ${r.sheets.length}`; } catch (e) { return e.message; }
     },
     extra: table && list.length > 1 ? [{ label: 'Удалить', kind: 'danger', onClick: async () => {
       if (!(await confirmDialog(`Удалить таблицу «${table.name}» из приложения? Сам файл в Google Диске останется, его можно удалить вручную.`, { yes: 'Удалить', danger: true }))) return false;
@@ -77,9 +102,9 @@ export function tableForm(table) {
     } }] : [],
     onSubmit: (v) => {
       const t = {
-        ...(table || {}), id: table?.id || `t_${Date.now().toString(36)}`, name: v.name, lang: v.lang || 'he', cabinets: v.cabinets || [], types: v.types || [],
+        ...(table || {}), id: table?.id || `t_${Date.now().toString(36)}`, name: v.name, lang: v.lang || 'he', cabinets: v.cabinets || [], ...typesOf(v),
         fileName: (v.fileName || '').trim() && (v.fileName || '').trim() !== fileTitle(p, { ...(table || {}), name: v.name, lang: v.lang || 'he', fileName: '' }) ? v.fileName.trim() : '',
-        statuses: v.statuses || [], columns: v.columns, layout: v.layout || 'one', summary: !!v.summary, auto: !!v.auto, main: table?.main || !!v.main,
+        statuses: v.statuses || [], columns: v.columns, layout: v.layout || 'one', summary: !!v.summary, sections: !!v.sections, rackSheet: !!v.rackSheet, auto: !!v.auto, main: table?.main || !!v.main,
       };
       let next = table ? list.map((x) => (x.id === t.id ? t : x)) : [...list, t];
       if (t.main) next = next.map((x) => ({ ...x, main: x.id === t.id }));
