@@ -1,6 +1,7 @@
-// Management sheets: profiles (what to show) and building the sheets (colour legend, update stamp, point rows) with values only, no formulas.
+// Management sheets: profiles (what to show) and building the sheets (colour legend, update stamp, point rows, the last rack sheet «Итоги по шкафам») with values only, no formulas.
 // Profile: { id, name, main, lang: 'he'|'ru', cabinets: [], types: [], statuses: [], columns: [id…], layout: 'one'|'perCabinet', summary, sections, rackSheet, typeOrder: [type id…] }
 // An empty list of racks/types/statuses = «all». `sections` (absent = on) puts a heading row «<type> — <count>» before the points of each type, in `typeOrderOf` order.
+// `rackSheet` (absent = on) adds the last sheet with the progress of every rack: per stage the done count and the percent (rounded down) of the points whose type has the stage.
 // Built on points.js, status.js, doorcfg.js, managers.js and rack.js; export.js reuses it for the Excel export.
 import { comparePoints, cableListOf, cablesCountOf, metrageOf } from './points.js';
 import { pointInfo, usesConfig } from './status.js';
@@ -263,17 +264,70 @@ function sheetOf(title, items, project, ctx, table, cols, nameOf, now) {
     pointRuns, rowColors };
 }
 
+// The four stages of the rack sheet (the same as the totals row; shilut is not in it): done = the point has finished it
+const RACK_STAGES = [
+  { id: 'pulled', stage: 'Протяжка', done: (i) => !!i.pulled },
+  { id: 'hived', stage: 'Хивут', done: (i) => !!i.hived },
+  { id: 'installed', stage: 'Установка', done: (i) => i.install === 'Установлено' },
+  { id: 'checked', stage: 'Проверка', done: (i) => !!i.checked },
+];
+const RACK_T = {
+  title: { ru: 'Итоги по шкафам', he: 'התקדמות לפי ארון' }, rack: { ru: 'Шкаф', he: 'ארון' }, count: { ru: 'Кол-во', he: 'כמות' },
+  total: { ru: 'Итого', he: 'סה״כ' },
+};
+const rackSheetName = (lang) => RACK_T.title[lang];
+
+// Counts of one group of points: the total, per stage the base (points whose type has the stage) and the done points inside it, partly installed, faults
+function rackTally(list, ctx) {
+  const t = { total: list.length, base: RACK_STAGES.map(() => 0), done: RACK_STAGES.map(() => 0), partial: 0, faulty: 0 };
+  list.forEach(({ point, info }) => {
+    const stages = info.composed ? info.stages : stagesOf(ctx.types.get(point.typeId)); // an unknown type has every stage
+    RACK_STAGES.forEach((st, k) => {
+      if (stages && !stages.includes(st.stage)) return;
+      t.base[k] += 1; if (st.done(info)) t.done[k] += 1;
+    });
+    if (info.install.startsWith('Установлено ')) t.partial += 1;
+    if (info.status === 'Неисправна') t.faulty += 1;
+  });
+  return t;
+}
+
+// Progress by rack: one row per rack (natural order, «Без шкафа» last) and a total row; percents are rounded down, so 100% means every point is done
+function rackSheetOf(title, items, project, ctx, table, now) {
+  const lang = table.lang === 'ru' ? 'ru' : 'he';
+  const byRack = new Map();
+  items.forEach((it) => { const k = it.point.cabinet || NO_CABINET; if (!byRack.has(k)) byRack.set(k, []); byRack.get(k).push(it); });
+  const keys = [...byRack.keys()].sort((x, y) => (x === NO_CABINET) - (y === NO_CABINET) || (x === NO_CABINET ? 0 : String(x).localeCompare(String(y), undefined, { numeric: true })));
+  const tallies = keys.map((k) => [k === NO_CABINET ? T.noCabinet[lang] : k, rackTally(byRack.get(k), ctx)]);
+  const sum = { total: 0, base: RACK_STAGES.map(() => 0), done: RACK_STAGES.map(() => 0), partial: 0, faulty: 0 };
+  tallies.forEach(([, t]) => { sum.total += t.total; sum.partial += t.partial; sum.faulty += t.faulty; RACK_STAGES.forEach((_, k) => { sum.base[k] += t.base[k]; sum.done[k] += t.done[k]; }); });
+  tallies.push([RACK_T.total[lang], sum]);
+  const rowOf = ([name, t]) => [name, t.total, ...RACK_STAGES.flatMap((_, k) => (t.base[k] ? [t.done[k], Math.floor((t.done[k] * 100) / t.base[k]) / 100] : ['—', '—'])), t.partial, t.faulty];
+  const rows = [[title], [displayName(project, lang)], [],
+    [RACK_T.rack[lang], T.sum.total[lang], ...['pulled', 'hived', 'installed', 'checked'].flatMap((k) => [T.sum[k][lang], '']), T.sum.partial[lang], T.sum.faulty[lang]],
+    ['', '', ...RACK_STAGES.flatMap(() => [RACK_T.count[lang], '%']), '', '']];
+  const first = rows.length;
+  // `greens`: [row, first column] of a stage done at 100% (count and percent cells)
+  const greens = [];
+  tallies.forEach((tl, i) => { rows.push(rowOf(tl)); RACK_STAGES.forEach((_, k) => { if (tl[1].base[k] > 0 && tl[1].done[k] === tl[1].base[k]) greens.push([first + i, 2 + 2 * k]); }); });
+  const widths = [110, 95, ...RACK_STAGES.flatMap(() => [70, 60]), 110, 85];
+  return { kind: 'racks', title, rtl: lang === 'he', rows, headerRow: 3, headerRows: [3, 5], rackRows: [first, rows.length - 1], totalRow: rows.length - 1, greens, stageCols: [2, 4, 6, 8],
+    cols: widths.map((w, i) => ({ id: `rack${i}`, kind: i === 0 ? 'text' : 'num', width: w })), rules: [], summaryRows: [], rowColors: [], count: items.length,
+    stamp: { row: 1, col: 4, text: stampText(now, lang) }, frozenRows: 5, frozenCols: 1 };
+}
+
 // Returns { title, sheets, hash, pointCount, colCount } for writing to a Google Sheet; `now` is the moment of the refresh (the update stamp)
 export function buildReport(project, ctx, table, { nameOf, now = new Date() } = {}) {
   const lang = table.lang === 'ru' ? 'ru' : 'he';
   const cols = (table.columns || []).map((id) => colById.get(id)).filter(Boolean);
   if (!cols.length) throw new Error('В таблице не выбран ни один столбец');
   const items = pointsFor(project, ctx, table, nameOf);
+  const withRacks = table.rackSheet !== false;
   let sheets;
   if (table.layout === 'perCabinet' && items.length) {
     const groups = new Map();
     items.forEach((it) => { const k = it.point.cabinet || NO_CABINET; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(it); });
-    const used = new Set();
+    const used = new Set(withRacks ? [rackSheetName(lang).toLowerCase()] : []); // the rack sheet keeps its name, a rack sheet of the same name gets « (2)»
     sheets = [...groups.entries()].sort(([x], [y]) => (x === NO_CABINET) - (y === NO_CABINET)).map(([k, list]) => {
       let name = safeSheet(k === NO_CABINET ? T.noCabinet[lang] : k); let i = 2; const base = name;
       while (used.has(name.toLowerCase())) { name = `${base} (${i})`; i += 1; }
@@ -281,6 +335,7 @@ export function buildReport(project, ctx, table, { nameOf, now = new Date() } = 
       return sheetOf(name, list, project, ctx, table, cols, nameOf, now);
     });
   } else sheets = [sheetOf(lang === 'he' ? 'סטטוס' : 'Статус', items, project, ctx, table, cols, nameOf, now)];
+  if (withRacks) sheets.push(rackSheetOf(rackSheetName(lang), items, project, ctx, table, now)); // the last sheet; being in `sheets` it is in the hash
   const title = fileTitle(project, table);
   return { title, sheets, pointCount: items.length, colCount: cols.length, hash: hashOf([STYLE_V, title, lang, sheets.map((x) => [x.title, x.rtl, x.rows, x.cols.map((c) => c.id), x.rowColors])]) };
 }

@@ -266,7 +266,7 @@ test('таблица: раскладка «шкаф на листе», назв�
   const { ctx, project } = await reportData();
   const t = { ...defaultTables()[1], columns: ['label'], layout: 'perCabinet' };
   const r = buildReport(project, ctx, t);
-  assert.deepEqual(r.sheets.map((x) => x.title), ['1A', '2B', 'Без шкафа']);
+  assert.deepEqual(r.sheets.map((x) => x.title), ['1A', '2B', 'Без шкафа', 'Итоги по шкафам']); // the rack sheet is last
   assert.equal(r.sheets[0].count, 2);
   const faulty = buildReport(project, ctx, { ...t, layout: 'one', statuses: ['Неисправна'] });
   assert.equal(faulty.pointCount, 0);
@@ -391,7 +391,7 @@ test('таблица: пересборка пишет время в E2 вмес�
   await syncTable(api, project, ctx, table, { now: new Date('2026-11-16T00:00:00Z') });
   assert.equal(calls.find((c) => c[0] === 'batch')[1][0].addSheet.properties.gridProperties.frozenRowCount, 7);
   const data = calls.find((c) => c[0] === 'write')[1];
-  assert.deepEqual(data.map((d) => d.range), ["'סטטוס'!A1", "'סטטוס'!E2"]);
+  assert.deepEqual(data.map((d) => d.range), ["'סטטוס'!A1", "'סטטוס'!E2", "'התקדמות לפי ארון'!A1", "'התקדמות לפי ארון'!E2"]);
   assert.deepEqual(data[1].values, [['עודכן: 16/11/2026 02:00']]);
 });
 
@@ -403,7 +403,7 @@ test('таблица: данные не менялись — одна запис
   const api = {
     fileInfo: async () => ({ id: 'F1', name: 'x' }), rename: async (id, name) => calls.push(['rename', name]), sheetsOf: async () => [{ sheetId: 0, title: 'Sheet1' }],
     batch: async (id, reqs) => calls.push(['batch', reqs]),
-    write: async (id, data) => { if (failStamp && data.length === 1) throw new Error('Unable to parse range'); calls.push(['write', data]); },
+    write: async (id, data) => { if (failStamp && data.length === 2) throw new Error('Unable to parse range'); calls.push(['write', data]); },
   };
   const first = await syncTable(api, project, ctx, { ...defaultTables()[0], fileId: 'F1' }, { now: new Date('2026-11-16T00:00:00Z') });
   const table = { ...defaultTables()[0], fileId: 'F1', hash: first.patch.hash };
@@ -411,7 +411,7 @@ test('таблица: данные не менялись — одна запис
   const same = await syncTable(api, project, ctx, table, { now: new Date('2026-11-17T01:00:00Z') });
   assert.equal(same.changed, false); assert.equal(same.patch.hash, undefined); assert.match(same.message, /данные не менялись/);
   assert.deepEqual(calls.filter((c) => c[0] !== 'rename').map((c) => c[0]), ['write']); // exactly one write, no batch
-  assert.deepEqual(calls.find((c) => c[0] === 'write')[1], [{ range: "'סטטוס'!E2", values: [['עודכן: 17/11/2026 03:00']] }]);
+  assert.deepEqual(calls.find((c) => c[0] === 'write')[1], [{ range: "'סטטוס'!E2", values: [['עודכן: 17/11/2026 03:00']] }, { range: "'התקדמות לפי ארון'!E2", values: [['עודכן: 17/11/2026 03:00']] }]);
   // an editor renamed the tab: the stamp write fails and the file is rebuilt
   failStamp = true; calls.length = 0;
   const rebuilt = await syncTable(api, project, ctx, table, { now: new Date('2026-11-17T01:00:00Z') });
@@ -438,7 +438,7 @@ test('сервер: ночное автообновление таблиц', asy
   const r = await updateProjectTables(api, proj, data, new Date('2026-10-11T00:00:00Z'));
   assert.equal(r.patches.t_main.serverError, ''); assert.ok(r.patches.t_main.hash); assert.equal(r.patches.t_main.by, undefined);
   assert.ok(calls.some((c) => c[0] === 'write' && c[1] === 'F1'));
-  assert.deepEqual(stamps, ['עודכן: 11/10/2026 03:00']); // the stamp is the job's start time (Israel summer time)
+  assert.deepEqual(stamps, ['עודכן: 11/10/2026 03:00', 'עודכן: 11/10/2026 03:00']); // the stamp is the job's start time (Israel summer time)
   // the same data the next night: only the stamp is written
   const r1 = await updateProjectTables(api, { ...proj, tables: applyPatches(proj, r.patches) }, data, new Date('2026-10-12T00:00:00Z'));
   assert.equal(r1.report[0], 'Для руководства: без изменений'); assert.equal(stamps.at(-1), 'עודכן: 12/10/2026 03:00');
@@ -1035,7 +1035,7 @@ test('разделы: «шкаф на листе» — разделы и чис�
   const { buildReport, defaultTables } = await import('../src/domain/index.js');
   const { ctx, project } = await sectionData([{ id: 'g', projectId: 'p1', label: 'C-09', typeId: 'Камера', cabinet: '2B' }]);
   const r = buildReport(project, ctx, { ...defaultTables()[1], columns: ['label'], summary: false, layout: 'perCabinet' });
-  assert.deepEqual(r.sheets.map((x) => x.title), ['1A', '2B']);
+  assert.deepEqual(r.sheets.map((x) => x.title), ['1A', '2B', 'Итоги по шкафам']);
   assert.deepEqual(sectionTexts(r.sheets[0]), ['Галай — 1 точка', 'Дверь — 1 точка', 'Камера — 2 точки', 'Без типа — 2 точки']);
   assert.deepEqual(sectionTexts(r.sheets[1]), ['Камера — 1 точка']);
 });
@@ -1088,4 +1088,99 @@ test('разделы: выгрузка в Excel без строк раздело
   assert.equal(pts.name, 'Точки');
   assert.equal(pts.rows.length, 1 + 6);                                      // the header and the points only
   assert.ok(pts.rows.slice(1).every((r) => r[0] && !String(r[0]).includes(' — ')));
+});
+
+// ---- rack sheet «Итоги по шкафам» ----
+const rackData = async (points, journal = []) => {
+  const { buildContext, POINT_TYPES, CATALOG } = await import('../src/domain/index.js');
+  const data = { projects: [{ id: 'p1', name: 'Mega Or', nameHe: 'מגה אור' }], points: points.map((p) => ({ projectId: 'p1', ...p })), types: POINT_TYPES, catalog: CATALOG, cables: [], journal };
+  return { ctx: buildContext(data), project: data.projects[0] };
+};
+const rackOf = async (project, ctx, table, opts) => {
+  const { buildReport, defaultTables } = await import('../src/domain/index.js');
+  return buildReport(project, ctx, { ...defaultTables()[1], columns: ['label'], ...table }, opts);
+};
+
+test('лист шкафов: числа, проценты вниз, «—» для этапа без точек, «Без шкафа» в конце, итоговая строка', async () => {
+  const { ctx, project } = await reportData();
+  const r = await rackOf(project, ctx, {});
+  const sh = r.sheets.at(-1);
+  assert.equal(sh.title, 'Итоги по шкафам'); assert.equal(sh.kind, 'racks'); assert.equal(r.sheets.length, 2);
+  assert.deepEqual(sh.rows.slice(0, 5), [['Итоги по шкафам'], ['Mega Or – Megason'], [],
+    ['Шкаф', 'Всего точек', 'Протянуто', '', 'Захивучено', '', 'Установлено', '', 'Проверено', '', 'Установлено частично', 'Неисправно'],
+    ['', '', 'Кол-во', '%', 'Кол-во', '%', 'Кол-во', '%', 'Кол-во', '%', '', '']]);
+  assert.deepEqual(sh.rows.slice(5), [
+    ['1A', 2, 1, 0.5, 0, 0, 1, 0.5, 1, 0.5, 0, 0],
+    ['2B', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ['Без шкафа', 1, 0, 0, 0, 0, 0, 0, '—', '—', 0, 0],  // a detector has no check stage
+    ['Итого', 4, 1, 0.25, 0, 0, 1, 0.25, 1, 0.33, 0, 0]]); // checked: 1 of 3 points whose type has the stage → 33%, rounded down
+  assert.deepEqual(sh.greens, []);
+  assert.equal(sh.stamp.row, 1); assert.equal(sh.stamp.col, 4); assert.equal(sh.frozenRows, 5); assert.equal(sh.frozenCols, 1);
+  // Hebrew: texts of the spec
+  const he = (await rackOf(project, ctx, { lang: 'he' })).sheets.at(-1);
+  assert.equal(he.title, 'התקדמות לפי ארון'); assert.equal(he.rtl, true);
+  assert.deepEqual(he.rows[3], ['ארון', 'סה״כ נקודות', 'הושחל', '', 'חווט', '', 'הותקן', '', 'נבדק', '', 'הותקן חלקית', 'תקלות']);
+  assert.deepEqual(he.rows[4].slice(0, 4), ['', '', 'כמות', '%']); assert.equal(he.rows.at(-1)[0], 'סה״כ'); assert.equal(he.rows[7][0], 'ללא ארון');
+});
+
+test('лист шкафов: 199 из 200 — 99%, не зелёный; 100% — зелёный; естественный порядок шкафов; чужая запись вне базы не считается', async () => {
+  const pts = []; const journal = [];
+  for (let i = 0; i < 200; i += 1) { pts.push({ id: `p${i}`, label: `R-${i}`, typeId: 'Камера', cabinet: '9' }); if (i) journal.push({ id: `j${i}`, pointId: `p${i}`, editDate: '2026-10-03', editWorkId: 'PR_PTS' }); }
+  pts.push({ id: 'x1', label: 'X-1', typeId: 'Камера', cabinet: '10' }, { id: 'x2', label: 'X-2', typeId: 'Камера', cabinet: '2' },
+    { id: 'g1', label: 'G-1', typeId: 'Галай', cabinet: '2' });
+  journal.push({ id: 'jx', pointId: 'x1', editDate: '2026-10-03', editWorkId: 'PR_PTS' }, { id: 'jg', pointId: 'g1', editDate: '2026-10-04', editWorkId: 'CHK_FLUKE' });
+  const { ctx, project } = await rackData(pts, journal);
+  const sh = (await rackOf(project, ctx, {})).sheets.at(-1);
+  assert.deepEqual(sh.rows.slice(5).map((r) => r[0]), ['2', '9', '10', 'Итого']);                       // natural order, not 10 before 2
+  assert.deepEqual(sh.rows[6].slice(0, 4), ['9', 200, 199, 0.99]);                                        // 199 of 200 → 99%
+  assert.ok(!sh.greens.some(([r, c]) => r === 6 && c === 2));
+  assert.deepEqual(sh.rows[7].slice(0, 4), ['10', 1, 1, 1]);                                              // 100%: the number 1 shown with the «0%» format
+  assert.ok(sh.greens.some(([r, c]) => r === 7 && c === 2));
+  // rack «2» has a detector with a stray check row: the detector has no check stage, so it is not counted (the base is the camera only)
+  assert.deepEqual(sh.rows[5].slice(0, 4), ['2', 2, 0, 0]); assert.deepEqual(sh.rows[5].slice(8, 10), [0, 0]);
+  const total = sh.rows.at(-1); assert.equal(total[1], 203); assert.deepEqual(total.slice(2, 4), [200, 0.98]);  // (199 + 1) of 203 points → 98%
+  assert.deepEqual(total.slice(8, 10), [0, 0]);
+});
+
+test('лист шкафов: фильтры профиля, пустой набор, галочка rackSheet, имя листа «шкаф на листе», хеш', async () => {
+  const { ctx, project } = await reportData();
+  const only = (await rackOf(project, ctx, { cabinets: ['1A'], types: ['Камера'] })).sheets.at(-1);
+  assert.deepEqual(only.rows.slice(5).map((r) => r.slice(0, 2)), [['1A', 1], ['Итого', 1]]);
+  const none = (await rackOf(project, ctx, { statuses: ['Неисправна'] })).sheets.at(-1);
+  assert.deepEqual(none.rows.slice(5), [['Итого', 0, '—', '—', '—', '—', '—', '—', '—', '—', 0, 0]]); assert.deepEqual(none.greens, []);
+  const off = await rackOf(project, ctx, { rackSheet: false });
+  assert.deepEqual(off.sheets.map((x) => x.title), ['Статус']);
+  const on = await rackOf(project, ctx, {});
+  assert.notEqual(on.hash, off.hash);
+  // a rack named like the rack sheet: its sheet becomes «… (2)», the rack sheet keeps the name
+  const clash = await rackData([{ id: 'a', label: 'A-1', typeId: 'Камера', cabinet: 'Итоги по шкафам' }, { id: 'b', label: 'B-1', typeId: 'Камера', cabinet: '1A' }]);
+  const r = await rackOf(clash.project, clash.ctx, { layout: 'perCabinet' });
+  assert.deepEqual(r.sheets.map((x) => x.title), ['1A', 'Итоги по шкафам (2)', 'Итоги по шкафам']);
+  assert.equal(r.sheets.at(-1).kind, 'racks');
+});
+
+test('лист шкафов: запросы — слияния, формат процентов, зелёное только у полных этапов, закреплённый столбец', async () => {
+  const { sheetRequests, rebuildSheets } = await import('../src/app/managers.js');
+  const pts = [{ id: 'a', label: 'C-1', typeId: 'Камера', cabinet: '1A' }, { id: 'b', label: 'C-2', typeId: 'Камера', cabinet: '2B' }];
+  const journal = [{ id: 'j1', pointId: 'a', editDate: '2026-10-03', editWorkId: 'PR_PTS' }, { id: 'j2', pointId: 'b', editDate: '2026-10-03', editWorkId: 'PR_PTS' }, { id: 'j3', pointId: 'a', editDate: '2026-10-04', editWorkId: 'CHK_FLUKE' }];
+  const { ctx, project } = await rackData(pts, journal);
+  const sh = (await rackOf(project, ctx, {})).sheets.at(-1);
+  const reqs = sheetRequests(9, sh);
+  const merges = reqs.filter((q) => q.mergeCells).map((q) => { const g = q.mergeCells.range; return [g.startRowIndex, g.endRowIndex, g.startColumnIndex, g.endColumnIndex]; });
+  assert.deepEqual(merges, [[3, 5, 0, 1], [3, 5, 1, 2], [3, 5, 10, 11], [3, 5, 11, 12], [3, 4, 2, 4], [3, 4, 4, 6], [3, 4, 6, 8], [3, 4, 8, 10]]);
+  const pct = reqs.filter((q) => q.repeatCell && q.repeatCell.cell.userEnteredFormat.numberFormat);
+  assert.deepEqual(pct.map((q) => q.repeatCell.range.startColumnIndex), [3, 5, 7, 9]);
+  pct.forEach((q) => assert.deepEqual(q.repeatCell.cell.userEnteredFormat.numberFormat, { type: 'PERCENT', pattern: '0%' }));
+  // pulled is 100% in 1A, 2B and the total; checked only in 1A (1 of 1; the total is 1 of 2)
+  const isGreen = (q) => q.repeatCell && JSON.stringify(q.repeatCell.cell.userEnteredFormat.backgroundColor) === JSON.stringify({ red: 0xC6 / 255, green: 0xE5 / 255, blue: 0xC9 / 255 });
+  const greens = reqs.filter(isGreen).map((q) => [q.repeatCell.range.startRowIndex, q.repeatCell.range.startColumnIndex, q.repeatCell.range.endColumnIndex]);
+  assert.deepEqual(greens.sort((x, y) => x[0] - y[0] || x[1] - y[1]), [[5, 2, 4], [5, 8, 10], [6, 2, 4], [7, 2, 4]]);
+  assert.ok(reqs.some((q) => q.updateBorders && q.updateBorders.range.startRowIndex === sh.totalRow && q.updateBorders.top.style === 'SOLID_THICK'));
+  assert.ok(!reqs.some((q) => q.setBasicFilter || q.addConditionalFormatRule));                         // no filter and no highlight rules
+  assert.deepEqual(reqs.filter((q) => q.updateDimensionProperties).map((q) => q.updateDimensionProperties.properties.pixelSize), [110, 95, 70, 60, 70, 60, 70, 60, 70, 60, 110, 85]);
+  // rebuild: the rack sheet is added with one frozen column and five frozen rows
+  const calls = [];
+  await rebuildSheets({ sheetsOf: async () => [], batch: async (id, q) => calls.push(q), write: async () => {} }, 'F', [sh]);
+  const grid = calls[0][0].addSheet.properties.gridProperties;
+  assert.equal(grid.frozenColumnCount, 1); assert.equal(grid.frozenRowCount, 5);
 });

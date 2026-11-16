@@ -145,7 +145,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/domain/pull.js` — Cable pulls («Протяжки»): choose points on the plan → «до шкафа» (to the rack) → meters per point → checklist → finish (written into the daily report).
 - `src/domain/rack.js` — Racks and port labels: panel ports of cat7 points, the rack plan, automatic port assignment, label colors and caption texts.
 - `src/domain/remaining.js` — «What is left»: points where termination, installation or checking is not done yet (taking the point type's stages into account).
-- `src/domain/report.js` — Management sheets: profiles (what to show) and building the sheets (colour legend, update stamp, point rows) with values only, no formulas.
+- `src/domain/report.js` — Management sheets: profiles (what to show) and building the sheets (colour legend, update stamp, point rows, the last rack sheet «Итоги по шкафам») with values only, no formulas.
 - `src/domain/seed.js` — Starting reference lists for a new project: work catalog, point types, cables, devices, units, culprits and delay reasons (section 4 of the functional description).
 - `src/domain/sheetfit.js` — New drawing version («тохнит»): moving points from the old sheet to the new one when the new sheet has another size, a different crop or another scale.
 - `src/domain/shilutsheet.js` — Rack table for Google Drive: a «rack plan» sheet for each rack (section) and a common sheet of port labels.

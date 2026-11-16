@@ -1,5 +1,5 @@
 // Management sheets: the app itself creates a Google Sheet (no template) and writes the ready values and the update stamp into it.
-// The report content comes from src/domain (`buildReport`); `sheetRequests` formats the legend, the section rows (thick frame, 28 px) and the point blocks; the Sheets api object is passed in (`realApi` of google.js in the app, the server job's own one in scripts/server-tables-lib.mjs).
+// The report content comes from src/domain (`buildReport`); `sheetRequests` formats the legend, the section rows (thick frame, 28 px), the point blocks and the rack sheet (merged two-level header, percents, frozen column); the Sheets api object is passed in (`realApi` of google.js in the app, the server job's own one in scripts/server-tables-lib.mjs).
 import { buildReport } from '../domain/index.js';
 
 // «#fff» and «#ffffff» mean the same (the short form used to come out red)
@@ -10,8 +10,41 @@ const esc = (t) => String(t).replace(/'/g, "''");
 const border = (style, hex) => ({ style, color: rgb(hex) });
 const THIN = '#D0D4D9'; const NAVY = '#1F3B5C';
 
-// Formatting requests for one sheet: widths, legend, stamp, header, section rows, borders, dates, highlighting, filter
+const GREEN = '#C6E5C9';
+
+// Formatting requests of the rack sheet «Итоги по шкафам»: widths, two-level header with merges, thin borders, percent format, total row, green stages done at 100% (no rules, no filter)
+function rackSheetRequests(sheetId, sh) {
+  const out = []; const nCols = sh.cols.length; const [h0, h1] = sh.headerRows; const [r0, r1] = sh.rackRows; const end = sh.totalRow + 1;
+  const range = (a, b, c, d) => ({ sheetId, startRowIndex: a, endRowIndex: b, startColumnIndex: c, endColumnIndex: d });
+  const fmt = (rg, userEnteredFormat, fields) => out.push({ repeatCell: { range: rg, cell: { userEnteredFormat }, fields } });
+  sh.cols.forEach((c, i) => out.push({ updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: i, endIndex: i + 1 }, properties: { pixelSize: c.width }, fields: 'pixelSize' } }));
+  fmt(range(0, 1, 0, 1), { textFormat: { bold: true, fontSize: 14 } }, 'userEnteredFormat.textFormat');
+  fmt(range(1, 2, 0, 1), { textFormat: { bold: true } }, 'userEnteredFormat.textFormat');
+  fmt(range(1, 2, 4, 5), { textFormat: { bold: false, foregroundColor: rgb('#5F6368') } }, 'userEnteredFormat.textFormat'); // the update stamp
+  // header: navy, the second level under the stages a lighter blue and not bold; merged cells (the values sit in the first cell of each merge)
+  fmt(range(h0, h1, 0, nCols), { backgroundColor: rgb(NAVY), textFormat: { bold: true, foregroundColor: rgb('#FFFFFF') }, horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE', wrapStrategy: 'WRAP' },
+    'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)');
+  fmt(range(h1 - 1, h1, 2, 10), { backgroundColor: rgb('#2E5481'), textFormat: { bold: false, foregroundColor: rgb('#FFFFFF') } }, 'userEnteredFormat(backgroundColor,textFormat)');
+  [[0, 1], [1, 2], [10, 11], [11, 12]].forEach(([c0, c1]) => out.push({ mergeCells: { range: range(h0, h1, c0, c1), mergeType: 'MERGE_ALL' } }));
+  sh.stageCols.forEach((c) => out.push({ mergeCells: { range: range(h0, h0 + 1, c, c + 2), mergeType: 'MERGE_ALL' } }));
+  // body: centred; the percent columns in «0%»; rack names bold; total row bold on light blue
+  fmt(range(h1, end, 0, nCols), { horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE' }, 'userEnteredFormat(horizontalAlignment,verticalAlignment)');
+  sh.stageCols.forEach((c) => fmt(range(h1, end, c + 1, c + 2), { numberFormat: { type: 'PERCENT', pattern: '0%' }, horizontalAlignment: 'CENTER' }, 'userEnteredFormat(numberFormat,horizontalAlignment)'));
+  if (r1 > r0) fmt(range(r0, r1, 0, 1), { textFormat: { bold: true } }, 'userEnteredFormat.textFormat');
+  fmt(range(sh.totalRow, end, 0, nCols), { textFormat: { bold: true }, backgroundColor: rgb('#E8EEF5') }, 'userEnteredFormat(textFormat,backgroundColor)');
+  // only a stage done at 100% is coloured (count and percent cell), after the total row's background
+  sh.greens.forEach(([r, c]) => fmt(range(r, r + 1, c, c + 2), { backgroundColor: rgb(GREEN) }, 'userEnteredFormat.backgroundColor'));
+  // borders: thin lines inside the header and around every table cell, then the thick top line of the total row (the later border wins on a shared edge)
+  const headLine = border('SOLID', '#8FA3BA'); const thin = border('SOLID', THIN);
+  out.push({ updateBorders: { range: range(h0, h1, 0, nCols), top: headLine, bottom: headLine, left: headLine, right: headLine, innerHorizontal: headLine, innerVertical: headLine } });
+  out.push({ updateBorders: { range: range(h1, end, 0, nCols), top: thin, bottom: thin, left: thin, right: thin, innerHorizontal: thin, innerVertical: thin } });
+  out.push({ updateBorders: { range: range(sh.totalRow, end, 0, nCols), top: border('SOLID_THICK', NAVY) } });
+  return out;
+}
+
+// Formatting requests for one sheet (the rack sheet has its own): widths, legend, stamp, header, section rows, borders, dates, highlighting, filter
 export function sheetRequests(sheetId, sh) {
+  if (sh.kind === 'racks') return rackSheetRequests(sheetId, sh);
   const out = []; const nCols = sh.cols.length; const first = sh.headerRow + 1; const lastRow = Math.max(sh.rows.length, first + 1);
   const range = (r0, r1, c0, c1) => ({ sheetId, startRowIndex: r0, endRowIndex: r1, startColumnIndex: c0, endColumnIndex: c1 });
   sh.cols.forEach((c, i) => out.push({ updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: i, endIndex: i + 1 }, properties: { pixelSize: c.width || 110 }, fields: 'pixelSize' } }));
