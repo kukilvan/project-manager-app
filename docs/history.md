@@ -2,6 +2,11 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-16 — Tickets 3: slicing of the management sheets stage («Тикеты 3»)
+
+- `.scratch/03-management-sheets/issues/`: 01 points sheet look (legend, stamp, no pink, borders, header frame, date-only write with rebuild fallback, `STYLE_V` 4), 02 sections by type (`typeOrderOf`, section rows and frames, export flags), 03 rack sheet (`rackSheetOf`, merges, percents, frozen column), 04 profile form with type arrows and two ticks, translations, guide line, glossary and known issue. Order 01 → 02 → 03 → 04; 02 and 03 touch the same modules, so never in parallel.
+- Decision: sections and the rack sheet become visible for every profile as soon as tickets 02 and 03 are live (default on); the ticks to switch them off arrive with ticket 04. The tickets are marked `open`.
+
 ## 2026-11-16 — Spec 3: management sheets («Спека 3»)
 
 - `.scratch/03-management-sheets/spec.md`: points sheet rows (title, project and update stamp in E2, totals, legend A–F, empty row, header; 7 or 5 frozen rows), sections by type (column A only, not merged, default alignment so the text overflows; thick `#1F3B5C` frame; «Без типа» last for no or deleted type; Russian plural, «נקודה אחת»), no pink rule, thin borders per point block, header frame; the rack sheet (12 columns, percent base = points whose type has the stage, rounded down, «—» for base 0, green only at 100%, frozen column A); `buildReport(…, { now })`, stamp out of the hash, date-only write on unchanged data with a rebuild fallback, `STYLE_V` 4; profile fields `sections`, `rackSheet` (absent = on) and `typeOrder` (`typeOrderOf`: listed, then by name); form strings with English and Hebrew; a guide line.

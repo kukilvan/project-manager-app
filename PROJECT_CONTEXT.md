@@ -4,7 +4,7 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 ## Next step
 
-«Тикеты 3» — slicing of stage 3 «Management sheets» from `.scratch/03-management-sheets/spec.md` (accepted 2026-11-16): four tickets as its § 10 (01 points sheet look and update stamp, 02 sections by type, 03 rack sheet, 04 profile form and guide). Output `.scratch/03-management-sheets/issues/MM-<slug>.md`. Model: Sonnet 5.5, effort high (`docs/models.md`).
+«Тикет 3.1» — ticket `.scratch/03-management-sheets/issues/01-points-sheet-look.md` (legend, update stamp in E2, no pink, thin borders, header frame; date-only write, `STYLE_V` 4). Tickets go in order 01 → 02 → 03 → 04 (02 and 03 never in parallel). Model: Sonnet 5.5, effort high (`docs/models.md`, medium ticket). Ticket 01 asks the owner whether it may create a test spreadsheet on their Drive to check the new Sheets requests.
 
 Quick fixes «Правка: …» may come at any time; they do not change this step.
 
@@ -18,6 +18,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 - Tests: 192, all pass on the owner's Windows PC and on the Linux deploy.
 - Stage 1: baseline 1,751 Russian comments in 144 files, 0 left; every one of the 127 modules in `docs/code-map.md` has an English header; the map has its architecture section; `PENDING` is gone, so `tools/code-map.mjs` and `tools/ru-comments.mjs` (and `tests/code-docs.test.js`) are strict; `tools/tohnit/__pycache__` is no longer tracked.
 - The owner's NAS arrives 2026-11-11 without disks; its setup is a separate project, which builds from `docs/nas-requirements.md` (the owner gives it the GitHub link and says when the version line changes).
+- Stage 3 slicing accepted 2026-11-16: four tickets in `.scratch/03-management-sheets/issues/` (01 points sheet look and stamp — medium; 02 sections by type — medium; 03 rack sheet — medium; 04 profile form, guide, glossary — simple). Sections and the rack sheet are on for every profile once tickets 02/03 are live; the ticks to turn them off come with 04.
 - Stage 3 description accepted 2026-11-16 (`.scratch/03-management-sheets/description.md`, mockups in `mockups/`): it also holds the list of old Drive files for the owner to delete (AppSheet is no longer needed). Photos on points deferred by the owner. Spec 3 accepted 2026-11-16 (`spec.md`): answers to the ten open questions, profile fields `sections`, `rackSheet`, `typeOrder` (no migration), date written on every refresh; ticket 01 may check the new Sheets requests on a test spreadsheet if the owner allows it.
 
 ## Stages
