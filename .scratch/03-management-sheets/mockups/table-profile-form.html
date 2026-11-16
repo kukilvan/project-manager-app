@@ -1,0 +1,55 @@
+<!doctype html>
+<!-- Rough mockup of the changed profile form «Таблица «…»» (☰ → Для руководства → table → Изменить), phone width. Only the changed part is drawn. -->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Макет: форма профиля таблицы</title>
+<style>
+  body { margin: 0; background: #111418; color: #e8eaed; font: 15px -apple-system, Arial, sans-serif; display: flex; justify-content: center; }
+  .phone { width: 420px; max-width: 100%; padding: 16px; box-sizing: border-box; }
+  .note { background: #3a3220; color: #f5e6b8; font-size: 13px; padding: 8px 10px; border-radius: 6px; margin-bottom: 12px; }
+  h2 { font-size: 18px; margin: 4px 0 14px; }
+  .lbl { font-size: 13px; color: #9aa0a6; margin: 14px 0 6px; }
+  .hint { font-size: 12px; color: #9aa0a6; margin-top: 4px; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 7px 8px; background: #1c2026; border-radius: 6px; margin-bottom: 4px; }
+  .row .name { flex: 1; }
+  .arr { width: 30px; height: 28px; border: 1px solid #3c4043; background: #262b31; color: #e8eaed; border-radius: 5px; }
+  .off { opacity: .45; }
+  .new { outline: 2px dashed #8ab4f8; outline-offset: 3px; border-radius: 6px; padding: 4px; margin: 10px -4px; }
+  .chk { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; }
+  .chk input { width: 20px; height: 20px; margin: 0; }
+  .muted { color: #9aa0a6; }
+  .btn { display: block; width: 100%; margin-top: 18px; padding: 12px; border: none; border-radius: 8px; background: #1a73e8; color: #fff; font-size: 16px; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="note">Rough mockup. Dashed frames are new. Unchanged fields (name, file name, language, racks, statuses, columns) are skipped.</div>
+  <h2>Таблица «Для руководства»</h2>
+
+  <div class="muted">… Название, файл, язык, шкафы …</div>
+
+  <div class="new">
+    <div class="lbl">Типы точек (порядок разделов стрелками)</div>
+    <div class="row"><input type="checkbox" checked><span class="name">Контроллер</span><button class="arr">↑</button><button class="arr">↓</button></div>
+    <div class="row"><input type="checkbox" checked><span class="name">Камера</span><button class="arr">↑</button><button class="arr">↓</button></div>
+    <div class="row"><input type="checkbox" checked><span class="name">Датчик</span><button class="arr">↑</button><button class="arr">↓</button></div>
+    <div class="row off"><input type="checkbox"><span class="name">Точка Wi-Fi</span><button class="arr">↑</button><button class="arr">↓</button></div>
+    <div class="hint">Ничего не отмечено — все типы. Разделы в таблице идут в этом порядке.</div>
+  </div>
+
+  <div class="muted">… Статусы, столбцы, раскладка …</div>
+
+  <div class="chk"><input type="checkbox" checked><div>Итоги сверху (всего, протянуто, захивучено…)</div></div>
+  <div class="new">
+    <div class="chk"><input type="checkbox" checked><div>Разделы по типам точек<div class="hint">Перед точками каждого типа — строка с его названием и числом точек</div></div></div>
+    <div class="chk"><input type="checkbox" checked><div>Лист «Итоги по шкафам»<div class="hint">Отдельный лист: сколько точек каждого шкафа протянуто, установлено, проверено, в процентах</div></div></div>
+  </div>
+  <div class="chk"><input type="checkbox" checked><div>Обновлять автоматически каждую ночь (в 2–3 часа)</div></div>
+
+  <div class="muted" style="margin-top:10px">Будет точек: 742, столбцов: 8, листов: 2</div>
+  <button class="btn">Сохранить</button>
+</div>
+</body>
+</html>

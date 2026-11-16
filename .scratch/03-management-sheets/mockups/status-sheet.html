@@ -1,0 +1,69 @@
+<!doctype html>
+<!-- Rough mockup of the main management sheet «סטטוס» after stage 3. Made-up project and labels (the repo is public, ADR 0005). -->
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Макет: лист «סטטוס»</title>
+<style>
+  body { margin: 0; padding: 16px; font: 13px Arial, sans-serif; background: #f1f3f4; color: #202124; }
+  .note { direction: ltr; text-align: left; font: 13px/1.5 Arial; background: #fff8e1; border: 1px solid #f0d27a; padding: 8px 12px; margin-bottom: 12px; max-width: 900px; }
+  .wrap { overflow-x: auto; background: #fff; border: 1px solid #dadce0; }
+  table { border-collapse: collapse; min-width: 760px; }
+  td, th { border: 1px solid #d0d4d9; padding: 3px 6px; height: 21px; text-align: center; white-space: nowrap; }
+  .t1 td { border: none; text-align: right; font-size: 18px; font-weight: bold; }
+  .t2 td { border: none; text-align: right; font-weight: bold; }
+  .t2 .upd { font-weight: normal; color: #5f6368; }
+  .sumh td { background: #E8EEF5; font-weight: bold; }
+  .sumv td { background: #D3E3F5; font-weight: bold; font-size: 15px; }
+  .legend td { border: none; font-size: 12px; }
+  .legend .chip { border: 1px solid #c4c8cc; }
+  th { background: #1F3B5C; color: #fff; }
+  .sec td { background: #E8EEF5; font-weight: bold; text-align: right; border-top: 2px solid #1F3B5C; }
+  .g { background: #C6E5C9; } .y { background: #FFF2B3; } .o { background: #FFE0B2; } .r { background: #F4B6B6; }
+  .na { background: #EFEFEF; color: #8C8C8C; }
+  .lbl { font-weight: bold; }
+  .gap td { border-left: none; border-right: none; }
+  .frozen-edge td, .frozen-edge th { border-bottom: 3px solid #9aa0a6; }
+  .tabs { direction: ltr; margin-top: 0; display: flex; gap: 2px; background: #e8eaed; padding: 4px 8px; border: 1px solid #dadce0; border-top: none; }
+  .tabs span { padding: 4px 12px; background: #fff; border: 1px solid #dadce0; }
+  .tabs .on { font-weight: bold; color: #1a73e8; }
+</style>
+</head>
+<body>
+<div class="note">
+  <b>Rough mockup: the main management sheet (Hebrew, right-to-left).</b> New: the update date on row 2; a colour legend row instead of the empty row, then one empty row; a section row before each point type (name and count), with one empty row between the last point of a type and the next section; a not-yet-done stage stays white (was pink); thin cell borders. Rows 1–7 are frozen (one more than now). The whole row keeps the colour of the point's status, as now. Project and labels are made up.
+</div>
+<div class="wrap">
+<table>
+  <tr class="t1"><td colspan="8">סטטוס התקדמות נקודות</td></tr>
+  <tr class="t2"><td colspan="4">פרויקט לדוגמה – קבלן – אתר לדוגמה</td><td colspan="4" class="upd">עודכן: 16/11/2026 02:00</td></tr>
+  <tr class="sumh"><td>סה״כ נקודות</td><td>הושחל</td><td>חווט</td><td>הותקן</td><td>הותקן חלקית</td><td>נבדק</td><td>תקלות</td><td style="background:#fff;border:none"></td></tr>
+  <tr class="sumv"><td>742</td><td>112</td><td>21</td><td>15</td><td>0</td><td>19</td><td>0</td><td style="background:#fff;border:none"></td></tr>
+  <tr class="legend">
+    <td class="chip g">בוצע</td><td class="chip y">בתהליך</td><td class="chip o">בוצע חלקית</td><td class="chip r">תקלה</td><td class="chip na">— לא רלוונטי לסוג</td><td class="chip" style="background:#fff">ריק — טרם בוצע</td><td></td><td></td>
+  </tr>
+  <tr class="gap"><td colspan="8"></td></tr>
+  <tr class="frozen-edge"><th>נקודה</th><th>סוג</th><th>ארון</th><th>כבל</th><th>הושחל</th><th>הותקן</th><th>נבדק</th><th>סטטוס</th></tr>
+
+  <tr class="sec"><td colspan="8">בקרה — 4 נקודות</td></tr>
+  <tr><td class="lbl g">A/B01-02</td><td class="g">בקר</td><td class="g">A</td><td class="g">כבל CAT7</td><td class="g">03/11/2026</td><td class="g">12/11/2026</td><td class="g">12/11/2026</td><td class="g">נבדק</td></tr>
+  <tr><td class="lbl y">A/B03-04</td><td class="y">בקר</td><td class="y">A</td><td class="y">כבל CAT7</td><td class="g">03/11/2026</td><td></td><td></td><td class="y">נמשך</td></tr>
+  <tr><td class="lbl">A/B05-06</td><td>בקר</td><td>A</td><td>כבל CAT7</td><td></td><td></td><td></td><td>טרם נמשך</td></tr>
+  <tr><td class="lbl o">A/B07-08</td><td class="o">בקר</td><td class="o">A</td><td class="o">כבל CAT7</td><td class="o">חלקית 1/2</td><td></td><td></td><td class="o">נמשך חלקית</td></tr>
+
+  <tr class="gap"><td colspan="8"></td></tr>
+  <tr class="sec"><td colspan="8">מצלמות — 3 נקודות</td></tr>
+  <tr><td class="lbl g">A/C01</td><td class="g">מצלמה</td><td class="g">A</td><td class="g">כבל CAT6</td><td class="g">04/11/2026</td><td class="g">13/11/2026</td><td class="na">—</td><td class="g">הותקן</td></tr>
+  <tr><td class="lbl r">A/C02</td><td class="r">מצלמה</td><td class="r">A</td><td class="r">כבל CAT6</td><td class="g">04/11/2026</td><td class="g">13/11/2026</td><td class="na">—</td><td class="r">תקלה</td></tr>
+  <tr><td class="lbl">B/C03</td><td>מצלמה</td><td>B</td><td>כבל CAT6</td><td></td><td></td><td class="na">—</td><td>טרם נמשך</td></tr>
+
+  <tr class="gap"><td colspan="8"></td></tr>
+  <tr class="sec"><td colspan="8">גלאים — 2 נקודות</td></tr>
+  <tr><td class="lbl">B/D01</td><td>גלאי</td><td>B</td><td>כבל אזעקה</td><td></td><td></td><td class="na">—</td><td>טרם נמשך</td></tr>
+  <tr><td class="lbl">B/D02</td><td>גלאי</td><td>B</td><td>כבל אזעקה</td><td></td><td></td><td class="na">—</td><td>טרם נמשך</td></tr>
+</table>
+</div>
+<div class="tabs"><span class="on">סטטוס</span><span>התקדמות לפי ארון</span></div>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- Rough mockup of the new sheet «התקדמות לפי ארון» (progress by rack). Made-up racks and numbers (the repo is public, ADR 0005). -->
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Макет: лист «התקדמות לפי ארון»</title>
+<style>
+  body { margin: 0; padding: 16px; font: 13px Arial, sans-serif; background: #f1f3f4; color: #202124; }
+  .note { direction: ltr; text-align: left; font: 13px/1.5 Arial; background: #fff8e1; border: 1px solid #f0d27a; padding: 8px 12px; margin-bottom: 12px; max-width: 900px; }
+  .wrap { overflow-x: auto; background: #fff; border: 1px solid #dadce0; }
+  table { border-collapse: collapse; min-width: 700px; }
+  td, th { border: 1px solid #d0d4d9; padding: 3px 8px; height: 21px; text-align: center; white-space: nowrap; }
+  .t1 td { border: none; text-align: right; font-size: 18px; font-weight: bold; }
+  .t2 td { border: none; text-align: right; font-weight: bold; }
+  .t2 .upd { font-weight: normal; color: #5f6368; }
+  th { background: #1F3B5C; color: #fff; }
+  th.sub { background: #2E5481; font-weight: normal; font-size: 12px; }
+  .pct { color: #3c4043; }
+  .full { background: #C6E5C9; }
+  .cab { font-weight: bold; }
+  .total td { font-weight: bold; background: #E8EEF5; border-top: 2px solid #1F3B5C; }
+  .tabs { direction: ltr; display: flex; gap: 2px; background: #e8eaed; padding: 4px 8px; border: 1px solid #dadce0; border-top: none; }
+  .tabs span { padding: 4px 12px; background: #fff; border: 1px solid #dadce0; }
+  .tabs .on { font-weight: bold; color: #1a73e8; }
+</style>
+</head>
+<body>
+<div class="note">
+  <b>Rough mockup: the new sheet «Progress by rack» in the same file.</b> One row per rack, a total row at the bottom. Each stage shows the count and the percent of the rack's points; only a stage done at 100% is green, nothing else is coloured. The same profile filters (racks, types, statuses) apply. Racks and numbers are made up.
+</div>
+<div class="wrap">
+<table>
+  <tr class="t1"><td colspan="12">התקדמות לפי ארון</td></tr>
+  <tr class="t2"><td colspan="6">פרויקט לדוגמה – קבלן – אתר לדוגמה</td><td colspan="6" class="upd">עודכן: 16/11/2026 02:00</td></tr>
+  <tr><td colspan="12" style="border:none"></td></tr>
+  <tr><th rowspan="2">ארון</th><th rowspan="2">סה״כ נקודות</th><th colspan="2">הושחל</th><th colspan="2">חווט</th><th colspan="2">הותקן</th><th colspan="2">נבדק</th><th rowspan="2">הותקן חלקית</th><th rowspan="2">תקלות</th></tr>
+  <tr><th class="sub">כמות</th><th class="sub">%</th><th class="sub">כמות</th><th class="sub">%</th><th class="sub">כמות</th><th class="sub">%</th><th class="sub">כמות</th><th class="sub">%</th></tr>
+  <tr><td class="cab">A</td><td>120</td><td class="full">120</td><td class="full pct">100%</td><td>21</td><td class="pct">18%</td><td>15</td><td class="pct">13%</td><td>15</td><td class="pct">13%</td><td>0</td><td>0</td></tr>
+  <tr><td class="cab">B</td><td>210</td><td>64</td><td class="pct">30%</td><td>0</td><td class="pct">0%</td><td>0</td><td class="pct">0%</td><td>0</td><td class="pct">0%</td><td>0</td><td>0</td></tr>
+  <tr><td class="cab">C</td><td>180</td><td>0</td><td class="pct">0%</td><td>0</td><td class="pct">0%</td><td>0</td><td class="pct">0%</td><td>0</td><td class="pct">0%</td><td>0</td><td>0</td></tr>
+  <tr><td class="cab">ללא ארון</td><td>12</td><td>0</td><td class="pct">0%</td><td>—</td><td class="pct">—</td><td>0</td><td class="pct">0%</td><td>0</td><td class="pct">0%</td><td>0</td><td>0</td></tr>
+  <tr class="total"><td>סה״כ</td><td>522</td><td>184</td><td>35%</td><td>21</td><td>4%</td><td>15</td><td>3%</td><td>15</td><td>3%</td><td>0</td><td>0</td></tr>
+</table>
+</div>
+<div class="tabs"><span>סטטוס</span><span class="on">התקדמות לפי ארון</span></div>
+</body>
+</html>
