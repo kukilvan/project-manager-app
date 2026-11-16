@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-16 — Review 3: stage 3 closed («Ревью 3»)
+
+- `.scratch/03-management-sheets/review.md`: the whole stage (`1a50462..a27b68d`) against the spec and coding standards, two passes, then runs in `?mem=1` at 420 px (form, «Обновить» with the stub Google, the date-only write) and a script over every default profile's Sheets requests.
+- 6 findings, all fixed now, no fix round: the rack sheet with no filtered points sent a row-height request with an empty range (the whole `batchUpdate` could fail) — sent only when there are rack rows; racks sorted with the device language (`undefined`) — now `'ru'` like the form, so the phone and the night job give one hash (Russian collation puts «Щ1» before «A1», English after); ticket 02's file had garbled encoding since ticket 3.2 — restored; KI-4 wording on viewers; spec §4.4 note with the look the owner chose in ticket 3.3; stage-3 State lines folded into one.
+- Tests 210 → 212. No `STYLE_V` bump (no look change). Not checked against a real Google response: the empty-profile requests.
+
 ## 2026-11-16 — Ticket 3.4: profile form, guide, glossary («Тикет 3.4»)
 
 - `src/app/views/tables.js`: `typeList` (tick + ▲▼ per point type, «Все» row, `typeOrderOf` order); on «Сохранить» `typeOrder` = the whole ordered list, `types` = the ticked ones; ticks «Разделы по типам точек» and «Лист „Итоги по шкафам“» (on for a new profile and a profile without the fields); the preview counts the rack sheet.
