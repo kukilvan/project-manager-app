@@ -4,7 +4,7 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 ## Next step
 
-«Тикет 3.4» — ticket `.scratch/03-management-sheets/issues/04-profile-form-and-guide.md` (profile form: point-type list with arrows and `typeOrder`, two ticks «Разделы по типам точек» and «Лист „Итоги по шкафам“», translations, guide line, glossary terms, known issue about sorting). It is the last ticket of stage 3; then «Ревью 3». Model: Sonnet 5.5, effort medium (`docs/models.md`, simple ticket).
+«Ревью 3» — the whole stage 3 against its spec and `docs/coding-standards.md` (`.scratch/03-management-sheets/review.md`); the last ticket (3.4) is accepted. Model: Opus 5.5, effort high (`docs/models.md`, review of a 4-ticket stage).
 
 Quick fixes «Правка: …» may come at any time; they do not change this step.
 
@@ -21,6 +21,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 - Ticket 3.1 live 2026-11-16 (points sheet look: legend, update stamp in E2 written on every refresh, no pink, thin borders, header frame, `STYLE_V` 4), checked by the owner on the phone; the new Sheets requests were also checked on a real test spreadsheet (accepted by the API). Tests: 198, all pass.
 - Ticket 3.2 live 2026-11-16 (sections by point type: `typeOrderOf`, `pointsCountText`, section rows with thick frame and 28 px height, «Без типа» last, `defaultTables` writes `sections` and `rackSheet`, Excel export flat), checked by the owner on the PC and the phone. Tests: 206, all pass. The grey strip under the frozen rows on the PC and the grey area right of the last column on the phone are Google Sheets display, not a table fault.
 - Ticket 3.3 live 2026-11-16 (rack sheet «Итоги по шкафам»: `rackSheetOf`, percents rounded down, merged two-level header, frozen column A, progress colours from dark yellow `#E6B422` to green `#C6E5C9` (0 and «—» white), navy block frames through the header, teal `#12A3A3` lines between racks, names centred, `STYLE_V` 7), checked by the owner on the phone and the PC. Tests: 210, all pass. Not checked against a real response before the owner's run: `mergeCells`, `PERCENT` format, `DOTTED`/`SOLID_MEDIUM` borders, `frozenColumnCount` — accepted by Google on the owner's file.
+- Ticket 3.4 live 2026-11-16 (profile form: point types with ▲▼ and `typeOrder`, ticks for sections and the rack sheet, guide line, glossary, KI-4), checked by the owner on the phone. Tests: 210, all pass.
 - Stage 3 slicing accepted 2026-11-16: four tickets in `.scratch/03-management-sheets/issues/` (01 points sheet look and stamp — medium; 02 sections by type — medium; 03 rack sheet — medium; 04 profile form, guide, glossary — simple). Sections and the rack sheet are on for every profile once tickets 02/03 are live; the ticks to turn them off come with 04.
 - Stage 3 description accepted 2026-11-16 (`.scratch/03-management-sheets/description.md`, mockups in `mockups/`): it also holds the list of old Drive files for the owner to delete (AppSheet is no longer needed). Photos on points deferred by the owner. Spec 3 accepted 2026-11-16 (`spec.md`): answers to the ten open questions, profile fields `sections`, `rackSheet`, `typeOrder` (no migration), date written on every refresh; ticket 01 may check the new Sheets requests on a test spreadsheet if the owner allows it.
 
@@ -30,7 +31,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 |---|---|---|---|---|
 | 1 | Code documentation | done | 14 | — |
 | 2 | What the app needs from the NAS | done | 6 | — |
-| 3 | Management sheets | tickets 3/4 | 8 | — |
+| 3 | Management sheets | review | 8 | — |
 | 4 | PocketBase storage (when the owner trusts the NAS) | not started | 16 | — |
 | 5 | Move to the NAS | not started | 10 | — |
 

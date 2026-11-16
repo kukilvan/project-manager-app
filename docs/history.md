@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-16 — Ticket 3.4: profile form, guide, glossary («Тикет 3.4»)
+
+- `src/app/views/tables.js`: `typeList` (tick + ▲▼ per point type, «Все» row, `typeOrderOf` order); on «Сохранить» `typeOrder` = the whole ordered list, `types` = the ticked ones; ticks «Разделы по типам точек» and «Лист „Итоги по шкафам“» (on for a new profile and a profile without the fields); the preview counts the rack sheet.
+- Six new strings (RU/EN/HE) in `09-wizard-tables.json`, the guide line in `guide.js` and `13-guide-2.json`, glossary terms Section, Rack sheet, Update stamp, KI-4 (an editor's sort scatters section rows).
+- Slip fixed before the push to `main`: the first edit missed the two ticks in the form (mixed CRLF/LF line endings, the replace did nothing and was not asserted); found by the `?mem=1` walk at 420 px. Checked by the owner on the phone. Tests: 210, all pass.
+
 ## 2026-11-16 — Ticket 3.3: rack sheet («Тикет 3.3»)
 
 - `src/domain/report.js`: `rackSheetOf` (racks in natural order, «Без шкафа» last; per stage the base = points whose type has the stage, done only inside the base, percent ⌊done × 100 / base⌋ / 100, «—» for base 0; partly installed and faults as in the totals; total row), the sheet is last when `rackSheet !== false`, a rack sheet of «perCabinet» with the same name gets « (2)»; `STYLE_V` 7.
