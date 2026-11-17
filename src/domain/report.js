@@ -26,7 +26,7 @@ export const COLUMNS = [
   { id: 'serial', ru: 'Серийный номер', he: "מס' סידורי", w: 170 },
   { id: 'mac', ru: 'MAC', he: 'MAC', w: 150 },
   { id: 'config', ru: 'Конфигурация двери', he: 'תצורת דלת', w: 220 },
-  { id: 'lockType', ru: 'Тип замка', he: 'סוג נעילה', w: 110 },
+  { id: 'lockType', ru: 'Тип замка', he: 'סוג מנעול', w: 110 },
   { id: 'delay', ru: 'Причина задержки', he: 'סיבת עיכוב', w: 150 },
   { id: 'note', ru: 'Примечание', he: 'הערה', w: 220 },
   { id: 'status', ru: 'Статус', he: 'סטטוס', w: 135, kind: 'status' },
@@ -117,7 +117,7 @@ const COLORS = { green: '#C6E5C9', grey: '#EFEFEF', orange: '#FFE0B2', red: '#F4
 
 // The lock type column: EM (electromagnet) or MH (electric lock) of the door configuration; old configurations and old
 // door types by the EM / MH word in their name; a locking device of another kind — its short name; not a door — empty
-const LOCK_NAMES = { em: { ru: 'ЭМ', he: 'אלקטרומגנט' }, mh: { ru: 'МХ', he: 'מנעול חשמלי' } };
+const LOCK_NAMES = { em: { ru: 'ЭМ', he: 'אלקטרו מגנט' }, mh: { ru: 'МХ', he: 'מנעול חשמלי' } };
 function lockTypeOf(point, ctx, lang) {
   const type = ctx.types.get(point.typeId);
   const cfg = usesConfig(type) ? doorCfgOf(point, ctx) : null;

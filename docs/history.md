@@ -2,6 +2,11 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-17 — Quick fix: lock type column («Идея: тип замка в таблице»)
+
+- Asked as an idea, done at once as a quick fix at the owner's request (no idea file). `src/domain/report.js`: column `lockType` «Тип замка» / «סוג מנעול» — ЭМ «אלקטרו מגנט» or МХ «מנעול חשמלי» from the door configuration (`doorLockOf`, new in `src/domain/doorcfg.js`, also used by `doorCfgShort`); old configurations and old door types by the ЭМ / МХ word in their name; off in the default profiles, the owner ticks it in the profile form; the Excel export gets it too. Hebrew words from the owner.
+- Guide line, RU/EN/HE strings, a test in `tests/doorcfg.test.js`. Tests 212 → 213. Not checked against a real Google Sheet.
+
 ## 2026-11-16 — Review 3: stage 3 closed («Ревью 3»)
 
 - `.scratch/03-management-sheets/review.md`: the whole stage (`1a50462..a27b68d`) against the spec and coding standards, two passes, then runs in `?mem=1` at 420 px (form, «Обновить» with the stub Google, the date-only write) and a script over every default profile's Sheets requests.

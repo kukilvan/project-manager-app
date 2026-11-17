@@ -157,7 +157,7 @@
 ],
 "• Столбец «Тип замка» показывает у дверей ЭМ или МХ — из конфигурации двери. Включите его галочкой в списке «Столбцы» формы таблицы (Ещё → Для руководства → Изменить).": [
 "• The “Lock type” column shows EM (electromagnet) or EL (electric lock) for doors — from the door configuration. Turn it on with a tick in the “Columns” list of the sheet's form (More → For management → Edit).",
-"• העמודה „סוג נעילה” מציגה בדלתות אלקטרומגנט או מנעול חשמלי — לפי תצורת הדלת. הפעילו אותה בתיבת הסימון ברשימת „עמודות” בטופס הטבלה (עוד ← להנהלה ← עריכה)."
+"• העמודה „סוג מנעול” מציגה בדלתות אלקטרו מגנט או מנעול חשמלי — לפי תצורת הדלת. הפעילו אותה בתיבת הסימון ברשימת „עמודות” בטופס הטבלה (עוד ← להנהלה ← עריכה)."
 ],
 "«📥 Импорт данных (замена всего проекта)» — только для восстановления из копии. Текущие данные проекта заменяются.": [
 "“📥 Import data (replaces the whole project)” — only for restoring from a backup. The current project data is replaced.",

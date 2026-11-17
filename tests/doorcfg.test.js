@@ -85,6 +85,6 @@ test('двери: столбец «Тип замка» в таблице для 
   assert.deepEqual(ru.head, ['Обозначение', 'Тип замка']);
   assert.deepEqual(ru.by, { D1: 'ЭМ', D2: 'МХ', D3: '', C1: '' });
   const he = rows('he');
-  assert.equal(he.head[1], 'סוג נעילה');
-  assert.deepEqual([he.by.D1, he.by.D2, he.by.C1], ['אלקטרומגנט', 'מנעול חשמלי', '']);
+  assert.equal(he.head[1], 'סוג מנעול');
+  assert.deepEqual([he.by.D1, he.by.D2, he.by.C1], ['אלקטרו מגנט', 'מנעול חשמלי', '']);
 });
