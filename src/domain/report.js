@@ -5,7 +5,7 @@
 // Built on points.js, status.js, doorcfg.js, managers.js and rack.js; export.js reuses it for the Excel export.
 import { comparePoints, cableListOf, cablesCountOf, metrageOf } from './points.js';
 import { pointInfo, usesConfig } from './status.js';
-import { doorCfgOf } from './doorcfg.js';
+import { doorCfgOf, doorLockOf, doorShortOf } from './doorcfg.js';
 import { sheetSerial, hashOf, stampText, TITLE_PREFIX } from './managers.js';
 import { panelText } from './rack.js';
 
@@ -26,6 +26,7 @@ export const COLUMNS = [
   { id: 'serial', ru: 'Серийный номер', he: "מס' סידורי", w: 170 },
   { id: 'mac', ru: 'MAC', he: 'MAC', w: 150 },
   { id: 'config', ru: 'Конфигурация двери', he: 'תצורת דלת', w: 220 },
+  { id: 'lockType', ru: 'Тип замка', he: 'סוג נעילה', w: 110 },
   { id: 'delay', ru: 'Причина задержки', he: 'סיבת עיכוב', w: 150 },
   { id: 'note', ru: 'Примечание', he: 'הערה', w: 220 },
   { id: 'status', ru: 'Статус', he: 'סטטוס', w: 135, kind: 'status' },
@@ -114,6 +115,22 @@ const stagesOf = (type) => (type ? [...(type.stages || [])] : null);
 const STYLE_V = 7;
 const COLORS = { green: '#C6E5C9', grey: '#EFEFEF', orange: '#FFE0B2', red: '#F4B6B6', yellow: '#FFF2B3' };
 
+// The lock type column: EM (electromagnet) or MH (electric lock) of the door configuration; old configurations and old
+// door types by the EM / MH word in their name; a locking device of another kind — its short name; not a door — empty
+const LOCK_NAMES = { em: { ru: 'ЭМ', he: 'אלקטרומגנט' }, mh: { ru: 'МХ', he: 'מנעול חשמלי' } };
+function lockTypeOf(point, ctx, lang) {
+  const type = ctx.types.get(point.typeId);
+  const cfg = usesConfig(type) ? doorCfgOf(point, ctx) : null;
+  const lock = cfg ? doorLockOf(ctx, cfg) : null;
+  if (lock?.role) return LOCK_NAMES[lock.role][lang];
+  if (lock) return lang === 'he' ? s(lock.dev.nameHe || doorShortOf(lock.dev)) : doorShortOf(lock.dev);
+  if (cfg) return '';
+  const old = point.configId ? ctx.configs?.get(point.configId) : null;
+  const words = ` ${old && !old.deleted ? s(old.name) : ''} ${s(point.typeId)} ${s(type?.name)} `;
+  const role = /[\s·]ЭМ[\s·]/.test(words) ? 'em' : /[\s·]МХ[\s·]/.test(words) ? 'mh' : '';
+  return role ? LOCK_NAMES[role][lang] : '';
+}
+
 // Values of one cell
 function cellOf(col, point, info, ctx, project, lang, nameOf) {
   const type = ctx.types.get(point.typeId);
@@ -135,6 +152,7 @@ function cellOf(col, point, info, ctx, project, lang, nameOf) {
     case 'serial': return s(point.serial);
     case 'mac': return s(point.mac);
     case 'config': { const cfg = usesConfig(ctx.types.get(point.typeId)) ? doorCfgOf(point, ctx) : null; return cfg ? s(cfg.name) : ''; }
+    case 'lockType': return lockTypeOf(point, ctx, lang);
     case 'delay': { const r = ctx.delayReasons.get(point.delayReasonId); return r ? (lang === 'he' ? (r.he || r.id) : r.id) : s(point.delayReasonId); }
     case 'note': return s(point.note);
     case 'status': {

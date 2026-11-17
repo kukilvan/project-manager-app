@@ -66,3 +66,25 @@ test('двери: плашки названия и цвета', async () => {
   assert.equal(t.items[0].color, '#2f7cf6');
   assert.equal(doorShortColor(ctx, cfg), '#2f7cf6');
 });
+
+test('двери: столбец «Тип замка» в таблице для руководства', async () => {
+  const { buildReport, defaultTables } = await import('../src/domain/index.js');
+  const base = make(); const [em, mh] = standardDoorCfgs(base);
+  const ctx = make({ configs: [em, mh], points: [
+    { id: 'd1', projectId: 'P1', label: 'D1', typeId: 'Дверь', configId: em.id },
+    { id: 'd2', projectId: 'P1', label: 'D2', typeId: 'Дверь', configId: mh.id },
+    { id: 'd3', projectId: 'P1', label: 'D3', typeId: 'Дверь' },
+    { id: 'c1', projectId: 'P1', label: 'C1', typeId: 'Камера' },
+  ] });
+  const rows = (lang) => {
+    const r = buildReport(project, ctx, { ...defaultTables()[1], lang, columns: ['label', 'lockType'], sections: false, rackSheet: false });
+    const sh = r.sheets[0];
+    return { head: sh.rows[sh.headerRow], by: Object.fromEntries(sh.rows.slice(sh.headerRow + 1).map((x) => [x[0], x[1]])) };
+  };
+  const ru = rows('ru');
+  assert.deepEqual(ru.head, ['Обозначение', 'Тип замка']);
+  assert.deepEqual(ru.by, { D1: 'ЭМ', D2: 'МХ', D3: '', C1: '' });
+  const he = rows('he');
+  assert.equal(he.head[1], 'סוג נעילה');
+  assert.deepEqual([he.by.D1, he.by.D2, he.by.C1], ['אלקטרומגנט', 'מנעול חשמלי', '']);
+});

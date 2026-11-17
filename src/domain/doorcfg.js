@@ -128,9 +128,16 @@ export function doorCfgName(ctx, devices, cables) {
 }
 /** Short form for lists and the plan: «ЭМ» / «МХ» */
 export function doorCfgShort(ctx, cfg) {
-  if (!isDoorCfg(cfg)) return '';
-  const lock = cfg.devices.map((x) => ctx.devices.get(x.deviceId)).find((d) => doorPartOf(d) === 'lock' || ['em', 'mh'].includes(doorRole(d)));
-  return lock ? doorShortOf(lock) : '';
+  const lock = doorLockOf(ctx, cfg);
+  return lock ? doorShortOf(lock.dev) : '';
+}
+/** The locking device of a configuration and its role: { dev, role: 'em' | 'mh' | '' } or null when the door has no locking */
+export function doorLockOf(ctx, cfg) {
+  if (!isDoorCfg(cfg)) return null;
+  const dev = cfg.devices.map((x) => ctx.devices.get(x.deviceId)).find((d) => doorPartOf(d) === 'lock' || ['em', 'mh'].includes(doorRole(d)));
+  if (!dev) return null;
+  const r = doorRole(dev);
+  return { dev, role: r === 'em' || r === 'mh' ? r : '' };
 }
 export const isDoorCfg = (cfg) => !!cfg && Array.isArray(cfg.devices);
 /** A configuration (the full record) from a composition */

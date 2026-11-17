@@ -155,6 +155,10 @@
 "• In the management sheet the points come in sections by type (the order is set with the arrows in the “Point types” list of the sheet's form), there is a “Progress by cabinet” sheet with percentages, and the second row shows “Updated”: the time of the last refresh, at night or by the button. Sections and the sheet are turned off with ticks in the sheet's form.",
 "• בטבלה להנהלה הנקודות מסודרות במקטעים לפי סוג (הסדר נקבע בחצים ברשימת „סוגי נקודות” בטופס הטבלה), יש גיליון „התקדמות לפי ארון” עם אחוזים, ובשורה השנייה מופיע „עודכן”: זמן העדכון האחרון, בלילה או בכפתור. את המקטעים ואת הגיליון אפשר לכבות בתיבות הסימון בטופס הטבלה."
 ],
+"• Столбец «Тип замка» показывает у дверей ЭМ или МХ — из конфигурации двери. Включите его галочкой в списке «Столбцы» формы таблицы (Ещё → Для руководства → Изменить).": [
+"• The “Lock type” column shows EM (electromagnet) or EL (electric lock) for doors — from the door configuration. Turn it on with a tick in the “Columns” list of the sheet's form (More → For management → Edit).",
+"• העמודה „סוג נעילה” מציגה בדלתות אלקטרומגנט או מנעול חשמלי — לפי תצורת הדלת. הפעילו אותה בתיבת הסימון ברשימת „עמודות” בטופס הטבלה (עוד ← להנהלה ← עריכה)."
+],
 "«📥 Импорт данных (замена всего проекта)» — только для восстановления из копии. Текущие данные проекта заменяются.": [
 "“📥 Import data (replaces the whole project)” — only for restoring from a backup. The current project data is replaced.",
 "„📥 ייבוא נתונים (מחליף את כל הפרויקט)” — רק לשחזור מגיבוי. נתוני הפרויקט הנוכחיים מוחלפים."
