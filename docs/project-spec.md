@@ -58,7 +58,7 @@ PWA, phone first (420 px), also the browser on Windows. UI in Russian (source), 
 
 ## Stages
 
-Adoption (2026-11-10) moved the project onto this workflow; numbering starts here. Quick fixes («Правка: …») run between any steps.
+Adoption (2026-11-10) moved the project onto this workflow; numbering starts here. Quick fixes («Правка: …») run between any steps. Stage numbers are names, not the order of work: stage 6 runs before stage 4 (the NAS document already names stages 4 and 5, so they keep their numbers).
 
 ### Stage 1. Code documentation
 
@@ -104,3 +104,12 @@ Description approved: `.scratch/03-management-sheets/description.md` (it overrid
 - Contains (ADR 0014): a workflow that builds the NAS variant with `VITE_BASE=/` on every push to `main` and publishes it to the release `nas-build`; `/api/` and `/_/` in the service worker's `navigateFallbackDenylist`; the agent container (site updater, backup export, cleanup, nightly sheets) with its secrets on the NAS; the NAS document updated in the same sessions.
 - After the move the owner checks on the NAS, once its build shows the new commit (ADR 0011 and `docs/workflow.md` updated then).
 - Sessions (est.): ≈ 10.
+
+### Stage 6. Field improvements
+
+Runs now, before stage 4, while the NAS is being checked; the owner finishes the whole stage, then «Описание 4» follows (when the NAS checks pass).
+
+- Goal: the owner's wishes from field work, filed 2026-11-17 as ideas 001–005 — the stage's description takes them in, in this order.
+- The owner sees at the end: a day off with a reason (idea 001); one shared list of delay reasons for all projects (idea 002, ADR 0015); problems on points — reference list «Проблемы», marking one by one and in bulk, red on the plan and in the management sheet, «Решено» with history (idea 003); plan colours by the share of works done, with dots for done works and the «Что осталось» filter on the plan (idea 004); everything in the English and Hebrew UI translated, and a check that stops untranslated strings (idea 005).
+- New data (day-off fields, shared pool collections, problem marks) must be carried by stage 4's PocketBase storage.
+- Sessions (est.): ≈ 14.

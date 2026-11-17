@@ -39,6 +39,14 @@ Point × work; closes a point task with one row (`done` boolean). Ids: `${entryI
 
 **Day / entry** (code: `days`, `entries`) — a working day and the works recorded in it; `entry.portQty` holds per-point quantities.
 
+**Day off** (UI: «Выходной») — a day of a project with no work and a reason («Праздник», «Болезнь»…); shown in «Отчёты» and «Месяц», not counted as a working day (planned, idea 001).
+
+**Delay reason** (code: `delayReasons`, `point.delayReasonId`; UI: «Причина задержки») — why a point is not done, in general; does not make a point red. One shared list per database from stage 6 (ADR 0015).
+
+**Problem** (UI: «Проблема») — a concrete trouble on a point from the «Проблемы» reference list, with a description (ready one or own Hebrew text); open problems make the point red on the plan and in the management sheet; «Решено» closes it and keeps it in history (planned, idea 003). _Avoid_: fault (that is «Неисправна», a failed check).
+
+**Progress colour** — the plan colour of a point by the share of its works done, yellow → green, full dark green only when all are done (planned, idea 004).
+
 **Daily report** «дох» (Hebrew דו"ח; code: `src/domain/doh.js`; UI: «Отчёты»)
 The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. _Avoid_: log, journal.
 

@@ -1,10 +1,12 @@
 # Project context
 
-Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live in `docs/history.md`. Updated: 2026-11-16.
+Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live in `docs/history.md`. Updated: 2026-11-17.
 
 ## Next step
 
-«Описание 4» — stage 4, PocketBase storage (`docs/project-spec.md`, stage 4). It starts only when the NAS acceptance checks A1–A7 and A10–A13 pass (`docs/nas-requirements.md`) and the owner says the NAS is reliable; until then only «Правка: …», «Вопрос: …» and «Идея: …» sessions. Model: Opus 5.5, effort high (`docs/models.md`, description).
+«Описание 6» — stage 6, field improvements (`docs/project-spec.md`, stage 6; ideas 001–005 in `docs/ideas/`). Model: Opus 5.5, effort high (`docs/models.md`, description). The owner finishes the whole stage 6 first, while the NAS is being checked.
+
+After «Ревью 6»: «Описание 4» — stage 4, PocketBase storage (`docs/project-spec.md`, stage 4). It starts only when the NAS acceptance checks A1–A7 and A10–A13 pass (`docs/nas-requirements.md`) and the owner says the NAS is reliable; until then only «Правка: …», «Вопрос: …» and «Идея: …» sessions. Model: Opus 5.5, effort high.
 
 Quick fixes «Правка: …» may come at any time; they do not change this step.
 
@@ -29,6 +31,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 | 3 | Management sheets | done | 8 | — |
 | 4 | PocketBase storage (when the owner trusts the NAS) | not started | 16 | — |
 | 5 | Move to the NAS | not started | 10 | — |
+| 6 | Field improvements (now, before stage 4) | not started | 14 | 001, 002, 003, 004, 005 |
 
 Status values: not started · description · spec · tickets k/n · review · fix round k · done. Ideas: numbers of `docs/ideas/` files filed for the stage.
 
