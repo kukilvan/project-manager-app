@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-17 — Ticket 6.1: day off («Тикет 6.1»)
+
+- `src/domain/dayoff.js` (reasons, `dayOffText`, `dayOffLine`, `dayConflict`), day form with six ordered checks (`src/app/views/doh.js`), `todayBlocked()` for the recording paths (`markShilutForPoints` returns `blocked`), «Отчёты» and «Месяц» lines, Excel row, `messageDialog` in `ui.js`; strings in `src/i18n/src/16-dayoff.json`; KI-5. Commit `7c3f48a`.
+- Decisions: a working day is also checked when a day is moved to another date; the clash check for an unchanged off day is skipped (only turning on or a date change); `doh()` of a day off returns the line plus the comment.
+- Checked in `?mem=1` at 420 px; not checked by the agent: the rack «Поклеил» path, iPhone, real Firestore. Owner checked on the phone: works.
+
 ## 2026-11-17 — Tickets 6: field improvements («Тикеты 6»)
 
 - Seven tickets in `.scratch/06-field-improvements/issues/`: 01 day off (medium), 02 shared delay reasons and culprits (complex; goes live only after the owner publishes `firestore.rules`), 03 problems (complex), 04 problems in the management sheet (medium), 05 plan colours (complex), 06 translations of the guide (medium), 07 the rest of the translations and the coverage test (medium). Order 01 → 02 → 03 → 04 and 05 → 06 → 07.
