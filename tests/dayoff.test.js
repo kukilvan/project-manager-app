@@ -19,8 +19,10 @@ const mk = (days, entries = []) => buildContext({
 const off = (id, date, reason, extra = {}) => ({ id, projectId: 'a', date, off: true, offReason: reason, createdAt: Number(id.slice(1)) || 0, ...extra });
 const work = (id, date, extra = {}) => ({ id, projectId: 'a', date, helper: 'Мариной', helperHe: 'מרינה', createdAt: Number(id.slice(1)) || 0, ...extra });
 
-test('dayoff: семь причин, русский и иврит, своя причина как набрана', () => {
-  assert.deepEqual(DAY_OFF_REASONS.map((r) => r.id), ['personal', 'holiday', 'sick', 'shabbat', 'nowork', 'weather', 'other']);
+test('dayoff: четыре причины в форме, старые читаются, русский и иврит, своя причина как набрана', () => {
+  assert.deepEqual(DAY_OFF_REASONS.map((r) => r.id), ['personal', 'holiday', 'sick', 'other']);
+  assert.equal(dayOffText({ offReason: 'weather' }, 'ru'), 'Погода');   // retired from the form, saved days still read
+  assert.equal(dayOffText({ offReason: 'shabbat' }, 'he'), 'שבת');
   assert.equal(dayOffText({ offReason: 'holiday' }, 'ru'), 'Праздник');
   assert.equal(dayOffText({ offReason: 'holiday' }, 'he'), 'חג');
   assert.equal(dayOffText({ offReason: 'nowork' }, 'ru'), 'Нет работы на объекте');

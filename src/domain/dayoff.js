@@ -1,4 +1,4 @@
-// Day off: the seven ready reasons, the text of a day off in Russian, Hebrew and English, and the check against a working day (or a day off) of another project on the same date.
+// Day off: the ready reasons, the text of a day off in Russian, Hebrew and English, and the check against a day of another project on the same date.
 // Pure; used by doh.js (report lines), month.js, export.js and the day form in views/doh.js. Reached through src/domain/index.js.
 
 const blank = (v) => v === undefined || v === null || v === '';
@@ -7,10 +7,13 @@ export const DAY_OFF_REASONS = [
   { id: 'personal', ru: 'Личное', he: 'אישי' },
   { id: 'holiday', ru: 'Праздник', he: 'חג' },
   { id: 'sick', ru: 'Болезнь', he: 'מחלה' },
+  { id: 'other', ru: 'Другое', he: 'אחר' },
+];
+// Reasons taken out of the form at the owner's request (2026-11-17); days saved with them keep their text
+const RETIRED_REASONS = [
   { id: 'shabbat', ru: 'Шаббат', he: 'שבת' },
   { id: 'nowork', ru: 'Нет работы на объекте', he: 'אין עבודה באתר' },
   { id: 'weather', ru: 'Погода', he: 'מזג אוויר' },
-  { id: 'other', ru: 'Другое', he: 'אחר' },
 ];
 
 export const isDayOff = (day) => !!day && day.off === true;
@@ -18,7 +21,7 @@ export const isDayOff = (day) => !!day && day.off === true;
 /** The reason of a day off in `ru` or `he`; for «other» the own text as typed, in every language.
  * `tr` translates the Russian reason for English (the interface dictionary); without it English stays Russian. */
 export function dayOffText(day, lang = 'ru', tr = (s) => s) {
-  const r = DAY_OFF_REASONS.find((x) => x.id === day?.offReason);
+  const r = [...DAY_OFF_REASONS, ...RETIRED_REASONS].find((x) => x.id === day?.offReason);
   if (!r) return blank(day?.offText) ? '' : String(day.offText);
   if (r.id === 'other') return blank(day.offText) ? (lang === 'he' ? r.he : lang === 'en' ? tr(r.ru) : r.ru) : String(day.offText);
   return lang === 'he' ? r.he : lang === 'en' ? tr(r.ru) : r.ru;

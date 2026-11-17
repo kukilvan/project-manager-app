@@ -20,6 +20,8 @@ A day off is a `days` document of the project, as any day (one day per date in a
 
 Switching a day off back to working writes `off: false, offReason: null, offText: null`. Helper fields (`helper`, `helperHe`, `object`) are not touched while the day is off, so they come back when it is a working day again.
 
+**Changed 2026-11-17 (owner, after ticket 6.1):** the form offers only `personal`, `holiday`, `sick`, `other`; `shabbat`, `nowork`, `weather` stay in code as retired reasons so days saved with them still read.
+
 The ready reasons live in code, `src/domain/dayoff.js` (new, pure):
 
 | id | Russian | Hebrew |

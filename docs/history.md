@@ -6,6 +6,7 @@ Dated details of every accepted step, newest first. Read only when a session nee
 
 - `src/domain/dayoff.js` (reasons, `dayOffText`, `dayOffLine`, `dayConflict`), day form with six ordered checks (`src/app/views/doh.js`), `todayBlocked()` for the recording paths (`markShilutForPoints` returns `blocked`), «Отчёты» and «Месяц» lines, Excel row, `messageDialog` in `ui.js`; strings in `src/i18n/src/16-dayoff.json`; KI-5. Commit `7c3f48a`.
 - Decisions: a working day is also checked when a day is moved to another date; the clash check for an unchanged off day is skipped (only turning on or a date change); `doh()` of a day off returns the line plus the comment.
+- After the check the owner asked to drop «Шаббат», «Погода», «Нет работы на объекте» from the list: they are retired (not offered, still read on saved days).
 - Checked in `?mem=1` at 420 px; not checked by the agent: the rack «Поклеил» path, iPhone, real Firestore. Owner checked on the phone: works.
 
 ## 2026-11-17 — Tickets 6: field improvements («Тикеты 6»)

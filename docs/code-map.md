@@ -124,7 +124,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/app/views/wizard.js` — New project wizard: the required steps from the project data to the «Создать проект» summary, then optional steps after the project is created.
 - `src/domain/compose.js` — Composition of points from devices (the composite model): tasks, stages and statuses of a point computed from cables, devices and its type.
 - `src/domain/context.js` — Builds the calculation context: lookup indexes over a project's data.
-- `src/domain/dayoff.js` — Day off: the seven ready reasons, the text of a day off in Russian, Hebrew and English, and the check against a working day (or a day off) of another project on the same date.
+- `src/domain/dayoff.js` — Day off: the ready reasons, the text of a day off in Russian, Hebrew and English, and the check against a day of another project on the same date.
 - `src/domain/deviceid.js` — Serial number and MAC address of a device: parses scanned barcodes and QR codes, normalises the values and finds duplicates.
 - `src/domain/doh.js` — Text of the daily report («дох») in Russian, Hebrew and English (section 3.5, Appendix A).
 - `src/domain/doorcfg.js` — Door configurations (new scheme): there is one point type, «Дверь», and the kind of door is set by its configuration.
