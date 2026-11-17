@@ -1,0 +1,108 @@
+<!doctype html>
+<!-- Rough mockup of idea 003 on points: the mark form for selected points, the point card block «Проблемы», the points list with the filter, the counter on «Проект», and the management-sheet column. Phone width. -->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Макет: проблемы на точках</title>
+<style>
+  body { margin: 0; background: #111418; color: #e8eaed; font: 15px -apple-system, Arial, sans-serif; display: flex; justify-content: center; }
+  .phone { width: 420px; max-width: 100%; padding: 16px; box-sizing: border-box; }
+  .note { background: #3a3220; color: #f5e6b8; font-size: 13px; padding: 8px 10px; border-radius: 6px; margin-bottom: 12px; }
+  h2 { font-size: 18px; margin: 14px 0 8px; }
+  h3 { font-size: 13px; color: #9aa0a6; font-weight: normal; margin: 26px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+  .lbl { font-size: 13px; color: #9aa0a6; margin: 12px 0 5px; }
+  .hint { font-size: 12px; color: #9aa0a6; margin: 4px 0 8px; }
+  .inp { background: #1c2026; border: 1px solid #3c4043; border-radius: 6px; padding: 9px 10px; min-height: 20px; }
+  .he { direction: rtl; }
+  .muted { color: #9aa0a6; font-size: 13px; }
+  .new { outline: 2px dashed #8ab4f8; outline-offset: 3px; border-radius: 6px; padding: 4px; margin: 10px -4px; }
+  .bar { display: flex; gap: 6px; flex-wrap: wrap; background: #1b2635; padding: 8px; border-radius: 8px; }
+  .b { padding: 7px 10px; border-radius: 6px; background: #262b31; border: 1px solid #3c4043; font-size: 14px; }
+  .b.red { background: #5c1f24; border-color: #a83a42; }
+  .b.green { background: #1e3b24; border-color: #2e7d32; }
+  .btn { display: block; width: 100%; margin-top: 16px; padding: 12px; border: none; border-radius: 8px; background: #1a73e8; color: #fff; font-size: 16px; }
+  .opt { padding: 9px 10px; background: #1c2026; border-radius: 6px; margin-bottom: 4px; display: flex; gap: 8px; align-items: center; }
+  .opt.on { background: #1a3a66; }
+  .prob { border-left: 4px solid #ff1744; background: #2a1b1e; border-radius: 6px; padding: 9px 10px; margin-bottom: 5px; }
+  .prob.done { border-left-color: #5f6368; background: #1c2026; color: #9aa0a6; }
+  .prob .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .pt { display: flex; justify-content: space-between; padding: 9px 10px; background: #1c2026; border-radius: 6px; margin-bottom: 4px; }
+  .tag { color: #ff8a80; font-size: 13px; }
+  .card { background: #1c2026; border-radius: 8px; padding: 12px; }
+  .ready { height: 8px; border-radius: 4px; background: #2d3238; margin: 4px 0 10px; overflow: hidden; }
+  .ready i { display: block; height: 100%; background: #43a047; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; background: #fff; color: #222; direction: rtl; }
+  td, th { border: 1px solid #ccc; padding: 4px 5px; text-align: right; vertical-align: top; }
+  th { background: #1f3864; color: #fff; }
+  tr.prow td { background: #f4c7c3; }
+  .leg { display: inline-block; padding: 2px 6px; margin: 2px; font-size: 11px; border: 1px solid #ccc; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="note">Rough mockup, made-up labels. Dashed frames are new.</div>
+
+  <h3>1. Выбраны 5 дверей (Точки, План или Шкаф) — панель действий</h3>
+  <div class="bar"><span class="muted" style="align-self:center">Выбрано: 5</span><span class="b">✅ Записать работу</span><span class="b">✏️ Изменить</span><span class="b red new">⚠ Проблема</span><span class="b green new">✔ Решено</span></div>
+
+  <h3>2. Форма «Проблема» на 5 точек</h3>
+  <h2>⚠ Проблема — 5 точек</h2>
+  <div class="lbl">Проблема</div>
+  <div class="opt on">Магнит индикация</div>
+  <div class="opt">Замок</div>
+  <div class="opt">Кабель</div>
+  <div class="opt">Доступ</div>
+  <div class="hint">Показаны проблемы для типов выбранных точек (все двери → и «дверные», и общие).</div>
+  <div class="lbl">Описание</div>
+  <div class="opt on">Не просверлены двери</div>
+  <div class="opt">Нет места под магнит</div>
+  <div class="opt">✍️ Своё описание</div>
+  <div class="lbl">Своё описание</div>
+  <div class="inp he">המשקוף מברזל, צריך מקדחה מיוחדת</div>
+  <div class="hint">Только иврит — так попадёт в таблицу для руководства.</div>
+  <button class="btn">Сохранить</button>
+
+  <h3>3. Карточка точки — блок «Проблемы»</h3>
+  <div class="card">
+    <b>FC/D-12 · Дверь</b> <span class="muted">· шкаф B</span>
+    <div class="new" style="margin-top:12px">
+      <div class="lbl" style="margin-top:0">Проблемы</div>
+      <div class="prob"><div class="top"><b>Магнит индикация</b><span class="b green">✔ Решено</span></div>Не просверлены двери<div class="muted">отметил Иван, 16.11 14:20</div></div>
+      <div class="prob"><div class="top"><b>Кабель</b><span class="b green">✔ Решено</span></div><span class="he">הכבל עבר דרך תקרה רטובה</span><div class="muted">отметил Иван, 16.11 14:22</div></div>
+      <div class="prob done"><div class="top"><b>Доступ</b><span>решено</span></div>Нет доступа в помещение<div>отметил Иван 09.11 · решил Иван 12.11</div></div>
+      <button class="b red" style="margin-top:4px">⚠ Проблема</button>
+    </div>
+  </div>
+
+  <h3>4. Точки — фильтр и отметка в списке</h3>
+  <div class="new">
+    <div class="inp">⚠ С проблемами (7) ▾</div>
+    <div class="hint">Варианты: Все точки · ⚠ С проблемами (7) · Проблема: Магнит индикация (5) · Проблема: Кабель (2) · … Такой же фильтр на «План».</div>
+  </div>
+  <div class="pt"><span>FC/D-10</span><span class="tag">⚠ Магнит индикация</span></div>
+  <div class="pt"><span>FC/D-11</span><span class="tag">⚠ Магнит индикация</span></div>
+  <div class="pt"><span>FC/D-12</span><span class="tag">⚠ Магнит индикация, Кабель</span></div>
+
+  <h3>5. «Проект» — счётчик</h3>
+  <div class="card">
+    <div class="muted">Протяжка 64%</div><div class="ready"><i style="width:64%"></i></div>
+    <div class="muted">Установка 41%</div><div class="ready"><i style="width:41%"></i></div>
+    <div class="b red new" style="display:block;text-align:center">⚠ Открытых проблем: 7 — показать</div>
+    <div class="hint">Нет открытых проблем — строки нет. Нажатие открывает «Точки» с фильтром «С проблемами».</div>
+  </div>
+
+  <h3>6. Таблица для руководства (иврит)</h3>
+  <div class="new" style="background:#fff;padding:6px">
+    <div style="direction:rtl"><span class="leg" style="background:#b7e1cd">בוצע</span><span class="leg" style="background:#fce8b2">בתהליך</span><span class="leg" style="background:#f4c7c3">יש בעיה</span><span class="leg">…</span></div>
+    <table>
+      <tr><th>נקודה</th><th>סוג</th><th>ארון</th><th>סטטוס</th><th>בעיה</th></tr>
+      <tr class="prow"><td>FC/D-12</td><td>דלת</td><td>B</td><td>הותקן</td><td>מגנט חיווי: הדלתות לא קדוחות<br>כבל: הכבל עבר דרך תקרה רטובה</td></tr>
+      <tr class="prow"><td>FC/D-11</td><td>דלת</td><td>B</td><td>הושחל</td><td>מגנט חיווי: הדלתות לא קדוחות</td></tr>
+      <tr><td>FC/D-09</td><td>דלת</td><td>B</td><td>נבדק</td><td></td></tr>
+    </table>
+  </div>
+  <div class="hint">Столбец «Проблема» / «בעיה» — галочка в профиле таблицы. Решённые не показываются. Красный ряда — как у «Неисправна» в таблице (точный цвет — в спеке).</div>
+</div>
+</body>
+</html>

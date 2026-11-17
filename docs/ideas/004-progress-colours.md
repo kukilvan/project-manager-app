@@ -1,6 +1,6 @@
 # Idea 004: Plan colours by the share of works done
 
-Status: planned — stage 6, taken in by its description
+Status: taken in by `.scratch/06-field-improvements/description.md`
 Added: 2026-11-17
 
 ## Why

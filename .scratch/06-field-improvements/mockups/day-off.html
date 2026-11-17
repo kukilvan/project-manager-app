@@ -1,0 +1,84 @@
+<!doctype html>
+<!-- Rough mockup of idea 001 «Выходной»: the day form, the list of days in «Отчёты», «Месяц», and the block when another project has a working day. Phone width. -->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Макет: выходной</title>
+<style>
+  body { margin: 0; background: #111418; color: #e8eaed; font: 15px -apple-system, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; }
+  .phone { width: 420px; max-width: 100%; padding: 16px; box-sizing: border-box; }
+  .note { background: #3a3220; color: #f5e6b8; font-size: 13px; padding: 8px 10px; border-radius: 6px; margin-bottom: 12px; }
+  h2 { font-size: 18px; margin: 18px 0 10px; }
+  h3 { font-size: 13px; color: #9aa0a6; font-weight: normal; margin: 26px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+  .lbl { font-size: 13px; color: #9aa0a6; margin: 12px 0 5px; }
+  .hint { font-size: 12px; color: #9aa0a6; margin-top: 4px; }
+  .inp { background: #1c2026; border: 1px solid #3c4043; border-radius: 6px; padding: 9px 10px; min-height: 20px; }
+  .muted { color: #9aa0a6; }
+  .off { opacity: .4; text-decoration: line-through; }
+  .new { outline: 2px dashed #8ab4f8; outline-offset: 3px; border-radius: 6px; padding: 4px; margin: 10px -4px; }
+  .sw { display: flex; align-items: center; justify-content: space-between; padding: 10px; background: #1c2026; border-radius: 6px; }
+  .tog { width: 46px; height: 26px; border-radius: 13px; background: #1a73e8; position: relative; }
+  .tog::after { content: ''; position: absolute; right: 3px; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 6px 10px; border-radius: 16px; background: #262b31; border: 1px solid #3c4043; font-size: 14px; }
+  .chip.on { background: #1a73e8; border-color: #1a73e8; }
+  .btn { display: block; width: 100%; margin-top: 16px; padding: 12px; border: none; border-radius: 8px; background: #1a73e8; color: #fff; font-size: 16px; }
+  .day { display: flex; justify-content: space-between; padding: 10px; background: #1c2026; border-radius: 6px; margin-bottom: 5px; }
+  .day.offday { background: #20262e; border-left: 4px solid #7e8a97; }
+  pre { background: #1c2026; border-radius: 6px; padding: 10px; white-space: pre-wrap; font: 14px/1.45 -apple-system, Arial, sans-serif; margin: 0; }
+  .alert { background: #3b1f22; border: 1px solid #a83a42; border-radius: 8px; padding: 12px; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="note">Rough mockup, made-up dates and projects. Dashed frames are new; crossed-out fields hide when «Выходной» is on.</div>
+
+  <h3>1. Отчёты → «Новый день», выходной включён</h3>
+  <h2>Новый день</h2>
+  <div class="lbl">Дата</div><div class="inp">15.11.2026</div>
+  <div class="new">
+    <div class="sw"><span>🌴 Выходной</span><span class="tog"></span></div>
+    <div class="lbl">Причина</div>
+    <div class="chips">
+      <span class="chip">Личное</span><span class="chip on">Праздник</span><span class="chip">Болезнь</span><span class="chip">Шаббат</span>
+      <span class="chip">Нет работы на объекте</span><span class="chip">Погода</span><span class="chip">Другое</span>
+    </div>
+    <div class="hint">С «Другое» появится поле «Своя причина».</div>
+  </div>
+  <div class="lbl off">Помощник (пусто = сам)</div><div class="inp off">сам</div>
+  <div class="lbl off">Помощник на иврите</div><div class="inp off"></div>
+  <div class="lbl">Комментарий в конце отчёта</div><div class="inp muted">—</div>
+  <button class="btn">Сохранить</button>
+
+  <h3>2. Другое → своя причина</h3>
+  <div class="new">
+    <div class="chips"><span class="chip">Праздник</span><span class="chip">…</span><span class="chip on">Другое</span></div>
+    <div class="lbl">Своя причина</div><div class="inp">Забастовка в порту</div>
+  </div>
+
+  <h3>3. Список дней в «Отчётах»</h3>
+  <div class="day"><span>Пн 16.11</span><span class="muted">5 записей</span></div>
+  <div class="day offday new"><span>Вс 15.11</span><span>🌴 Выходной: Праздник</span></div>
+  <div class="day"><span>Чт 12.11</span><span class="muted">3 записи</span></div>
+  <div class="hint">У выходного нет «Добавить запись» и текста отчёта. Снова рабочий — выключить «Выходной» в форме дня.</div>
+
+  <h3>4. «Месяц»</h3>
+  <pre>Дней: 2   <span class="muted">(выходные не считаются)</span>
+
+Рабочие дни за ноябрь 2026
+
+12.11.2026 — Мегасон Бэйт Шемеш
+<span class="new" style="display:inline-block;margin:4px 0">15.11.2026 — выходной — Праздник</span>
+16.11.2026 — Мегасон Бэйт Шемеш</pre>
+  <div class="hint">В отчёте за месяц на иврите: «15.11.2026 — יום חופש — חג». Часы и количества выходной пропускают.</div>
+
+  <h3>5. В эту дату в другом проекте рабочий день</h3>
+  <div class="alert new">
+    <b>Нельзя сделать выходным</b><br>
+    15.11.2026 уже есть рабочий день в проекте «Мегасон Бэйт Шемеш». Сначала удалите тот день или выберите другую дату.
+    <button class="btn" style="background:#3c4043">Понятно</button>
+  </div>
+</div>
+</body>
+</html>

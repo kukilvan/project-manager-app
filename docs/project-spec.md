@@ -109,7 +109,7 @@ Description approved: `.scratch/03-management-sheets/description.md` (it overrid
 
 Runs now, before stage 4, while the NAS is being checked; the owner finishes the whole stage, then «Описание 4» follows (when the NAS checks pass).
 
-- Goal: the owner's wishes from field work, filed 2026-11-17 as ideas 001–005 — the stage's description takes them in, in this order.
-- The owner sees at the end: a day off with a reason (idea 001); one shared list of delay reasons for all projects (idea 002, ADR 0015); problems on points — reference list «Проблемы», marking one by one and in bulk, red on the plan and in the management sheet, «Решено» with history (idea 003); plan colours by the share of works done, with dots for done works and the «Что осталось» filter on the plan (idea 004); everything in the English and Hebrew UI translated, and a check that stops untranslated strings (idea 005).
+- Goal: the owner's wishes from field work, filed 2026-11-17 as ideas 001–005, in this order; description: `.scratch/06-field-improvements/description.md`.
+- The owner sees at the end: a day off with a reason, blocked on a date with a working day in another project (idea 001); one shared list of delay reasons and one of culprits for all projects (idea 002 plus the owner's addition; ADR 0015, replaced by ADR 0016 in the spec); problems on points — reference list «Проблемы» with point types per problem, marking one by one and in bulk, red on the plan and in the management sheet, «Решено» with history, an open-problems counter on «Проект» (idea 003); plan colours by the share of stages done, with dots for done stages and the stage filter with shilut on the plan (idea 004); everything in the English and Hebrew UI translated, and a check that stops untranslated strings (idea 005).
 - New data (day-off fields, shared pool collections, problem marks) must be carried by stage 4's PocketBase storage.
 - Sessions (est.): ≈ 14.

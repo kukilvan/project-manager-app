@@ -41,7 +41,9 @@ Point × work; closes a point task with one row (`done` boolean). Ids: `${entryI
 
 **Day off** (UI: «Выходной») — a day of a project with no work and a reason («Праздник», «Болезнь»…); shown in «Отчёты» and «Месяц», not counted as a working day (planned, idea 001).
 
-**Delay reason** (code: `delayReasons`, `point.delayReasonId`; UI: «Причина задержки») — why a point is not done, in general; does not make a point red. One shared list per database from stage 6 (ADR 0015).
+**Delay reason** (code: `delayReasons`, `point.delayReasonId`; UI: «Причина задержки») — why a point is not done, in general (also the delay of a day entry, `entry.delayReason`); does not make a point red. One shared list per database from stage 6 (ADR 0015).
+
+**Culprit** (code: `culprits`, `entry.delayCulprit`; UI: «Виновник простоя») — who caused the downtime of a day entry; «Месяц» sums downtime by culprit. One shared list per database from stage 6, like delay reasons (planned).
 
 **Problem** (UI: «Проблема») — a concrete trouble on a point from the «Проблемы» reference list, with a description (ready one or own Hebrew text); open problems make the point red on the plan and in the management sheet; «Решено» closes it and keeps it in history (planned, idea 003). _Avoid_: fault (that is «Неисправна», a failed check).
 
