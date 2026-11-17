@@ -2,6 +2,14 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-17 — Spec 6: field improvements («Спека 6»)
+
+- `.scratch/06-field-improvements/spec.md`: behaviour, RU/EN/HE strings, data, edge cases, tests and seven proposed tickets for ideas 001–005. Day off: `days.off`, `offReason` (seven ready reasons in `src/domain/dayoff.js`), `offText`; blocked on a day with entries and against a working day / day off of another project on the same date; «Месяц» «Дней: N · выходных: M».
+- Shared lists: `pool_delayReasons`, `pool_culprits`, `pool_problems`, read straight from the pool, soft delete by the administrator only; old project lists kept read-only, merged once per project from server reads (`sharedLists: 1`), code defaults seed an empty list; rules like `pool_doorcfg` — the owner publishes them before ticket 02 reaches `main`. ADR 0016 (replaces 0015).
+- Problems: project subcollection `problemMarks`, one document per point × problem × time (ADR 0017); mark and solve forms, point card block, filters, «Проект» line «⚠ Открытых проблем: M (точек: N)»; management sheet column «בעיה», row `#E57373`, legend «יש בעיה», `STYLE_V` 8; point merge moves open marks.
+- Plan: `planColor` by the share of stages done (rounding table), palette «Жёлтые чуть темнее» (owner's pick), stage dots on the plan only, plan filter «Осталось» + shilut + concrete works + problems. Translations: `src/i18n/not-ui.json` and `tests/i18n-coverage.test.js`.
+- Owner accepted the agent's choices with «Коммит»: block a day with entries, the symmetric day-off block, no dots in «PDF с номерами», own red for problems in the sheet, the column ticked by hand in saved profiles. `CONTEXT.md` (Shared list, Problem mark, Stage dots…) and `docs/project-spec.md` stage 4 (new data to carry) updated.
+
 ## 2026-11-17 — Description 6: field improvements («Описание 6»)
 
 - `.scratch/06-field-improvements/description.md` with mockups `day-off.html`, `reference-lists.html`, `problems-on-points.html`, `plan-colours.html` (the last one can show a local drawing under the points, nothing uploaded). Ideas 001–005 taken in, in that order; their `Status:` points to the description.

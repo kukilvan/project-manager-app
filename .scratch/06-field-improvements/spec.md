@@ -1,4 +1,4 @@
-Status: in review
+Status: accepted
 
 # Stage 6. Field improvements — spec
 
@@ -348,7 +348,7 @@ Replaces `statusColor` for the plan and «PDF с номерами» (the status 
 | 3 | 2 | 3 | — | — |
 | 2 | 3 | — | — | — |
 
-Palette (the owner's pick at «Коммит», § 6 Q11): A «Цвета как в идее» — `#fdd835`, `#d4e157`, `#9ccc65`, `#43a047`; B «Жёлтые чуть темнее» — `#f2c80f`, `#c0ca33`, `#8bc34a`, `#43a047`.
+Palette — «Жёлтые чуть темнее», the owner's pick at «Коммит» (§ 6 Q11): steps 1–4 `#f2c80f`, `#c0ca33`, `#8bc34a`, `#43a047`. (Not taken: «Цвета как в идее» `#fdd835`, `#d4e157`, `#9ccc65`, `#43a047`.)
 
 A mark shared by several points (pair, triple, one tag): its colour and dots follow the least finished point (smallest k / n, then the first label); red when any of them is red.
 
@@ -436,12 +436,12 @@ Points not matching go pale, as today. The «Что осталось» pull filt
 | 8 | Rounding; legacy points; shared mark | Table of § 4.1; legacy through the type's stages; a shared mark follows its least finished point | agent |
 | 9 | Plan filter by concrete work and pull | Concrete works come to the plan (group «Работа», as the owner decided in idea 004); the pull filter does not (§ 4.4) | agent; owner confirms |
 | 10 | Dots in «PDF с номерами» | No: the PDF tags are 6 pt among the drawing's own lines, 1–1.5 pt dots are not readable in print and clutter it; colour and legend carry the progress | agent; owner confirms |
-| 11 | Final palette | The owner picks A or B at «Коммит» (`mockups/plan-colours.html`, «📄 Подложить свой чертёж») | owner |
+| 11 | Final palette | «Жёлтые чуть темнее» (§ 4.1), chosen at «Коммит» after `mockups/plan-colours.html` | owner |
 | 12 | «Not UI» list | A list file `src/i18n/not-ui.json` plus automatic skipping of event-log calls (§ 5.2) | agent |
 | 13 | Red row in the sheet | Own shade `#E57373`, legend «Есть проблема» / «יש בעיה» (§ 3.7) | agent; owner confirms |
 | 14 | Stage 4 note | `docs/project-spec.md`, stage 4, lists the new collections and fields (§ 10) | done in this session |
 
-Other choices of this spec the owner confirms at «Коммит»: a working day is blocked on a date that is a day off in another project (§ 1.2, check 5); the «Проблема» column is ticked by hand in saved profiles and is on in the default ones (§ 3.7); the «Проект» line reads «⚠ Открытых проблем: M (точек: N) — показать» (§ 3.6).
+Other choices of this spec, accepted by the owner with «Коммит» (2026-11-17): a working day is blocked on a date that is a day off in another project (§ 1.2, check 5); the «Проблема» column is ticked by hand in saved profiles and is on in the default ones (§ 3.7); the «Проект» line reads «⚠ Открытых проблем: M (точек: N) — показать» (§ 3.6).
 
 ## 7. External services
 
@@ -499,7 +499,7 @@ Automated (`node:test`, offline):
 - `problems.js`: `problemFits` (empty types, id, group), `problemsForPoints` on a mixed selection, `markOps` (new, re-mark updates, solved then marked → new), `solveOps` (one problem, all, duplicates closed), `openProblemsOf` dedup, `problemLabel` ru/he/own text/no description, deleted problem and description still labelled, `problemCounts`.
 - `merge.js`: open marks move to the kept point; a duplicate problem is solved.
 - `report.js`: the problem column (several lines, solved hidden, Hebrew/Russian), row colour `#E57373` over the status colour, the 7th legend cell, `STYLE_V` 8 changes the hash, default profiles have the column; server lib builds the same with the `shared` argument.
-- `plan.js`: `planColor` for 1–4 of 5, 1–3 of 4, 1–2 of 3, 1 of 2, all done (full, width), none (grey / blue), part of the cables pulled (step 1), open problem and «Неисправна» over any progress, legacy point by type stages, type without `stages`, both palettes; `numberedInput` colours; `numberedHash` changes with the new colours; the shared-mark rule.
+- `plan.js`: `planColor` for 1–4 of 5, 1–3 of 4, 1–2 of 3, 1 of 2, all done (full, width), none (grey / blue), part of the cables pulled (step 1), open problem and «Неисправна» over any progress, legacy point by type stages, type without `stages`, the palette of § 4.1; `numberedInput` colours; `numberedHash` changes with the new colours; the shared-mark rule.
 - `tests/i18n-coverage.test.js` (§ 5.3); existing i18n tests stay green.
 
 Owner checks live (each ticket's «Owner check» in plain words; summary): day off «Праздник» yesterday, «Месяц» line and count, the block with another project, back to working; a reason added in project A seen in project B, deleted by the administrator, still on old points and in the sheet; the example problems, a problem with two descriptions, 5 doors marked from the plan and 2 with own Hebrew, red on the plan and in «Точки» with the filter, the «Проект» line, the sheet column «בעיה» and red rows after ticking the column and refreshing, 3 solved with history; the plan of a real project with the new colours, dots and «Осталось: шилют», «PDF с номерами» colours; English and Hebrew walk through the app.
