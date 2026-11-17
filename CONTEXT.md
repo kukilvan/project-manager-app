@@ -39,15 +39,21 @@ Point × work; closes a point task with one row (`done` boolean). Ids: `${entryI
 
 **Day / entry** (code: `days`, `entries`) — a working day and the works recorded in it; `entry.portQty` holds per-point quantities.
 
-**Day off** (UI: «Выходной») — a day of a project with no work and a reason («Праздник», «Болезнь»…); shown in «Отчёты» and «Месяц», not counted as a working day (planned, idea 001).
+**Day off** (code: `day.off`, `offReason`, `offText`, `src/domain/dayoff.js`; UI: «🌴 Выходной») — a day of a project with no work and a reason («Праздник», «Болезнь»… or own text); shown in «Отчёты» and «Месяц», not counted as a working day; blocked on a date that is a working day in another project (planned, stage 6).
 
-**Delay reason** (code: `delayReasons`, `point.delayReasonId`; UI: «Причина задержки») — why a point is not done, in general (also the delay of a day entry, `entry.delayReason`); does not make a point red. One shared list per database from stage 6 (ADR 0015).
+**Shared list** (code: `pool_delayReasons`, `pool_culprits`, `pool_problems`, `src/app/shared.js`) — a reference list kept once per database in the shared pool and read directly by every project: any member adds and edits, only the administrator deletes (a `deleted` mark). Old per-project lists are merged in once and kept read-only (ADR 0016, planned).
 
-**Culprit** (code: `culprits`, `entry.delayCulprit`; UI: «Виновник простоя») — who caused the downtime of a day entry; «Месяц» sums downtime by culprit. One shared list per database from stage 6, like delay reasons (planned).
+**Delay reason** (code: `pool_delayReasons`, `point.delayReasonId`; UI: «Причина задержки») — why a point is not done, in general (also the delay of a day entry, `entry.delayReason`); does not make a point red. A shared list (planned, stage 6).
 
-**Problem** (UI: «Проблема») — a concrete trouble on a point from the «Проблемы» reference list, with a description (ready one or own Hebrew text); open problems make the point red on the plan and in the management sheet; «Решено» closes it and keeps it in history (planned, idea 003). _Avoid_: fault (that is «Неисправна», a failed check).
+**Culprit** (code: `pool_culprits`, `entry.delayCulprit`; UI: «Виновник простоя») — who caused the downtime of a day entry; «Месяц» sums downtime by culprit. A shared list (planned, stage 6).
 
-**Progress colour** — the plan colour of a point by the share of its works done, yellow → green, full dark green only when all are done (planned, idea 004).
+**Problem** (code: `pool_problems`; UI: «Проблема») — a concrete trouble from the shared «Проблемы» list: a Russian and Hebrew name, the point types it is for (empty — all) and ready descriptions. _Avoid_: fault (that is «Неисправна», a failed check).
+
+**Problem mark** (code: `problemMarks`, `src/domain/problems.js`) — a problem on one point: a ready description or own Hebrew text, who and when marked, who and when solved; an open mark makes the point red on the plan, in «PDF с номерами» and in the management sheet; «Решено» closes it and keeps it in history (ADR 0017, planned).
+
+**Progress colour** (code: `planColor` in `src/domain/plan.js`) — the plan colour of a point by the share of its stages done (протяжка, хивут, установка, проверка, шилют — only those it has), yellow → green in four steps, a thick dark-green frame only when all are done; red for an open problem or «Неисправна» (planned, stage 6).
+
+**Stage dots** — on the zoomed-in plan, one dot per stage of a started, unfinished point under its tag, filled when done (planned, stage 6).
 
 **Daily report** «дох» (Hebrew דו"ח; code: `src/domain/doh.js`; UI: «Отчёты»)
 The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. _Avoid_: log, journal.
