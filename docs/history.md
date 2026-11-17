@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-17 — Description 6: field improvements («Описание 6»)
+
+- `.scratch/06-field-improvements/description.md` with mockups `day-off.html`, `reference-lists.html`, `problems-on-points.html`, `plan-colours.html` (the last one can show a local drawing under the points, nothing uploaded). Ideas 001–005 taken in, in that order; their `Status:` points to the description.
+- Owner's decisions: a day off is blocked on a date that has a working day in another project («Месяц» counts all projects); «Виновники простоя» become a shared list like delay reasons (ADR 0015 is to be replaced by ADR 0016 in the spec); problems get point types (empty — all) and an «Открытых проблем: N» counter on «Проект»; no other wishes. Agent's, accepted with the description: plan colour by the share of stages, not single works; Hebrew of ready reasons and example problems proposed by the session.
+- Facts: delay reasons are used on points and in day entries (with culprits); the plan already filters by stage except shilut; 284 strings without translation (166 in the guide). `docs/project-spec.md` stage 6 and `CONTEXT.md` (Culprit) updated.
+
 ## 2026-11-17 — Quick fix: lock type column («Идея: тип замка в таблице»)
 
 - Asked as an idea, done at once as a quick fix at the owner's request (no idea file). `src/domain/report.js`: column `lockType` «Тип замка» / «סוג מנעול» — ЭМ «אלקטרו מגנט» or МХ «מנעול חשמלי» from the door configuration (`doorLockOf`, new in `src/domain/doorcfg.js`, also used by `doorCfgShort`); old configurations and old door types by the ЭМ / МХ word in their name; off in the default profiles, the owner ticks it in the profile form; the Excel export gets it too. Hebrew words from the owner.
