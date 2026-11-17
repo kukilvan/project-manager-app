@@ -2,6 +2,11 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-17 — Tickets 6: field improvements («Тикеты 6»)
+
+- Seven tickets in `.scratch/06-field-improvements/issues/`: 01 day off (medium), 02 shared delay reasons and culprits (complex; goes live only after the owner publishes `firestore.rules`), 03 problems (complex), 04 problems in the management sheet (medium), 05 plan colours (complex), 06 translations of the guide (medium), 07 the rest of the translations and the coverage test (medium). Order 01 → 02 → 03 → 04 and 05 → 06 → 07.
+- Decision: ticket 02 builds the pool plumbing for all three lists and seeds only reasons and culprits; ticket 03 plugs the four example problems into the seeding.
+
 ## 2026-11-17 — Spec 6: field improvements («Спека 6»)
 
 - `.scratch/06-field-improvements/spec.md`: behaviour, RU/EN/HE strings, data, edge cases, tests and seven proposed tickets for ideas 001–005. Day off: `days.off`, `offReason` (seven ready reasons in `src/domain/dayoff.js`), `offText`; blocked on a day with entries and against a working day / day off of another project on the same date; «Месяц» «Дней: N · выходных: M».
