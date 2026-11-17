@@ -3,7 +3,8 @@
 //
 // Contents:
 // - copyText(), shortcutUrl() — copy to the clipboard and the link to the iPhone Shortcuts command «Doh»
-// - dayForm() — create and edit a day (one day per date, a warning for a suspicious date)
+// - dayForm() — create and edit a day (one day per date, «🌴 Выходной» with a reason, a warning for a suspicious date)
+// - todayBlocked() — the check of the recording paths: today is a day off (here or in another project) — a message and nothing is written
 // - pointsPicker() — choose points with filters by rack and type
 // - entryForm() — one entry (one work): works that fit the chosen points, devices, quantities, delay, saving as several entries
 // - addWorkForPoints(), addWorkForPoint() — «add work to this point» as an entry of today
@@ -16,11 +17,11 @@ import { typeMatch, typeFilterOptions } from '../typegroups.js';
 import { latinKey } from '../../domain/index.js';
 import { rackPortsOf, stuckPortsOf } from '../../domain/rack.js';
 import { cfgMatch, cfgFilterOptions, cfgFilterValid } from '../cfgfilter.js';
-import { h, formModal, openModal, confirmDialog, toast } from '../ui.js';
+import { h, formModal, openModal, confirmDialog, messageDialog, toast } from '../ui.js';
 import { hint } from './guide.js';
-import { state, getRepo, currentProject, pointsSorted, infoOf } from '../store.js';
+import { state, getRepo, currentProject, pointsSorted, infoOf, allDays, liveProjects } from '../store.js';
 import { newId } from '../repo.js';
-import { doh, entryLine, dateText, dayEntries, workFits, workUsesPoints, openTasksFor, pullGroups, devicesForWork, compositionOf, workApplicable } from '../../domain/index.js';
+import { DAY_OFF_REASONS, isDayOff, dayOffText, dayConflict, doh, entryLine, dateText, dayEntries, workFits, workUsesPoints, openTasksFor, pullGroups, devicesForWork, compositionOf, workApplicable } from '../../domain/index.js';
 
 let openDayId = null;
 const WORK_TYPES = ['Протяжка', 'Хивут', 'Установка', 'Проверка', 'Шилют', 'Перетяжка', 'Перенос', 'Доп. работа', 'Время', 'Текст'];
@@ -56,44 +57,93 @@ function bumpLastWork(date) {
   if (p && ms && ms > (p.lastWorkDate || 0)) getRepo().saveProject(p.id, { lastWorkDate: ms });
 }
 
+// the message window of a clash with a day of another project (checks 4 and 5 of the day form, and the recording paths)
+const showConflict = (c, date) => (c.kind === 'work'
+  ? messageDialog('Нельзя сделать выходным', `${dateText(date)} уже есть рабочий день в проекте «${c.project.name}». Сначала удалите тот день или выберите другую дату.`)
+  : messageDialog('Эта дата — выходной', `${dateText(date)} — выходной в проекте «${c.project.name}». Сначала снимите там «🌴 Выходной» или выберите другую дату.`));
+const dayConflictFor = (date, projectId, dayId, off) => dayConflict(allDays(), liveProjects(), { date, projectId, dayId, off });
+
+// Today is a day off — in this project, or (when today has no day yet) in another one: the work is not recorded
+export function todayBlocked() {
+  const p = currentProject(); const today = todayIso();
+  const day = daysSorted().find((d) => d.date === today);
+  if (day) {
+    if (!isDayOff(day)) return false;
+    messageDialog('🌴 Выходной', `Сегодня отмечен выходной (${dayOffText(day, 'ru')}). Чтобы записать работу, откройте «Отчёты» → сегодняшний день → «✏️ Изменить день» и выключите «🌴 Выходной».`);
+    return true;
+  }
+  const c = dayConflictFor(today, p.id, null, false);
+  if (c) { showConflict(c, today); return true; }
+  return false;
+}
+
 function dayForm(day, ui) {
-  const repo = getRepo(); const p = currentProject(); const isNew = !day.id;
+  const repo = getRepo(); const p = currentProject(); const isNew = !day.id; const wasOff = isDayOff(day);
   formModal({
     title: isNew ? 'Новый день' : 'День',
     submitLabel: 'Сохранить',
     fields: [
       { key: 'date', label: 'Дата', type: 'date', required: true },
-      { key: 'helper', label: 'Помощник (пусто = сам)', type: 'text', placeholder: 'сам' },
-      { key: 'helperHe', label: 'Помощник на иврите', type: 'text' },
-      { key: 'object', label: 'Объект (для разового выезда)', type: 'text', visible: () => !!p.oneOff },
+      { key: 'off', label: '🌴 Выходной', type: 'checkbox' },
+      { key: 'offReason', label: 'Причина выходного', type: 'select', visible: (v) => !!v.off,
+        options: DAY_OFF_REASONS.map((r) => ({ value: r.id, label: r.ru })) },
+      { key: 'offText', label: 'Своя причина', type: 'text', visible: (v) => !!v.off && v.offReason === 'other' },
+      { key: 'helper', label: 'Помощник (пусто = сам)', type: 'text', placeholder: 'сам', visible: (v) => !v.off },
+      { key: 'helperHe', label: 'Помощник на иврите', type: 'text', visible: (v) => !v.off },
+      { key: 'object', label: 'Объект (для разового выезда)', type: 'text', visible: (v) => !!p.oneOff && !v.off },
       { key: 'comment', label: 'Комментарий в конце отчёта', type: 'textarea' },
     ],
     values: {
       date: day.date, comment: day.comment, object: day.object,
-      helper: isNew ? p.helper : (day.helper === 'сам' ? '' : day.helper),
-      helperHe: isNew ? p.helperHe : (day.helperHe === 'сам' ? '' : day.helperHe),
+      off: wasOff, offReason: day.offReason, offText: day.offText,
+      helper: day.helper === undefined ? p.helper : (day.helper === 'сам' ? '' : day.helper),
+      helperHe: day.helperHe === undefined ? p.helperHe : (day.helperHe === 'сам' ? '' : day.helperHe),
     },
     onSubmit: async (v) => {
-      // one day per date: a second report for the same date is not created
+      // 1. one day per date: a second report for the same date is not created
       const same = daysSorted().find((d) => d.date === v.date && d.id !== day.id);
       if (same) {
         if (isNew) { toast('На эту дату день уже есть — открываю его'); openDayId = same.id; ui?.go?.('doh'); ui?.render?.(); return; }
         toast('На эту дату уже есть другой день — две даты в одном отчёте нельзя'); return false;
       }
-      // the date differs a lot from today — most likely a typo in the year or the day
+      // 2. a day off needs a reason (own text for «Другое»)
+      if (v.off) {
+        if (!v.offReason) { toast('Выберите причину выходного'); return false; }
+        if (v.offReason === 'other' && !v.offText) { toast('Впишите свою причину'); return false; }
+      }
+      // 3. a day with entries does not become a day off: delete the entries first
+      if (v.off && !wasOff && !isNew) {
+        const n = dayEntries(day, state.ctx).length;
+        if (n) { await messageDialog('🌴 Выходной', `В этом дне есть записи: ${n}. Выходной — день без работы: сначала удалите записи, потом включите «🌴 Выходной».`); return false; }
+      }
+      // 4. a day off on a date with a working day in another project
+      if (v.off && (!wasOff || v.date !== day.date)) {
+        const c = dayConflictFor(v.date, p.id, day.id, true);
+        if (c) { await showConflict(c, v.date); return false; }
+      }
+      // 5. a working day (new, switched back from a day off, or moved) on a date that is a day off in another project
+      if (!v.off && (isNew || wasOff || v.date !== day.date)) {
+        const c = dayConflictFor(v.date, p.id, day.id, false);
+        if (c) { await showConflict(c, v.date); return false; }
+      }
+      // 6. the date differs a lot from today — most likely a typo in the year or the day
       const diff = (Date.parse(v.date) - Date.parse(todayIso())) / 86400000;
       if (diff > 1 || diff < -730) {
         if (!(await confirmDialog(`Дата ${dateText(v.date)} — ${diff > 0 ? 'в будущем' : 'очень давно'}. Всё верно?`, { yes: 'Да, сохранить' }))) return false;
       }
       const id = day.id || newId();
-      repo.save(p.id, [{ coll: 'days', id, data: {
-        date: v.date, helper: v.helper || 'сам', helperHe: v.helperHe || 'сам', object: v.object, comment: v.comment,
-      } }]);
-      bumpLastWork(v.date);
+      // helper fields are not touched while the day is off, so they come back when it is a working day again
+      const data = v.off
+        ? { date: v.date, off: true, offReason: v.offReason, offText: v.offReason === 'other' ? v.offText : null, comment: v.comment }
+        : { date: v.date, helper: v.helper || 'сам', helperHe: v.helperHe || 'сам', object: v.object, comment: v.comment,
+          ...(wasOff ? { off: false, offReason: null, offText: null } : {}) };
+      repo.save(p.id, [{ coll: 'days', id, data }]);
+      if (!v.off) bumpLastWork(v.date);   // a day off is not a working day: it does not move the last work date
       if (isNew) { openDayId = id; ui?.go?.('doh'); }
     },
     extra: isNew ? [] : [{ label: 'Удалить день', kind: 'danger', closes: false, onClick: async (v, { close }) => {
-      if (!(await confirmDialog('Удалить день вместе с записями? Его можно будет вернуть из истории.', { yes: 'Удалить', danger: true }))) return;
+      const msg = wasOff ? `Удалить выходной ${dateText(day.date)}? Его можно будет вернуть из истории.` : 'Удалить день вместе с записями? Его можно будет вернуть из истории.';
+      if (!(await confirmDialog(msg, { yes: 'Удалить', danger: true }))) return;
       releasePorts(state.data.entries.filter((e) => e.dayId === day.id && !e.deleted));
       repo.remove(p.id, 'days', day.id); openDayId = null; close(); ui?.render();
     } }],
@@ -356,6 +406,7 @@ function entryForm(day, entry, preset) {
 // «Добавить работу на эту точку»: an entry in today's day (the day is created on saving)
 // a work on several points at once (for example those chosen on the plan)
 export function addWorkForPoints(pointIds, preset = {}) {
+  if (todayBlocked()) return;
   const p = currentProject(); const today = todayIso();
   const day = daysSorted().find((d) => d.date === today)
     || { id: newId(), date: today, helper: p.helper, helperHe: p.helperHe, _new: true };
@@ -363,8 +414,9 @@ export function addWorkForPoints(pointIds, preset = {}) {
 }
 // «Шилют поклеен» in one tap (from the rack panel): records the work «Шилют» into today's day, without a form.
 // The work is chosen as in «Несколько работ»: for a point made of devices — the open task «Шилют», for old points — the work of the type «Шилют» for its type.
-// → { made: entries, done: [labels: already stuck], none: [labels: the type has no work «Шилют»] }
+// → { made: entries, done: [labels: already stuck], none: [labels: the type has no work «Шилют»] }; today is a day off → { made: 0, blocked: true }, nothing is written
 export function markShilutForPoints(pointIds, portsByPoint = null) {
+  if (todayBlocked()) return { made: 0, blocked: true };
   const ctx = state.ctx; const repo = getRepo(); const p = currentProject(); const today = todayIso();
   const pts = [...new Set(pointIds)].map((id) => ctx.points.get(id)).filter(Boolean);
   const works = [...ctx.catalog.values()].filter((w) => w.active !== false && w.workType === 'Шилют');
@@ -403,6 +455,7 @@ export function markShilutForPoints(pointIds, portsByPoint = null) {
   return { made: made.length, done, none };
 }
 export function addWorkForPoint(pointId) {
+  if (todayBlocked()) return;
   const p = currentProject(); const today = todayIso();
   const day = daysSorted().find((d) => d.date === today)
     || { id: newId(), date: today, helper: p.helper, helperHe: p.helperHe, _new: true };
@@ -500,7 +553,21 @@ const RED = '#ff453a';
 const changedSince = (e, ctx) => !!e.snap && e.snap !== entryLine(e, ctx, 'ru');
 
 // ---------- day screen ----------
+// A day off: the reason, the comment and a hint — no entries, no report cards
+function dayOffScreen(day, ui) {
+  return h('div', {},
+    h('div', { class: 'btns', style: { marginTop: 0 } },
+      h('button', { class: 'sec', onclick: () => { openDayId = null; ui.render(); } }, '← Все дни'),
+      h('button', { class: 'sec', onclick: () => dayForm(day, ui) }, '✏️ Изменить день')),
+    h('div', { class: 'card' },
+      h('div', { style: { fontSize: '18px', fontWeight: 700 } }, dateText(day.date)),
+      h('div', { style: { margin: '6px 0' } }, `🌴 Выходной: ${dayOffText(day, 'ru')}`),
+      blank(day.comment) ? null : h('div', { style: { whiteSpace: 'pre-wrap', margin: '6px 0' } }, String(day.comment)),
+      h('div', { class: 'mut' }, 'Это выходной: записей и отчёта у него нет. Чтобы снова сделать день рабочим, нажмите «✏️ Изменить день» и выключите «🌴 Выходной».')));
+}
+
 function dayScreen(day, ui) {
+  if (isDayOff(day)) return dayOffScreen(day, ui);
   const ctx = state.ctx; const entries = dayEntries(day, ctx);
   const ru = doh(day, ctx, 'ru'); const he = doh(day, ctx, 'he');
   const enText = uiLang() === 'en' ? doh(day, ctx, 'en') : null;   // the English report — when the interface is in English
@@ -548,6 +615,6 @@ export function dohView(ui) {
       const n = dayEntries(d, ctx).length;
       return h('div', { class: 'item', onclick: () => { openDayId = d.id; ui.render(); } },
         h('div', { class: 'name' }, dateText(d.date), dayEntries(d, ctx).some((e) => changedSince(e, ctx)) ? h('span', { style: { color: RED, fontWeight: 700 } }, '  ⚠ данные изменились') : null,
-          h('div', { class: 'sub' }, `${n ? `записей: ${n}` : 'пока без записей'}${d.createdByName ? ` · ${d.createdByName}` : ''}`)));
+          h('div', { class: 'sub' }, `${isDayOff(d) ? `🌴 Выходной: ${dayOffText(d, 'ru')}` : n ? `записей: ${n}` : 'пока без записей'}${d.createdByName ? ` · ${d.createdByName}` : ''}`)));
     })) : hint(ui, 'Дней пока нет. Нажмите «Сегодня» и внесите сделанные работы: из них соберётся отчёт за день.', 'doh', '📖 Что такое отчёт и как его заполнять'));
 }

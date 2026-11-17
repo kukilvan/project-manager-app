@@ -17,6 +17,7 @@ Bugs decided not to fix now, and rare cases where the app can go wrong (source d
 | KI-2 | open-rules test fails on CRLF checkout | `tests/domain.test.js`, `src/domain/openrules.js` | fixed | stage 1, ticket 1.1 |
 | KI-3 | two same-code runs at once break each other | `tools/same-code.mjs`, `checkSite` | open | — |
 | KI-4 | an editor's sort of the points sheet scatters section and empty rows | management sheet (Google Sheets), `src/domain/report.js` | open | — |
+| KI-5 | a working day and a day off on one date after offline edits on two devices | `src/app/views/doh.js` (day form checks), `src/domain/month.js` | open | — |
 
 ## Entries
 
@@ -69,3 +70,9 @@ Entry format:
 - Status: open
 - Found: 2026-11-16, spec 3 (§9).
 
+## KI-5. A working day and a day off on one date after offline edits on two devices
+
+- Where: the day form checks in `src/app/views/doh.js` (`dayConflict` in `src/domain/dayoff.js`), `workdaysReport` in `src/domain/month.js`.
+- What's wrong: the clash check between a working day of one project and a day off of another reads the days the device already has. When two devices edit offline (project A: a working day on a date; project B: a day off on the same date) and then sync, both days exist and nothing stops them.
+- How to reproduce: device 1 offline — project A, a working day for 05.11; device 2 offline — project B, a day off for 05.11; both go online. «Месяц» shows both blocks; the working day counts, the day off is also listed and counted in «выходных».
+- Why not fixed now: the clash is only visible after sync; a fix would need a server rule or a repair pass. The month report stays readable and the working day is counted, so the employer's figures are right. The owner can turn the day off back into a working day or delete it.

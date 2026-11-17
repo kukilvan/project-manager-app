@@ -1,4 +1,4 @@
-// Small interface helpers: element creation (`h`), popup windows and forms, confirmation dialog, toast notifications.
+// Small interface helpers: element creation (`h`), popup windows and forms, confirmation and message windows, toast notifications.
 // Pure DOM with no storage or network; every screen imports it, and the shortcut expansion logic comes from src/domain/latin.js.
 import { expandShortcut } from '../domain/latin.js';
 // quick entry in Latin letters (T9): «тв » → «TV ». The list is taken from the app (setShortcutsProvider)
@@ -171,6 +171,15 @@ export function confirmDialog(message, { yes = 'Да', no = 'Отмена', dang
       h('div', { class: 'row' },
         h('button', { class: danger ? 'danger grow' : 'grow', onclick: () => { finish(true); close(); } }, yes),
         h('button', { class: 'sec', onclick: () => { finish(false); close(); } }, no))), { onClose: () => finish(false) });
+  });
+}
+
+// A message window with one button (nothing to decide): resolves when it is closed
+export function messageDialog(title, message, { ok = 'Понятно' } = {}) {
+  return new Promise((resolve) => {
+    const close = openModal(title, h('div', {},
+      h('p', {}, message),
+      h('div', { class: 'row' }, h('button', { class: 'grow', onclick: () => close() }, ok))), { onClose: () => resolve() });
   });
 }
 

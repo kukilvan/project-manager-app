@@ -80,7 +80,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/app/tour/index.js` — App tour: starting it (whole or by topics), the offer at the first project, and the short guide for those who create a project.
 - `src/app/tour/topics.js` — Tour topics: the step lists (title, text, target element) for each topic, built for the current UI by `buildTopics`.
 - `src/app/typegroups.js` — Shared groups of point types (e.g. «Дверь» holds every door type with its own devices and cables) for type filters.
-- `src/app/ui.js` — Small interface helpers: element creation (`h`), popup windows and forms, confirmation dialog, toast notifications.
+- `src/app/ui.js` — Small interface helpers: element creation (`h`), popup windows and forms, confirmation and message windows, toast notifications.
 - `src/app/views/cablespick.js` — Cables picker for a point, shown next to the type chooser: the type's default cables appear at once and their kind and count can be changed.
 - `src/app/views/catalogview.js` — «🧩 Каталог подписей» screen: the caption rules the drawing parser uses to recognise points, with an editor for the user's own rules.
 - `src/app/views/doh.js` — «Отчёты» tab: working days, the entries of a day, the daily report text in Russian and Hebrew, copying, and the link to the iPhone Shortcuts command «Doh».
@@ -124,6 +124,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/app/views/wizard.js` — New project wizard: the required steps from the project data to the «Создать проект» summary, then optional steps after the project is created.
 - `src/domain/compose.js` — Composition of points from devices (the composite model): tasks, stages and statuses of a point computed from cables, devices and its type.
 - `src/domain/context.js` — Builds the calculation context: lookup indexes over a project's data.
+- `src/domain/dayoff.js` — Day off: the seven ready reasons, the text of a day off in Russian, Hebrew and English, and the check against a working day (or a day off) of another project on the same date.
 - `src/domain/deviceid.js` — Serial number and MAC address of a device: parses scanned barcodes and QR codes, normalises the values and finds duplicates.
 - `src/domain/doh.js` — Text of the daily report («дох») in Russian, Hebrew and English (section 3.5, Appendix A).
 - `src/domain/doorcfg.js` — Door configurations (new scheme): there is one point type, «Дверь», and the kind of door is set by its configuration.

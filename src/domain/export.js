@@ -1,7 +1,8 @@
 // Export of a whole project to Excel: sheets with values only (no formulas). A pure function; the app builds the file.
-// Built on the management-sheet columns of report.js and the pull figures of doh.js.
+// Built on the management-sheet columns of report.js, the pull figures of doh.js and dayoff.js (a day off is one row).
 import { COLUMNS, buildReport } from './report.js';
 import { pullFigures, itogShtuk } from './doh.js';
+import { isDayOff, dayOffText } from './dayoff.js';
 
 const blank = (v) => v === undefined || v === null || v === '';
 const s = (v) => (blank(v) ? '' : v);
@@ -36,6 +37,8 @@ export function exportSheets(project, ctx, { nameOf = (u) => s(u) } = {}) {
   const er = [];
   days.forEach((d) => {
     const ents = [...ctx.entries.values()].filter((e) => e.dayId === d.id).sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+    // a day off: one row — «Выходной» as the type, the reason in the work column
+    if (isDayOff(d)) er.push([d.date, s(d.object), s(d.helper), 'Выходной', dayOffText(d, 'ru'), '', '', '', '', '', '', '', '', s(d.comment), '', '', '', '']);
     ents.forEach((e) => {
       const w = ctx.catalog.get(e.workId);
       const pts = (e.pointIds || []).map((id) => ctx.points.get(id)?.label).filter(Boolean);
@@ -44,7 +47,7 @@ export function exportSheets(project, ctx, { nameOf = (u) => s(u) } = {}) {
         f ? f.meters : s(e.meters), blank(e.minutes) ? '' : Number(e.minutes), e.workType === 'Текст' ? '' : itogShtuk(e, ctx), s(e.culprit), s(e.result), s(e.note), s(d.comment),
         s(e.delayReason), s(e.delayCulprit), s(e.delayNote), blank(e.delayMinutes) ? '' : Number(e.delayMinutes)]);
     });
-    if (!ents.length) er.push([d.date, s(d.object), s(d.helper), '', '', '', '', '', '', '', '', '', '', s(d.comment), '', '', '', '']);
+    if (!ents.length && !isDayOff(d)) er.push([d.date, s(d.object), s(d.helper), '', '', '', '', '', '', '', '', '', '', s(d.comment), '', '', '', '']);
   });
   sheets.push({
     name: 'Дни и работы',

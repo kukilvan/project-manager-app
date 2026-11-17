@@ -1,8 +1,9 @@
 // Text of the daily report («дох») in Russian, Hebrew and English (section 3.5, Appendix A).
 // English names of works, cables, units etc. come from the interface dictionary (setNameTranslator).
-// Built on points.js and compose.js; month.js, merge.js, export.js and the report views reuse its figures.
+// Built on points.js, compose.js and dayoff.js; month.js, merge.js, export.js and the report views reuse its figures.
 import { round2, cableCountFor } from './points.js';
 import { taskQty } from './compose.js';
+import { isDayOff, dayOffLine } from './dayoff.js';
 
 // Report format as in Ivan's real daily reports (WhatsApp): the date, on the next line the project and the helper,
 // then each work as a separate paragraph. The one-line header (date project helper) is for the month list.
@@ -131,8 +132,12 @@ function headerParts(day, ctx, lang) {
   return { date: dateText(day.date), place: `${where ?? ''}${who}` };
 }
 
-// One-line header «DD.MM.YYYY Contractor Project alone/with Helper» (month list)
+// The line of a day off: «DD.MM.YYYY — выходной — Праздник»
+const offLine = (day, lang) => dayOffLine(day, lang, dateText(day.date), en);
+
+// One-line header «DD.MM.YYYY Contractor Project alone/with Helper» (month list); a day off is its own line
 export function dohHeader(day, ctx, lang = 'ru') {
+  if (isDayOff(day)) return offLine(day, lang);
   const { date, place } = headerParts(day, ctx, lang);
   return `${date}${DOH_FORMAT.oneLineSep}${place}`;
 }
@@ -168,6 +173,8 @@ export function dohLines(entries, ctx, lang = 'ru') {
 }
 
 export function doh(day, ctx, lang = 'ru') {
+  // a day off has no report: its line and the comment (so no caller prints an empty report)
+  if (isDayOff(day)) return [offLine(day, lang), blank(day.comment) ? '' : String(day.comment)].filter(Boolean).join('\n');
   const { date, place } = headerParts(day, ctx, lang);
   const lines = dohLines(dayEntries(day, ctx), ctx, lang).filter((l) => l !== '');
   const blocks = [`${date}${DOH_FORMAT.headerSep}${place}`, ...lines];
@@ -177,6 +184,7 @@ export function doh(day, ctx, lang = 'ru') {
 
 // The first two lines of the report: the date and the place of work (for the month's list of working days)
 export function dohTop(day, ctx, lang = 'ru') {
+  if (isDayOff(day)) return offLine(day, lang);
   const { date, place } = headerParts(day, ctx, lang);
   return `${date}${DOH_FORMAT.headerSep}${place}`;
 }

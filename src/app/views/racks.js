@@ -321,6 +321,7 @@ function rackEditor(ui, cab) {
           const part = pts.filter((pt) => { const st = stuckPortsOf(pt, state.ctx); const total = rackPortsOf(pt, state.ctx); return total > 1 && [...new Set([...st, ...by.get(pt.id)])].length < total; });
           if (!(await confirmDialog(`Записать в сегодняшний отчёт «Шилют»: портов ${fresh.length}, точек ${new Set(fresh.map(([pt]) => pt.id)).size}?${part.length ? `\n\nУ ${part.slice(0, 4).map((x) => x.label).join(', ')}${part.length > 4 ? '…' : ''} поклеены не все порты: в отчёт пойдут только эти порты, остальные останутся неотмеченными.` : ''}`, { yes: 'Записать' }))) return;
           const r = markShilutForPoints(pts.map((x) => x.id), by);   // «есть шилют» is not set here: it is a separate mark
+          if (r.blocked) return;   // today is a day off: the message window is already shown, nothing was written
           shDone(`Поклеено портов: ${fresh.length}, в отчёт записано точек: ${pts.length - r.done.length - r.none.length}${r.done.length ? `; уже были поклеены: ${r.done.length}` : ''}${r.none.length ? `; у типа нет работы «Шилют» (только отметка): ${r.none.length}` : ''}`);
         } }, '✅ Поклеил'),
         h('button', { class: 'sec', disabled: none, onclick: () => { const l = shPorts(); setHave(l, false); shDone('Отметка «есть шилют» снята'); } }, '↩ Нет шилюта'),

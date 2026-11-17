@@ -1,17 +1,19 @@
 // Month report: the sum of all daily reports of a month (RU) and «דוח חודשי» in Hebrew (section 5.2 of the technical specification).
-// Built from the daily-report parts of doh.js; the employer bills by it. Pure.
+// Built from the daily-report parts of doh.js; the employer bills by it. A day off (dayoff.js) is a line in the texts and is not counted as a working day. Pure.
 import { round2 } from './points.js';
+import { isDayOff } from './dayoff.js';
 import { doh, dohTop, dohHeader, dayEntries, itogShtuk, pullFigures } from './doh.js';
 
 export const MONTHS_RU = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 export const MONTHS_HE = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
 const blank = (v) => v === undefined || v === null || v === '';
 
-// ym = 'YYYY-MM'
+// ym = 'YYYY-MM'; days off are included (the texts show them), the sums skip them (workingDays)
 export function monthDays(ctx, ym) {
   return [...ctx.days.values()].filter((d) => String(d.date).startsWith(ym))
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.createdAt ?? 0) - (b.createdAt ?? 0)));
 }
+const workingDays = (ctx, ym) => monthDays(ctx, ym).filter((d) => !isDayOff(d));
 export const monthTitle = (ym, lang = 'ru') => {
   const [y, m] = ym.split('-').map(Number);
   return `${(lang === 'he' ? MONTHS_HE : MONTHS_RU)[m - 1]} ${y}`;
@@ -25,7 +27,7 @@ export function monthReportRu(ctx, ym) {
 export const monthHeaders = (ctx, ym, lang = 'ru') => monthDays(ctx, ym).map((d) => dohHeader(d, ctx, lang)).join('\n');
 
 export function monthSummary(ctx, ym) {
-  const days = monthDays(ctx, ym);
+  const days = workingDays(ctx, ym);
   let minutes = 0;
   const works = new Map(); const pulls = new Map();
   days.forEach((d) => dayEntries(d, ctx).forEach((e) => {
@@ -47,7 +49,7 @@ export function monthSummary(ctx, ym) {
 
 // Month report in Hebrew: hours, list of days (HE report), quantities, pulls by cable
 export function monthReportHe(ctx, ym) {
-  const s = monthSummary(ctx, ym); const days = monthDays(ctx, ym);
+  const s = monthSummary(ctx, ym); const days = monthDays(ctx, ym);   // days off give their line through doh()
   const lines = [`דוח חודשי – ${monthTitle(ym, 'he')}`, `סה"כ שעות: ${s.hours}`, '', ...days.flatMap((d) => [doh(d, ctx, 'he'), ''])];
   if (s.works.length) lines.push('כמויות:', ...s.works.map((w) => `${w.nameHe}: ${w.qty} ${w.unitHe ?? ''}`.trim()), '');
   if (s.pulls.length) lines.push('השחלות:', ...s.pulls.map((p) => (p.accounting === 'Метры' ? `${p.nameHe}: ${p.count} כבלים, ${p.meters} מטר` : `${p.nameHe}: ${p.count} נקודות`)));
@@ -55,22 +57,29 @@ export function monthReportHe(ctx, ym) {
 }
 
 // List of the month's working days over ALL projects: «Рабочие дни за <month>» + the header of each report (date and place)
-export function workdaysList(days, projects, ym) {
+// A day off is one block «DD.MM.YYYY — выходной — <reason>» in date order; days off of several projects on one date show once (the earliest created)
+function workdaysParts(days, projects, ym) {
   const ctx = { projects: new Map(projects.map((p) => [p.id, p])) };
-  return days.filter((d) => !d.deleted && String(d.date).startsWith(ym) && ctx.projects.has(d.projectId))
-    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.createdAt ?? 0) - (b.createdAt ?? 0)))
-    .map((d) => dohTop(d, ctx, 'ru'));
+  const sorted = days.filter((d) => !d.deleted && String(d.date).startsWith(ym) && ctx.projects.has(d.projectId))
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.createdAt ?? 0) - (b.createdAt ?? 0)));
+  const offSeen = new Set(); const blocks = []; let count = 0; let offCount = 0;
+  sorted.forEach((d) => {
+    if (isDayOff(d)) { if (offSeen.has(d.date)) return; offSeen.add(d.date); offCount += 1; } else count += 1;
+    blocks.push(dohTop(d, ctx, 'ru'));
+  });
+  return { blocks, count, offCount };
 }
+export const workdaysList = (days, projects, ym) => workdaysParts(days, projects, ym).blocks;
 export function workdaysReport(days, projects, ym) {
-  const blocks = workdaysList(days, projects, ym);
+  const { blocks, count, offCount } = workdaysParts(days, projects, ym);
   const [y, m] = ym.split('-').map(Number);
-  return { count: blocks.length, text: [`Рабочие дни за ${MONTHS_RU[m - 1].toLowerCase()} ${y}`, ...blocks].join('\n\n') };
+  return { count, offCount, text: [`Рабочие дни за ${MONTHS_RU[m - 1].toLowerCase()} ${y}`, ...blocks].join('\n\n') };
 }
 
 // Downtime of the month by culprit: entries that name a culprit (with minutes or without). Longest first.
 export function downtimeByCulprit(ctx, ym) {
   const groups = new Map();
-  monthDays(ctx, ym).forEach((d) => dayEntries(d, ctx).forEach((e) => {
+  workingDays(ctx, ym).forEach((d) => dayEntries(d, ctx).forEach((e) => {
     if (e.workType === 'Текст') return;
     const add = (culprit, mins, note) => {
       const g = groups.get(culprit) || { culprit, he: ctx.culprits.get(culprit)?.he ?? '', minutes: 0, count: 0, items: [] };
