@@ -1,5 +1,5 @@
 // Server-side logic of the nightly auto-update of the management sheets, the rack table and the «PDF с номерами» drawings (GitHub Actions).
-// It makes no network calls itself: Drive and Sheets go through the `api` object, so tests can check it. Called by server-tables.mjs; uses src/domain, src/app/managers.js, src/app/racktablecore.js and src/tohnit/numbered.js.
+// It makes no network calls itself: Drive and Sheets go through the `api` object, so tests can check it. `shared` — the pool's shared lists read once per run (ADR 0016). Called by server-tables.mjs; uses src/domain, src/app/managers.js, src/app/racktablecore.js and src/tohnit/numbered.js.
 import { buildContext, tablesOf, numberedInput, numberedHash } from '../src/domain/index.js';
 import { numberedPdf } from '../src/tohnit/numbered.js';
 import { syncTable } from '../src/app/managers.js';
@@ -19,8 +19,8 @@ export function nameByUid(p, uid) {
 export const autoTables = (project) => tablesOf(project).filter((t) => t.fileId && (t.auto === undefined ? !!t.main : t.auto));
 
 // Updates the tables of one project. Returns { patches: {tableId: fields}, report: [lines] }
-export async function updateProjectTables(api, project, data, now = new Date()) {
-  const ctx = buildContext({ ...data, projects: [project] });
+export async function updateProjectTables(api, project, data, now = new Date(), shared = {}) {
+  const ctx = buildContext({ ...data, projects: [project], shared });
   const patches = {}; const report = [];
   for (const table of autoTables(project)) {
     try {
@@ -37,9 +37,9 @@ export async function updateProjectTables(api, project, data, now = new Date()) 
 }
 
 // The racks and labels table for management: updated when something changed. → { patch|null, report }
-export async function updateProjectRackTable(api, project, data, now = new Date()) {
+export async function updateProjectRackTable(api, project, data, now = new Date(), shared = {}) {
   if (!rackAuto(project)) return { patch: null, report: [] };
-  const ctx = buildContext({ ...data, projects: [project] });
+  const ctx = buildContext({ ...data, projects: [project], shared });
   try {
     const r = await syncRackTable(api, project, ctx, { uid: '__server', noCreate: true });
     const { by, ...rest } = r.patch; void by;
@@ -51,8 +51,8 @@ export async function updateProjectRackTable(api, project, data, now = new Date(
 
 // «PDF с номерами» on Drive: the drawings the app has already uploaded (numberedFileId) and shared with the server.
 // Rebuilt only when something changed (a fingerprint). api: download(fileId) → bytes, upload(fileId, bytes)
-export async function updateProjectNumbered(api, mupdf, project, data, now = new Date()) {
-  const ctx = buildContext({ ...data, projects: [project] });
+export async function updateProjectNumbered(api, mupdf, project, data, now = new Date(), shared = {}) {
+  const ctx = buildContext({ ...data, projects: [project], shared });
   const icons = project.typeIcons || {}; const patches = {}; const mgrPatches = {}; const report = [];
   const typeNames = Object.fromEntries([...ctx.types.values()].map((t) => [t.id, t.nameHe || t.id]));
   const updated = now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem', dateStyle: 'short', timeStyle: 'short' });

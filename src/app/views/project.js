@@ -44,7 +44,7 @@ export async function backupNow(retried = false) {
     let api;
     if (new URLSearchParams(location.search).get('mem')) { const t = testApi(); api = { folder: async () => 'F', putJson: async (...a) => { window.__gcalls.push(['putJson', ...a]); return 'X'; } }; void t; }
     else api = realApi(await getToken('backup'));
-    const res = await runBackup(api, p, state.data);
+    const res = await runBackup(api, p, state.data, new Date(), state.shared);
     getRepo().saveProject(p.id, res.patch);
     toast(res.message);
   } catch (e) {

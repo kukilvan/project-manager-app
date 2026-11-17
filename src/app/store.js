@@ -1,8 +1,9 @@
 // Application state: the user's projects, the data of the current project and the calculation context.
 // Subscribes to the repo (repo.js listeners, cache-first) and rebuilds `state.ctx` with `buildContext` from src/domain; every screen reads from here.
+// The shared lists of the pool (delay reasons, culprits, problems) come in from shared.js through `setShared` and go into every context.
 // The current project id is remembered in localStorage `pz.currentProject.<uid>`.
 import { COLLECTIONS, ownPendingCount } from './repo.js';
-import { buildContext, pointInfo, comparePoints } from '../domain/index.js';
+import { buildContext, pointInfo, comparePoints, sharedFrom } from '../domain/index.js';
 import { info } from '../log.js';
 
 const listeners = new Set();
@@ -20,6 +21,7 @@ export const state = {
   projects: [], currentProjectId: null, projectsLoaded: false,
   data: Object.fromEntries(COLLECTIONS.map((c) => [c, []])), loaded: new Set(),
   ctx: null, online: navigator.onLine, pendingProjectId: null, invitations: [],
+  shared: sharedFrom(),   // pool documents of the shared lists, deleted ones included (shared.js)
 };
 
 export const nav = { ui: null };
@@ -33,10 +35,12 @@ function rebuild() {
   clearTimeout(rebuildTimer);
   rebuildTimer = setTimeout(() => {
     const project = currentProject();
-    state.ctx = project ? buildContext({ ...state.data, projects: [project] }) : null;
+    state.ctx = project ? buildContext({ ...state.data, projects: [project], shared: state.shared }) : null;
     emit();
   }, 0);
 }
+// A shared list of the pool changed (shared.js): keep its documents and rebuild the context
+export function setShared(kind, docs) { state.shared = { ...state.shared, [kind]: docs }; rebuild(); }
 
 // How many records are not sent to the server yet (Firestore marks them hasPendingWrites)
 export const pendingCount = () => Math.max(ownPendingCount(),

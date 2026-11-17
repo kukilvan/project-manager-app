@@ -28,3 +28,4 @@ export * from './latin.js';
 export * from './sheetfit.js';
 export * from './merge.js';
 export * from './ownworks.js';
+export * from './shared.js';

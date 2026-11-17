@@ -14,13 +14,13 @@
 // - createFirestoreBackend(db, uid) — the Firestore backend
 // - createRepo(backend, user) — save with history, soft delete, projects, pool, inbox, members, administrator
 import {
-  collection, doc, onSnapshot, setDoc, getDoc, query, where, writeBatch, serverTimestamp, arrayUnion, arrayRemove, getDocs, getDocsFromCache, orderBy, limit as fbLimit, Timestamp,
+  collection, doc, onSnapshot, setDoc, getDoc, query, where, writeBatch, serverTimestamp, arrayUnion, arrayRemove, getDocs, getDocsFromCache, getDocsFromServer, orderBy, limit as fbLimit, Timestamp,
 } from 'firebase/firestore';
 import { info, error } from '../log.js';
 import { isAdminEmail } from '../edition.js';
 import { DELTA_MARGIN, decideMode, maxMillis, DAILY_WRITE_LIMIT, writeWarnLevel } from '../domain/sync.js';
 import {
-  CATALOG, POINT_TYPES, CABLES, UNITS, CULPRITS, DELAY_REASONS, DEVICES, composedTypes, fixLatin, fixCabinet,
+  CATALOG, POINT_TYPES, CABLES, UNITS, DEVICES, composedTypes, fixLatin, fixCabinet,
 } from '../domain/index.js';
 
 // Project subcollections the app reads in full (the change history is read separately)
@@ -105,9 +105,13 @@ export function createMemoryBackend({ initial = null, persist = null, kind = 'me
     async claimAdmin(email) { if (!settings.__admin) { settings.__admin = email; saveSettings(); } return settings.__admin; },
     async loadSettings() { return { ...settings }; },
     async saveSettings(patch) { settings = { ...settings, ...patch }; saveSettings(); },
-    // shared pool and inbox (in memory — for tests)
+    // shared pool and inbox (in memory — for tests and on-device storage); every pool document is passed, deleted ones too (consumers filter `deleted`)
     listenPool(kind, cb) { const run = () => cb([...bucket('_pool', kind).values()].map((d) => ({ ...d }))); listeners.add(run); run(); return () => listeners.delete(run); },
-    async commitPool(writes) { writes.forEach((w) => { const b = bucket('_pool', w.coll); const key = docKey(w.id); if (w.remove) { b.delete(key); persist?.del('_pool', w.coll, key); } else { const d = { ...(b.get(key) || {}), ...w.data }; b.set(key, d); persist?.put('_pool', w.coll, key, d); } }); notify(); },
+    // a pool deletion is soft, as in Firestore: the document stays with `deleted: true`
+    async commitPool(writes) { writes.forEach((w) => { const b = bucket('_pool', w.coll); const key = docKey(w.id); const d = { ...(b.get(key) || {}), ...(w.remove ? { deleted: true } : w.data) }; b.set(key, d); persist?.put('_pool', w.coll, key, d); }); notify(); },
+    // one-off reads «from the server» (here: the buckets themselves), for the shared-list merge
+    async readColl(pid, coll) { return [...bucket(pid, coll).values()].map((d) => ({ ...d })); },
+    async readPool(kind) { return [...bucket('_pool', kind).values()].map((d) => ({ ...d })); },
     listenInbox(cb) { const run = () => cb([...bucket('_pool', 'inbox').values()].map((d) => ({ ...d }))); listeners.add(run); run(); return () => listeners.delete(run); },
     async setInbox(list) { if (persist) return; const b = bucket('_pool', 'inbox'); list.forEach((x) => b.set(x.key, { ...(b.get(x.key) || {}), ...x.data })); notify(); },
     dump: () => ({ projects: [...projects.values()], colls: [...colls.entries()].map(([k, v]) => [k, [...v.values()]]) }),
@@ -300,11 +304,15 @@ export function createFirestoreBackend(db, uid) {
       }
       return Promise.all(chunks.map((b) => b.commit())); // the order of sending is kept
     },
-    // The shared pool: collections pool_types, pool_devices, pool_cables, pool_catalog (everyone reads, only the pool administrator writes)
-    listenPool(kind, cb) {
-      // a deletion in the pool is marked deleted:true (not erased), so the delta read sees it
-      return deltaListen(collection(db, `pool_${kind}`), `pz.sync.${uid}.pool.${kind}`, (d) => d.data(), `Чтение общего пула (${kind})`, (list) => cb(list.filter((x) => !x.deleted)));
+    // The shared pool: collections pool_types, pool_devices, pool_cables, pool_catalog (everyone reads, only the pool administrator writes),
+    // and the shared lists pool_delayReasons, pool_culprits, pool_problems (any member writes, only the administrator deletes)
+    listenPool(kind, cb, { withDeleted = false } = {}) {
+      // a deletion in the pool is marked deleted:true (not erased), so the delta read sees it; withDeleted passes those documents on too
+      return deltaListen(collection(db, `pool_${kind}`), `pz.sync.${uid}.pool.${kind}`, (d) => d.data(), `Чтение общего пула (${kind})`, (list) => cb(withDeleted ? list : list.filter((x) => !x.deleted)));
     },
+    // One-off reads straight from the server (not the cache), counted in `pz.reads`: the shared-list merge must see what is really there. Offline they reject.
+    async readColl(pid, coll) { const s = await getDocsFromServer(collection(db, 'projects', pid, coll)); addReads(s.size); return s.docs.map((d) => d.data()); },
+    async readPool(kind) { const s = await getDocsFromServer(collection(db, `pool_${kind}`)); addReads(s.size); return s.docs.map((d) => d.data()); },
     commitPool(writes) {
       addWrites(writes.length);
       const batch = writeBatch(db);
@@ -424,7 +432,7 @@ export function createRepo(backend, user) {
       const pid = newId();
       const now = Date.now();
       const project = clean({
-        ...data, id: pid, active: true, memberUids: [user.uid], memberEmails: [user.email || ''],
+        ...data, id: pid, active: true, memberUids: [user.uid], memberEmails: [user.email || ''], sharedLists: 1,   // nothing of its own to merge into the shared lists
         createdBy: by.uid, createdByName: by.name, createdAt: now, updatedBy: by.uid, updatedByName: by.name, updatedAt: now,
       });
       const seed = [];
@@ -433,7 +441,7 @@ export function createRepo(backend, user) {
       const merged = refs ? { catalog: refs.catalog || [], types: refs.types || [], cables: refs.cables || [], devices: refs.devices || [] }
         : { catalog: [...CATALOG], types: [...types], cables: [...CABLES], devices: [...DEVICES] };
       add('catalog', merged.catalog); add('types', merged.types); add('cables', merged.cables); add('devices', merged.devices);
-      add('units', UNITS); add('culprits', CULPRITS); add('delayReasons', DELAY_REASONS);
+      add('units', UNITS);   // delay reasons and culprits are not copied: they are shared lists of the database (src/app/shared.js)
       info(`Создаю проект «${data.name}», справочников: ${seed.length}`);
       backend.commit(pid, [{ coll: 'projects', id: pid, data: project }, ...seed.map((w) => ({ ...w, data: clean(w.data) }))])
         ?.catch?.((e) => error('Создание проекта отклонено', `${e.code || ''} ${e.message || e}`));
@@ -459,12 +467,15 @@ export function createRepo(backend, user) {
     },
     cacheGet: (pid, coll, id) => cache.get(keyOf(pid, coll, id)),
     // shared pool
-    listenPool: (kind, cb) => backend.listenPool?.(kind, cb) || (() => {}),
-    savePool(ops) {
+    listenPool: (kind, cb, opts) => backend.listenPool?.(kind, cb, opts) || (() => {}),
+    readColl: (pid, coll) => backend.readColl(pid, coll),
+    readPool: (kind) => backend.readPool(kind),
+    // strict: a write the server rejects also rejects the returned promise (it still goes to the rejected list for «⚠»)
+    savePool(ops, { strict = false } = {}) {
       const now = Date.now();
       const writes = ops.map((o) => (o.remove ? { coll: o.coll, id: o.id, remove: true } : { coll: o.coll, id: o.id, data: clean({ ...o.data, id: o.id, updatedBy: by.uid, updatedByName: by.name, updatedAt: now }) }));
       info(`Общий пул: ${ops.map((o) => `${o.coll}${o.remove ? '(удал.)' : ''}`).join(', ')}`);
-      return track(backend.commitPool(writes), ops.length)?.catch?.(onReject('pool', null, writes));
+      return track(backend.commitPool(writes), ops.length)?.catch?.((e) => { onReject('pool', null, writes)(e); if (strict) throw e; });
     },
     listenInbox: (cb) => backend.listenInbox?.(cb) || (() => {}),
     setInbox: (list) => backend.setInbox(list.map((x) => ({ key: x.key, data: clean(x.data) })))?.catch?.((e) => error('Входящие пула', `${e.code || ''} ${e.message || e}`)),

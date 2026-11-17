@@ -60,9 +60,10 @@ export const isDeleted = (project) => project?.deleted === true;
 export const stamp = (now) => now.toISOString().slice(0, 16).replace('T', '_').replace(':', '');
 
 // Writes two copies of a project: «для импорта» (like the «Резервная копия» button) and a full one (everything, including history and members)
-export function writeProjectBackup(dir, { project, data, fullAt }, now) {
+// shared: the pool's shared lists for the «для импорта» copy ({ delayReasons, culprits, problems }, see sharedOf)
+export function writeProjectBackup(dir, { project, data, fullAt }, now, shared = {}) {
   const base = safe(project.name);
-  const importable = buildBackup(project, data, now);
+  const importable = buildBackup(project, data, now, shared);
   const counts = {};
   Object.entries(data).forEach(([k, v]) => { counts[k] = v.length; });
   fs.writeFileSync(path.join(dir, `${base} (импорт).json`), JSON.stringify(importable));
@@ -79,6 +80,9 @@ export function pruneOld(root, keep) {
 }
 
 // ---------- common data (not projects): the shared pool, the allowed e-mails, users' personal settings ----------
+// The shared lists of the pool from the common data (ADR 0016) → { delayReasons, culprits, problems }
+export const sharedOf = (common) => Object.fromEntries(['delayReasons', 'culprits', 'problems'].map((k) => [k, common?.collections?.[`pool_${k}`] || []]));
+
 // Reads every root collection except projects, and the documents users/{uid}/prefs/{id}
 export async function readCommon(db) {
   const out = { format: 'polevoy-common-1', collections: {}, prefs: [] };

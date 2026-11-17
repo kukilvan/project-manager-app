@@ -18,6 +18,7 @@ Bugs decided not to fix now, and rare cases where the app can go wrong (source d
 | KI-3 | two same-code runs at once break each other | `tools/same-code.mjs`, `checkSite` | open | — |
 | KI-4 | an editor's sort of the points sheet scatters section and empty rows | management sheet (Google Sheets), `src/domain/report.js` | open | — |
 | KI-5 | a working day and a day off on one date after offline edits on two devices | `src/app/views/doh.js` (day form checks), `src/domain/month.js` | open | — |
+| KI-6 | a conflicting Hebrew name merged into a shared list on two devices at once keeps the last write | `src/app/shared.js` (merge), `src/domain/shared.js` (`mergePlan`) | open | — |
 
 ## Entries
 
@@ -76,3 +77,10 @@ Entry format:
 - What's wrong: the clash check between a working day of one project and a day off of another reads the days the device already has. When two devices edit offline (project A: a working day on a date; project B: a day off on the same date) and then sync, both days exist and nothing stops them.
 - How to reproduce: device 1 offline — project A, a working day for 05.11; device 2 offline — project B, a day off for 05.11; both go online. «Месяц» shows both blocks; the working day counts, the day off is also listed and counted in «выходных».
 - Why not fixed now: the clash is only visible after sync; a fix would need a server rule or a repair pass. The month report stays readable and the working day is counted, so the employer's figures are right. The owner can turn the day off back into a working day or delete it.
+
+## KI-6. A conflicting Hebrew name merged into a shared list on two devices at once keeps the last write
+
+- Where: the one-time merge of the old project lists into `pool_delayReasons` / `pool_culprits` — `src/app/shared.js` (the run) and `mergePlan` in `src/domain/shared.js`.
+- What's wrong: each device plans the merge from its own server read. When two devices merge at the same time, both see a pool item with empty Hebrew (or an absent item) and both write their project's Hebrew for the same name; the write that reaches the server last wins. The other Hebrew is not listed as a conflict in either event log.
+- How to reproduce: two projects with the same reason and different Hebrew, neither merged; two devices of different members open the app at the same moment, each on a project of its own.
+- Why not fixed now: it needs a transaction per item, and it happens only during the one-time merge. Nothing is lost: the old project lists still hold both names, and the Hebrew can be fixed in «Выпадающие списки» by hand.

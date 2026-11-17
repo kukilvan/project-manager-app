@@ -44,7 +44,7 @@ function poolCtx(extra = null) {
     (extra.deps?.catalog || []).forEach((x) => add('catalog', x)); (extra.deps?.cables || []).forEach((x) => add('cables', x)); (extra.deps?.devices || []).forEach((x) => add('devices', x));
     lists[extra.kind] = [...lists[extra.kind].filter((y) => y.id !== extra.item.id), extra.item];
   }
-  return buildContext({ ...state.data, ...lists, projects: [currentProject()] });
+  return buildContext({ ...state.data, ...lists, projects: [currentProject()], shared: state.shared });
 }
 const savePool = (ops) => getRepo().savePool(ops);
 

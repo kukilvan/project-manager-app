@@ -29,7 +29,7 @@ import { doorChips, doorShortChip } from './doorchips.js';
 import { ensureDoorCfg, pinsOf as doorPins, allDoorCfgs } from '../doorpool.js';
 import { drawingFor, drawingsOf } from '../drawings.js';
 import { typeMatch, typeFilterOptions, typeFilterValid } from '../typegroups.js';
-import { latinKey } from '../../domain/index.js';
+import { latinKey, choiceList } from '../../domain/index.js';
 import { cfgMatch, cfgFilterOptions, cfgFilterValid } from '../cfgfilter.js';
 import { planModal } from './planmodal.js';
 import { ownWorksField, ownWorksData, ownWorksText } from './ownworks.js';
@@ -39,7 +39,8 @@ import { printedPortsOf, panelText, panelOf, parsePanelPorts, panelOccupancy, ra
 const typeOptions = () => [...state.ctx.types.values()].filter((t) => !isSystemType(t)).map((t) => ({ value: t.id, label: t.id }));
 const hasIdType = (id) => hasDeviceId(state.ctx.types.get(id));
 const isDoorType = (id) => usesConfig(state.ctx.types.get(id));
-const reasonOptions = () => [...state.ctx.delayReasons.values()].map((r) => ({ value: r.id, label: r.id }));
+// delay reasons a picker offers (a shared list); keep — the point's current reason, kept even if it was deleted from the list
+const reasonOptions = (keep) => choiceList(state.ctx.delayReasons, [keep]).map((r) => ({ value: r.id, label: r.id }));
 
 // ---- point composition (a type made of devices): device checkboxes with a count + the point's own cables ----
 const typeOf = (id) => state.ctx.types.get(id);
@@ -183,7 +184,7 @@ export function pointForm(point, { onDone } = {}) {
     { key: 'panelText', label: 'Порт в панели', hint: 'U панели и порт 1–24, например U38-05. Точке с двумя кабелями cat7 — два порта через запятую: U38-05, U38-06. Если шкаф из нескольких секций — с названием секции: CCTV1-B U38-05' },
     { ...scanField('serial', 'Серийный номер', 'serial', point?.serial), visible: (v) => hasIdType(v.typeId) },
     { ...scanField('mac', 'MAC', 'mac', point?.mac), visible: (v) => hasIdType(v.typeId) },
-    { key: 'delayReasonId', label: 'Причина задержки', type: 'select', options: reasonOptions() },
+    { key: 'delayReasonId', label: 'Причина задержки', type: 'select', options: reasonOptions(point?.delayReasonId) },
     { key: 'note', label: 'Примечание', type: 'textarea' },
   ];
   formModal({

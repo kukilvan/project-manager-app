@@ -12,7 +12,7 @@ const common = JSON.parse(fs.readFileSync(path.join(root, dir, COMMON_FILE), 'ut
 const DROP = /^(createdBy|createdByName|createdAt|updatedBy|updatedByName|updatedAt|updatedAtServer|owner|addedBy|addedByName|projectId)$/;
 const clean = (o) => Object.fromEntries(Object.entries(o).filter(([k]) => !DROP.test(k)));
 const pool = {};
-for (const kind of ['types', 'devices', 'cables', 'catalog', 'doorcfg']) {
+for (const kind of ['types', 'devices', 'cables', 'catalog', 'doorcfg', 'delayReasons', 'culprits', 'problems']) {
   pool[kind] = (common.collections[`pool_${kind}`] || []).map(clean).filter((x) => !x.deleted).sort((a, b) => String(a.id).localeCompare(String(b.id)));
 }
 const text = JSON.stringify({ format: 'polevoy-starter-pool-1', createdAt: new Date().toISOString(), from: dir, pool }, null, 1);

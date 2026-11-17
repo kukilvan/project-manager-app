@@ -1,16 +1,18 @@
 // «Настройки» tab: the project's reference lists (dropdown lists) with their item forms, and the entries to the management, rack and sheets screens.
 // Reads the lists from store.js and writes through repo (save with a preview of the result); the shared pool admin opens the same forms for the pool through setFormTarget. Types, devices, cables and works come from src/domain; door configurations are drawn by doorcfgview.js.
+// Delay reasons and culprits are shared lists of the database (ADR 0016): their forms write the pool (`savePool`), and only the pool administrator deletes.
 //
 // Contents:
 // - checkList(), custom(), qtyField() — form fields: ticks from a list with «create new» on the fly, and «item × quantity»
-// - REFS — the description of every reference list (types, devices, cables, works, door configurations, units, culprits, delay reasons)
+// - REFS — the description of every reference list (types, devices, cables, works, door configurations, units, culprits, delay reasons; `shared` — a list of the pool)
 // - itemForm(key, existing, { onSaved }) — add and edit one item of a list; setFormTarget() points the forms at the shared pool
 // - auditModal() — the check of the lists for links to things that do not exist
 // - groupModal() — a shared group for several point types at once (for example all doors)
 // - refView() — the screen of one reference list; refreshApp() — reset the service worker and cache and reload
 // - settingsView() — the tab itself
-import { POOL_KINDS, usesOf, usesText, DOOR_PARTS, doorPartOf, DOOR_PART_NAMES, doorColorOf } from '../../domain/index.js';
+import { POOL_KINDS, usesOf, usesText, DOOR_PARTS, doorPartOf, DOOR_PART_NAMES, doorColorOf, choiceList } from '../../domain/index.js';
 import { poolButton } from './poolview.js';
+import { isPoolAdmin } from '../pool.js';
 import { allGroups } from '../typegroups.js';
 import { h, formModal, confirmDialog, toast, qtyList, openModal } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
@@ -169,11 +171,13 @@ export const REFS = {
   configs: { title: 'Конфигурации дверей', coll: 'configs', items: () => [...ctx().configs.values()].filter((c) => Array.isArray(c.devices) && !c.deleted) },
   units: { title: 'Единицы измерения', coll: 'units', hint: 'Шт, м, мин… Показываются в отчёте.', idMode: 'name', nameLabel: 'Единица (русский)', heKey: 'he', heLabel: 'Единица (иврит)',
     items: () => [...ctx().units.values()], line: (x) => [x.id, x.he || '—'], usage: (x) => [...ctx().catalog.values()].filter((w) => w.unit === x.id).length },
-  culprits: { title: 'Виновники простоя', coll: 'culprits', hint: 'Кто виноват в простое или задержке — выбирается в отчёте.', idMode: 'name', nameLabel: 'Виновник (русский)', heKey: 'he', heLabel: 'Виновник (иврит)',
-    items: () => [...ctx().culprits.values()], line: (x) => [x.id, x.he || '—'], usage: (x) => [...ctx().entries.values()].filter((e) => e.culprit === x.id).length },
-  delayReasons: { title: 'Причины задержки точек', coll: 'delayReasons', hint: 'Почему точка не сделана — выбирается в карточке точки.', idMode: 'name', nameLabel: 'Причина (русский)', heKey: 'he', heLabel: 'Причина (иврит)',
-    items: () => [...ctx().delayReasons.values()], line: (x) => [x.id, x.he || '—'], usage: (x) => [...ctx().points.values()].filter((p) => p.delayReasonId === x.id).length },
+  // shared lists: what can be chosen (choiceList); «в этом проекте» — how many entries / points of the current project use the item
+  culprits: { title: 'Виновники простоя', coll: 'culprits', shared: true, hint: 'Кто виноват в простое или задержке — выбирается в отчёте.', idMode: 'name', nameLabel: 'Виновник (русский)', heKey: 'he', heLabel: 'Виновник (иврит)',
+    items: () => choiceList(ctx().culprits), usage: (x) => [...ctx().entries.values()].filter((e) => e.culprit === x.id || e.delayCulprit === x.id).length },
+  delayReasons: { title: 'Причины задержки точек', coll: 'delayReasons', shared: true, hint: 'Почему точка не сделана — выбирается в карточке точки.', idMode: 'name', nameLabel: 'Причина (русский)', heKey: 'he', heLabel: 'Причина (иврит)',
+    items: () => choiceList(ctx().delayReasons), usage: (x) => [...ctx().points.values()].filter((p) => p.delayReasonId === x.id).length },
 };
+['culprits', 'delayReasons'].forEach((k) => { REFS[k].line = (x) => [x.id, `${x.he || '—'} · в этом проекте: ${REFS[k].usage(x)}`]; });
 // simplified «Russian + Hebrew» reference lists
 ['units', 'culprits', 'delayReasons'].forEach((k) => {
   const r = REFS[k];
@@ -190,7 +194,11 @@ export function itemForm(key, existing, { onSaved } = {}) {  // onSaved(id) — 
   formModal({
     title: existing ? (existing.name || existing.id) : `Новый пункт — ${def.title}`,
     fields, values: existing ? (def.toForm ? def.toForm(existing) : existing) : { ...def.defaults },
-    extra: existing && !tgt ? [{ label: 'Удалить', kind: 'danger', onClick: async () => {
+    extra: existing && !tgt && def.shared ? (isPoolAdmin() ? [{ label: 'Удалить', kind: 'danger', onClick: async () => {
+      // a shared list: marked deleted in the pool for every project; points and entries that use it keep the name
+      if (!(await confirmDialog(`Удалить «${existing.id}» из общего списка? Его нельзя будет выбрать ни в одном проекте этой базы. Точки и записи, где он уже стоит, его сохранят.`, { yes: 'Удалить', danger: true }))) return false;
+      repo.savePool([{ coll: def.coll, id: existing.id, data: { ...(existing.he ? { he: existing.he } : {}), deleted: true } }]); toast('Удалено из общего списка'); return true;
+    } }] : []) : existing && !tgt ? [{ label: 'Удалить', kind: 'danger', onClick: async () => {
       const n = def.usage?.(existing) || 0;
       const msg = n ? `«${existing.name || existing.id}» используется (${def.uses ? usesText(def.uses(existing)) : n}). Если удалить, там пропадут связанные работы/кабели/устройства. Удалить из списка? Старые записи сохранятся, но выбрать пункт будет нельзя.` : `Удалить «${existing.name || existing.id}»?`;
       if (!(await confirmDialog(msg, { yes: 'Удалить', danger: true }))) return false;
@@ -210,6 +218,8 @@ export function itemForm(key, existing, { onSaved } = {}) {  // onSaved(id) — 
       // new works created from a type form — tick this type in «Для каких типов точек»
       if (key === 'types') created.forEach((ft, wid) => { if (!ft.includes(id)) ops.push({ coll: 'catalog', id: wid, data: { forTypes: [...ft, id] } }); });
       if (tgt) { tgt.save(ops); tgt.ctx[def.coll].set(id, { ...(existing || {}), ...data, id }); toast('Сохранено в общем пуле'); onSaved?.(id, data); return; }
+      // a shared list: the pool, never the project (a deleted name comes back with deleted: false)
+      if (def.shared) { repo.savePool(ops); toast('Сохранено в общем списке'); onSaved?.(id, data); return; }
       repo.save(pid, ops);
       def.after?.(v, id);
       toast('Сохранено'); onSaved?.(id, data);
@@ -221,7 +231,7 @@ export function itemForm(key, existing, { onSaved } = {}) {  // onSaved(id) — 
 const knownIds = () => Object.fromEntries(['catalog', 'devices', 'cables', 'types'].map((c) => [c, new Set((state.data[c] || []).map((x) => x.id))]));
 // The context «as it will be after» the operations (for the preview)
 function ctxAfter(ops) {
-  const data = { ...state.data, projects: [currentProject()] };
+  const data = { ...state.data, projects: [currentProject()], shared: state.shared };
   ['catalog', 'devices', 'cables', 'types', 'journal'].forEach((c) => {
     const m = new Map((data[c] || []).map((x) => [x.id, x]));
     ops.filter((o) => o.coll === c).forEach((o) => m.set(o.id, { ...(m.get(o.id) || {}), ...o.data, id: o.id, deleted: false }));
@@ -280,6 +290,7 @@ export function refView() {
     rows.push(h('div', { class: 'item', onclick: () => itemForm(key, x) }, h('div', { class: 'name' }, name, h('div', { class: 'sub' }, sub))));
   });
   return h('div', {},
+    def.shared ? h('div', { class: 'mut', style: { marginBottom: '6px' } }, '🔗 Общий список для всех проектов этой базы. Удаляет только администратор.') : null,
     h('div', { class: 'mut', style: { marginBottom: '10px' } }, def.hint),
     h('div', { class: 'btns', style: { marginTop: 0 } }, h('button', { onclick: () => itemForm(key, null) }, '➕ Добавить пункт'),
       POOL_KINDS.includes(key) ? poolButton(key) : null,
@@ -299,7 +310,7 @@ let refsOpen = false;   // the reference lists in Settings are collapsed by defa
 export function settingsView(ui) {
   const p = currentProject();
   const row = (icon, title, sub, fn) => h('div', { class: 'item', onclick: fn }, h('div', { class: 'name' }, `${icon} ${title}`, sub ? h('div', { class: 'sub' }, sub) : null));
-  const ref = (k) => row('📋', REFS[k].title, `${REFS[k].items().length} пунктов`, () => { state.settingsRef = k; ui.open('ref'); });
+  const ref = (k) => { const n = REFS[k].items().length; return row('📋', REFS[k].title, REFS[k].shared ? `Общий для всех проектов · ${n} пунктов` : `${n} пунктов`, () => { state.settingsRef = k; ui.open('ref'); }); };
   return h('div', {},
     h('div', { class: 'card', style: { padding: 0 } },
       h('div', { class: 'group', style: { padding: '10px 14px 4px' } }, `Проект «${p.name}»`),

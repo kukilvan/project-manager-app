@@ -14,7 +14,7 @@
 // - dayScreen(), dohView() — the screen of one day and the tab itself
 import { lang as uiLang } from '../../i18n/index.js';
 import { typeMatch, typeFilterOptions } from '../typegroups.js';
-import { latinKey } from '../../domain/index.js';
+import { latinKey, choiceList } from '../../domain/index.js';
 import { rackPortsOf, stuckPortsOf } from '../../domain/rack.js';
 import { cfgMatch, cfgFilterOptions, cfgFilterValid } from '../cfgfilter.js';
 import { h, formModal, openModal, confirmDialog, messageDialog, toast } from '../ui.js';
@@ -306,13 +306,14 @@ function entryForm(day, entry, preset) {
       { key: 'meters', label: 'Метры', type: 'number', visible: (v) => v.workType === 'Протяжка' && !effPts(v).length && ctx.cables.get(v.cableId)?.accounting === 'Метры' },
       // work time — only for works counted in minutes (waiting, fault finding…); for the others it follows from the quantity
       { key: 'minutes', label: 'Время, мин', type: 'number', visible: (v) => !isText(v) && !!v.workType && (isTime(v) || !blank(entry?.minutes)) },
+      // shared lists (choiceList): what can be chosen, plus the entry's own value even if it was deleted from the list
       { key: 'culprit', label: 'Виновник (прежняя запись)', type: 'select', visible: () => !blank(entry?.culprit),
-        options: [...ctx.culprits.values()].map((c) => ({ value: c.id, label: c.id })) },
+        options: choiceList(ctx.culprits, [entry?.culprit]).map((c) => ({ value: c.id, label: c.id })) },
       // a delay for this work: in the report it is a line right under the work; all of it is optional
       { key: 'delayReason', label: '⏱ Задержка: причина', type: 'select', emptyLabel: '—', visible: (v) => !isText(v) && !!v.workType,
-        options: [...ctx.delayReasons.values()].map((r) => ({ value: r.id, label: r.id })) },
+        options: choiceList(ctx.delayReasons, [entry?.delayReason]).map((r) => ({ value: r.id, label: r.id })) },
       { key: 'delayCulprit', label: '⏱ Задержка: виновник', type: 'select', emptyLabel: '—', visible: (v) => !isText(v) && !!v.workType,
-        options: [...ctx.culprits.values()].map((c) => ({ value: c.id, label: c.id })) },
+        options: choiceList(ctx.culprits, [entry?.delayCulprit]).map((c) => ({ value: c.id, label: c.id })) },
       { key: 'delayNote', label: '⏱ Задержка: комментарий', type: 'text', visible: (v) => !isText(v) && !!v.workType },
       { key: 'delayMinutes', label: '⏱ Задержка: время, мин', type: 'number', visible: (v) => !isText(v) && !!v.workType },
       { key: 'result', label: 'Результат проверки', type: 'select', visible: (v) => v.workType === 'Проверка',

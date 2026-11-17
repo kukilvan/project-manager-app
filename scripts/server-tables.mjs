@@ -1,5 +1,6 @@
 // Nightly server run (GitHub Actions) that refreshes the management sheets, the rack table and the «PDF с номерами» drawings of every active project.
 // Talks to Firestore (firebase-admin), Google Drive and Sheets (REST with a service account) and MuPDF; the logic is in server-tables-lib.mjs.
+// The shared lists the sheets need (pool_delayReasons, pool_problems) are read once per run and passed to every project.
 // Run: FIREBASE_SERVICE_ACCOUNT='{...}' node scripts/server-tables.mjs
 import admin from 'firebase-admin';
 import { GoogleAuth } from 'google-auth-library';
@@ -39,6 +40,8 @@ let mupdf = null;
 
 // building the tables does not need the change history (history), to-dos or notes: they are not read, to save the read quota
 const NEED = ['points', 'days', 'entries', 'journal', 'catalog', 'types', 'cables', 'devices', 'configs', 'units', 'culprits', 'delayReasons', 'cabinetSettings'];
+// shared lists of the pool read once per run (ADR 0016); a missing collection is empty, so the sheets show names from the old project lists
+const SHARED = ['delayReasons', 'problems'];
 const now = new Date();
 let failed = 0;
 // errors are printed as GitHub annotations (visible in the run summary and through the API)
@@ -54,8 +57,12 @@ async function changedSince(ref, p) {
   if (Object.values(p.managers?.drawings || {}).some((m) => m?.error)) return true;
   const ts = admin.firestore.Timestamp.fromMillis(since - 30 * 60e3);
   for (const col of NEED) { if (!(await ref.collection(col).where('updatedAtServer', '>', ts).limit(1).get()).empty) return true; }
+  // a fixed Hebrew name in a shared list reaches the sheets the same night
+  for (const kind of SHARED) { if (!(await db.collection(`pool_${kind}`).where('updatedAtServer', '>', ts).limit(1).get()).empty) return true; }
   return false;
 }
+const shared = {};
+for (const kind of SHARED) shared[kind] = (await db.collection(`pool_${kind}`).get()).docs.map((d) => d.data());
 for (const ref of await db.collection('projects').listDocuments()) {
   const head = (await ref.get()).data() || {};
   if (isDeleted(head) || head.archived) continue;
@@ -67,18 +74,18 @@ for (const ref of await db.collection('projects').listDocuments()) {
   // «PDF с номерами» on Drive
   if ((project.drawings || []).some((d) => (d.numberedFileId || project.managers?.drawings?.[d.id]?.fileId) && !d.deleted)) {
     mupdf ??= await import('mupdf');
-    const { patches, mgrPatches, report } = await updateProjectNumbered(api, mupdf, project, data, now);
+    const { patches, mgrPatches, report } = await updateProjectNumbered(api, mupdf, project, data, now, shared);
     if (Object.keys(patches).length || Object.keys(mgrPatches).length) await db.runTransaction(async (tx) => { const fresh = { id: ref.id, ...(await tx.get(ref)).data() }; tx.set(ref, { drawings: applyDrawingPatches(fresh, patches), managers: applyManagerPatches(fresh, mgrPatches) }, { merge: true }); });
     report.forEach((l) => console.log(l.includes('ОШИБКА') ? `::warning::${project.name}: ${l}` : `  - ${l}`));
   }
   // the racks and labels table for management
   {
-    const { patch, report } = await updateProjectRackTable(api, project, data, now);
+    const { patch, report } = await updateProjectRackTable(api, project, data, now, shared);
     if (patch) await db.runTransaction(async (tx) => { const fresh = { id: ref.id, ...(await tx.get(ref)).data() }; tx.set(ref, { rackTable: { ...(fresh.rackTable || {}), ...patch } }, { merge: true }); });
     report.forEach((l) => console.log(l.includes('ОШИБКА') ? `::warning::${project.name}: ${l}` : `  - ${l}`));
   }
   if (!autoTables(project).length) { await ref.set({ serverTablesAt: now.toISOString() }, { merge: true }); console.log(`${project.name}: нет таблиц для автообновления`); continue; }
-  const { patches, report } = await updateProjectTables(api, project, data, now);
+  const { patches, report } = await updateProjectTables(api, project, data, now, shared);
   await db.runTransaction(async (tx) => {
     const fresh = { id: ref.id, ...(await tx.get(ref)).data() };
     tx.set(ref, { tables: applyPatches(fresh, patches) }, { merge: true });

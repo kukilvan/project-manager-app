@@ -1,10 +1,12 @@
 // One-off import of a project's data from a polevoy-import-1 file (prepared from the AppSheet table) and its screen (opened by shell.js).
 // Writes through repo.save and repo.saveProject; replaced records go to «deleted», so they can be restored from the history.
+// Shared lists of the file (delay reasons, culprits, problems) go to the pool through repo.savePool, only what the pool lacks (sharedImportOps of src/domain).
 import { h, confirmDialog, toast } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
+import { sharedImportOps } from '../../domain/index.js';
 
 const COLLS = ['points', 'journal', 'days', 'entries', 'cabinetSettings', 'todos', 'notes', 'pulls'];
-const REFS = ['catalog', 'types', 'cables', 'devices', 'configs', 'units', 'culprits', 'delayReasons'];
+const REFS = ['catalog', 'types', 'cables', 'devices', 'configs', 'units'];
 
 export function parseImport(text) {
   const data = JSON.parse(text);
@@ -15,21 +17,25 @@ export function parseImport(text) {
 }
 
 // replace: all current project data is marked deleted (it can be restored through the history), then the file's content is written
-export function runImport(repo, pid, data, { replace }) {
+// cur: the project's current collections and the pool's shared lists (the store's by default)
+export function runImport(repo, pid, data, { replace }, cur = { data: state.data, shared: state.shared }) {
   const now = Date.now();
   const incoming = new Set(COLLS.flatMap((c) => data[c].map((d) => `${c}/${d.id}`)));
   const ops = [];
   let removed = 0;
   if (replace) {
-    COLLS.forEach((c) => (state.data[c] || []).filter((d) => !d.deleted && !incoming.has(`${c}/${d.id}`)).forEach((d) => {
+    COLLS.forEach((c) => (cur.data[c] || []).filter((d) => !d.deleted && !incoming.has(`${c}/${d.id}`)).forEach((d) => {
       ops.push({ coll: c, id: d.id, action: 'delete', data: { deleted: true, deletedAt: now, deletedBy: repo.by.uid, deletedByName: repo.by.name } });
       removed += 1;
     }));
   }
   COLLS.forEach((c) => data[c].forEach((d) => ops.push({ coll: c, id: d.id, action: 'import', data: { ...d, deleted: false } })));
   // reference lists: only add the missing ones (nothing is overwritten or removed)
-  REFS.forEach((c) => (data.reference?.[c] || []).forEach((d) => { if (d?.id && !(state.data[c] || []).some((x) => x.id === d.id && !x.deleted)) ops.push({ coll: c, id: d.id, action: 'import', data: { ...d, deleted: false } }); }));
+  REFS.forEach((c) => (data.reference?.[c] || []).forEach((d) => { if (d?.id && !(cur.data[c] || []).some((x) => x.id === d.id && !x.deleted)) ops.push({ coll: c, id: d.id, action: 'import', data: { ...d, deleted: false } }); }));
   repo.save(pid, ops);
+  // shared lists: into the pool, only the items it does not have (deleted ones are not revived)
+  const poolOps = sharedImportOps(data.reference, cur.shared);
+  if (poolOps.length) repo.savePool(poolOps);
   if (data.project || data.projectData) {
     const pd = { ...(data.projectData || {}) };
     // links to Drive files are restored only into the same project the backup was made from

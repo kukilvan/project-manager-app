@@ -34,6 +34,10 @@ service cloud.firestore {
       allow create, update: if poolAdmin() || (allowed() && request.resource.data.get('deleted', false) == false);
       allow delete: if poolAdmin();
     }
+    // Shared delay reasons, culprits and problems: any member adds and edits; only the pool admin deletes (marks deleted)
+    match /pool_delayReasons/{id} { allow read: if signedIn(); allow create, update: if poolAdmin() || (allowed() && request.resource.data.get('deleted', false) == false); allow delete: if poolAdmin(); }
+    match /pool_culprits/{id} { allow read: if signedIn(); allow create, update: if poolAdmin() || (allowed() && request.resource.data.get('deleted', false) == false); allow delete: if poolAdmin(); }
+    match /pool_problems/{id} { allow read: if signedIn(); allow create, update: if poolAdmin() || (allowed() && request.resource.data.get('deleted', false) == false); allow delete: if poolAdmin(); }
     // Pool inbox: each user's app sends new and changed items; only the admin reads and decides
     match /pool_inbox/{id} {
       allow read, delete: if poolAdmin();

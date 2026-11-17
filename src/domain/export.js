@@ -3,6 +3,7 @@
 import { COLUMNS, buildReport } from './report.js';
 import { pullFigures, itogShtuk } from './doh.js';
 import { isDayOff, dayOffText } from './dayoff.js';
+import { choiceList } from './shared.js';
 
 const blank = (v) => v === undefined || v === null || v === '';
 const s = (v) => (blank(v) ? '' : v);
@@ -60,8 +61,9 @@ export function exportSheets(project, ctx, { nameOf = (u) => s(u) } = {}) {
   ctx.types.forEach((t) => ref.push(['Тип точек', t.id, s(t.nameHe), (t.stages || []).join(' → ')]));
   ctx.cables.forEach((c) => ref.push(['Кабель', c.id, s(c.nameHe), s(c.accounting)]));
   ctx.catalog.forEach((w) => ref.push(['Работа', w.name, s(w.nameHe), [s(w.workType), s(w.unit)].filter(Boolean).join(', ')]));
-  ctx.culprits.forEach((c) => ref.push(['Виновник', c.id, s(c.he), '']));
-  ctx.delayReasons.forEach((r) => ref.push(['Причина задержки', r.id, s(r.he), '']));
+  // shared lists: what can be chosen now (deleted pool items are only kept for lookups)
+  choiceList(ctx.culprits).forEach((c) => ref.push(['Виновник', c.id, s(c.he), '']));
+  choiceList(ctx.delayReasons).forEach((r) => ref.push(['Причина задержки', r.id, s(r.he), '']));
   ctx.configs.forEach((c) => ref.push(['Конфигурация двери', s(c.name), '', '']));
   sheets.push({ name: 'Справочники', rows: ref, widths: [20, 30, 30, 40] });
   return sheets;

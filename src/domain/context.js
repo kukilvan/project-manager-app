@@ -1,5 +1,6 @@
 // Builds the calculation context: lookup indexes over a project's data. Softly deleted records (deleted: true) are skipped.
-// Pure; reached through src/domain/index.js.
+// Pure; reached through src/domain/index.js. `data.shared` holds the pool's shared lists (shared.js); without it only the project's old lists are seen.
+import { sharedView } from './shared.js';
 const live = (arr) => (arr || []).filter((x) => !x.deleted);
 const byId = (arr) => new Map(live(arr).map((x) => [x.id, x]));
 
@@ -15,8 +16,11 @@ export function buildContext(data) {
     devices: byId(data.devices),
     configs: byId(data.configs),
     units: byId(data.units),
-    culprits: byId(data.culprits),
-    delayReasons: byId(data.delayReasons),
+    // shared lists (ADR 0016): the pool over the project's old list; deleted pool items stay for lookups, pickers use choiceList
+    culprits: sharedView(data.culprits, data.shared?.culprits),
+    delayReasons: sharedView(data.delayReasons, data.shared?.delayReasons),
+    // problems of the shared pool, deleted ones too (marks keep their label); used from ticket 03 on
+    problems: new Map((data.shared?.problems || []).filter((x) => x?.id != null).map((x) => [x.id, x])),
     todos: byId(data.todos),
     notes: byId(data.notes),
     pulls: byId(data.pulls),

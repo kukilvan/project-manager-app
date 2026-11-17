@@ -1,15 +1,16 @@
 // The shell: top bar, bottom bar of 5 tabs, the menu, screen switching, and the status badges (waiting to send, waiting to read, rejected by the server).
-// Subscribes to store.js and repo.js status callbacks, starts the shared pool, door pool, manuals and the starter set, and resumes the Drive/Sheets action after an iPhone return from Google.
+// Subscribes to store.js and repo.js status callbacks, starts the shared pool, the shared lists, door pool, manuals and the starter set, and resumes the Drive/Sheets action after an iPhone return from Google.
 // Created by main.js once the user is known; every screen of src/app/views is opened from here.
 import { racksView } from './views/racks.js';
 import { sheetsView } from './views/sheetslist.js';
 import { projectWizard } from './views/wizard.js';
 import { startPool } from './pool.js';
 import { seedStarterPool } from './starter.js';
-import { APP_NAME, connection, isLocal } from '../edition.js';
+import { APP_NAME, connection, isLocal, setAdminEmail } from '../edition.js';
 import { LANGS, lang, setLang, addTranslations } from '../i18n/index.js';
 import { startManuals } from './manuals.js';
 import { startDoorPool } from './doorpool.js';
+import { startShared } from './shared.js';
 import { h, openModal, toast, confirmDialog, setShortcutsProvider } from './ui.js';
 import { currentShortcuts } from './views/latinfix.js';
 setShortcutsProvider(() => currentShortcuts());
@@ -27,7 +28,7 @@ import { assignOnPlan } from './views/planassign.js';
 // for browser checks (like window.__pz)
 if (typeof window !== 'undefined') window.__pzPlanTools = { assignOnPlan, makeWorker };
 // test mode (?mem=1): access to the data for browser checks
-if (typeof window !== 'undefined' && new URLSearchParams(location.search).has('mem')) window.__pzTest = { state, getRepo, currentProject, setCurrentProject };
+if (typeof window !== 'undefined' && new URLSearchParams(location.search).has('mem')) window.__pzTest = { state, getRepo, currentProject, setCurrentProject, setAdminEmail };
 import { themeLabel, setTheme, nextTheme } from './theme.js';
 import { projectView, updateManagerTable, updateTable, backupNow, organizeDrive } from './views/project.js';
 import { meterView } from './views/points.js';
@@ -247,7 +248,7 @@ export function createShell({ user, onLogout, diag }) {
     addTranslations(m);
   };
   const unsub = subscribe(() => { ctxNames(); render(); if (ready() && !demo.on) { maybeWelcome(ui, user); maybeOfferTour(ui); if (currentProject()?.serverEmail) import('./views/managersfolder.js').then((m) => m.ensureServerAccess()).catch(() => {}); } });
-  startPool(); startDoorPool(); startManuals(); seedStarterPool();  // shared pool: listen, the administrator's inbox, sending what is new from the project
+  startPool(); startShared(); startDoorPool(); startManuals(); seedStarterPool();  // shared pool: listen, the administrator's inbox, sending what is new from the project
   render();
 
   // Return from Google after access was granted (iPhone): wait for the project to load and run the pending action (by default the management sheet update)

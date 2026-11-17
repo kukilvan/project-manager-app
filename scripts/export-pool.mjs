@@ -1,4 +1,4 @@
-// Starter set for the open edition: a copy of the shared pool (types, devices, cables, works, door configurations) without service fields.
+// Starter set for the open edition: a copy of the shared pool (types, devices, cables, works, door configurations, shared lists) without service fields.
 // Reads the pool from Firestore through firebase-admin; meant to be run by hand, and the result is committed to src/data/starter-pool.json (the weekly workflow uses starter-from-backup.mjs instead).
 import fs from 'node:fs';
 import admin from 'firebase-admin';
@@ -12,7 +12,7 @@ const db = admin.firestore();
 const DROP = /^(createdBy|createdByName|createdAt|updatedBy|updatedByName|updatedAt|updatedAtServer|owner|addedBy|addedByName|projectId)$/;
 const clean = (o) => Object.fromEntries(Object.entries(o).filter(([k]) => !DROP.test(k)));
 const out = { format: 'polevoy-starter-pool-1', createdAt: new Date().toISOString(), pool: {} };
-for (const kind of ['types', 'devices', 'cables', 'catalog', 'doorcfg']) {
+for (const kind of ['types', 'devices', 'cables', 'catalog', 'doorcfg', 'delayReasons', 'culprits', 'problems']) {
   const snap = await db.collection(`pool_${kind}`).get();
   out.pool[kind] = snap.docs.map((d) => ({ id: d.id, ...clean(d.data()) })).filter((x) => !x.deleted).sort((a, b) => String(a.id).localeCompare(String(b.id)));
 }
