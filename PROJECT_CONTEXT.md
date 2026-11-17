@@ -4,7 +4,7 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 ## Next step
 
-«Тикеты 6» — slicing of stage 6, field improvements, from `.scratch/06-field-improvements/spec.md` (accepted 2026-11-17): seven tickets as its § 11 (01 day off, 02 shared delay reasons and culprits, 03 problems, 04 problems in the management sheet, 05 plan colours, 06 translations of the guide, 07 the rest of the translations and the coverage test). Output `.scratch/06-field-improvements/issues/MM-<slug>.md`. Model: Sonnet 5.5, effort high (`docs/models.md`). The owner finishes the whole stage 6 first, while the NAS is being checked.
+«Тикет 6.1» — ticket 01 «Day off» of stage 6 (`.scratch/06-field-improvements/issues/01-day-off.md`, medium). Model: Sonnet 5.5, effort high (`docs/models.md`). Order: 01 → 02 → 03 → 04 and 05 → 06 → 07 (02 is complex and goes live only after the owner publishes `firestore.rules`; 03 and 05 are complex: Opus 5.5, effort high). The owner finishes the whole stage 6 first, while the NAS is being checked.
 
 After «Ревью 6»: «Описание 4» — stage 4, PocketBase storage (`docs/project-spec.md`, stage 4). It starts only when the NAS acceptance checks A1–A7 and A10–A13 pass (`docs/nas-requirements.md`) and the owner says the NAS is reliable; until then only «Правка: …», «Вопрос: …» and «Идея: …» sessions. Model: Opus 5.5, effort high.
 
@@ -32,7 +32,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 | 3 | Management sheets | done | 8 | — |
 | 4 | PocketBase storage (when the owner trusts the NAS) | not started | 16 | — |
 | 5 | Move to the NAS | not started | 10 | — |
-| 6 | Field improvements (now, before stage 4) | tickets 0/7 | 14 | 001, 002, 003, 004, 005 |
+| 6 | Field improvements (now, before stage 4) | tickets 0/7 (sliced) | 14 | 001, 002, 003, 004, 005 |
 
 Status values: not started · description · spec · tickets k/n · review · fix round k · done. Ideas: numbers of `docs/ideas/` files filed for the stage.
 
