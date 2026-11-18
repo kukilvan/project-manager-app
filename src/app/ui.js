@@ -44,7 +44,8 @@ function root() {
   if (!modalRoot) { modalRoot = h('div', { id: 'modal-root' }); document.body.appendChild(modalRoot); }
   return modalRoot;
 }
-const mousePc = () => { try { return matchMedia('(hover: hover) and (pointer: fine)').matches; } catch { return false; } };
+// a computer with a mouse (not a phone or a tablet)
+export const mousePc = () => { try { return matchMedia('(hover: hover) and (pointer: fine)').matches; } catch { return false; } };
 export function openModal(title, content, { onClose, sticky = false, wide = false } = {}) {  // sticky: a click outside the window does not close it (long work inside)
   const sheet = h('div', { class: 'sheet', role: 'dialog', style: wide ? { maxWidth: '1200px' } : {} },
     h('div', { class: 'sheet-head' }, h('b', {}, title), h('button', { class: 'x', type: 'button', onclick: () => close() }, '✕')),

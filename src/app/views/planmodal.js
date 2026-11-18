@@ -12,7 +12,7 @@
 // - namesModal() — the user's own drawing names and their order
 import { matchesPanelQuery } from '../../domain/rack.js';
 import { pickPdf } from './pdfpick.js';
-import { h, openModal, toast, confirmDialog } from '../ui.js';
+import { h, openModal, toast, confirmDialog, mousePc } from '../ui.js';
 import { info } from '../../log.js';
 import { state, currentProject, infoOf, getRepo, subscribe } from '../store.js';
 import { drawingsOf, drawingTitle, drawingFor, loadDrawing, addDrawing, pushDrawing, removeDrawing, updateDrawing, patchDrawings, posKey } from '../drawings.js';
@@ -57,7 +57,7 @@ export function outline(g, api, pos, color, { width = 1.5, pad = 1.5, fill = nul
 }
 const labelLike = (t = '') => /\d/.test(t) && !/[\u0590-\u05FF]/.test(t) && t.length <= 24 && !/\s{2,}/.test(t);
 // tags of icons (points with no caption on the drawing): they grow with the zoom, sit in a frame of the point's color,
-// and are placed where they do not cover icons and other tags; t.width thickens the frame (a finished point)
+// and are placed where they do not cover icons and other tags; t.width thickens the frame (a finished point), t.line — all lines (2 on a computer)
 export function placeTags(g, api, tags, circles, frames = []) {
   const fs = Math.round(Math.min(26, Math.max(12, 5.5 * api.view.s)));
   g.font = `bold ${fs}px system-ui`; g.textBaseline = 'middle';
@@ -75,9 +75,9 @@ export function placeTags(g, api, tags, circles, frames = []) {
     placed.push(best);
     // a line from the icon to its tag when the tag is moved aside
     const cx = Math.max(best[0], Math.min(t.x, best[2])); const cy = Math.max(best[1], Math.min(t.y, best[3]));
-    if (Math.hypot(cx - t.x, cy - t.y) > r + gap + 4) { g.strokeStyle = t.col; g.lineWidth = 1; g.beginPath(); g.moveTo(t.x, t.y); g.lineTo(cx, cy); g.stroke(); }
+    if (Math.hypot(cx - t.x, cy - t.y) > r + gap + 4) { g.strokeStyle = t.col; g.lineWidth = t.line || 1; g.beginPath(); g.moveTo(t.x, t.y); g.lineTo(cx, cy); g.stroke(); }
     g.fillStyle = 'rgba(255,255,255,.92)'; g.fillRect(best[0], best[1], w, hh);
-    g.strokeStyle = t.col; g.lineWidth = 2 * (t.width || 1); g.strokeRect(best[0], best[1], w, hh);
+    g.strokeStyle = t.col; g.lineWidth = 2 * (t.width || 1) * (t.line || 1); g.strokeRect(best[0], best[1], w, hh);
     g.fillStyle = '#111'; lines.forEach((l, i) => {
       const yy = best[1] + 2 + lh * i + lh / 2 + 1;
       if (t.sh && lines.length === 1 && l.endsWith(` ${t.sh.text}`)) {  // «ЭМ» / «МХ» — by color
@@ -187,6 +187,8 @@ export function planModal({ point = null, placeFor = null } = {}) {
           const icons = currentProject()?.typeIcons || {}; const tags = []; const circles = []; const frames = [];
           // several points on one mark share one frame, color and tag: the color of the least finished point (markColor)
           const groups = new Map();
+          // on a computer the colored lines are twice as thick: on a big screen without zooming in the color is hard to tell (the owner's wish); the phone keeps them thin
+          const lineK = mousePc() ? 2 : 1;
           for (const p of pts()) { if ((p.pos.page || 0) !== api.page) continue; const k = posKey(p.pos); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); }
           for (const grp of groups.values()) {
             const p = grp[0]; const on = grp.some(stageOk); const pc = markColor(grp, state.ctx, infoOf); const col = on ? pc.color : '#d0d0d0';
@@ -194,18 +196,18 @@ export function planModal({ point = null, placeFor = null } = {}) {
               const ic = q.pos.icon && icons[q.typeId];
               if (ic) { const im = iconImg(q.typeId, ic.png, () => viewer?.draw()); if (im.complete && im.naturalWidth) { const [sx, sy] = api.toScr(q.pos.x, q.pos.y); const w = (ic.w || 12) * api.view.s; const hh = (ic.h || 12) * api.view.s; g.globalAlpha = on ? 1 : 0.4; g.drawImage(im, sx - w / 2, sy - hh / 2, w, hh); g.globalAlpha = 1; } }
             }
-            outline(g, api, p.pos, col, { width: on ? (big ? 1.5 : 2) * pc.width : 1 });
+            outline(g, api, p.pos, col, { width: (on ? (big ? 1.5 : 2) * pc.width : 1) * lineK });
             if (grp.some((q) => sel.has(q.id))) outline(g, api, p.pos, '#00b7ff', { width: 3, pad: 1.5 + 3 / api.view.s });
             const labels = grp.map(tagOf); const [x, y] = api.toScr(p.pos.x, p.pos.y);
             if (!isText(p.pos)) {
               const r = Math.max(5, (Math.max(p.pos.w || 8, p.pos.h || 8) / 2 + 1.5) * api.view.s); circles.push([x, y, r]);
-              if (on && big) tags.push({ p, col, x, y, r, labels, sh: shOf(p), width: pc.width });
+              if (on && big) tags.push({ p, col, x, y, r, labels, sh: shOf(p), width: pc.width, line: lineK });
             } else {
               // a caption on the drawing: no tag of our own is needed if there is one point and it is named the same; otherwise (several points, another name) — a tag
               const hw = (p.pos.w / 2 + 2) * api.view.s; const hh2 = (p.pos.h / 2 + 2) * api.view.s;
               const need = grp.length > 1 || !!(p.pos.text && p.pos.text !== p.label);
               frames.push([x - hw, y - hh2, x + hw, y + hh2]);
-              if (on && big && need) tags.push({ p, col, x, y, r: Math.max(hw, hh2), labels, sh: shOf(p), width: pc.width });
+              if (on && big && need) tags.push({ p, col, x, y, r: Math.max(hw, hh2), labels, sh: shOf(p), width: pc.width, line: lineK });
             }
           }
           placeTags(g, api, tags, circles, frames);
