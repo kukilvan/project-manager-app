@@ -2,6 +2,14 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-18 — Ticket 6.3: problems on points («Тикет 6.3»)
+
+- `src/domain/problems.js` (`problemFits` by type id or group, `problemsForPoints`, `openProblemsOf`, `marksOf`, `markOps`, `solveOps`, `problemLabel`, `problemCounts`, `hasCyrillic`, `EXAMPLE_PROBLEMS`); `buildContext` builds `ctx.marksByPoint` (marks of existing points, open by `markedAt` desc, then solved by `solvedAt` desc). `problemMarks` added to `COLLECTIONS`, the history labels («Проблема на точке») and, beyond the ticket, to the Drive backup and «Импорт данных» (so a restore keeps the marks). `SHARED_DEFAULTS.problems` = the four examples. Commit `2d8e71d`.
+- `src/app/views/problems.js`: the «Проблемы» reference screen and form (type ticks of the project's types and groups, descriptions editable in place, ✕ soft-deletes, administrator-only delete), the mark and solve forms, `problemButtons` for the selection bars of «Точки», the plan and the rack screen, and the point card block (the card now re-renders on store changes). «Точки» filter «Проблемы: все / ⚠ С проблемами / Проблема: …» and red line; «Проект» line opens «Точки» filtered (`showProblemPoints`).
+- Point merge (`mergeOps(…, { by, now })`): an open mark of a removed point moves to the first kept point, other kept points get a copy (`<markId>_<pointId>`); a problem the kept point already has open is solved by the merge.
+- Decisions: re-marking with two offline duplicates updates the newest one; own text allows Latin letters and digits; descriptions show with `dir="auto"` (Hebrew with a model name reads right).
+- Checked in `?mem=1` at 420 px (the seven owner steps, deleted problem and description, merge, history, Hebrew card); the plan and rack bars only by code. Owner checked on the phone: works.
+
 ## 2026-11-18 — Ticket 6.2: shared delay reasons and culprits («Тикет 6.2»)
 
 - `firestore.rules` and `firestore.open.rules`: `pool_delayReasons`, `pool_culprits`, `pool_problems` with the door-configuration rule; the owner published them in the console of `polevoy-zhurnal` before the code reached `main`.
