@@ -51,9 +51,9 @@ Point × work; closes a point task with one row (`done` boolean). Ids: `${entryI
 
 **Problem mark** (code: `problemMarks`, `src/domain/problems.js`) — a problem on one point: a ready description or own Hebrew text, who and when marked, who and when solved; an open mark makes the point red on the plan, in «PDF с номерами» and in the management sheet; «Решено» closes it and keeps it in history (ADR 0017, planned).
 
-**Progress colour** (code: `planColor` in `src/domain/plan.js`) — the plan colour of a point by the share of its stages done (протяжка, хивут, установка, проверка, шилют — only those it has), yellow → green in four steps, a thick dark-green frame only when all are done; red for an open problem or «Неисправна» (planned, stage 6).
+**Progress colour** (code: `planColor` in `src/domain/plan.js`) — the plan colour of a point by the share of its stages done (протяжка, хивут, установка, проверка, шилют — only those it has), yellow → green in four steps, a thick dark-green frame only when all are done; red for an open problem or «Неисправна».
 
-**Stage dots** — on the zoomed-in plan, one dot per stage of a started, unfinished point under its tag, filled when done (planned, stage 6).
+**Stage dots** — on the zoomed-in plan, one dot per stage of a started, unfinished point under its tag, filled when done.
 
 **Daily report** «дох» (Hebrew דו"ח; code: `src/domain/doh.js`; UI: «Отчёты»)
 The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. _Avoid_: log, journal.

@@ -1,5 +1,5 @@
-// «What is left»: points where termination, installation or checking is not done yet (taking the point type's stages into account).
-// Built on pointInfo from status.js; pure.
+// «What is left»: the stages and works a point still lacks (taking the point type's stages into account), readiness by rack.
+// Built on pointInfo from status.js; pure. leftTasks feeds «Что осталось», the point card and the plan filter «Работа».
 import { pointInfo } from './status.js';
 import { comparePoints } from './points.js';
 
@@ -26,6 +26,26 @@ export function missingStages(point, ctx) {
   if (has('Установка') && info.install !== 'Установлено') out.push('Установка');
   if (has('Проверка') && (!info.checked || info.checkResult === 'Не работает')) out.push('Проверка');  // faulty — check again
   return out;
+}
+
+// The works still waiting on a point, as «Что осталось» lists them: [{ key, label, chip, qty? }]. Keys: `p:<cable>` — pull of a cable,
+// `w:<workId>` — a work of a composite point (qty summed over its devices), `s:<stage>` — a stage of a legacy point. info — the point's status (cached in the app).
+const CHIP = { 'Протяжка': 'pul', 'Дотянуть': 'pul', 'Хивут': 'hiv', 'Установка': 'ins', 'Проверка': 'chk' };
+export function leftTasks(point, ctx, info = pointInfo(point, ctx)) {
+  const out = new Map();
+  const add = (key, label, chip) => { if (!out.has(key)) out.set(key, { key, label, chip }); return out.get(key); };
+  if (info.composed) {
+    info.tasks.filter((t) => !t.done).forEach((t) => {
+      if (t.stage === 'Протяжка') add(`p:${t.cable}`, `Протяжка ${t.cable}`, 'pul');
+      else { const w = ctx.catalog.get(t.workId); const x = add(`w:${t.workId}`, w?.name || t.workId, CHIP[t.stage] || ''); x.qty = (x.qty || 0) + t.qty; }
+    });
+  } else {
+    const type = ctx.types.get(point.typeId); const has = (st) => !type?.stages || type.stages.includes(st);
+    if (has('Протяжка') && !info.pulled && !info.pullDone) add('s:Протяжка', 'Протяжка', 'pul');
+    missingStages(point, ctx).forEach((m) => add(`s:${m}`, m, CHIP[m] || ''));
+    if (has('Шилют') && !info.shilut && info.checked) add('s:Шилют', 'Шилют', '');
+  }
+  return [...out.values()];
 }
 
 // Groups by rack: [{ cabinet, items: [{ point, missing }] }] — only points that lack something

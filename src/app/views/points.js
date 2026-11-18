@@ -14,7 +14,7 @@
 // - meterView() — the «Точки» tab: the list with search, filters (problems too) and selection; showProblemPoints() opens it filtered to points with open problems
 import { h, formModal, openModal, confirmDialog, toast, qtyList, attachShortcuts } from '../ui.js';
 import { nav, state, getRepo, pointsSorted, infoOf, currentProject, subscribe } from '../store.js';
-import { generateLabels, generatedTotal, MAX_GENERATED, parseSuffixes, comparePoints, renameLabel, renameIssue, sameLabelClash, labelKey, inheritedFromCables, usesConfig, missingStages, hasDeviceId, normalizeMac, findDuplicate , findSameGroups, cablesMismatch } from '../../domain/index.js';
+import { generateLabels, generatedTotal, MAX_GENERATED, parseSuffixes, comparePoints, renameLabel, renameIssue, sameLabelClash, labelKey, inheritedFromCables, usesConfig, leftTasks, hasDeviceId, normalizeMac, findDuplicate , findSameGroups, cablesMismatch } from '../../domain/index.js';
 import { scanDevice } from '../scan.js';
 import { statusClass } from './project.js';
 import { hint } from './guide.js';
@@ -400,24 +400,10 @@ export function pointCard(startPoint, { fromPlan = false } = {}) {
   close = openModal(startPoint.label, body, { onClose: () => unsub() });
 }
 
+// the works still waiting on a point (src/domain/remaining.js), with the cached status
+const leftTasksOf = (point) => leftTasks(point, state.ctx, infoOf(point));
 // «Что осталось»: all works still waiting for the project's points (by each point's composition), with filters by work, rack, type and pull.
 // Tick points → «✅ Записать работу» (the report entry form with the chosen work and points).
-function leftTasksOf(point) {
-  const ctx = state.ctx; const info = infoOf(point); const out = new Map();
-  const add = (key, label, chip) => { if (!out.has(key)) out.set(key, { key, label, chip }); };
-  if (info.composed) {
-    info.tasks.filter((t) => !t.done).forEach((t) => {
-      if (t.stage === 'Протяжка') add(`p:${t.cable}`, `Протяжка ${t.cable}`, 'pul');
-      else { const w = ctx.catalog.get(t.workId); add(`w:${t.workId}`, w?.name || t.workId, { 'Хивут': 'hiv', 'Установка': 'ins', 'Проверка': 'chk' }[t.stage] || ''); out.get(`w:${t.workId}`).qty = (out.get(`w:${t.workId}`).qty || 0) + t.qty; }
-    });
-  } else {
-    const type = ctx.types.get(point.typeId); const has = (st) => !type?.stages || type.stages.includes(st);
-    if (has('Протяжка') && !info.pulled && !info.pullDone) add('s:Протяжка', 'Протяжка', 'pul');
-    missingStages(point, ctx).forEach((m) => add(`s:${m}`, m, { 'Дотянуть': 'pul', 'Хивут': 'hiv', 'Установка': 'ins', 'Проверка': 'chk' }[m] || ''));
-    if (has('Шилют') && !info.shilut && info.checked) add('s:Шилют', 'Шилют', '');
-  }
-  return [...out.values()];
-}
 export function remainingModal() {
   const ctx = state.ctx;
   let fWork = ''; let fCab = ''; let fType = ''; let fPull = ''; let fCfg = ''; const chosen = new Set();

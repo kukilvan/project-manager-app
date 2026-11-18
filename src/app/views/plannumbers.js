@@ -1,4 +1,4 @@
-// Builds the «📄 PDF с номерами» file of a drawing: the plan as the app shows it, with status-colored frames, non-overlapping captions, hidden marks in white and a legend.
+// Builds the «📄 PDF с номерами» file of a drawing: the plan as the app shows it, with frames in the plan's progress colors, non-overlapping captions, hidden marks in white and a legend.
 // Builds it with the tohnit worker (tohnitview.js); downloads it to the device, or uploads it to Google Drive («☁️ На Диск»), where the server refreshes it every night when something changed.
 import { makeWorker } from './tohnitview.js';
 import { toast } from '../ui.js';

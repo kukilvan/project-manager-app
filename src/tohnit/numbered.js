@@ -1,14 +1,10 @@
 // Builds «PDF с номерами»: the drawing PDF marked like the plan in the app, with a legend page at the end (in Russian or in Hebrew through legendhe.js).
-// Captions on the drawing get a frame in the status color and icons get a circle; a tag of its own (framed, white background) is placed where it does not cover icons, frames or other captions.
+// Captions on the drawing get a frame in the point's progress color (planColor of plan.js; thicker for a finished point) and icons get a circle; a tag of its own (framed, white background) is placed where it does not cover icons, frames or other captions.
 // Several points on one mark share one tag («TV13-14» or stacked). Hidden items are painted over in white. The PDF marks are split into layers «Номера: <тип>»,
 // so a viewer can keep only the needed ones. Works on MuPDF objects passed in by the caller (worker.js and scripts/server-tables-lib.mjs); uses src/domain/points.js and plan.js.
 import { combineLabels } from '../domain/points.js';
-import { STATUS_COLORS } from '../domain/plan.js';
+import { PLAN_LEGEND, FULL_WIDTH } from '../domain/plan.js';
 import { legendPdfHe } from './legendhe.js';
-
-// The Hebrew legend (for the management folder): status names
-export const STATUS_HE = { 'новая': 'חדשה (טרם נמשך)', 'померяно': 'נמדד (טרם נמשך)', 'протянуто частично': 'נמשך חלקית', 'протянуто': 'נמשך', 'захивучено': 'חווט',
-  'установлено не всё': 'הותקן חלקית', 'установлено': 'הותקן', 'проверено': 'נבדק', 'проблема': 'תקלה' };
 
 export const TYPE_COLORS = ['#e0007a', '#0a84ff', '#ff9f0a', '#30a14e', '#bf5af2', '#ff453a', '#0fb5ae', '#8e6c00', '#5856d6', '#c2185b'];
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(String(hex || '#9e9e9e').slice(i, i + 2), 16) / 255);
@@ -33,7 +29,7 @@ export function layoutTags(tags, { circles = [], frames = [], fs = 6 } = {}) {
   return out;
 }
 
-/** mupdf is the module; data is the PDF; points are [{ label, typeId, pos, color? }]; hidden is [{pos}] → Uint8Array */
+/** mupdf is the module; data is the PDF; points are [{ label, typeId, pos, color?, full? }] (full — a finished point, thicker frame); hidden is [{pos}] → Uint8Array */
 export function numberedPdf(mupdf, data, points, { title = '', icons = {}, hidden = [], fs = 7, lang = 'ru', typeNames = {}, updated = '' } = {}) {
   const doc = mupdf.Document.openDocument(data, 'application/pdf').asPDF();
   const types = [...new Set(points.map((p) => p.typeId))].sort((a, b) => a.localeCompare(b, 'ru'));
@@ -67,20 +63,20 @@ export function numberedPdf(mupdf, data, points, { title = '', icons = {}, hidde
   for (const p of points) { if (!p.pos || (p.pos.page || 0) >= n) continue; const k = keyOf(p); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); }
   const perPage = new Map();
   for (const g of groups.values()) {
-    const p = g[0]; const pi = p.pos.page || 0; const page = pageOf(pi); const c = colorOf(p); const q = p.pos; const lyr = `Номера: ${p.typeId}`;
+    const p = g[0]; const pi = p.pos.page || 0; const page = pageOf(pi); const c = colorOf(p); const q = p.pos; const lyr = `Номера: ${p.typeId}`; const wm = p.full ? FULL_WIDTH : 1;
     if (!perPage.has(pi)) perPage.set(pi, { tags: [], circles: [], frames: [] });
     const pp = perPage.get(pi); const lines = combineLabels(g.map((x) => x.label));
     const img = q.icon ? stampOf(p.typeId) : null;
     if (img) { const iw = icons[p.typeId].w || 12; const ih = icons[p.typeId].h || 12; const st = page.createAnnotation('Stamp'); st.setRect([q.x - iw / 2, q.y - ih / 2, q.x + iw / 2, q.y + ih / 2]); st.setStampImage(img); st.setContents(`${lines.join(', ')} — ${p.typeId} (добавлено на объекте)`); st.update(); inLayer(st, 'Добавлено на объекте'); }
     if (isText(q)) {
       const r = [q.x - q.w / 2 - 1.2, q.y - q.h / 2 - 1.2, q.x + q.w / 2 + 1.2, q.y + q.h / 2 + 1.2];
-      const a = page.createAnnotation('Square'); a.setRect(r); a.setColor(c); a.setBorderWidth(1); a.setContents(`${lines.join(', ')} — ${p.typeId}`); a.update(); inLayer(a, lyr);
+      const a = page.createAnnotation('Square'); a.setRect(r); a.setColor(c); a.setBorderWidth(wm); a.setContents(`${lines.join(', ')} — ${p.typeId}`); a.update(); inLayer(a, lyr);
       pp.frames.push(r);
-      if (g.length > 1 || (q.text && q.text !== p.label)) pp.tags.push({ x: q.x, y: q.y, r: Math.max(q.w, q.h) / 2 + 1.5, lines, c, lyr });
+      if (g.length > 1 || (q.text && q.text !== p.label)) pp.tags.push({ x: q.x, y: q.y, r: Math.max(q.w, q.h) / 2 + 1.5, lines, c, lyr, wm });
     } else {
       const rr = Math.max(q.w || 8, q.h || 8) / 2 + 1.2;
-      const a = page.createAnnotation('Circle'); a.setRect([q.x - rr, q.y - rr, q.x + rr, q.y + rr]); a.setColor(c); a.setBorderWidth(1); a.setContents(`${lines.join(', ')} — ${p.typeId}`); a.update(); inLayer(a, lyr);
-      pp.circles.push([q.x, q.y, rr]); pp.tags.push({ x: q.x, y: q.y, r: rr, lines, c, lyr });
+      const a = page.createAnnotation('Circle'); a.setRect([q.x - rr, q.y - rr, q.x + rr, q.y + rr]); a.setColor(c); a.setBorderWidth(wm); a.setContents(`${lines.join(', ')} — ${p.typeId}`); a.update(); inLayer(a, lyr);
+      pp.circles.push([q.x, q.y, rr]); pp.tags.push({ x: q.x, y: q.y, r: rr, lines, c, lyr, wm });
     }
   }
   // tags go on top of everything
@@ -89,7 +85,7 @@ export function numberedPdf(mupdf, data, points, { title = '', icons = {}, hidde
     for (const { tag: t, box: b } of layoutTags(pp.tags, { circles: pp.circles, frames: pp.frames, fs })) {
       const cx = Math.max(b[0], Math.min(t.x, b[2])); const cy = Math.max(b[1], Math.min(t.y, b[3]));
       if (Math.hypot(cx - t.x, cy - t.y) > t.r + 2.5) { const ln = page.createAnnotation('Line'); ln.setLine([t.x, t.y], [cx, cy]); ln.setColor(t.c); ln.setBorderWidth(0.5); ln.update(); inLayer(ln, t.lyr); }
-      const sq = page.createAnnotation('Square'); sq.setRect(b); sq.setColor(t.c); sq.setInteriorColor([1, 1, 1]); sq.setBorderWidth(0.8); sq.update(); inLayer(sq, t.lyr);
+      const sq = page.createAnnotation('Square'); sq.setRect(b); sq.setColor(t.c); sq.setInteriorColor([1, 1, 1]); sq.setBorderWidth(0.8 * t.wm); sq.update(); inLayer(sq, t.lyr);
       const ft = page.createAnnotation('FreeText'); ft.setRect([b[0] + 0.5, b[1] + 0.5, b[2] - 0.2, b[3] - 0.2]); ft.setContents(t.lines.join('\n'));
       ft.setDefaultAppearance('Helv', fs, [0, 0, 0]); ft.setBorderWidth(0); ft.update(); inLayer(ft, t.lyr);
     }
@@ -98,8 +94,8 @@ export function numberedPdf(mupdf, data, points, { title = '', icons = {}, hidde
   if (lang === 'he') {
     const L = [{ text: `מקרא: ${title}`, size: 16 }];
     if (updated) L.push({ text: `עודכן: ${updated}`, size: 10, color: [0.3, 0.3, 0.3] });
-    L.push({ text: 'צבע המסגרת = סטטוס הנקודה', size: 10, color: [0.3, 0.3, 0.3] });
-    STATUS_COLORS.forEach(([c, t]) => L.push({ text: STATUS_HE[t] || t, size: 10, swatch: rgb(c) }));
+    L.push({ text: 'צבע המסגרת = חלק השלבים שבוצעו', size: 10, color: [0.3, 0.3, 0.3] });
+    PLAN_LEGEND.forEach((x) => L.push({ text: x.he, size: 10, swatch: rgb(x.color) }));
     for (const t of types) {
       const ls = points.filter((p) => p.typeId === t).map((p) => p.label);
       L.push({ text: `${typeNames[t] || t} ${ls.length}`, size: 12, color: typeColor(t) });
@@ -111,11 +107,12 @@ export function numberedPdf(mupdf, data, points, { title = '', icons = {}, hidde
     for (let i = 0; i < leg.countPages(); i++) doc.graftPage(-1, leg, i);
     return doc.saveToBuffer('compress').asUint8Array();
   }
-  // the legend: status colors and points by type
+  // the legend: progress colors and points by type
   const W = 842; const H = 595; const lines = [];
   lines.push([`Легенда номеров${title ? ` - ${title}` : ''}`, 14, [0, 0, 0]]);
-  lines.push([`Цвет рамки - статус точки: ${STATUS_COLORS.map(([, t]) => t).join(', ')}`, 9, [0.3, 0.3, 0.3]]);
-  STATUS_COLORS.forEach(([c, t]) => lines.push([`■ ${t}`, 9, rgb(c)]));
+  // the annotation font prints «≈» only in a line with Cyrillic, and never «—», «…» or «■»: plain dashes and dots, each line in its color
+  lines.push(['Цвет рамки - доля сделанных этапов точки: новая, померяно, ≈ 20% ... ≈ 80%, готово, проблема / неисправна', 9, [0.3, 0.3, 0.3]]);
+  PLAN_LEGEND.forEach((x) => lines.push([`${x.ru}${x.ru.startsWith('≈') ? ' этапов' : ''}${x.thick ? ' (толстая рамка)' : ''}`, 9, rgb(x.color)]));
   for (const t of types) {
     const ls = points.filter((p) => p.typeId === t).map((p) => p.label);
     lines.push([`${t}: ${ls.length}`, 11, typeColor(t)]);
