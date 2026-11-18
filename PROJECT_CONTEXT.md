@@ -1,10 +1,10 @@
 # Project context
 
-Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live in `docs/history.md`. Updated: 2026-11-17.
+Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live in `docs/history.md`. Updated: 2026-11-18.
 
 ## Next step
 
-«Тикет 6.2» — ticket 02 «Shared delay reasons and culprits» of stage 6 (`.scratch/06-field-improvements/issues/02-shared-lists.md`, complex; goes live only after the owner publishes `firestore.rules`). Model: Opus 5.5, effort high (`docs/models.md`). Order: 02 → 03 → 04 and 05 → 06 → 07 (01 done; 02, 03 and 05 are complex: Opus 5.5, effort high). The owner finishes the whole stage 6 first, while the NAS is being checked.
+«Тикет 6.3» — ticket 03 «Problems» of stage 6 (`.scratch/06-field-improvements/issues/03-problems.md`, complex). Model: Opus 5.5, effort high (`docs/models.md`). Order: 03 → 04 and 05 → 06 → 07 (01 and 02 done; 03 and 05 are complex: Opus 5.5, effort high). The owner finishes the whole stage 6 first, while the NAS is being checked.
 
 After «Ревью 6»: «Описание 4» — stage 4, PocketBase storage (`docs/project-spec.md`, stage 4). It starts only when the NAS acceptance checks A1–A7 and A10–A13 pass (`docs/nas-requirements.md`) and the owner says the NAS is reliable; until then only «Правка: …», «Вопрос: …» and «Идея: …» sessions. Model: Opus 5.5, effort high.
 
@@ -23,7 +23,8 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 - Stage 3 done 2026-11-16: «Ревью 3» accepted (6 findings, all fixed; no fix round). Management sheets: legend, update stamp «Обновлено» in E2 written on every refresh (date-only write when the data is unchanged), no pink, thin borders, sections by point type in the profile's `typeOrder`, the last tab «Итоги по шкафам» (percents rounded down, progress colours), profile ticks for sections and the rack sheet, KI-4; `STYLE_V` 7. Checked by the owner on the phone and the PC ticket by ticket; the Sheets requests were accepted by Google on the owner's file. Not checked against a real response: a profile with no points (review F1, guarded). Details: `docs/history.md`.
 - Stage 6: description accepted 2026-11-17 (`.scratch/06-field-improvements/description.md`, 4 mockups): ideas 001–005 in that order; owner added: day off blocked on a date with a working day in another project, culprits shared too (ADR 0016 replaces 0015 in the spec), point types per problem, open-problems counter on «Проект»; colour by stages, not single works. Spec accepted 2026-11-17 (`spec.md`): answers to the 14 open questions; shared lists read straight from the pool, old project lists merged once per project (ADR 0016 replaces 0015); problem marks in the project subcollection `problemMarks` (ADR 0017); palette «Жёлтые чуть темнее»; ticket 02 needs the owner to publish the new `firestore.rules` before its code reaches `main`.
 
-- Ticket 6.1 (day off) live and accepted 2026-11-17: `src/domain/dayoff.js`, day form checks, «Отчёты» and «Месяц» lines, recording block on a day-off date; KI-5. Tests: 219.
+- Ticket 6.1 (day off) live and accepted 2026-11-17: `src/domain/dayoff.js`, day form checks, «Отчёты» and «Месяц» lines, recording block on a day-off date; KI-5.
+- Ticket 6.2 (shared delay reasons and culprits) live and accepted 2026-11-18: the owner published the new `firestore.rules` (three `pool_*` blocks) first; `src/domain/shared.js`, `src/app/shared.js` (merge, seeding of reasons and culprits; `SHARED_DEFAULTS` waits for the example problems of ticket 03), pool writes from «Выпадающие списки», backup / import / nightly job with `shared`; KI-6. Tests: 230.
 
 ## Stages
 
@@ -34,7 +35,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 | 3 | Management sheets | done | 8 | — |
 | 4 | PocketBase storage (when the owner trusts the NAS) | not started | 16 | — |
 | 5 | Move to the NAS | not started | 10 | — |
-| 6 | Field improvements (now, before stage 4) | tickets 1/7 | 14 | 001, 002, 003, 004, 005 |
+| 6 | Field improvements (now, before stage 4) | tickets 2/7 | 14 | 001, 002, 003, 004, 005 |
 
 Status values: not started · description · spec · tickets k/n · review · fix round k · done. Ideas: numbers of `docs/ideas/` files filed for the stage.
 

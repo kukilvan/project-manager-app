@@ -2,6 +2,14 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-18 — Ticket 6.2: shared delay reasons and culprits («Тикет 6.2»)
+
+- `firestore.rules` and `firestore.open.rules`: `pool_delayReasons`, `pool_culprits`, `pool_problems` with the door-configuration rule; the owner published them in the console of `polevoy-zhurnal` before the code reached `main`.
+- Repo: `listenPool(kind, cb, { withDeleted })`, `readColl` / `readPool` (`getDocsFromServer`, counted), memory backend pool delete is soft, `savePool(ops, { strict })`; `createProject` copies no reasons or culprits and sets `sharedLists: 1`.
+- `src/domain/shared.js` (`sharedView`, `choiceList` with `keep` for a record's own value, `mergePlan`, `applyMerge`, `sharedImportOps`); `buildContext` takes `shared`. `src/app/shared.js`: listeners → `store.setShared`, merge on any unmerged live project (not only at start, so an invited project merges in the same session), seeding after the merge, toast once per start. Screens per spec § 2.5; pickers in the point form, mass edit and the day-entry form. Commit `863dbf5`.
+- Decisions: deleting a shared item writes `{ he, deleted: true }` as data (works for an item that was only in an old list); the server backup reads the common collections first so «(импорт)» copies carry the shared lists; `__pzTest.setAdminEmail` for checks in `?mem=1`. KI-6 (two devices merging a conflicting Hebrew at once).
+- Checked in `?mem=1` at 420 px (merge, conflicts, screens, delete, re-add, rejected write); the backup only by tests. Owner checked on the phone: works.
+
 ## 2026-11-17 — Ticket 6.1: day off («Тикет 6.1»)
 
 - `src/domain/dayoff.js` (reasons, `dayOffText`, `dayOffLine`, `dayConflict`), day form with six ordered checks (`src/app/views/doh.js`), `todayBlocked()` for the recording paths (`markShilutForPoints` returns `blocked`), «Отчёты» and «Месяц» lines, Excel row, `messageDialog` in `ui.js`; strings in `src/i18n/src/16-dayoff.json`; KI-5. Commit `7c3f48a`.
