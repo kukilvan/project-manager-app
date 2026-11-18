@@ -2,6 +2,13 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-18 — Ticket 6.5: plan colours by progress («Тикет 6.5»)
+
+- `src/domain/plan.js`: `pointStages` (composite — stages with tasks; legacy — the type's `stages`, all five without them), `planColor` (red for an open problem or «Неисправна»; gray / blue when nothing is started; dark green `#1b5e20` with frame ×1.75 when every stage is done; otherwise step clamp(round(k / n × 5), 1, 4) of `#f2c80f`, `#c0ca33`, `#8bc34a`, `#43a047`), `markColor` (a shared mark follows its least finished point, red when any is red), `PLAN_LEGEND`, `LEFT_FILTERS`, `planFilterMatch`, `planFilterGroups`; `numberedInput` gives each point its mark's color and `full`; `numberedHash` got a look version, so every «PDF с номерами» is re-rendered once (by the nightly job when the project changes or at the 3-day full run). `statusColor` stays for the pull screen. `leftTasks` moved from `views/points.js` to `src/domain/remaining.js` (tested against the old function). Commits `a4199f6` … `e07f127`.
+- Plan view: one frame, color and tag per mark; legend line; stage filter with groups «Осталось» (new «Осталось: шилют»), «Работа» (works waiting on the drawing's points, with counts) and «Проблемы» (only with open problems), rebuilt as data changes. `numbered.js`: progress colors, thicker frames for finished points, legends of § 4.3; the Russian legend avoids «—», «…», «■» (the annotation font prints dots instead) and keeps «≈» in lines with Cyrillic.
+- Owner's changes at the check: stage dots first lost the pull dot, then the dots for pulled-only points, then were removed entirely («больше мешают, чем помогают»); plan lines are twice as thick on a computer with a mouse (`mousePc()` of `ui.js`), thin on the phone. `CONTEXT.md` lost «Stage dots».
+- Checked in `?mem=1` (desktop and phone widths) and by rendering both PDF legends; owner checked on the phone and the PC: works.
+
 ## 2026-11-18 — Ticket 6.4: problems in the management sheet («Тикет 6.4»)
 
 - `src/domain/report.js`: column `problem` after `delay` (`openProblemsOf`, `problemLabel` in the sheet's language, oldest first, solved hidden), `PROBLEM_COLOR` `#E57373` row colour over any status colour, legend cell G «Есть проблема» / «יש בעיה», both default profiles get the column, `STYLE_V` 8; `src/app/managers.js`: `wrapStrategy: 'WRAP'` on the problem cells of point rows, summary rows sized by their length; nightly job `NEED` has `problemMarks` (`changedSince` covers it through `NEED`; the pool lists were already read once per run).
