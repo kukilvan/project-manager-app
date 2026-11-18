@@ -72,7 +72,7 @@ const T = {
   sum: {
     total: { ru: 'Всего точек', he: 'סה״כ נקודות' }, pulled: { ru: 'Протянуто', he: 'הושחל' }, hived: { ru: 'Захивучено', he: 'חווט' },
     installed: { ru: 'Установлено', he: 'הותקן' }, partial: { ru: 'Установлено частично', he: 'הותקן חלקית' }, checked: { ru: 'Проверено', he: 'נבדק' },
-    faulty: { ru: 'Неисправно', he: 'תקלות' },
+    faulty: { ru: 'Неисправно', he: 'תקלות' }, problems: { ru: 'С проблемами', he: 'עם בעיות' },
   },
 };
 
@@ -258,9 +258,9 @@ function sheetOf(title, items, project, ctx, table, cols, nameOf, now) {
   const rows = [[T.title[lang]], [displayName(project, lang)]];
   if (table.summary) {
     const n = (f) => items.filter(f).length;
-    const keys = ['total', 'pulled', 'hived', 'installed', 'partial', 'checked', 'faulty'];
+    const keys = ['total', 'pulled', 'hived', 'installed', 'partial', 'checked', 'faulty', 'problems'];
     const vals = [items.length, n((x) => x.info.pulled), n((x) => x.info.hived), n((x) => x.info.install === 'Установлено'),
-      n((x) => x.info.install.startsWith('Установлено ')), n((x) => x.info.checked), n((x) => x.info.status === 'Неисправна')];
+      n((x) => x.info.install.startsWith('Установлено ')), n((x) => x.info.checked), n((x) => x.info.status === 'Неисправна'), n((x) => openProblemsOf(x.point, ctx).length > 0)];
     rows.push(keys.map((k) => T.sum[k][lang]), vals);
   }
   const legendRow = rows.length;

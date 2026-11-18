@@ -140,3 +140,14 @@ test('nightly job: problemMarks and the shared problems give the same sheet as t
   assert.equal(r2.patches[table.id].serverError, '');
   assert.match(written.join(''), /pr_magnet/);
 });
+
+test('summary row: the counter «С проблемами» / «עם בעיות» counts points with an open problem and is formatted', () => {
+  const ru = build({ ...defaultTables()[1], columns: cols, sections: false }).rep.sheets[0];
+  const he = build({ ...defaultTables()[0], columns: cols, sections: false }).rep.sheets[0];
+  assert.equal(ru.rows[2].at(-1), 'С проблемами'); assert.equal(he.rows[2].at(-1), 'עם בעיות');
+  assert.equal(ru.rows[3].at(-1), 2); // points A-01 and B-01; the solved mark of A-01 and a second problem on it do not count twice
+  assert.equal(build({ ...defaultTables()[1], columns: cols, sections: false }, []).rep.sheets[0].rows[3].at(-1), 0);
+  const reqs = sheetRequests(7, ru);
+  const sum = reqs.filter((q) => q.repeatCell && (q.repeatCell.range.startRowIndex === 2 || q.repeatCell.range.startRowIndex === 3) && q.repeatCell.cell.userEnteredFormat.backgroundColor && q.repeatCell.range.startColumnIndex === 0);
+  assert.equal(sum.length, 2); assert.ok(sum.every((q) => q.repeatCell.range.endColumnIndex === 8)); // the whole summary row, 8 cells
+});
