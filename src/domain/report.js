@@ -2,12 +2,14 @@
 // Profile: { id, name, main, lang: 'he'|'ru', cabinets: [], types: [], statuses: [], columns: [id…], layout: 'one'|'perCabinet', summary, sections, rackSheet, typeOrder: [type id…] }
 // An empty list of racks/types/statuses = «all». `sections` (absent = on) puts a heading row «<type> — <count>» before the points of each type, in `typeOrderOf` order.
 // `rackSheet` (absent = on) adds the last sheet with the progress of every rack: per stage the done count and the percent (rounded down) of the points whose type has the stage.
-// Built on points.js, status.js, doorcfg.js, managers.js and rack.js; export.js reuses it for the Excel export.
+// The «Проблема» column lists the open problems of a point (one per line, oldest first) and colors its row `PROBLEM_COLOR`; the legend has a cell for it.
+// Built on points.js, status.js, doorcfg.js, managers.js, rack.js and problems.js; export.js reuses it for the Excel export.
 import { comparePoints, cableListOf, cablesCountOf, metrageOf } from './points.js';
 import { pointInfo, usesConfig } from './status.js';
 import { doorCfgOf, doorLockOf, doorShortOf } from './doorcfg.js';
 import { sheetSerial, hashOf, stampText, TITLE_PREFIX } from './managers.js';
 import { panelText } from './rack.js';
+import { openProblemsOf, problemLabel } from './problems.js';
 
 export const NO_CABINET = '__none';
 
@@ -28,6 +30,7 @@ export const COLUMNS = [
   { id: 'config', ru: 'Конфигурация двери', he: 'תצורת דלת', w: 220 },
   { id: 'lockType', ru: 'Тип замка', he: 'סוג מנעול', w: 110 },
   { id: 'delay', ru: 'Причина задержки', he: 'סיבת עיכוב', w: 150 },
+  { id: 'problem', ru: 'Проблема', he: 'בעיה', w: 260 },
   { id: 'note', ru: 'Примечание', he: 'הערה', w: 220 },
   { id: 'status', ru: 'Статус', he: 'סטטוס', w: 135, kind: 'status' },
   { id: 'pulled', ru: 'Протянуто', he: 'הושחל', w: 105, kind: 'stage', stage: 'Протяжка' },
@@ -46,7 +49,7 @@ const STATUS_HE = { 'Новая': 'טרם נמשך', 'Посчитана': 'טר
 export const statusKeyOf = (info) => (info.status.startsWith('Установлено ') ? 'Частично установлена'
   : info.status.startsWith('Протянуто ') ? 'Частично протянута' : info.status);
 
-// Colour legend (one cell per colour, always columns A–F): the point row colors and the stage-cell colors it explains
+// Colour legend (one cell per colour, always columns A–G): the point row colors and the stage-cell colors it explains
 const LEGEND = [
   { color: '#C6E5C9', ru: 'Выполнено', he: 'בוצע' },
   { color: '#FFF2B3', ru: 'В работе', he: 'בתהליך' },
@@ -54,6 +57,7 @@ const LEGEND = [
   { color: '#F4B6B6', ru: 'Неисправность', he: 'תקלה' },
   { color: '#EFEFEF', textColor: '#8C8C8C', ru: '— не относится к типу', he: '— לא רלוונטי לסוג' },
   { color: '#FFFFFF', ru: 'Пусто — ещё не сделано', he: 'ריק — טרם בוצע' },
+  { color: '#E57373', ru: 'Есть проблема', he: 'יש בעיה' },
 ];
 
 const T = {
@@ -75,9 +79,9 @@ const T = {
 // ---------- profiles ----------
 export const defaultTables = () => [
   { id: 't_main', name: 'Для руководства', main: true, lang: 'he', cabinets: [], types: [], statuses: [], layout: 'one', summary: true, sections: true, rackSheet: true,
-    columns: ['label', 'planName', 'type', 'cabinet', 'floor', 'cable', 'pulled', 'hived', 'installed', 'checked'] },
+    columns: ['label', 'planName', 'type', 'cabinet', 'floor', 'cable', 'pulled', 'hived', 'installed', 'checked', 'problem'] },
   { id: 't_ext', name: 'Расширенная', main: false, lang: 'ru', cabinets: [], types: [], statuses: [], layout: 'one', summary: true, sections: true, rackSheet: true,
-    columns: ['label', 'planName', 'cabinet', 'floor', 'type', 'cable', 'cables', 'length', 'port', 'config', 'delay', 'status',
+    columns: ['label', 'planName', 'cabinet', 'floor', 'type', 'cable', 'cables', 'length', 'port', 'config', 'delay', 'problem', 'status',
       'pulled', 'hived', 'installed', 'checked', 'checkResult', 'shilut', 'lastBy', 'note'] },
 ];
 // The old «метраж» column is merged into the «длина» column: in saved profiles it is replaced and duplicates are removed
@@ -112,8 +116,10 @@ const stagesOf = (type) => (type ? [...(type.stages || [])] : null);
 
 
 // layout version: when it changes the tables are rebuilt even if the data is the same
-const STYLE_V = 7;
+const STYLE_V = 8;
 const COLORS = { green: '#C6E5C9', grey: '#EFEFEF', orange: '#FFE0B2', red: '#F4B6B6', yellow: '#FFF2B3' };
+// Row color of a point with an open problem: darker than the fault red, over any status color
+export const PROBLEM_COLOR = '#E57373';
 
 // The lock type column: EM (electromagnet) or MH (electric lock) of the door configuration; old configurations and old
 // door types by the EM / MH word in their name; a locking device of another kind — its short name; not a door — empty
@@ -154,6 +160,7 @@ function cellOf(col, point, info, ctx, project, lang, nameOf) {
     case 'config': { const cfg = usesConfig(ctx.types.get(point.typeId)) ? doorCfgOf(point, ctx) : null; return cfg ? s(cfg.name) : ''; }
     case 'lockType': return lockTypeOf(point, ctx, lang);
     case 'delay': { const r = ctx.delayReasons.get(point.delayReasonId); return r ? (lang === 'he' ? (r.he || r.id) : r.id) : s(point.delayReasonId); }
+    case 'problem': return openProblemsOf(point, ctx).sort((a, b) => (a.markedAt || 0) - (b.markedAt || 0)).map((m) => problemLabel(m, ctx, lang)).join('\n'); // oldest first, one per line
     case 'note': return s(point.note);
     case 'status': {
       if (lang === 'ru') return info.status;
@@ -207,7 +214,7 @@ function rulesFor(cols, lang) {
   return rules;
 }
 
-// Color of the row's «informational» columns by the point's overall status (the status column is colored by its own rules)
+// Color of the row's «informational» columns by the point's overall status (the status column is colored by its own rules); an open problem overrides it (PROBLEM_COLOR)
 const ROW_COLOR = { 'Неисправна': COLORS.red, 'Проверена': COLORS.green, 'Установлена': COLORS.green, 'Частично установлена': COLORS.orange,
   'Захивучена': COLORS.yellow, 'Протянута': COLORS.yellow, 'Частично протянута': COLORS.orange };
 function pointsFor(project, ctx, table, nameOf) {
@@ -262,7 +269,7 @@ function sheetOf(title, items, project, ctx, table, cols, nameOf, now) {
   rows.push(cols.map((c) => c[lang]));
   const first = rows.length;
   const sectionRows = []; const pointRuns = []; const rowColors = [];
-  const pushPoint = ({ point, info }) => { rows.push(cols.map((c) => cellOf(c, point, info, ctx, project, lang, nameOf))); rowColors.push(ROW_COLOR[statusKeyOf(info)] || ''); };
+  const pushPoint = ({ point, info }) => { rows.push(cols.map((c) => cellOf(c, point, info, ctx, project, lang, nameOf))); rowColors.push(openProblemsOf(point, ctx).length ? PROBLEM_COLOR : (ROW_COLOR[statusKeyOf(info)] || '')); };
   if (table.sections !== false) {
     // a section row (the name and the count in column A), its points, two empty rows before the next section; section and empty rows get no color
     groupsByType(items, table, ctx, lang).forEach((g, i) => {

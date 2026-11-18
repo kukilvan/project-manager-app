@@ -38,8 +38,8 @@ const api = {
 };
 let mupdf = null;
 
-// building the tables does not need the change history (history), to-dos or notes: they are not read, to save the read quota
-const NEED = ['points', 'days', 'entries', 'journal', 'catalog', 'types', 'cables', 'devices', 'configs', 'units', 'culprits', 'delayReasons', 'cabinetSettings'];
+// the tables need `problemMarks` (red rows, the «Проблема» column) but not the change history (history), to-dos or notes: those are not read, to save the read quota
+const NEED = ['points', 'days', 'entries', 'journal', 'catalog', 'types', 'cables', 'devices', 'configs', 'units', 'culprits', 'delayReasons', 'cabinetSettings', 'problemMarks'];
 // shared lists of the pool read once per run (ADR 0016); a missing collection is empty, so the sheets show names from the old project lists
 const SHARED = ['delayReasons', 'problems'];
 const now = new Date();

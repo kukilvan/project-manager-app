@@ -325,7 +325,7 @@ test('таблица: строки сверху — итоги, легенда �
   const now = new Date('2026-11-16T00:00:00Z');
   const ru = buildReport(project, ctx, { ...defaultTables()[1], columns: ['label', 'status'], sections: false }, { now }).sheets[0];
   assert.equal(ru.headerRow, 6); assert.equal(ru.frozenRows, 7); assert.equal(ru.legendRow, 4);
-  assert.deepEqual(ru.rows[4], ['Выполнено', 'В работе', 'Частично', 'Неисправность', '— не относится к типу', 'Пусто — ещё не сделано']);
+  assert.deepEqual(ru.rows[4], ['Выполнено', 'В работе', 'Частично', 'Неисправность', '— не относится к типу', 'Пусто — ещё не сделано', 'Есть проблема']);
   assert.deepEqual(ru.rows[5], []);
   assert.deepEqual(ru.rows[6], ['Обозначение', 'Статус']);
   assert.deepEqual(ru.stamp, { row: 1, col: 4, text: 'Обновлено: 16/11/2026 02:00' });
@@ -335,7 +335,7 @@ test('таблица: строки сверху — итоги, легенда �
   // without totals the legend is row 3 (index 2) and the header index 4
   const he = buildReport(project, ctx, { ...defaultTables()[0], summary: false, columns: ['label'] }, { now }).sheets[0];
   assert.equal(he.headerRow, 4); assert.equal(he.frozenRows, 5); assert.equal(he.legendRow, 2);
-  assert.deepEqual(he.rows[2], ['בוצע', 'בתהליך', 'בוצע חלקית', 'תקלה', '— לא רלוונטי לסוג', 'ריק — טרם בוצע']);
+  assert.deepEqual(he.rows[2], ['בוצע', 'בתהליך', 'בוצע חלקית', 'תקלה', '— לא רלוונטי לסוג', 'ריק — טרם בוצע', 'יש בעיה']);
   assert.deepEqual(he.rows[4], ['נקודה']); assert.equal(he.stamp.text, 'עודכן: 16/11/2026 02:00');
   // no points: the legend and the header stay, no point rows to frame
   const none = buildReport(project, ctx, { ...defaultTables()[1], columns: ['label'], statuses: ['Неисправна'] }, { now }).sheets[0];
@@ -365,13 +365,13 @@ test('таблица: запросы форматирования — леген
   assert.ok(!text.includes('COUNTA') && !text.includes('0.9882352')); // no «empty cell → pink» rule, no pink anywhere
   const borders = reqs.map((q, i) => ({ b: q.updateBorders, i })).filter((x) => x.b);
   const legend = borders.find((x) => x.b.range.startRowIndex === sh.legendRow);
-  assert.equal(legend.b.range.endColumnIndex, 6); assert.equal(legend.b.top.style, 'SOLID');
+  assert.equal(legend.b.range.endColumnIndex, 7); assert.equal(legend.b.top.style, 'SOLID');
   const run = borders.find((x) => x.b.range.startRowIndex === 7);
   assert.equal(run.b.range.endRowIndex, sh.rows.length); assert.equal(run.b.top.style, 'SOLID'); assert.equal(run.b.innerHorizontal.style, 'SOLID');
   const head = borders.find((x) => x.b.range.startRowIndex === sh.headerRow);
   assert.equal(head.b.top.style, 'SOLID_THICK'); assert.equal(head.b.innerVertical.style, 'SOLID');
   assert.ok(run.i < head.i); // the header frame is sent after the point-row borders
-  assert.equal(reqs.filter((q) => q.repeatCell && q.repeatCell.range.startRowIndex === sh.legendRow).length, 6);
+  assert.equal(reqs.filter((q) => q.repeatCell && q.repeatCell.range.startRowIndex === sh.legendRow).length, 7);
   const wrap = reqs.find((q) => q.repeatCell && q.repeatCell.range.startRowIndex === sh.legendRow);
   assert.equal(wrap.repeatCell.cell.userEnteredFormat.wrapStrategy, 'WRAP');
   assert.ok(reqs.some((q) => q.repeatCell && q.repeatCell.range.startRowIndex === 1 && q.repeatCell.range.startColumnIndex === 4)); // the stamp cell look

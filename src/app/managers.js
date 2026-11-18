@@ -63,7 +63,7 @@ function rackSheetRequests(sheetId, sh) {
   return out;
 }
 
-// Formatting requests for one sheet (the rack sheet has its own): widths, legend, stamp, header, section rows, borders, dates, highlighting, filter
+// Formatting requests for one sheet (the rack sheet has its own): widths, legend (A–G), stamp, header, section rows, borders, dates, highlighting, filter
 export function sheetRequests(sheetId, sh) {
   if (sh.kind === 'racks') return rackSheetRequests(sheetId, sh);
   const out = []; const nCols = sh.cols.length; const first = sh.headerRow + 1; const lastRow = Math.max(sh.rows.length, first + 1);
@@ -92,6 +92,10 @@ export function sheetRequests(sheetId, sh) {
   sh.cols.forEach((c, i) => {
     if (c.kind === 'stage') out.push({ repeatCell: { range: range(first, lastRow, i, i + 1), cell: { userEnteredFormat: { numberFormat: { type: 'DATE', pattern: 'dd/mm/yyyy' }, horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat(numberFormat,horizontalAlignment)' } });
     else if (c.kind === 'num' || c.kind === 'status') out.push({ repeatCell: { range: range(first, lastRow, i, i + 1), cell: { userEnteredFormat: { horizontalAlignment: 'CENTER' } }, fields: 'userEnteredFormat.horizontalAlignment' } });
+  });
+  // the problem column: several problems in a cell, one per line, so the text wraps (point rows only)
+  sh.cols.forEach((c, i) => {
+    if (c.id === 'problem') (sh.pointRuns || []).forEach(([r0, r1]) => out.push({ repeatCell: { range: range(r0, r1, i, i + 1), cell: { userEnteredFormat: { wrapStrategy: 'WRAP' } }, fields: 'userEnteredFormat.wrapStrategy' } }));
   });
   // section rows: white, bold 12, navy text, 28 px high; alignment cleared (the text runs over the empty cells); the frame comes with the borders below
   (sh.sectionRows || []).forEach((r) => {
