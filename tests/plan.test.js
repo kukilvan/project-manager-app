@@ -56,7 +56,9 @@ test('план: шаг цвета по таблице § 4.1 (5, 4, 3, 2 эта�
   assert.deepEqual(c.stages, ['Протяжка', 'Хивут', 'Установка', 'Проверка', 'Шилют']);
   // the dots leave out the pull (the yellow shows it): termination done, installation, check and labels not
   assert.deepEqual(c.dotDone, [true, false, false, false]);
-  assert.deepEqual(colorOf('Точка', first('a', 1, ['PR_PTS'])).dotDone, [false, false, false]);  // pulled only: every dot empty
+  // pulled only, no other work: no dots at all (the yellow says it)
+  const pulled = colorOf('Камера', first('a', 1)); assert.equal(pulled.step, 1); assert.equal(pulled.dots, false);
+  assert.equal(colorOf('Точка', first('a', 1, ['PR_PTS'])).dots, false);
 });
 
 test('план: всё сделано — тёмно-зелёная толстая рамка, без кружков', () => {
@@ -75,9 +77,9 @@ test('план: ничего не начато — серая, с длиной �
   assert.equal(colorOf('Пусто', []).n, 0);
 });
 
-test('план: часть кабелей протянута — шаг 1, все кружки пустые', () => {
+test('план: часть кабелей протянута — шаг 1, кружков нет', () => {
   const c = colorOf('Интерком', [['a', 'PR_PTS', { cableId: '6005' }]]);
-  assert.equal(c.step, 1); assert.equal(c.color, '#f2c80f'); assert.deepEqual(c.done, [false, false]); assert.equal(c.dots, true); assert.deepEqual(c.dotDone, [false]);
+  assert.equal(c.step, 1); assert.equal(c.color, '#f2c80f'); assert.deepEqual(c.done, [false, false]); assert.equal(c.dots, false); assert.deepEqual(c.dotDone, [false]);
   // a type whose only stage is the pull has no dots at all
   const ctx = make([{ id: 'a', label: 'A-01', typeId: 'Одна' }], [['a', 'PR_PTS', { cableId: '6005' }]]);
   const one = planColor(ctx.points.get('a'), ctx); assert.equal(one.step, 1); assert.deepEqual(one.dotDone, []); assert.equal(one.dots, false);
@@ -112,6 +114,7 @@ test('план: старая точка по этапам типа, тип бе�
   // one of two terminations done: the stage is not done yet, but the work is started
   const half = make([{ id: 'a', label: 'A-01', typeId: 'Комп' }], [['a', 'HIV_KEY']]);
   assert.deepEqual(planColor(half.points.get('a'), half).done, [false, false, false, false, false]); assert.equal(planColor(half.points.get('a'), half).step, 1);
+  assert.equal(planColor(half.points.get('a'), half).dots, true);  // work beyond the pull: the dots show, all empty
 });
 
 test('план: общая отметка следует за наименее законченной точкой, красная — если любая красная', () => {

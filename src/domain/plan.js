@@ -29,32 +29,32 @@ export const PLAN_LEGEND = [
 
 const blank = (v) => v === undefined || v === null || v === '';
 
-// The point's stages S in the order pull, termination, installation, check, port labels (STAGES of compose.js) → { list: [{ stage, done }], started }.
+// The point's stages S in the order pull, termination, installation, check, port labels (STAGES of compose.js) → { list: [{ stage, done }], started, after }.
 // Composite points: the stages that have tasks, a stage done when all its tasks are; legacy points: the type's `stages` (all five when the type has none).
-// started — any work on the stages: a done stage or a done task (composite), a done stage or a pulled cable (legacy).
+// started — any work on the stages: a done stage or a done task (composite), a done stage or a pulled cable (legacy); after — work beyond the pull.
 export function pointStages(point, ctx, info = pointInfo(point, ctx)) {
   if (info.composed) {
     const st = info.stageStats;
     const list = info.stages.map((s) => ({ stage: s, done: st[s].total > 0 && st[s].done >= st[s].total }));
-    return { list, started: info.stages.some((s) => st[s].done > 0) };
+    return { list, started: info.stages.some((s) => st[s].done > 0), after: info.stages.some((s) => s !== 'Протяжка' && st[s].done > 0) };
   }
   const type = ctx.types.get(point.typeId);
   const names = Array.isArray(type?.stages) ? STAGES.filter((s) => type.stages.includes(s)) : STAGES;
   const ok = { 'Протяжка': !!info.pulled, 'Хивут': !!info.hived, 'Установка': info.install === 'Установлено', 'Проверка': !!info.checked, 'Шилют': !!info.shilut };
   const list = names.map((s) => ({ stage: s, done: ok[s] }));
-  return { list, started: list.some((x) => x.done) || info.pullDone > 0 };
+  return { list, started: list.some((x) => x.done) || info.pullDone > 0, after: list.some((x) => x.stage !== 'Протяжка' && x.done) };
 }
 
 /**
  * The color of a point on the plan → { color, done: bool[] (one per stage of S), stages, k, n, step, full, width, red, dots, dotDone }.
  * First rule that fires: an open problem or «Неисправна» → red; nothing started (or no stages) → blue with a length, else gray;
  * every stage done → dark green, full, width ×1.75; otherwise step clamp(round(k / n × 5), 1, 4) of the palette.
- * dots — the plan draws the stage dots (only started, unfinished, not red points); dotDone — their done flags: every stage but the pull, whose progress
- * the yellow already shows (the owner's wish at the check of ticket 6.5). infoFn — the status function (the app passes its cached infoOf).
+ * dots — the plan draws the stage dots: only unfinished, not red points with some work beyond the pull; dotDone — their done flags: every stage but
+ * the pull, whose progress the yellow already shows (the owner's wishes at the check of ticket 6.5). infoFn — the status function (the app passes its cached infoOf).
  */
 export function planColor(point, ctx, infoFn = pointInfo) {
   const info = infoFn(point, ctx);
-  const { list, started } = pointStages(point, ctx, info);
+  const { list, started, after } = pointStages(point, ctx, info);
   const done = list.map((x) => x.done); const n = list.length; const k = done.filter(Boolean).length;
   const dotDone = list.filter((x) => x.stage !== 'Протяжка').map((x) => x.done);
   const base = { done, stages: list.map((x) => x.stage), k, n, step: 0, full: false, width: 1, red: false, dots: false, dotDone };
@@ -62,7 +62,7 @@ export function planColor(point, ctx, infoFn = pointInfo) {
   if (!n || !started) return { ...base, color: blank(point.length) ? PLAN_PALETTE.gray : PLAN_PALETTE.blue };
   if (k === n) return { ...base, color: PLAN_PALETTE.full, full: true, width: FULL_WIDTH };
   const step = Math.min(4, Math.max(1, Math.round((k / n) * 5)));
-  return { ...base, color: PLAN_PALETTE.steps[step - 1], step, dots: dotDone.length > 0 };
+  return { ...base, color: PLAN_PALETTE.steps[step - 1], step, dots: after && dotDone.length > 0 };  // pulled only: no dots
 }
 
 // A mark shared by several points (a pair, a triple, one tag): red when any point is red; otherwise the least finished point
