@@ -52,44 +52,39 @@ test('план: шаг цвета по таблице § 4.1 (5, 4, 3, 2 эта�
   assert.deepEqual([1, 2].map((n) => step('Бакар', n, three)), [2, 3]);
   assert.equal(step('Два', 1), 3);                                                               // 2 stages
   const c = colorOf('Камера', first('a', 2));
-  assert.equal(c.color, '#c0ca33'); assert.deepEqual(c.done, [true, true, false, false, false]); assert.equal(c.dots, true); assert.equal(c.full, false); assert.equal(c.width, 1);
+  assert.equal(c.color, '#c0ca33'); assert.deepEqual(c.done, [true, true, false, false, false]); assert.equal(c.full, false); assert.equal(c.width, 1);
   assert.deepEqual(c.stages, ['Протяжка', 'Хивут', 'Установка', 'Проверка', 'Шилют']);
-  // the dots leave out the pull (the yellow shows it): termination done, installation, check and labels not
-  assert.deepEqual(c.dotDone, [true, false, false, false]);
-  // pulled only, no other work: no dots at all (the yellow says it)
-  const pulled = colorOf('Камера', first('a', 1)); assert.equal(pulled.step, 1); assert.equal(pulled.dots, false);
-  assert.equal(colorOf('Точка', first('a', 1, ['PR_PTS'])).dots, false);
 });
 
-test('план: всё сделано — тёмно-зелёная толстая рамка, без кружков', () => {
+test('план: всё сделано — тёмно-зелёная толстая рамка', () => {
   const c = colorOf('Камера', first('a', 5));
-  assert.equal(c.color, '#1b5e20'); assert.equal(c.full, true); assert.equal(c.width, FULL_WIDTH); assert.equal(FULL_WIDTH * 2, 3.5); assert.equal(c.dots, false);
-  // a checked point without shilut: step 4 of 5, four filled dots and one empty
+  assert.equal(c.color, '#1b5e20'); assert.equal(c.full, true); assert.equal(c.width, FULL_WIDTH); assert.equal(FULL_WIDTH * 2, 3.5);
+  // a checked point without shilut: step 4 of 5 (green, not dark)
   const d = colorOf('Камера', first('a', 4));
-  assert.equal(d.color, '#43a047'); assert.deepEqual(d.done, [true, true, true, true, false]); assert.deepEqual(d.dotDone, [true, true, true, false]);
+  assert.equal(d.color, '#43a047'); assert.deepEqual(d.done, [true, true, true, true, false]);
 });
 
-test('план: ничего не начато — серая, с длиной синяя, без кружков', () => {
-  const g = colorOf('Камера', []); assert.equal(g.color, '#9e9e9e'); assert.equal(g.dots, false);
-  const b = colorOf('Камера', [], { length: 12 }); assert.equal(b.color, '#2979ff'); assert.equal(b.dots, false);
+test('план: ничего не начато — серая, с длиной синяя', () => {
+  const g = colorOf('Камера', []); assert.equal(g.color, '#9e9e9e');
+  const b = colorOf('Камера', [], { length: 12 }); assert.equal(b.color, '#2979ff');
   // a composite point whose type has no works: gray / blue
   assert.equal(colorOf('Пусто', []).color, '#9e9e9e'); assert.equal(colorOf('Пусто', [], { length: 5 }).color, '#2979ff');
   assert.equal(colorOf('Пусто', []).n, 0);
 });
 
-test('план: часть кабелей протянута — шаг 1, кружков нет', () => {
+test('план: часть кабелей протянута — шаг 1', () => {
   const c = colorOf('Интерком', [['a', 'PR_PTS', { cableId: '6005' }]]);
-  assert.equal(c.step, 1); assert.equal(c.color, '#f2c80f'); assert.deepEqual(c.done, [false, false]); assert.equal(c.dots, false); assert.deepEqual(c.dotDone, [false]);
-  // a type whose only stage is the pull has no dots at all
+  assert.equal(c.step, 1); assert.equal(c.color, '#f2c80f'); assert.deepEqual(c.done, [false, false]);
+  // a type whose only stage is the pull, partly pulled: step 1
   const ctx = make([{ id: 'a', label: 'A-01', typeId: 'Одна' }], [['a', 'PR_PTS', { cableId: '6005' }]]);
-  const one = planColor(ctx.points.get('a'), ctx); assert.equal(one.step, 1); assert.deepEqual(one.dotDone, []); assert.equal(one.dots, false);
+  const one = planColor(ctx.points.get('a'), ctx); assert.equal(one.step, 1);
 });
 
 test('план: открытая проблема и «Неисправна» красные при любом прогрессе', () => {
   const marks = [{ id: 'm1', pointId: 'a', problemId: 'pr_cable', markedAt: 1 }];
   const ctx = make([{ id: 'a', label: 'A-01', typeId: 'Камера' }], first('a', 5), { problemMarks: marks, shared: { problems: EXAMPLE_PROBLEMS } });
   const r = planColor(ctx.points.get('a'), ctx);
-  assert.equal(r.color, '#ff1744'); assert.equal(r.red, true); assert.equal(r.full, false); assert.equal(r.dots, false);
+  assert.equal(r.color, '#ff1744'); assert.equal(r.red, true); assert.equal(r.full, false);
   // a solved mark is not red any more
   const ctx2 = make([{ id: 'a', label: 'A-01', typeId: 'Камера' }], first('a', 5), { problemMarks: [{ ...marks[0], solvedAt: 2 }], shared: { problems: EXAMPLE_PROBLEMS } });
   assert.equal(planColor(ctx2.points.get('a'), ctx2).color, '#1b5e20');
@@ -114,7 +109,6 @@ test('план: старая точка по этапам типа, тип бе�
   // one of two terminations done: the stage is not done yet, but the work is started
   const half = make([{ id: 'a', label: 'A-01', typeId: 'Комп' }], [['a', 'HIV_KEY']]);
   assert.deepEqual(planColor(half.points.get('a'), half).done, [false, false, false, false, false]); assert.equal(planColor(half.points.get('a'), half).step, 1);
-  assert.equal(planColor(half.points.get('a'), half).dots, true);  // work beyond the pull: the dots show, all empty
 });
 
 test('план: общая отметка следует за наименее законченной точкой, красная — если любая красная', () => {
@@ -122,7 +116,7 @@ test('план: общая отметка следует за наименее �
   const ctx = make([{ id: 'a', label: 'TV-13', typeId: 'Камера', pos }, { id: 'b', label: 'TV-14', typeId: 'Камера', pos }], [...first('a', 5), ...first('b', 2)]);
   const pts = [ctx.points.get('a'), ctx.points.get('b')];
   const m = markColor(pts, ctx);
-  assert.equal(m.color, '#c0ca33'); assert.deepEqual(m.done, [true, true, false, false, false]); assert.deepEqual(m.dotDone, [true, false, false, false]);
+  assert.equal(m.color, '#c0ca33'); assert.deepEqual(m.done, [true, true, false, false, false]);
   // equal progress: the first label
   const ctx2 = make([{ id: 'a', label: 'TV-14', typeId: 'Камера', length: 5 }, { id: 'b', label: 'TV-13', typeId: 'Камера' }], []);
   assert.equal(markColor([ctx2.points.get('a'), ctx2.points.get('b')], ctx2).color, '#9e9e9e');

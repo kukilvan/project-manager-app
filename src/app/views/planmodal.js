@@ -56,17 +56,8 @@ export function outline(g, api, pos, color, { width = 1.5, pad = 1.5, fill = nul
   g.stroke();
 }
 const labelLike = (t = '') => /\d/.test(t) && !/[\u0590-\u05FF]/.test(t) && t.length <= 24 && !/\s{2,}/.test(t);
-// The stage dots under a tag (spec 6, § 4.2): one per stage, filled — done, a ring — not; radius 3.5 px, 13 px apart, from the tag's left edge, 6 px under it
-const DOT_R = 3.5; const DOT_STEP = 13; const DOT_GAP = 6; const DOT_ROW = DOT_GAP + 2 * DOT_R;
-function drawDots(g, x0, yBottom, done) {
-  const cy = yBottom + DOT_GAP + DOT_R;
-  done.forEach((on, i) => {
-    g.beginPath(); g.arc(x0 + DOT_R + i * DOT_STEP, cy, DOT_R, 0, Math.PI * 2);
-    g.fillStyle = on ? '#1b5e20' : '#ffffff'; g.fill(); g.strokeStyle = '#1b5e20'; g.lineWidth = 1.2; g.stroke();
-  });
-}
 // tags of icons (points with no caption on the drawing): they grow with the zoom, sit in a frame of the point's color,
-// and are placed where they do not cover icons and other tags; t.dots (stage done flags) adds the dot row under the tag, t.width thickens the frame
+// and are placed where they do not cover icons and other tags; t.width thickens the frame (a finished point)
 export function placeTags(g, api, tags, circles, frames = []) {
   const fs = Math.round(Math.min(26, Math.max(12, 5.5 * api.view.s)));
   g.font = `bold ${fs}px system-ui`; g.textBaseline = 'middle';
@@ -79,8 +70,7 @@ export function placeTags(g, api, tags, circles, frames = []) {
     const opts = [[t.x + r + gap, t.y - r - hh + 4], [t.x + r + gap, t.y - hh / 2], [t.x + r + gap, t.y + r - 4], [t.x - w / 2, t.y - r - hh - gap], [t.x - w / 2, t.y + r + gap],
       [t.x - r - gap - w, t.y - r - hh + 4], [t.x - r - gap - w, t.y - hh / 2], [t.x - r - gap - w, t.y + r - 4],
       [t.x + r + gap, t.y - r - 2 * hh], [t.x - w / 2, t.y + r + gap + hh], [t.x - w / 2, t.y - r - 2 * hh - gap], [t.x + r + gap, t.y + r + hh]];
-    const room = t.dots?.length ? DOT_ROW : 0;  // the dot row under the tag is kept free too
-    const box = ([x0, y0]) => [x0, y0, x0 + Math.max(w, room ? (t.dots.length - 1) * DOT_STEP + 2 * DOT_R : 0), y0 + hh + room];
+    const box = ([x0, y0]) => [x0, y0, x0 + w, y0 + hh];
     const best = opts.map(box).find((b) => !hitsBox(b) && !hitsCircle(b)) || opts.map(box).find((b) => !hitsCircle(b)) || box(opts[0]);
     placed.push(best);
     // a line from the icon to its tag when the tag is moved aside
@@ -88,7 +78,6 @@ export function placeTags(g, api, tags, circles, frames = []) {
     if (Math.hypot(cx - t.x, cy - t.y) > r + gap + 4) { g.strokeStyle = t.col; g.lineWidth = 1; g.beginPath(); g.moveTo(t.x, t.y); g.lineTo(cx, cy); g.stroke(); }
     g.fillStyle = 'rgba(255,255,255,.92)'; g.fillRect(best[0], best[1], w, hh);
     g.strokeStyle = t.col; g.lineWidth = 2 * (t.width || 1); g.strokeRect(best[0], best[1], w, hh);
-    if (room) drawDots(g, best[0], best[1] + hh, t.dots);
     g.fillStyle = '#111'; lines.forEach((l, i) => {
       const yy = best[1] + 2 + lh * i + lh / 2 + 1;
       if (t.sh && lines.length === 1 && l.endsWith(` ${t.sh.text}`)) {  // «ЭМ» / «МХ» — by color
@@ -195,13 +184,12 @@ export function planModal({ point = null, placeFor = null } = {}) {
           if (fType === UNL || fType === HID) { for (const m of marks()) { if ((m.pos.page || 0) !== api.page) continue; if (fType === HID) { outline(g, api, m.pos, '#c7c7cc', { width: 1, fill: 'rgba(255,255,255,.9)' }); } else outline(g, api, m.pos, '#ff9500', { width: 2 }); } return; }
           // hidden captions and icons are painted white so they do not get in the way
           for (const m of hid()) { if ((m.pos.page || 0) === api.page) outline(g, api, m.pos, '#ffffff', { width: 2, pad: 2, fill: '#ffffff' }); }
-          const icons = currentProject()?.typeIcons || {}; const tags = []; const circles = []; const frames = []; const capDots = [];
+          const icons = currentProject()?.typeIcons || {}; const tags = []; const circles = []; const frames = [];
           // several points on one mark share one frame, color and tag: the color of the least finished point (markColor)
           const groups = new Map();
           for (const p of pts()) { if ((p.pos.page || 0) !== api.page) continue; const k = posKey(p.pos); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); }
           for (const grp of groups.values()) {
             const p = grp[0]; const on = grp.some(stageOk); const pc = markColor(grp, state.ctx, infoOf); const col = on ? pc.color : '#d0d0d0';
-            const dots = on && big && pc.dots ? pc.dotDone : null;  // no dot for the pull: the yellow shows it
             for (const q of grp) {
               const ic = q.pos.icon && icons[q.typeId];
               if (ic) { const im = iconImg(q.typeId, ic.png, () => viewer?.draw()); if (im.complete && im.naturalWidth) { const [sx, sy] = api.toScr(q.pos.x, q.pos.y); const w = (ic.w || 12) * api.view.s; const hh = (ic.h || 12) * api.view.s; g.globalAlpha = on ? 1 : 0.4; g.drawImage(im, sx - w / 2, sy - hh / 2, w, hh); g.globalAlpha = 1; } }
@@ -211,18 +199,15 @@ export function planModal({ point = null, placeFor = null } = {}) {
             const labels = grp.map(tagOf); const [x, y] = api.toScr(p.pos.x, p.pos.y);
             if (!isText(p.pos)) {
               const r = Math.max(5, (Math.max(p.pos.w || 8, p.pos.h || 8) / 2 + 1.5) * api.view.s); circles.push([x, y, r]);
-              if (on && big) tags.push({ p, col, x, y, r, labels, sh: shOf(p), dots, width: pc.width });
+              if (on && big) tags.push({ p, col, x, y, r, labels, sh: shOf(p), width: pc.width });
             } else {
               // a caption on the drawing: no tag of our own is needed if there is one point and it is named the same; otherwise (several points, another name) — a tag
               const hw = (p.pos.w / 2 + 2) * api.view.s; const hh2 = (p.pos.h / 2 + 2) * api.view.s;
               const need = grp.length > 1 || !!(p.pos.text && p.pos.text !== p.label);
-              // without a tag of its own the dots go under the caption's frame, and that room is kept free from other tags
-              frames.push([x - hw, y - hh2, x + hw, y + hh2 + (dots && !need ? DOT_ROW : 0)]);
-              if (dots && !need) capDots.push([x - hw, y + hh2, dots]);
-              if (on && big && need) tags.push({ p, col, x, y, r: Math.max(hw, hh2), labels, sh: shOf(p), dots, width: pc.width });
+              frames.push([x - hw, y - hh2, x + hw, y + hh2]);
+              if (on && big && need) tags.push({ p, col, x, y, r: Math.max(hw, hh2), labels, sh: shOf(p), width: pc.width });
             }
           }
-          capDots.forEach(([x0, y0, done]) => drawDots(g, x0, y0, done));
           placeTags(g, api, tags, circles, frames);
           const rv = reviewOf(cur()); if (rv.length) { g.setLineDash([4, 3]); for (const x of rv) { const p = state.ctx.points.get(x.id); if (p?.pos && (p.pos.page || 0) === api.page) outline(g, api, p.pos, '#ff9500', { width: 2.5, pad: 3 + 4 / api.view.s }); } g.setLineDash([]); }
           const f = focusId && state.ctx.points.get(focusId);
@@ -387,12 +372,11 @@ export function planModal({ point = null, placeFor = null } = {}) {
       holder.replaceChildren(
         h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '0 0 6px' } }, search, typeSel, cfgSel, cabSel, stageSel),
         h('div', { class: 'btns', style: { marginTop: 0 } }, revBtn, ...viewer.zoomBtns(), selBtn, doorBtn, addBtn, iconBtn, dimBtn, layersBtn), bar, tbar, viewer.el, doorBar,
-        // the legend: the color is the share of the point's stages done; the dots are the stages
+        // the legend: the color is the share of the point's stages done
         h('div', { style: { display: 'flex', gap: '6px 12px', flexWrap: 'wrap', alignItems: 'center', margin: '6px 2px', fontSize: '13px' } },
           h('span', {}, 'Цвет — доля сделанных этапов точки:'),
           ...PLAN_LEGEND.map((x) => h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' } },
-            h('span', { style: { display: 'inline-block', width: '11px', height: '11px', border: `${x.thick ? 3.5 : 2}px solid ${x.color}`, background: '#fff', borderRadius: '2px' } }), x.ru)),
-          h('span', {}, '● — этап сделан, ○ — нет (хивут, установка, проверка, шилют; протяжку показывает цвет)')),
+            h('span', { style: { display: 'inline-block', width: '11px', height: '11px', border: `${x.thick ? 3.5 : 2}px solid ${x.color}`, background: '#fff', borderRadius: '2px' } }), x.ru))),
         h('div', { class: 'btns' },
           h('button', { class: 'sec', onclick: () => linkPoints(d, buf, { onDone: () => draw(d.id) }).catch((e) => toast(e.message)) }, '🔗 Связать точки'),
           h('button', { class: 'sec', onclick: async () => { try { await exportNumberedPdf(cur(), buf); } catch (e) { toast(`Не получилось: ${e.message}`); } } }, '📄 Скачать PDF с номерами'),

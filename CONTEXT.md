@@ -53,8 +53,6 @@ Point × work; closes a point task with one row (`done` boolean). Ids: `${entryI
 
 **Progress colour** (code: `planColor` in `src/domain/plan.js`) — the plan colour of a point by the share of its stages done (протяжка, хивут, установка, проверка, шилют — only those it has), yellow → green in four steps, a thick dark-green frame only when all are done; red for an open problem or «Неисправна».
 
-**Stage dots** — on the zoomed-in plan, one dot per stage after the pull (хивут, установка, проверка, шилют — those the point has) of an unfinished point with some work beyond the pull, under its tag, filled when done; the pull shows in the color.
-
 **Daily report** «дох» (Hebrew דו"ח; code: `src/domain/doh.js`; UI: «Отчёты»)
 The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. _Avoid_: log, journal.
 
