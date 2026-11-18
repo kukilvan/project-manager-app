@@ -4,7 +4,7 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 ## Next step
 
-«Тикет 6.4» — ticket 04 «Problems in the management sheet» of stage 6 (`.scratch/06-field-improvements/issues/04-problems-sheet.md`, medium). Model: Sonnet 5.5, effort high (`docs/models.md`). Order: 04 → 05 → 06 → 07 (01–03 done; 05 is complex: Opus 5.5, effort high). The owner finishes the whole stage 6 first, while the NAS is being checked.
+«Тикет 6.5» — ticket 05 «Plan colours by progress» of stage 6 (`.scratch/06-field-improvements/issues/05-plan-colours.md`, complex). Model: Opus 5.5, effort high (`docs/models.md`). Order: 05 → 06 → 07 (01–04 done). The owner finishes the whole stage 6 first, while the NAS is being checked.
 
 After «Ревью 6»: «Описание 4» — stage 4, PocketBase storage (`docs/project-spec.md`, stage 4). It starts only when the NAS acceptance checks A1–A7 and A10–A13 pass (`docs/nas-requirements.md`) and the owner says the NAS is reliable; until then only «Правка: …», «Вопрос: …» and «Идея: …» sessions. Model: Opus 5.5, effort high.
 
@@ -25,7 +25,8 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 
 - Ticket 6.1 (day off) live and accepted 2026-11-17: `src/domain/dayoff.js`, day form checks, «Отчёты» and «Месяц» lines, recording block on a day-off date; KI-5.
 - Ticket 6.2 (shared delay reasons and culprits) live and accepted 2026-11-18: the owner published the new `firestore.rules` (three `pool_*` blocks) first; `src/domain/shared.js`, `src/app/shared.js` (merge, seeding of reasons and culprits; `SHARED_DEFAULTS` waits for the example problems of ticket 03), pool writes from «Выпадающие списки», backup / import / nightly job with `shared`; KI-6.
-- Ticket 6.3 (problems on points) live and accepted 2026-11-18: `src/domain/problems.js`, `src/app/views/problems.js`, project subcollection `problemMarks` (in `COLLECTIONS`, history, backup and import), the four example problems seeded into an empty `pool_problems`, selection-bar buttons in «Точки», plan and rack, point card block, «Точки» filter and red line, «Проект» line, point merge moves open marks. Sheet column and plan red: tickets 04 and 05. Tests: 240.
+- Ticket 6.3 (problems on points) live and accepted 2026-11-18: `src/domain/problems.js`, `src/app/views/problems.js`, project subcollection `problemMarks` (in `COLLECTIONS`, history, backup and import), the four example problems seeded into an empty `pool_problems`, selection-bar buttons in «Точки», plan and rack, point card block, «Точки» filter and red line, «Проект» line, point merge moves open marks. Plan red: ticket 05. Tests: 240.
+- Ticket 6.4 (problems in the management sheet) live and accepted 2026-11-18: column «Проблема» / «בעיה» (`src/domain/report.js`, open problems one per line, oldest first), row colour `PROBLEM_COLOR` `#E57373`, legend cell G, summary counter «С проблемами» / «עם בעיות» (points with an open problem; added after the owner's check), default profiles have the column (saved ones need the tick), `STYLE_V` 8, wrap request in `managers.js`, the nightly job reads `problemMarks`. Tests: 252.
 
 ## Stages
 
@@ -36,7 +37,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 | 3 | Management sheets | done | 8 | — |
 | 4 | PocketBase storage (when the owner trusts the NAS) | not started | 16 | — |
 | 5 | Move to the NAS | not started | 10 | — |
-| 6 | Field improvements (now, before stage 4) | tickets 3/7 | 14 | 001, 002, 003, 004, 005 |
+| 6 | Field improvements (now, before stage 4) | tickets 4/7 | 14 | 001, 002, 003, 004, 005 |
 
 Status values: not started · description · spec · tickets k/n · review · fix round k · done. Ideas: numbers of `docs/ideas/` files filed for the stage.
 

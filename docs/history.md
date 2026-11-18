@@ -2,6 +2,13 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-18 — Ticket 6.4: problems in the management sheet («Тикет 6.4»)
+
+- `src/domain/report.js`: column `problem` after `delay` (`openProblemsOf`, `problemLabel` in the sheet's language, oldest first, solved hidden), `PROBLEM_COLOR` `#E57373` row colour over any status colour, legend cell G «Есть проблема» / «יש בעיה», both default profiles get the column, `STYLE_V` 8; `src/app/managers.js`: `wrapStrategy: 'WRAP'` on the problem cells of point rows, summary rows sized by their length; nightly job `NEED` has `problemMarks` (`changedSince` covers it through `NEED`; the pool lists were already read once per run).
+- After the owner's check: the summary row got an 8th counter «С проблемами» / «עם בעיות» — points with an open problem (not the number of marks). A sheet with the counter rebuilds by hash.
+- Decisions: the legend cell is last (G), as the ticket says; saved profiles are not changed; a guide line explains the tick.
+- Checked in `?mem=1` (stub requests: column, wrap, red row, solve → empty cell and no red); Google Sheets itself and the nightly run by the owner. Owner checked: works.
+
 ## 2026-11-18 — Ticket 6.3: problems on points («Тикет 6.3»)
 
 - `src/domain/problems.js` (`problemFits` by type id or group, `problemsForPoints`, `openProblemsOf`, `marksOf`, `markOps`, `solveOps`, `problemLabel`, `problemCounts`, `hasCyrillic`, `EXAMPLE_PROBLEMS`); `buildContext` builds `ctx.marksByPoint` (marks of existing points, open by `markedAt` desc, then solved by `solvedAt` desc). `problemMarks` added to `COLLECTIONS`, the history labels («Проблема на точке») and, beyond the ticket, to the Drive backup and «Импорт данных» (so a restore keeps the marks). `SHARED_DEFAULTS.problems` = the four examples. Commit `2d8e71d`.
