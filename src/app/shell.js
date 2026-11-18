@@ -245,6 +245,8 @@ export function createShell({ user, onLogout, diag }) {
     c.devices?.forEach((x) => { if (x.name && x.nameHe) m[x.name] = x.nameHe; });
     c.cables?.forEach((x) => { if (x.nameHe) m[x.id] = x.nameHe; });
     [c.units, c.culprits, c.delayReasons].forEach((l) => l?.forEach((x) => { if (x.he) m[x.id] = x.he; }));
+    // problems of the shared list: names and ready descriptions
+    c.problems?.forEach((x) => { if (x.name && x.nameHe) m[x.name] = x.nameHe; (x.descs || []).forEach((d) => { if (d.ru && d.he) m[d.ru] = d.he; }); });
     addTranslations(m);
   };
   const unsub = subscribe(() => { ctxNames(); render(); if (ready() && !demo.on) { maybeWelcome(ui, user); maybeOfferTour(ui); if (currentProject()?.serverEmail) import('./views/managersfolder.js').then((m) => m.ensureServerAccess()).catch(() => {}); } });

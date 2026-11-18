@@ -1,4 +1,5 @@
 // «Проект» tab: the card of the current project, the readiness bars per rack and the Google Drive and Sheets actions of the project.
+// Under the bars, a red line of open problems on points opens «Точки» filtered to them (points.js).
 // Talks to Google Drive and Sheets through google.js, managers.js, drivefolders.js and drawings.js (a stub in test mode), to backup.js for backups and to repo.js for read and write counters; points come from store.js.
 import { withCreatorGuide, startTour } from '../tour/index.js';
 import { projectWizard } from './wizard.js';
@@ -10,7 +11,7 @@ import { openToday } from './doh.js';
 import { h, formModal, confirmDialog, toast } from '../ui.js';
 import { getToken, realApi, clearToken } from '../google.js';
 import { syncTable } from '../managers.js';
-import { tablesOf, mainTable, withTable, readinessByCabinet } from '../../domain/index.js';
+import { tablesOf, mainTable, withTable, readinessByCabinet, problemCounts } from '../../domain/index.js';
 import { backupCount, runBackup, BACKUP_FOLDER, backupName } from '../backup.js';
 import { liveProjects } from '../store.js';
 import { filesIn } from '../drivefolders.js';
@@ -123,6 +124,13 @@ function readiness() {
   }));
 }
 
+// Under the readiness bars: open problems of the project, a link to «Точки» filtered to them (nothing when there are none)
+function problemsLine(ui) {
+  const c = problemCounts([...state.ctx.points.values()], state.ctx);
+  if (!c.marks) return null;
+  return h('div', { class: 'prob-link', onclick: () => import('./points.js').then((m) => m.showProblemPoints(ui)) }, `⚠ Открытых проблем: ${c.marks} (точек: ${c.points}) — показать`);
+}
+
 function summary(ui) {
   const ctx = state.ctx; const rows = new Map();
   pointsSorted().forEach((pt) => {
@@ -184,7 +192,7 @@ export function projectView(ui) {
         go('🧾 Что осталось', () => import('./points.js').then((m) => m.remainingModal())),
         go('📊 Таблицы', () => ui.open('sheets')),
         go('🗄 Шкафы и шильют', () => ui.open('racks')))),
-    h('div', { class: 'card' }, h('b', {}, 'Точки'), readiness(), h('div', { style: { marginTop: '8px' } }, summary(ui))),
+    h('div', { class: 'card' }, h('b', {}, 'Точки'), readiness(), problemsLine(ui), h('div', { style: { marginTop: '8px' } }, summary(ui))),
     h('div', { class: 'btns' },
       autoBackupLine(p),
       h('div', { class: 'mut', style: { width: '100%' } }, readsLine())));

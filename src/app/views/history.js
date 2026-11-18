@@ -3,13 +3,13 @@
 import { lang as uiLang } from '../../i18n/index.js';
 import { h, confirmDialog, toast } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
-import { dateText, entryLine } from '../../domain/index.js';
+import { dateText, entryLine, problemLabel } from '../../domain/index.js';
 import { todayIso, syncJournal } from './doh.js';
 
 const COLL_NAMES = {
   points: 'Точка', days: 'День', entries: 'Запись дня', journal: 'Журнал', catalog: 'Каталог', types: 'Тип точек', cables: 'Кабель',
   configs: 'Конфигурация', units: 'Единица', culprits: 'Виновник', delayReasons: 'Причина задержки', cabinetSettings: 'Настройка шкафа',
-  todos: 'Дело', notes: 'Заметка', devices: 'Устройство', pulls: 'Протяжка',
+  todos: 'Дело', notes: 'Заметка', devices: 'Устройство', pulls: 'Протяжка', problemMarks: 'Проблема на точке',
 };
 const ACTIONS = { create: 'создал', update: 'изменил', delete: 'удалил', restore: 'вернул', rollback: 'откатил' };
 
@@ -30,6 +30,7 @@ export function describe(coll, data) {
       case 'todos': return data.text;
       case 'notes': return data.title;
       case 'cabinetSettings': return `шкаф ${data.cabinet} · ${data.typeId}`;
+      case 'problemMarks': return `${ctx.points.get(data.pointId)?.label ?? data.pointId ?? ''} · ${problemLabel(data, ctx, uiLang() === 'he' ? 'he' : 'ru')}`;
       default: return data.name || data.id;
     }
   } catch { return data.id || ''; }

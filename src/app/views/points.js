@@ -1,6 +1,6 @@
 // Points screens: the point form, the batch generator, the length input, the point card with history, the «Что осталось» list, mass actions and the «Точки» tab.
 // Reads state.ctx and project data from store.js and writes through repo.save; composition, statuses, labels and merge logic come from src/domain.
-// Door configurations, cables, own works and point choice use the neighbouring pickers (doorcfgview.js, cablespick.js, ownworks.js, pointchooser.js).
+// Door configurations, cables, own works and point choice use the neighbouring pickers (doorcfgview.js, cablespick.js, ownworks.js, pointchooser.js); problems on points use problems.js.
 //
 // Contents:
 // - compField(), compData() — the point's composition editor (devices, cables, works) and the part of it that is saved
@@ -8,12 +8,12 @@
 // - pointForm() — add and edit one point
 // - generatorForm() — create points in a batch by a label pattern
 // - meterForm() — enter lengths point after point
-// - pointCard() — one point: details, work history and actions (bindToPoint turns a plan mark into an existing point)
+// - pointCard() — one point: details, problems, work history and actions (bindToPoint turns a plan mark into an existing point)
 // - remainingModal() — «Что осталось»: works still waiting for points; pick points and record a work
 // - renameForm(), bulkEditForm() — mass rename and mass change of the selected points
-// - meterView() — the «Точки» tab: the list with search, filters and selection
+// - meterView() — the «Точки» tab: the list with search, filters (problems too) and selection; showProblemPoints() opens it filtered to points with open problems
 import { h, formModal, openModal, confirmDialog, toast, qtyList, attachShortcuts } from '../ui.js';
-import { nav, state, getRepo, pointsSorted, infoOf, currentProject } from '../store.js';
+import { nav, state, getRepo, pointsSorted, infoOf, currentProject, subscribe } from '../store.js';
 import { generateLabels, generatedTotal, MAX_GENERATED, parseSuffixes, comparePoints, renameLabel, renameIssue, sameLabelClash, labelKey, inheritedFromCables, usesConfig, missingStages, hasDeviceId, normalizeMac, findDuplicate , findSameGroups, cablesMismatch } from '../../domain/index.js';
 import { scanDevice } from '../scan.js';
 import { statusClass } from './project.js';
@@ -29,7 +29,9 @@ import { doorChips, doorShortChip } from './doorchips.js';
 import { ensureDoorCfg, pinsOf as doorPins, allDoorCfgs } from '../doorpool.js';
 import { drawingFor, drawingsOf } from '../drawings.js';
 import { typeMatch, typeFilterOptions, typeFilterValid } from '../typegroups.js';
-import { latinKey, choiceList } from '../../domain/index.js';
+import { latinKey, choiceList, openProblemsOf, problemCounts, markName } from '../../domain/index.js';
+import { problemsBlock, problemButtons } from './problems.js';
+import { lang } from '../../i18n/index.js';
 import { cfgMatch, cfgFilterOptions, cfgFilterValid } from '../cfgfilter.js';
 import { planModal } from './planmodal.js';
 import { ownWorksField, ownWorksData, ownWorksText } from './ownworks.js';
@@ -366,6 +368,7 @@ export function pointCard(startPoint, { fromPlan = false } = {}) {
       h('div', { style: { margin: '2px 0 10px' } }, h('span', { class: statusClass(info.status) }, info.status)),
       h('div', { style: { display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px', fontSize: '14px' } },
         facts.flatMap(([k, v]) => [h('span', { class: 'mut' }, k), h('span', { style: { fontWeight: 600 } }, v instanceof Node ? v : String(v))])),
+      problemsBlock(p),
       h('div', { class: 'btns' },
         h('button', { onclick: () => { close(); setTimeout(() => addWorkForPoint(p.id), 60); } }, '➕ Добавить работу на эту точку')),
       h('div', { class: 'btns' },
@@ -392,7 +395,9 @@ export function pointCard(startPoint, { fromPlan = false } = {}) {
       }));
   };
   render();
-  close = openModal(startPoint.label, body);
+  // the card follows the data (a problem marked or solved from the card shows at once)
+  const unsub = subscribe(() => { if (body.isConnected) render(); });
+  close = openModal(startPoint.label, body, { onClose: () => unsub() });
 }
 
 // «Что осталось»: all works still waiting for the project's points (by each point's composition), with filters by work, rack, type and pull.
@@ -612,15 +617,24 @@ export function bulkEditForm(ids, done) {
   });
 }
 
-let searchText = ''; let fCab = ''; let fType = ''; let fPlan = ''; let fCfg = '';
+let searchText = ''; let fCab = ''; let fType = ''; let fPlan = ''; let fCfg = ''; let fProb = '';
 const planOk = (p) => !fPlan || (fPlan === 'off' ? !drawingFor(p) : !!drawingFor(p));  // «Нет на плане» / «На плане»
+// problems filter: '' — all, '__any' — points with an open problem, otherwise a problem id
+const probOk = (p) => !fProb || (fProb === '__any' ? openProblemsOf(p, state.ctx).length > 0 : openProblemsOf(p, state.ctx).some((m) => m.problemId === fProb));
+const listOk = (p) => { const q = searchText.trim().toLowerCase(); const qk = latinKey(q);
+  return (!q || latinKey(`${p.label} ${p.planName ?? ''} ${panelText(p)}`).includes(qk) || matchesPanelQuery(p, q)) && (!fCab || (fCab === '__none' ? !p.cabinet : p.cabinet === fCab))
+    && typeMatch(fType, p.typeId) && cfgMatch(fCfg, p) && planOk(p) && probOk(p); };
+// «Проект» → «⚠ Открытых проблем … — показать»: the «Точки» list with only the points that have an open problem
+export function showProblemPoints(ui) {
+  searchText = ''; fCab = ''; fType = ''; fPlan = ''; fCfg = ''; fProb = '__any';
+  ui.go('meter');
+}
 export function meterView(ui) {
   const list = h('div', { class: 'card', style: { padding: 0 } });
   const total = pointsSorted();
   const withLen = total.filter((p) => p.length !== undefined && p.length !== null && p.length !== '').length;
   const bar = h('div', { class: 'card selbar', style: { position: 'sticky', top: '53px', zIndex: 6, margin: '8px 0 0' } });
-  const shown = () => pointsSorted().filter((p) => { const q = searchText.trim().toLowerCase(); const qk = latinKey(q);
-    return (!q || latinKey(`${p.label} ${p.planName ?? ''} ${panelText(p)}`).includes(qk) || matchesPanelQuery(p, q)) && (!fCab || (fCab === '__none' ? !p.cabinet : p.cabinet === fCab)) && typeMatch(fType, p.typeId) && cfgMatch(fCfg, p) && planOk(p); });
+  const shown = () => pointsSorted().filter(listOk);
   function updateBar() {
     for (const id of [...selected]) if (!state.ctx.points.has(id)) selected.delete(id);
     bar.style.display = selMode ? '' : 'none';
@@ -632,6 +646,7 @@ export function meterView(ui) {
       h('div', { class: 'btns' },
         h('button', { disabled: !ids.length, onclick: () => bulkEditForm(ids, () => { selected.clear(); selMode = false; ui.render(); }) }, '✏️ Изменить'),
         h('button', { disabled: !ids.length, onclick: () => renameForm(ids, () => { selected.clear(); selMode = false; ui.render(); }) }, '🏷 Переименовать'),
+        ...problemButtons(ids, () => ui.render()),
         h('button', { class: 'danger', disabled: !ids.length, onclick: async () => {
           const u = await usageOf(ids);
           if (!(await confirmDialog(`Удалить точек: ${ids.length}? Их можно будет вернуть из истории.${u.rec ? ` ⚠ У них записей работ: ${u.rec} — из дохов, отчётов и таблиц они пропадут.` : ''}${pullsText(u)}`, { yes: 'Удалить', danger: true }))) return;
@@ -642,23 +657,22 @@ export function meterView(ui) {
   }
   function fill() {
     updateBar();
-    const q = searchText.trim().toLowerCase(); const qk = latinKey(q);
-    const pts = pointsSorted().filter((p) => (!q || latinKey(`${p.label} ${p.planName ?? ''} ${panelText(p)}`).includes(qk) || matchesPanelQuery(p, q))
-      && (!fCab || (fCab === '__none' ? !p.cabinet : p.cabinet === fCab)) && typeMatch(fType, p.typeId) && cfgMatch(fCfg, p) && planOk(p));
+    const pts = pointsSorted().filter(listOk);
     list.replaceChildren();
     if (!pts.length) { list.append(total.length ? h('div', { class: 'empty' }, 'Ничего не найдено') : hint(ui, 'Точек пока нет. Добавьте их группой («Группа новых точек») или по одной. Нажмите точку: откроется её карточка с историей работ, там же кнопка «📏 Длина».', 'meter', '📖 Как вносить метраж')); return; }
     let lastKey = null;
     pts.forEach((p) => {
       const key = `${p.cabinet || ''}\u0000${p.typeId}`;
       if (key !== lastKey) { list.append(h('div', { class: 'group', style: { padding: '10px 12px 6px' } }, `${p.cabinet ? `Шкаф ${p.cabinet}` : 'Без шкафа'} · ${p.typeId}`)); lastKey = key; }
-      const info = infoOf(p);
+      const info = infoOf(p); const probs = openProblemsOf(p, state.ctx);
       const cb = selMode ? h('input', { type: 'checkbox', checked: selected.has(p.id), style: { width: '22px', height: '22px', flex: 'none' } }) : null;
       list.append(h('div', { class: 'item', onclick: () => {
         if (!selMode) { pointCard(p); return; }
         if (selected.has(p.id)) selected.delete(p.id); else selected.add(p.id);
         cb.checked = selected.has(p.id); updateBar();
       } }, cb,
-        h('div', { class: 'name' }, p.label, doorCfgOf(p, state.ctx) ? doorShortChip(doorCfgOf(p, state.ctx)) : null, p.planName ? h('div', { class: 'sub' }, p.planName) : null),
+        h('div', { class: 'name' }, p.label, doorCfgOf(p, state.ctx) ? doorShortChip(doorCfgOf(p, state.ctx)) : null, p.planName ? h('div', { class: 'sub' }, p.planName) : null,
+          probs.length ? h('div', { class: 'prob-line' }, `⚠ ${probs.map((m) => markName(m, state.ctx, lang() === 'he' ? 'he' : 'ru')).join(', ')}`) : null),
         h('div', { class: 'len' }, p.length !== undefined && p.length !== null && p.length !== '' ? `${p.length} м` : '—'),
         h('span', { class: statusClass(info.status) }, info.status)));
     });
@@ -669,13 +683,18 @@ export function meterView(ui) {
   if (!cabs.includes(fCab) && fCab !== '__none') fCab = '';
   if (!typeFilterValid(fType, types)) fType = '';
   if (!cfgFilterValid(fCfg, total)) fCfg = '';
+  const probs = problemCounts(total, state.ctx);
+  if (fProb && fProb !== '__any' && !probs.byProblem.has(fProb)) fProb = probs.points ? '__any' : '';
+  const probOpts = [['__any', `⚠ С проблемами (${probs.points})`],
+    ...[...probs.byProblem.entries()].map(([id, n]) => [id, `Проблема: ${markName({ problemId: id }, state.ctx, lang() === 'he' ? 'he' : 'ru')} (${n})`]).sort((a, b) => a[1].localeCompare(b[1], 'ru'))];
   const sel = (all, opts, cur, set) => h('select', { onchange: (e) => { set(e.target.value); fill(); } },
     h('option', { value: '' }, all), ...opts.map(([v, t]) => h('option', { value: v, selected: v === cur }, t)));
   const filters = h('div', { style: { display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' } },
     sel('Все шкафы', cabs.map((c) => (c ? [c, `Шкаф ${c}`] : ['__none', 'Без шкафа'])), fCab, (v) => { fCab = v; }),
     sel('Все типы', typeFilterOptions(types), fType, (v) => { fType = v; }),
     cfgFilterOptions(total).length ? sel('Все конфигурации дверей', cfgFilterOptions(total), fCfg, (v) => { fCfg = v; }) : null,
-    sel('План: все', [['off', '📍 Нет на плане'], ['on', '🗺 На плане']], fPlan, (v) => { fPlan = v; }));
+    sel('План: все', [['off', '📍 Нет на плане'], ['on', '🗺 На плане']], fPlan, (v) => { fPlan = v; }),
+    probs.points || fProb ? sel('Проблемы: все', probOpts, fProb, (v) => { fProb = v; }) : null);
   fill();
   return h('div', {},
     h('div', { class: 'btns', style: { marginTop: 0 } },

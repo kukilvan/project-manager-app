@@ -2,12 +2,12 @@
 // Reads and writes through the repo (`listenPool` with deleted documents, `readColl`, `readPool`, `savePool`, `saveProject`), hands the documents to store.js (`setShared`);
 // the merge plan comes from src/domain/shared.js. Started by shell.js next to the shared pool.
 import { state, getRepo, subscribe, liveProjects, setShared, demo } from './store.js';
-import { SHARED_KINDS, LEGACY_KINDS, mergePlan, applyMerge, DELAY_REASONS, CULPRITS } from '../domain/index.js';
+import { SHARED_KINDS, LEGACY_KINDS, mergePlan, applyMerge, DELAY_REASONS, CULPRITS, EXAMPLE_PROBLEMS } from '../domain/index.js';
 import { toast } from './ui.js';
 import { info, error } from '../log.js';
 
-// Written into a pool collection that has no document at all (not even a deleted one); the example problems join in ticket 03
-export const SHARED_DEFAULTS = { delayReasons: DELAY_REASONS, culprits: CULPRITS };
+// Written into a pool collection that has no document at all (not even a deleted one)
+export const SHARED_DEFAULTS = { delayReasons: DELAY_REASONS, culprits: CULPRITS, problems: EXAMPLE_PROBLEMS };
 
 export const sharedPool = Object.fromEntries(SHARED_KINDS.map((k) => [k, new Map()]));
 const loaded = new Set();

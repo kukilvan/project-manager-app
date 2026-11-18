@@ -111,6 +111,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/app/views/points.js` — Points screens: the point form, the batch generator, the length input, the point card with history, the «Что осталось» list, mass actions and the «Точки» tab.
 - `src/app/views/pointsfile.js` — Preview and adding of points from drawing parsing (JSON format polevoy-points-1).
 - `src/app/views/poolview.js` — «🗂 Общий пул» browser inside every reference list (point types, devices, cables, works).
+- `src/app/views/problems.js` — Problems on points (ADR 0017): the «Проблемы» reference screen and its form, the «⚠ Проблема» and «✔ Решено» forms for selected points, and the «Проблемы» block of the point card.
 - `src/app/views/project.js` — «Проект» tab: the card of the current project, the readiness bars per rack and the Google Drive and Sheets actions of the project.
 - `src/app/views/projects.js` — All projects list plus the create and edit project forms.
 - `src/app/views/pullview.js` — Pulls «🧵 Протяжки»: pick points on the plan → «До шкафа» → meters per point (own numeric keypad) → checklist → «Завершить» (the report form).
@@ -144,6 +145,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/domain/points.js` — Points: natural sorting, cables and metrage (sections 3.4, 3.8, Appendix A).
 - `src/domain/pointsimport.js` — Adds points from a file (for example after a drawing is parsed): parses it, plans the import and builds the write operations.
 - `src/domain/pool.js` — Shared pool (one database for everyone): point types, devices, cables and works; fingerprints, dependencies, inbox candidates and change lists.
+- `src/domain/problems.js` — Problems on points (ADR 0017): which shared problems fit a point, the open and solved marks of a point, the write operations for marking and solving, labels and counts.
 - `src/domain/pull.js` — Cable pulls («Протяжки»): choose points on the plan → «до шкафа» (to the rack) → meters per point → checklist → finish (written into the daily report).
 - `src/domain/rack.js` — Racks and port labels: panel ports of cat7 points, the rack plan, automatic port assignment, label colors and caption texts.
 - `src/domain/remaining.js` — «What is left»: points where termination, installation or checking is not done yet (taking the point type's stages into account).

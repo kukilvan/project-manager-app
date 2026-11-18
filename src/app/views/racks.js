@@ -17,6 +17,7 @@ import {
   cabinetFloor, autoFill, rackProblems, typeColorOf, slotKey, subsOf, blockedOf, blockPort, unblockPort, shilutLabel, shilutOf,
 } from '../../domain/rack.js';
 import { pointCard, bulkEditForm, renameForm } from './points.js';
+import { problemButtons } from './problems.js';
 import { shilutSettings, panelModels, modelName } from './shilutsettings.js';
 import { rackTableCard } from './racktable.js';
 import { markShilutForPoints, addWorkForPoints } from './doh.js';
@@ -342,6 +343,7 @@ function rackEditor(ui, cab) {
         h('button', { disabled: !ids.length, onclick: () => bulkEditForm(ids, done) }, '✏️ Изменить'),
         h('button', { disabled: !ids.length, onclick: () => renameForm(ids, done) }, '🏷 Переименовать'),
         h('button', { disabled: !ids.length, onclick: () => addWorkForPoints(ids) }, `➕ Работа (${ids.length})`)),
+      h('div', { class: 'btns' }, ...problemButtons(ids, () => ui.render())),
       h('div', { class: 'btns' }, h('button', { class: 'sec', onclick: () => { pickSel = null; ui.render(); } }, '✅ Готово')));
   };
   const cellTap = (pnl, port) => {

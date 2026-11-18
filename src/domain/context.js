@@ -1,6 +1,8 @@
 // Builds the calculation context: lookup indexes over a project's data. Softly deleted records (deleted: true) are skipped.
 // Pure; reached through src/domain/index.js. `data.shared` holds the pool's shared lists (shared.js); without it only the project's old lists are seen.
+// Problem marks (`data.problemMarks`, ADR 0017) are indexed by point in the order of problems.js; marks of deleted points are left out.
 import { sharedView } from './shared.js';
+import { sortMarks } from './problems.js';
 const live = (arr) => (arr || []).filter((x) => !x.deleted);
 const byId = (arr) => new Map(live(arr).map((x) => [x.id, x]));
 
@@ -19,8 +21,9 @@ export function buildContext(data) {
     // shared lists (ADR 0016): the pool over the project's old list; deleted pool items stay for lookups, pickers use choiceList
     culprits: sharedView(data.culprits, data.shared?.culprits),
     delayReasons: sharedView(data.delayReasons, data.shared?.delayReasons),
-    // problems of the shared pool, deleted ones too (marks keep their label); used from ticket 03 on
+    // problems of the shared pool, deleted ones too (marks keep their label)
     problems: new Map((data.shared?.problems || []).filter((x) => x?.id != null).map((x) => [x.id, x])),
+    marksByPoint: new Map(),
     todos: byId(data.todos),
     notes: byId(data.notes),
     pulls: byId(data.pulls),
@@ -47,5 +50,12 @@ export function buildContext(data) {
     if (!ctx.journalByPoint.has(row.pointId)) ctx.journalByPoint.set(row.pointId, []);
     ctx.journalByPoint.get(row.pointId).push(full);
   });
+  // Problem marks: one list per existing point, open first (newest marked), then solved (newest solved)
+  live(data.problemMarks).forEach((m) => {
+    if (!ctx.points.has(m.pointId)) return;
+    if (!ctx.marksByPoint.has(m.pointId)) ctx.marksByPoint.set(m.pointId, []);
+    ctx.marksByPoint.get(m.pointId).push(m);
+  });
+  ctx.marksByPoint.forEach((list, id) => ctx.marksByPoint.set(id, sortMarks(list)));
   return ctx;
 }

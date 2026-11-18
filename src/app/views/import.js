@@ -5,7 +5,7 @@ import { h, confirmDialog, toast } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
 import { sharedImportOps } from '../../domain/index.js';
 
-const COLLS = ['points', 'journal', 'days', 'entries', 'cabinetSettings', 'todos', 'notes', 'pulls'];
+const COLLS = ['points', 'journal', 'days', 'entries', 'cabinetSettings', 'todos', 'notes', 'pulls', 'problemMarks'];
 const REFS = ['catalog', 'types', 'cables', 'devices', 'configs', 'units'];
 
 export function parseImport(text) {
@@ -20,7 +20,7 @@ export function parseImport(text) {
 // cur: the project's current collections and the pool's shared lists (the store's by default)
 export function runImport(repo, pid, data, { replace }, cur = { data: state.data, shared: state.shared }) {
   const now = Date.now();
-  const incoming = new Set(COLLS.flatMap((c) => data[c].map((d) => `${c}/${d.id}`)));
+  const incoming = new Set(COLLS.flatMap((c) => (data[c] || []).map((d) => `${c}/${d.id}`)));
   const ops = [];
   let removed = 0;
   if (replace) {
@@ -29,7 +29,7 @@ export function runImport(repo, pid, data, { replace }, cur = { data: state.data
       removed += 1;
     }));
   }
-  COLLS.forEach((c) => data[c].forEach((d) => ops.push({ coll: c, id: d.id, action: 'import', data: { ...d, deleted: false } })));
+  COLLS.forEach((c) => (data[c] || []).forEach((d) => ops.push({ coll: c, id: d.id, action: 'import', data: { ...d, deleted: false } })));
   // reference lists: only add the missing ones (nothing is overwritten or removed)
   REFS.forEach((c) => (data.reference?.[c] || []).forEach((d) => { if (d?.id && !(cur.data[c] || []).some((x) => x.id === d.id && !x.deleted)) ops.push({ coll: c, id: d.id, action: 'import', data: { ...d, deleted: false } }); }));
   repo.save(pid, ops);

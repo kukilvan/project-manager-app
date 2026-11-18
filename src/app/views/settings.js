@@ -1,16 +1,17 @@
 // «Настройки» tab: the project's reference lists (dropdown lists) with their item forms, and the entries to the management, rack and sheets screens.
 // Reads the lists from store.js and writes through repo (save with a preview of the result); the shared pool admin opens the same forms for the pool through setFormTarget. Types, devices, cables and works come from src/domain; door configurations are drawn by doorcfgview.js.
 // Delay reasons and culprits are shared lists of the database (ADR 0016): their forms write the pool (`savePool`), and only the pool administrator deletes.
+// Problems are a shared list too; their screen and form live in problems.js.
 //
 // Contents:
 // - checkList(), custom(), qtyField() — form fields: ticks from a list with «create new» on the fly, and «item × quantity»
-// - REFS — the description of every reference list (types, devices, cables, works, door configurations, units, culprits, delay reasons; `shared` — a list of the pool)
+// - REFS — the description of every reference list (types, devices, cables, works, door configurations, units, culprits, delay reasons, problems; `shared` — a list of the pool)
 // - itemForm(key, existing, { onSaved }) — add and edit one item of a list; setFormTarget() points the forms at the shared pool
 // - auditModal() — the check of the lists for links to things that do not exist
 // - groupModal() — a shared group for several point types at once (for example all doors)
 // - refView() — the screen of one reference list; refreshApp() — reset the service worker and cache and reload
 // - settingsView() — the tab itself
-import { POOL_KINDS, usesOf, usesText, DOOR_PARTS, doorPartOf, DOOR_PART_NAMES, doorColorOf, choiceList } from '../../domain/index.js';
+import { POOL_KINDS, usesOf, usesText, DOOR_PARTS, doorPartOf, DOOR_PART_NAMES, doorColorOf, choiceList, liveProblems } from '../../domain/index.js';
 import { poolButton } from './poolview.js';
 import { isPoolAdmin } from '../pool.js';
 import { allGroups } from '../typegroups.js';
@@ -24,6 +25,7 @@ import { updateManagerTable, backupNow, organizeDrive } from './project.js';
 import { exportExcel } from '../excel.js';
 import { catalogModal } from './catalogview.js';
 import { doorConfigsView } from './doorcfgview.js';
+import { problemsRefView } from './problems.js';
 import { colorField } from './doorchips.js';
 
 export const WORK_TYPES = ['Протяжка', 'Перетяжка', 'Перенос', 'Хивут', 'Установка', 'Проверка', 'Шилют', 'Доп. работа', 'Время'];
@@ -176,6 +178,8 @@ export const REFS = {
     items: () => choiceList(ctx().culprits), usage: (x) => [...ctx().entries.values()].filter((e) => e.culprit === x.id || e.delayCulprit === x.id).length },
   delayReasons: { title: 'Причины задержки точек', coll: 'delayReasons', shared: true, hint: 'Почему точка не сделана — выбирается в карточке точки.', idMode: 'name', nameLabel: 'Причина (русский)', heKey: 'he', heLabel: 'Причина (иврит)',
     items: () => choiceList(ctx().delayReasons), usage: (x) => [...ctx().points.values()].filter((p) => p.delayReasonId === x.id).length },
+  // entry to the «Проблемы» screen (drawn in problems.js)
+  problems: { title: 'Проблемы', coll: 'problems', shared: true, items: () => liveProblems(ctx()) },
 };
 ['culprits', 'delayReasons'].forEach((k) => { REFS[k].line = (x) => [x.id, `${x.he || '—'} · в этом проекте: ${REFS[k].usage(x)}`]; });
 // simplified «Russian + Hebrew» reference lists
@@ -278,6 +282,7 @@ function groupModal() {
 export function refView() {
   const key = state.settingsRef; const def = REFS[key];
   if (key === 'configs') return doorConfigsView();
+  if (key === 'problems') return problemsRefView();
   const items = def.items();
   const rows = []; let last;
   const sorted = [...items].sort((a, b) => {
@@ -319,6 +324,6 @@ export function settingsView(ui) {
       row('📊', 'Таблицы', `Google Таблицы проекта «${p.name}»${(p.sheetLinks || []).length ? ` · добавлено: ${p.sheetLinks.length}` : ''}`, () => ui.open('sheets'))),
     h('div', { class: 'card', style: { padding: 0 } },
       h('div', { class: 'group', style: { padding: '10px 14px 4px', cursor: 'pointer', userSelect: 'none' }, onclick: () => { refsOpen = !refsOpen; ui.render(); } }, `${refsOpen ? '▾' : '▸'} Выпадающие списки (справочники)`),
-      ...(refsOpen ? [['types', 'devices', 'cables', 'catalog', 'configs', 'units', 'culprits', 'delayReasons'].map(ref),
+      ...(refsOpen ? [['types', 'devices', 'cables', 'catalog', 'configs', 'units', 'culprits', 'delayReasons', 'problems'].map(ref),
         row('⌨', 'Быстрый ввод латиницей', 'Слова вроде «тв», «кам» сами становятся TV, CAM при вводе названий', () => import('./latinfix.js').then((m) => m.shortcutsModal()))] : [])));
 }

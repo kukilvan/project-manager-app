@@ -29,6 +29,7 @@ import { exportNumberedPdf, publishNumbered } from './plannumbers.js';
 import { linkPoints } from './planlink.js';
 import { choosePoint } from './pointchooser.js';
 import { bulkEditForm, renameForm } from './points.js';
+import { problemButtons } from './problems.js';
 import { editForm as historyEditForm } from './journal.js';
 import { doorCfgOf, doorCfgShort, usesConfig } from '../../domain/index.js';
 import { latinKey } from '../../domain/index.js';
@@ -334,6 +335,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
           h('button', { disabled: !sel.size, onclick: () => historyEditForm([...sel], () => { selBar(); viewer.draw(); }) }, `✔ Работы: сделано / не сделано (${sel.size})`),
           h('button', { disabled: !sel.size, onclick: () => bulkEditForm([...sel], () => { selBar(); viewer.draw(); }) }, `✏️ Изменить (${sel.size})`),
           h('button', { disabled: !sel.size, onclick: () => renameForm([...sel], () => { selBar(); viewer.draw(); }) }, '🏷 Переименовать'),
+          ...problemButtons([...sel], () => { selBar(); viewer.draw(); }),
           h('button', { class: 'sec', onclick: () => { sel.clear(); selBar(); viewer.draw(); } }, 'Снять'));
       };
       const bar = h('div', { class: 'card', style: { display: 'none', margin: '6px 0', padding: '8px', gap: '8px', flexWrap: 'wrap', alignItems: 'center' } });

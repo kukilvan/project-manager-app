@@ -1,10 +1,11 @@
 // Point merge: the same point recorded in two ways — a double «FC/B05-06» and singles «FC/B05» + «FC/B06» (the old drawing parsing split doubles into singles, the new one keeps them double).
-// This module finds such groups and works out the merge: which form to keep, where the works go (daily report entries, journal, pulls),
+// This module finds such groups and works out the merge: which form to keep, where the works go (daily report entries, journal, pulls, open problem marks),
 // and what does not add up (the quantity in the report, a work the kept point lacks, different meters).
 // Built on doh.js, compose.js and points.js; used by pointsimport.js and the point merge and drawing views.
 import { itogShtuk, pullFigures } from './doh.js';
 import { taskQty, compositionOf, isPortCable } from './compose.js';
 import { cableListOf } from './points.js';
+import { isOpenMark } from './problems.js';
 
 const RANGE = /^(.*?)(\d+)-(\d+)$/;
 const blank = (v) => v === undefined || v === null || v === '';
@@ -123,9 +124,11 @@ export function previewMerge(group, mode, data, ctx) {
 
 /**
  * Write operations for the merge (after the person has looked at the preview and maybe changed transfer/keepCount).
+ * data.problemMarks (optional): the open marks of the removed points move to the kept point; a problem the kept point already has open
+ * is solved by the merge in the name of `by` ({ uid, name }) at `now`.
  * → { ops: [{ coll, id, data }], remove: [{ coll, id }] }
  */
-export function mergeOps(group, mode, pv, data, ctx) {
+export function mergeOps(group, mode, pv, data, ctx, { by = {}, now = Date.now() } = {}) {
   const { kept, removed } = pv; const rem = new Set(removed);
   const ops = []; const remove = [];
   const choice = new Map(pv.entries.map((x) => [x.id, x]));
@@ -191,6 +194,20 @@ export function mergeOps(group, mode, pv, data, ctx) {
     if (notes.length > 1 || (notes.length === 1 && blank(k.note))) patch.note = notes.join('; ');
     if (Object.keys(patch).length) ops.push({ coll: 'points', id: kid, data: patch });
   }
+  // problem marks (ADR 0017): the first kept point takes the mark itself, other kept points get a copy; a problem already open there is solved
+  const marks = (data.problemMarks || []).filter(isOpenMark);
+  const openOn = new Map(kept.map((k) => [k, new Set(marks.filter((m) => m.pointId === k).map((m) => m.problemId))]));
+  marks.filter((m) => rem.has(m.pointId)).sort((a, b) => (b.markedAt || 0) - (a.markedAt || 0)).forEach((m) => {
+    let moved = false;
+    kept.forEach((k) => {
+      if (openOn.get(k).has(m.problemId)) return;
+      openOn.get(k).add(m.problemId);
+      if (!moved) { moved = true; ops.push({ coll: 'problemMarks', id: m.id, data: { pointId: k } }); return; }
+      ops.push({ coll: 'problemMarks', id: `${m.id}_${k}`, data: { pointId: k, problemId: m.problemId, descId: m.descId ?? null, text: m.text ?? null,
+        markedAt: m.markedAt ?? null, markedBy: m.markedBy ?? null, markedByName: m.markedByName ?? null, solvedAt: null, solvedBy: null, solvedByName: null, deleted: false } });
+    });
+    if (!moved) ops.push({ coll: 'problemMarks', id: m.id, data: { solvedAt: now, solvedBy: by.uid || '', solvedByName: by.name || '' } });
+  });
   removed.forEach((id) => remove.push({ coll: 'points', id }));
   return { ops, remove };
 }

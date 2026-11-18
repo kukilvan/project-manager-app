@@ -216,3 +216,10 @@ body.tour-on .sheet { max-height: 100%; }
 .noteed-done button { padding: 4px 14px; }
 .noteed.typing .noteed-head { display: none; }
 .noteed.typing .noteed-done { display: flex; }
+/* problems on points: open marks red-bordered, solved ones grey; the red line under a point label; the «Проект» link line */
+.prob { border: 2px solid var(--err); background: rgba(239,68,68,.10); border-radius: 8px; padding: 8px 10px; margin: 4px 0; display: flex; align-items: center; gap: 8px; }
+.prob.solved { border: 1px solid var(--line); background: transparent; color: var(--mut); }
+.prob-text { flex: 1; min-width: 0; font-size: 14px; } .prob-text b { font-size: 15px; } .prob-sub { font-size: 12px; color: var(--mut); margin-top: 2px; }
+.prob button { flex: none; padding: 6px 10px; }
+.prob-line { color: var(--err); font-size: 13px; font-weight: 600; }
+.prob-link { color: var(--err); font-weight: 600; margin-top: 8px; cursor: pointer; text-decoration: underline dotted; }

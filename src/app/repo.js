@@ -23,9 +23,9 @@ import {
   CATALOG, POINT_TYPES, CABLES, UNITS, DEVICES, composedTypes, fixLatin, fixCabinet,
 } from '../domain/index.js';
 
-// Project subcollections the app reads in full (the change history is read separately)
+// Project subcollections the app reads in full (the change history is read separately); `problemMarks` — problems on points (ADR 0017)
 export const COLLECTIONS = ['points', 'days', 'entries', 'journal', 'catalog', 'types', 'cables', 'devices', 'configs',
-  'units', 'culprits', 'delayReasons', 'cabinetSettings', 'todos', 'notes', 'pulls'];
+  'units', 'culprits', 'delayReasons', 'cabinetSettings', 'todos', 'notes', 'pulls', 'problemMarks'];
 
 // A Firestore document id cannot contain '/', and in catalogs id = name («Поставка / склад»)
 export const docKey = (id) => String(id).replace(/\//g, '_');

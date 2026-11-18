@@ -1,5 +1,5 @@
 // Dialogs «🔀 Одинаковые точки» (point merge) and «🔌 Кабели не по номеру»: merge a point recorded two ways, and fix cable counts that do not follow the label.
-// The same point can be recorded as a double «FC/B05-06» and as singles «FC/B05» + «FC/B06». The user picks which form to keep; works (daily report entries, journal rows, pulls, meters) move to the kept point,
+// The same point can be recorded as a double «FC/B05-06» and as singles «FC/B05» + «FC/B06». The user picks which form to keep; works (daily report entries, journal rows, pulls, meters) and open problem marks move to the kept point,
 // and the extra points are removed (they can be restored through the history). What does not match is shown before merging:
 // the quantity in the report (kept as it was by default), a work the kept point does not have, different meters.
 // Logic comes from src/domain/merge.js (findSameGroups, previewMerge, mergeOps, cablesMismatch); everything is written through repo.save.
@@ -15,7 +15,7 @@ export const sameGroups = () => (state.ctx ? findSameGroups([...state.ctx.points
 export function mergeModal({ onDone } = {}) {
   const groups = sameGroups();
   if (!groups.length) { toast('Одинаковых точек в разном виде не найдено'); return; }
-  const data = { entries: liveOf('entries'), journal: liveOf('journal'), pulls: liveOf('pulls') };
+  const data = { entries: liveOf('entries'), journal: liveOf('journal'), pulls: liveOf('pulls'), problemMarks: liveOf('problemMarks') };
   const ctx = state.ctx;
   let mode = 'double';
   const rows = groups.map((g) => ({ g, on: true, pv: null }));
@@ -63,7 +63,7 @@ export function mergeModal({ onDone } = {}) {
     const repo = getRepo(); const pid = currentProject().id; const now = Date.now(); const all = [];
     let moved = 0;
     for (const r of chosen) {
-      const { ops, remove } = mergeOps(r.g, mode, r.pv, data, ctx);
+      const { ops, remove } = mergeOps(r.g, mode, r.pv, data, ctx, { by: repo.by, now });
       moved += r.pv.entries.filter((x) => x.transfer).length;
       all.push(...ops, ...remove.map((x) => ({ coll: x.coll, id: x.id, action: 'delete', data: { deleted: true, deletedAt: now, deletedBy: repo.by.uid, deletedByName: repo.by.name } })));
     }

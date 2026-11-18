@@ -2,7 +2,7 @@
 // Builds the file from the project, its collections and the shared lists of the pool, and writes it through the Drive api object (drivefolders.js folders).
 export const BACKUP_FOLDER = 'Полевой журнал — резервные копии';
 const LIVE = (arr) => (arr || []).filter((d) => !d.deleted);
-const IMPORTABLE = ['points', 'journal', 'days', 'entries', 'cabinetSettings', 'todos', 'notes', 'pulls'];
+const IMPORTABLE = ['points', 'journal', 'days', 'entries', 'cabinetSettings', 'todos', 'notes', 'pulls', 'problemMarks'];
 // Settings of the project itself (not collections): racks, labels, door pins, icons, the list of drawings
 const PROJECT_KEYS = ['racks', 'shilut', 'doorPins', 'typeIcons', 'drawings', 'sheetLinks', 'tables', 'managers', 'rackTable'];
 const REFERENCE = ['catalog', 'types', 'cables', 'devices', 'configs', 'units'];
