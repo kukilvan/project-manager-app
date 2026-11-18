@@ -12,6 +12,7 @@ const project = { id: 'P1', name: 'Mega Or' };
 const TYPES = [
   ...POINT_TYPES,
   { id: 'Два', stages: ['Протяжка', 'Хивут'] },
+  { id: 'Одна', defaultCable: '6005', defaultCables: 1, extraCables: [{ cable: 'cat7', count: 1 }], stages: ['Протяжка'] },
   { id: 'Старый' },  // a legacy type without `stages`: all five count
   { id: 'Интерком', defaultCable: '6005', defaultCables: 1, extraCables: [{ cable: 'cat7', count: 1 }], stages: ['Протяжка', 'Хивут'] },
   { id: 'Комп', devices: [{ deviceId: 'DV', count: 1 }] },
@@ -53,6 +54,9 @@ test('план: шаг цвета по таблице § 4.1 (5, 4, 3, 2 эта�
   const c = colorOf('Камера', first('a', 2));
   assert.equal(c.color, '#c0ca33'); assert.deepEqual(c.done, [true, true, false, false, false]); assert.equal(c.dots, true); assert.equal(c.full, false); assert.equal(c.width, 1);
   assert.deepEqual(c.stages, ['Протяжка', 'Хивут', 'Установка', 'Проверка', 'Шилют']);
+  // the dots leave out the pull (the yellow shows it): termination done, installation, check and labels not
+  assert.deepEqual(c.dotDone, [true, false, false, false]);
+  assert.deepEqual(colorOf('Точка', first('a', 1, ['PR_PTS'])).dotDone, [false, false, false]);  // pulled only: every dot empty
 });
 
 test('план: всё сделано — тёмно-зелёная толстая рамка, без кружков', () => {
@@ -60,7 +64,7 @@ test('план: всё сделано — тёмно-зелёная толста
   assert.equal(c.color, '#1b5e20'); assert.equal(c.full, true); assert.equal(c.width, FULL_WIDTH); assert.equal(FULL_WIDTH * 2, 3.5); assert.equal(c.dots, false);
   // a checked point without shilut: step 4 of 5, four filled dots and one empty
   const d = colorOf('Камера', first('a', 4));
-  assert.equal(d.color, '#43a047'); assert.deepEqual(d.done, [true, true, true, true, false]);
+  assert.equal(d.color, '#43a047'); assert.deepEqual(d.done, [true, true, true, true, false]); assert.deepEqual(d.dotDone, [true, true, true, false]);
 });
 
 test('план: ничего не начато — серая, с длиной синяя, без кружков', () => {
@@ -73,7 +77,10 @@ test('план: ничего не начато — серая, с длиной �
 
 test('план: часть кабелей протянута — шаг 1, все кружки пустые', () => {
   const c = colorOf('Интерком', [['a', 'PR_PTS', { cableId: '6005' }]]);
-  assert.equal(c.step, 1); assert.equal(c.color, '#f2c80f'); assert.deepEqual(c.done, [false, false]); assert.equal(c.dots, true);
+  assert.equal(c.step, 1); assert.equal(c.color, '#f2c80f'); assert.deepEqual(c.done, [false, false]); assert.equal(c.dots, true); assert.deepEqual(c.dotDone, [false]);
+  // a type whose only stage is the pull has no dots at all
+  const ctx = make([{ id: 'a', label: 'A-01', typeId: 'Одна' }], [['a', 'PR_PTS', { cableId: '6005' }]]);
+  const one = planColor(ctx.points.get('a'), ctx); assert.equal(one.step, 1); assert.deepEqual(one.dotDone, []); assert.equal(one.dots, false);
 });
 
 test('план: открытая проблема и «Неисправна» красные при любом прогрессе', () => {
@@ -112,7 +119,7 @@ test('план: общая отметка следует за наименее �
   const ctx = make([{ id: 'a', label: 'TV-13', typeId: 'Камера', pos }, { id: 'b', label: 'TV-14', typeId: 'Камера', pos }], [...first('a', 5), ...first('b', 2)]);
   const pts = [ctx.points.get('a'), ctx.points.get('b')];
   const m = markColor(pts, ctx);
-  assert.equal(m.color, '#c0ca33'); assert.deepEqual(m.done, [true, true, false, false, false]);
+  assert.equal(m.color, '#c0ca33'); assert.deepEqual(m.done, [true, true, false, false, false]); assert.deepEqual(m.dotDone, [true, false, false, false]);
   // equal progress: the first label
   const ctx2 = make([{ id: 'a', label: 'TV-14', typeId: 'Камера', length: 5 }, { id: 'b', label: 'TV-13', typeId: 'Камера' }], []);
   assert.equal(markColor([ctx2.points.get('a'), ctx2.points.get('b')], ctx2).color, '#9e9e9e');

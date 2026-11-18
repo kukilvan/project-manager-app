@@ -46,21 +46,23 @@ export function pointStages(point, ctx, info = pointInfo(point, ctx)) {
 }
 
 /**
- * The color of a point on the plan → { color, done: bool[] (one per stage of S), stages, k, n, step, full, width, red, dots }.
+ * The color of a point on the plan → { color, done: bool[] (one per stage of S), stages, k, n, step, full, width, red, dots, dotDone }.
  * First rule that fires: an open problem or «Неисправна» → red; nothing started (or no stages) → blue with a length, else gray;
  * every stage done → dark green, full, width ×1.75; otherwise step clamp(round(k / n × 5), 1, 4) of the palette.
- * dots — the plan draws the stage dots (only started, unfinished, not red points). infoFn — the status function (the app passes its cached infoOf).
+ * dots — the plan draws the stage dots (only started, unfinished, not red points); dotDone — their done flags: every stage but the pull, whose progress
+ * the yellow already shows (the owner's wish at the check of ticket 6.5). infoFn — the status function (the app passes its cached infoOf).
  */
 export function planColor(point, ctx, infoFn = pointInfo) {
   const info = infoFn(point, ctx);
   const { list, started } = pointStages(point, ctx, info);
   const done = list.map((x) => x.done); const n = list.length; const k = done.filter(Boolean).length;
-  const base = { done, stages: list.map((x) => x.stage), k, n, step: 0, full: false, width: 1, red: false, dots: false };
+  const dotDone = list.filter((x) => x.stage !== 'Протяжка').map((x) => x.done);
+  const base = { done, stages: list.map((x) => x.stage), k, n, step: 0, full: false, width: 1, red: false, dots: false, dotDone };
   if (openProblemsOf(point, ctx).length || info.status === 'Неисправна') return { ...base, color: PLAN_PALETTE.red, red: true };
   if (!n || !started) return { ...base, color: blank(point.length) ? PLAN_PALETTE.gray : PLAN_PALETTE.blue };
   if (k === n) return { ...base, color: PLAN_PALETTE.full, full: true, width: FULL_WIDTH };
   const step = Math.min(4, Math.max(1, Math.round((k / n) * 5)));
-  return { ...base, color: PLAN_PALETTE.steps[step - 1], step, dots: true };
+  return { ...base, color: PLAN_PALETTE.steps[step - 1], step, dots: dotDone.length > 0 };
 }
 
 // A mark shared by several points (a pair, a triple, one tag): red when any point is red; otherwise the least finished point

@@ -201,7 +201,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
           for (const p of pts()) { if ((p.pos.page || 0) !== api.page) continue; const k = posKey(p.pos); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); }
           for (const grp of groups.values()) {
             const p = grp[0]; const on = grp.some(stageOk); const pc = markColor(grp, state.ctx, infoOf); const col = on ? pc.color : '#d0d0d0';
-            const dots = on && big && pc.dots ? pc.done : null;
+            const dots = on && big && pc.dots ? pc.dotDone : null;  // no dot for the pull: the yellow shows it
             for (const q of grp) {
               const ic = q.pos.icon && icons[q.typeId];
               if (ic) { const im = iconImg(q.typeId, ic.png, () => viewer?.draw()); if (im.complete && im.naturalWidth) { const [sx, sy] = api.toScr(q.pos.x, q.pos.y); const w = (ic.w || 12) * api.view.s; const hh = (ic.h || 12) * api.view.s; g.globalAlpha = on ? 1 : 0.4; g.drawImage(im, sx - w / 2, sy - hh / 2, w, hh); g.globalAlpha = 1; } }
@@ -392,7 +392,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
           h('span', {}, 'Цвет — доля сделанных этапов точки:'),
           ...PLAN_LEGEND.map((x) => h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' } },
             h('span', { style: { display: 'inline-block', width: '11px', height: '11px', border: `${x.thick ? 3.5 : 2}px solid ${x.color}`, background: '#fff', borderRadius: '2px' } }), x.ru)),
-          h('span', {}, '● — этап сделан, ○ — нет (протяжка, хивут, установка, проверка, шилют)')),
+          h('span', {}, '● — этап сделан, ○ — нет (хивут, установка, проверка, шилют; протяжку показывает цвет)')),
         h('div', { class: 'btns' },
           h('button', { class: 'sec', onclick: () => linkPoints(d, buf, { onDone: () => draw(d.id) }).catch((e) => toast(e.message)) }, '🔗 Связать точки'),
           h('button', { class: 'sec', onclick: async () => { try { await exportNumberedPdf(cur(), buf); } catch (e) { toast(`Не получилось: ${e.message}`); } } }, '📄 Скачать PDF с номерами'),
