@@ -1,6 +1,6 @@
 # Idea 006: Plan colours by works, pink for pulled, thinner phone frames, focus frame goes away
 
-Status: planned — stage 6, sliced into `.scratch/06-field-improvements/issues/08-plan-colours-works.md`
+Status: done — stage 6, ticket 6.8; sliced into `.scratch/06-field-improvements/issues/08-plan-colours-works.md`
 Added: 2026-11-19
 
 ## Why

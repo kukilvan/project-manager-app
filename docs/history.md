@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-19 — Ticket 6.8: plan colours by works («Тикет 6.8»)
+
+- `src/domain/plan.js`: `planColor` by idea 006 (pink for pulled, `gradientColor` — OKLab yellow → green at `t = (j − 1) / (M − 1)`, dark green when all done, red over all), `pull: { done, total }` counted in cables (composite: quantity of pull tasks, legacy: counts of cable kinds), `markColor` ranks by `progressOf`, new `PLAN_PALETTE` / `PLAN_LEGEND` (gradient and circles entries), `NUMBERED_V` 3.
+- `src/app/views/planmodal.js`: pull circles in the tag (or under a caption with no tag), legend swatches, phone frames ×0.75, the focus frame cleared on opening a card and on a tap on an empty spot. `numbered.js`: legend without the circles line.
+- Decisions: `M = 1`, the only work done and the pull not — the top shade (not yellow); the owner made the pink stronger at the check: `#E99AC4` → `#E0609F`, circles `#A8285F`. Checked in a throwaway dev server at phone width with a generated PDF; the owner checked on the phone: works. Commits `0cb81f1`, `0080eb4`.
+
 ## 2026-11-19 — Ticket 6.7: translations 2, the rest and the coverage test («Тикет 6.7»)
 
 - `scripts/i18n-extract.mjs` exports `collectStrings()`; everything inside the arguments of `info` / `warn` / `error` and `console.*` is skipped (the event log is Russian). `tests/i18n-coverage.test.js` runs each string through the real `tr()` with `{}` → `0` (Russian may stay only inside quotes or `{…}` tokens), cuts the guide's «• » / «# » prefix, fails listing up to 30 strings with files, and fails on a stale or reason-less `src/i18n/not-ui.json` entry (63 entries: Drive folder and file names, Russian report and sheet captions, seed data, stored stage keys, label-template tokens).
