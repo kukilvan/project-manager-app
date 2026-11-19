@@ -20,6 +20,21 @@ import { createViewer, mark } from './planview.js';
 import { loadDrawing, drawingsOf, drawingFor, drawingTitle, addDrawingVersion, updateDrawing } from '../drawings.js';
 import { uniquePairs, fitSheets, fitManual, planMove, moveSummary, movePos, versionName, offSheet } from '../../domain/sheetfit.js';
 import { info, warn } from '../../log.js';
+import { t } from '../../i18n/index.js';
+
+/**
+ * The note of a point in the check lists, each part translated on its own: «на месте», «(значок «ТВ»)», «— на 12 ед. старого листа», «— на её месте теперь «B07»».
+ * `review` — the list on the plan: the kind is shown by the caller, the note has no distance and carries the duplicate hint.
+ */
+function kindNote(x, review = false) {
+  const out = [
+    review ? '' : t(KIND[x.kind][0]),
+    x.under ? t(`(значок «${x.under}»)`) : '',
+    !review && x.kind === 'moved' && x.d ? t(`— на ${Math.round(x.d)} ед. старого листа`) : '',
+    x.newLabel ? t(review ? `— на её месте теперь «${x.newLabel}» (похоже, переименовали; если приложение уже добавило «${x.newLabel}» новой точкой — это дубликат)` : `— на её месте теперь «${x.newLabel}»`) : '',
+  ].filter(Boolean).join(' ');
+  return review && out ? ` ${out}` : out;
+}
 
 export const KIND = {
   ok: ['на месте', '#34c759'], plain: ['по пересчёту', '#0a84ff'], moved: ['сдвинута на новом чертеже', '#ff9500'],
@@ -86,7 +101,7 @@ function manualFit(ctx, oldPage) {
     function upd() { msg.textContent = step() < 4 ? STEPS[step()] : 'Оба места отмечены — «Готово».'; ok.disabled = step() < 4; }
     const pageSel = sN.pages.length > 1 ? h('select', { onchange: (e) => { newPage = +e.target.value; taps.length = 0; vN.load(newPage); upd(); } }, sN.pages.map((_, i) => h('option', { value: i }, `Новый: лист ${i + 1}`))) : null;
     body.replaceChildren(...[msg,
-      h('div', { class: 'mut', style: { fontSize: '12px' } }, `Старый лист${sO.pages.length > 1 ? ` ${oldPage + 1}` : ''}`), h('div', { class: 'btns', style: { marginTop: 0 } }, ...vO.zoomBtns()), vO.el,
+      h('div', { class: 'mut', style: { fontSize: '12px' } }, (sO.pages.length > 1 ? t(`Старый лист ${oldPage + 1}`) : t('Старый лист'))), h('div', { class: 'btns', style: { marginTop: 0 } }, ...vO.zoomBtns()), vO.el,
       h('div', { class: 'mut', style: { fontSize: '12px', marginTop: '8px' } }, 'Новый лист'), h('div', { class: 'btns', style: { marginTop: 0 } }, pageSel, ...vN.zoomBtns()), vN.el,
       h('div', { class: 'btns' }, ok, again, cancel)].filter(Boolean));
     upd();
@@ -101,7 +116,13 @@ function preview(ctx) {
   const plan = planMove(pts, fits, sO.spans, sN.spans, sheet);
   const c = moveSummary(plan);
   const movable = plan.filter((x) => x.pos);
-  const fitLine = [...fits].filter(([pg]) => pts.some((p) => (p.pos.page || 0) === pg)).map(([pg, f]) => `${fits.size > 1 ? `лист ${pg + 1} → ${f.newPage + 1}: ` : ''}${f.manual ? 'по двум местам' : `совпало номеров ${f.inliers} из ${f.total}`}, масштаб ×${f.scale}${Math.abs(f.angle) > 0.05 ? `, поворот ${f.angle}°` : ''}${f.manual ? '' : `, точность ±${f.rms}`}`).join('; ');
+  const fitLine = [...fits].filter(([pg]) => pts.some((p) => (p.pos.page || 0) === pg)).map(([pg, f]) => [
+    fits.size > 1 ? `${t(`лист ${pg + 1} → ${f.newPage + 1}:`)} ` : '',
+    f.manual ? t('по двум местам') : t(`совпало номеров ${f.inliers} из ${f.total}`),
+    `, ${t(`масштаб ×${f.scale}`)}`,
+    Math.abs(f.angle) > 0.05 ? `, ${t(`поворот ${f.angle}°`)}` : '',
+    f.manual ? '' : `, ${t(`точность ±${f.rms}`)}`,
+  ].join('')).join('; ');
   const off = offSheet(plan, sN.pages);
   status.textContent = `Пересчёт: ${fitLine}. Посмотрите на плане, что точки встали на свои места.`;
   if (off) status.append(h('div', { style: { color: '#ff3b30', fontWeight: 600, marginTop: '4px' } }, `${off} из ${plan.length} точек оказались за краем нового листа — похоже, лист сопоставлен неверно. Нажмите «📍 Не совпало — указать места вручную».`));
@@ -119,7 +140,7 @@ function preview(ctx) {
   const doubt = plan.filter((x) => REVIEW.includes(x.kind) || x.kind === 'nofit');
   const listBox = doubt.length ? h('details', { style: { margin: '6px 0' } }, h('summary', {}, `Требуют проверки: ${doubt.length}`),
     ...doubt.map((x) => h('div', { class: 'item', onclick: () => { if (x.pos && (x.pos.page || 0) === pageNow()) vN.focus(x.pos.x, x.pos.y, x.pos.page || 0); } },
-      h('div', { class: 'name' }, x.label || '(без номера)', h('div', { class: 'sub', style: { color: KIND[x.kind][1] } }, `${KIND[x.kind][0]}${x.under ? ` (значок «${x.under}»)` : ''}${x.kind === 'moved' && x.d ? ` — на ${Math.round(x.d)} ед. старого листа` : ''}${x.newLabel ? ` — на её месте теперь «${x.newLabel}»` : ''}`))))) : null;
+      h('div', { class: 'name' }, x.label || '(без номера)', h('div', { class: 'sub', style: { color: KIND[x.kind][1] } }, kindNote(x)))))) : null;
   const go = h('button', { disabled: !movable.length, onclick: () => apply(ctx, plan) }, `✔ Перенести точки (${movable.length})`);
   const manual = h('button', { class: 'sec', onclick: async () => {
     const pages = [...new Set(pts.map((p) => p.pos.page || 0))];
@@ -176,7 +197,7 @@ export function reviewModal(d, { onFocus, onChange, onOpen } = {}) {
     list.replaceChildren(...items.map((x) => {
       const done = (fn) => () => { fn(); drop(x.id); items = items.filter((y) => y !== x); paint(); onChange?.(); if (!items.length) c(); };
       return h('div', { class: 'card', style: { margin: '6px 0', padding: '8px' } },
-        h('div', {}, h('b', {}, x.label || '(без номера)'), ' — ', h('span', { style: { color: KIND[x.kind]?.[1] } }, KIND[x.kind]?.[0] || x.kind), x.under ? ` (значок «${x.under}»)` : '', x.newLabel ? ` — на её месте теперь «${x.newLabel}» (похоже, переименовали; если приложение уже добавило «${x.newLabel}» новой точкой — это дубликат)` : ''),
+        h('div', {}, h('b', {}, x.label || '(без номера)'), ' — ', h('span', { style: { color: KIND[x.kind]?.[1] } }, KIND[x.kind]?.[0] || x.kind), kindNote(x, true)),
         h('div', { class: 'btns', style: { marginTop: '6px' } },
           h('button', { class: 'sec', onclick: () => { c(); onFocus?.(x.id, x.to || null); } }, '👁 Показать'),
           x.newLabel && onOpen ? h('button', { class: 'sec', onclick: () => { c(); onOpen(x.id); } }, '✏️ Карточка точки') : null,

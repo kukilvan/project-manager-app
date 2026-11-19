@@ -3,6 +3,7 @@
 // Computes with worksSummary, ownWorksPatch, tasksOf and compositionOf of src/domain over state.ctx; the point form (points.js) stores the result in point.ownWorks.
 import { h } from '../ui.js';
 import { state } from '../store.js';
+import { tr } from '../../i18n/index.js';
 import { worksSummary, ownWorksPatch, tasksOf, compositionOf, ownWorksOf, OWN_STAGES } from '../../domain/index.js';
 
 const CHIP = { 'Хивут': 'hiv', 'Установка': 'ins', 'Проверка': 'chk' };
@@ -33,8 +34,11 @@ export function ownWorksField({ pointsOf, sig = () => '' }) {
         const rows = [...sum.rows, ...added.filter((a) => !sum.rows.some((r) => r.workId === a.workId))];
         const card = (r) => {
           const ch = changes.get(r.workId);
-          const now = r.have ? `${one ? 'сейчас' : `у ${r.have} из ${n} точек`}: ${one ? '' : 'по '}${span(r.min, r.max)}` : 'сейчас нет';
-          const ownTxt = r.own ? ` · своё${one ? '' : ` у ${r.own}`}${r.perCable ? ' (на кабель)' : ''}${r.removed ? `, убрано${one ? '' : ` у ${r.removed}`}` : ''}` : ' · по составу';
+          // each part is translated on its own: the joined line has too many variants for a dictionary key
+          const now = tr(r.have ? (one ? `сейчас: ${span(r.min, r.max)}` : `у ${r.have} из ${n} точек: по ${span(r.min, r.max)}`) : 'сейчас нет');
+          const ownTxt = ` · ${r.own
+            ? `${tr(one ? 'своё' : `своё у ${r.own}`)}${r.perCable ? ` ${tr('(на кабель)')}` : ''}${r.removed ? `, ${tr(one ? 'убрано' : `убрано у ${r.removed}`)}` : ''}`
+            : tr('по составу')}`;
           const qty = h('input', { type: 'text', inputMode: 'numeric', class: 'qty', placeholder: 'кол.', style: { width: '56px', textAlign: 'center' },
             value: ch?.op === 'set' ? String(ch.qty) : '' });
           const per = h('select', { style: { flex: 1, minWidth: 0 } }, h('option', { value: 'point' }, 'на точку'), h('option', { value: 'cable' }, 'на каждый кабель'));

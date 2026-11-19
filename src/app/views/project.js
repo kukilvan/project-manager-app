@@ -19,6 +19,7 @@ import { cacheGet, pushDrawing } from '../drawings.js';
 import { memberLabel, memberNameByUid } from './members.js';
 import { hint } from './guide.js';
 import { exportExcel } from '../excel.js';
+import { tr } from '../../i18n/index.js';
 
 // Test mode (?mem=1): a stub instead of Google; calls are recorded in window.__gcalls
 function testApi() {
@@ -74,7 +75,7 @@ export async function organizeDrive(retried = false) {
       for (const f of olds) if (await api.placeIn(f.id, p, 'backups')) moved++;
       await api.projectFolder(p);  // every project has a folder, even without files
     }
-    toast(`Готово: переложено файлов — ${moved}${uploaded ? `, загружено чертежей — ${uploaded}` : ''}. Всё в папке «Менеджер проектов» на Диске.${missing.length ? ` Нет на этом устройстве (загрузите с того, где добавляли): ${missing.join(', ')}` : ''}`);
+    toast(`${tr(`Готово: переложено файлов — ${moved}`)}${uploaded ? `, ${tr(`загружено чертежей — ${uploaded}`)}` : ''}. ${tr('Всё в папке «Менеджер проектов» на Диске.')}${missing.length ? ` ${tr(`Нет на этом устройстве (загрузите с того, где добавляли): ${missing.join(', ')}`)}` : ''}`);
   } catch (e) {
     if (e.status === 401 && retried !== true) { clearToken(); syncing = false; return organizeDrive(true); }
     toast(`Не получилось: ${e.message || e}`); console.error('folders', e);

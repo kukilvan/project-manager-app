@@ -41,7 +41,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 <!-- code-map:start (built by tools/code-map.mjs from the header comments; do not edit by hand) -->
 - `scripts/export-pool.mjs` — Starter set for the open edition: a copy of the shared pool (types, devices, cables, works, door configurations, shared lists) without service fields.
 - `scripts/i18n-build.mjs` — Builds the translation dictionaries: src/i18n/src/*.json ({ "<Russian text>": ["English", "Hebrew"] }) → src/i18n/en.json and he.json.
-- `scripts/i18n-extract.mjs` — Collects every Russian UI string (strings and `…${x}…` templates in src) for the translation dictionaries.
+- `scripts/i18n-extract.mjs` — Collects every Russian UI string (strings and `…${x}…` templates in src) for the translation dictionaries and the coverage test.
 - `scripts/server-backup-lib.mjs` — Server backup logic: reading projects from Firestore, writing the backup folders and planning a restore.
 - `scripts/server-backup.mjs` — Server backup run by GitHub Actions every 2 days: copies all projects from Firestore into a folder that the workflow then commits to the private backup repo.
 - `scripts/server-cleanup.mjs` — Server cleanup: permanently deletes what has been marked deleted for over a year (records, whole projects) and change-history entries older than a year.
