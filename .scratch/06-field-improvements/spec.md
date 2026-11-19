@@ -333,6 +333,8 @@ Sheet texts «Проблема» / «בעיה» and «Есть проблема�
 
 ## 4. Plan colours by progress (idea 004)
 
+**Changed after ticket 6.5 (owner):** the stage dots of § 4.2 were dropped at the check of ticket 6.5 (2026-11-18), and lines on a computer with a mouse are twice as thick. Idea 006 (ticket 6.8, 2026-11-19) replaced the colour rules and the legend of §§ 4.1 and 4.3: pink for a pulled point, an OKLab gradient by the works after the pull, circles per cable for an unfinished pull. The code follows `docs/ideas/006-plan-colours-by-works.md`; § 4.4 (the filter) stands.
+
 ### 4.1 The colour of a point — `planColor(point, ctx)` in `src/domain/plan.js`
 
 Replaces `statusColor` for the plan and «PDF с номерами» (the status words, the management sheet and the rack screens do not change). Returns `{ color, done: bool[], full, width }`; first rule that fires:

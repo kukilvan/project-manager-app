@@ -20,6 +20,7 @@ Bugs decided not to fix now, and rare cases where the app can go wrong (source d
 | KI-5 | a working day and a day off on one date after offline edits on two devices | `src/app/views/doh.js` (day form checks), `src/domain/month.js` | open | — |
 | KI-6 | a conflicting Hebrew name merged into a shared list on two devices at once keeps the last write | `src/app/shared.js` (merge), `src/domain/shared.js` (`mergePlan`) | open | — |
 | KI-7 | the translation coverage test sees string literals, not sentences built from parts; catalog names show Russian in English | `tests/i18n-coverage.test.js`, catalogs (`src/domain/seed.js`, `src/domain/problems.js`, colours in `src/domain/rack.js`) | open | — |
+| KI-8 | a database with rules older than stage 6 cannot read the shared lists: no merge, no seeding, no «rules out of date» toast, empty lists in a new project | `src/app/shared.js`, `listenPool` in `src/app/repo.js`, `firestore.rules` | open | — |
 
 ## Entries
 
@@ -94,3 +95,13 @@ Entry format:
 - Likelihood / impact: every new UI line built from parts; a few Russian words in a translated screen, nothing breaks.
 - Status: open
 - Found: 2026-11-19, screen check of ticket 6.7.
+
+## KI-8. A database with rules older than stage 6 cannot read the shared lists
+
+- Where: `src/app/shared.js` (merge, seeding, the toast «Общий список не записался: правила базы устарели…»), `listenPool` / `deltaListen` in `src/app/repo.js`; the rules come from `firestore.rules` (`firestore.open.rules` for the open edition).
+- What's wrong: the rules have no catch-all read rule, so in a database whose rules were pasted before ticket 6.2 the listeners of `pool_delayReasons`, `pool_culprits` and `pool_problems` fail with `permission-denied`. `startShared` then never sees the three lists loaded, so it neither merges the old project lists nor seeds the defaults, and the «rules out of date» toast of spec § 2.4 never shows (it is tied to a rejected write, and nothing is written). A project created there gets no delay reasons and culprits (`createProject` no longer copies them); old projects keep offering their own lists. What the person sees is the red «⬇ ошибка» badge; tapping it names the three pool collections with `permission-denied`.
+- How to reproduce: a colleague's own database with the rules of 2026-11-17 or older; open the app after ticket 6.2; create a project; open «Причины задержки точек».
+- Likelihood / impact: only a colleague with their own database who has not pasted the new rules; the owner's database has them since 2026-11-18. Empty pickers in new projects until «Подключение к базе» → «📋 Скопировать правила» is done in that database's Firebase console.
+- Why not fixed now: the fix (an error callback from `listenPool` that shows the same toast on `permission-denied`) changes the sync core and cannot be checked in `?mem=1`; it is rare and has a plain remedy.
+- Status: open
+- Found: 2026-11-19, review 6.

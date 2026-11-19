@@ -1,6 +1,6 @@
 # Delay reasons, culprits and problems are one shared list per database, read directly from the pool
 
-Status: accepted (planned, stage 6)
+Status: accepted
 
 Replaces ADR 0015, which covered delay reasons and problems only; the owner added culprits («Виновники простоя») in «Описание 6».
 

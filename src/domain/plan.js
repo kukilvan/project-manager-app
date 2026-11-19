@@ -45,11 +45,11 @@ export function gradientColor(t, from = PLAN_PALETTE.from, to = PLAN_PALETTE.to)
 export const PLAN_LEGEND = [
   { color: PLAN_PALETTE.gray, ru: 'новая', he: 'חדשה' },
   { color: PLAN_PALETTE.blue, ru: 'померяно', he: 'נמדד' },
-  { color: PLAN_PALETTE.pink, ru: 'протянута', he: 'נמשכה' },
-  { color: gradientColor(0.5), gradient: [PLAN_PALETTE.from, PLAN_PALETTE.to], ru: 'работы после протяжки', he: 'עבודות אחרי המשיכה' },
+  { color: PLAN_PALETTE.pink, ru: 'протянута', he: 'הושחלה' },
+  { color: gradientColor(0.5), gradient: [PLAN_PALETTE.from, PLAN_PALETTE.to], ru: 'работы после протяжки', he: 'עבודות אחרי ההשחלה' },
   { color: PLAN_PALETTE.full, ru: 'готово', he: 'הושלם', thick: true },
   { color: PLAN_PALETTE.red, ru: 'проблема / неисправна', he: 'בעיה / תקלה' },
-  { color: PLAN_PALETTE.pink, ru: 'кружочки — протянутые кабели', he: 'עיגולים – כבלים שנמשכו', circles: true },
+  { color: PLAN_PALETTE.pink, ru: 'кружочки — протянутые кабели', he: 'עיגולים – כבלים שהושחלו', circles: true },
 ];
 
 const blank = (v) => v === undefined || v === null || v === '';
@@ -160,7 +160,8 @@ export function numberedInput(points, ctx, d) {
     .sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0));
 }
 // The look of «PDF с номерами» (colors, legend): a new value changes every fingerprint, so the nightly job re-renders each file once
-const NUMBERED_V = 3;
+// (4: the Hebrew legend says השחלה for the pull, as the rest of the app and the management sheet)
+const NUMBERED_V = 4;
 // Fingerprint of the «PDF с номерами» content: changed points, colors, hidden ones or icons give a different one
 export function numberedHash(input, d, icons = {}, extra = '') {
   const s = JSON.stringify([NUMBERED_V, input.map((x) => [x.label, x.typeId, Math.round(x.pos.x), Math.round(x.pos.y), x.pos.page || 0, x.pos.icon ? 1 : 0, x.color]),

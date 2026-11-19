@@ -39,3 +39,17 @@ test('i18n: иврит', async () => {
   assert.equal(tr('Новый: шкаф'), 'חדש: ארון');
   assert.equal(tr('Установка камеры (8)'), 'התקנת מצלמה (8)');
 });
+
+// The build (scripts/i18n-build.mjs) keeps the last file's entry, so a second, different translation of the same Russian text
+// silently overrides the first one: an edit of the first one never reaches the screen (found in review 6: the plan legend)
+test('i18n: no Russian text gets two different translations in src/i18n/src', () => {
+  const dir = new URL('src/', root); const seen = new Map(); const clash = [];
+  for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.json')).sort()) {
+    for (const [ru, v] of Object.entries(JSON.parse(fs.readFileSync(new URL(f, dir), 'utf8')))) {
+      const prev = seen.get(ru);
+      if (prev && JSON.stringify(prev.v) !== JSON.stringify(v)) clash.push(`${JSON.stringify(ru).slice(0, 80)}: ${prev.f} / ${f}`);
+      seen.set(ru, { f, v });
+    }
+  }
+  assert.deepEqual(clash, [], `the same text is translated twice, differently — keep one entry:\n${clash.join('\n')}`);
+});

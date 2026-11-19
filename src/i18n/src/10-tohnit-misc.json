@@ -1,6 +1,5 @@
 {
 "⌨ Быстрый ввод латиницей": ["⌨ Quick Latin input", "⌨ הקלדה מהירה בלטינית"],
-"В полях названий точек, шкафов и в переименовании: набрал слово из левой части и нажал пробел (или дефис, цифру) — оно само станет правой. Стёр результат вручную — это слово больше не заменяется. Одна строка — одна замена: «кам = CAM».": ["In point and cabinet name fields and when renaming: type a word from the left side and press space (or a hyphen, a digit) — it turns into the right side. Delete the result manually and that word is no longer replaced. One line — one replacement: “кам = CAM”.", "בשדות שמות הנקודות והארונות ובשינוי שם: מקלידים מילה מהצד השמאלי ולוחצים רווח (או מקף, ספרה) — היא הופכת לצד הימני. מחקתם את התוצאה ידנית — המילה הזו לא תוחלף יותר. שורה אחת — החלפה אחת: „кам = CAM”."],
 "↺ Стандартные": ["↺ Defaults", "↺ ברירת מחדל"],
 "Обновляю папку для руководства…": ["Updating the management folder…", "מעדכן את התיקייה להנהלה…"],
 "Таблица «{}»: {}": ["Sheet “{}”: {}", "טבלה „{}”: {}"],

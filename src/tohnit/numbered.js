@@ -96,7 +96,7 @@ export function numberedPdf(mupdf, data, points, { title = '', icons = {}, hidde
   if (lang === 'he') {
     const L = [{ text: `מקרא: ${title}`, size: 16 }];
     if (updated) L.push({ text: `עודכן: ${updated}`, size: 10, color: [0.3, 0.3, 0.3] });
-    L.push({ text: 'צבע המסגרת = משיכה ועבודות אחריה', size: 10, color: [0.3, 0.3, 0.3] });
+    L.push({ text: 'צבע המסגרת = השחלה ועבודות אחריה', size: 10, color: [0.3, 0.3, 0.3] });
     LEGEND.forEach((x) => L.push({ text: x.he, size: 10, swatch: rgb(x.color) }));
     for (const t of types) {
       const ls = points.filter((p) => p.typeId === t).map((p) => p.label);

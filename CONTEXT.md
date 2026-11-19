@@ -39,17 +39,17 @@ Point × work; closes a point task with one row (`done` boolean). Ids: `${entryI
 
 **Day / entry** (code: `days`, `entries`) — a working day and the works recorded in it; `entry.portQty` holds per-point quantities.
 
-**Day off** (code: `day.off`, `offReason`, `offText`, `src/domain/dayoff.js`; UI: «🌴 Выходной») — a day of a project with no work and a reason («Праздник», «Болезнь»… or own text); shown in «Отчёты» and «Месяц», not counted as a working day; blocked on a date that is a working day in another project (planned, stage 6).
+**Day off** (code: `day.off`, `offReason`, `offText`, `src/domain/dayoff.js`; UI: «🌴 Выходной») — a day of a project with no work and a reason («Праздник», «Болезнь»… or own text); shown in «Отчёты» and «Месяц», not counted as a working day; blocked on a date that is a working day in another project.
 
-**Shared list** (code: `pool_delayReasons`, `pool_culprits`, `pool_problems`, `src/app/shared.js`) — a reference list kept once per database in the shared pool and read directly by every project: any member adds and edits, only the administrator deletes (a `deleted` mark). Old per-project lists are merged in once and kept read-only (ADR 0016, planned).
+**Shared list** (code: `pool_delayReasons`, `pool_culprits`, `pool_problems`, `src/app/shared.js`) — a reference list kept once per database in the shared pool and read directly by every project: any member adds and edits, only the administrator deletes (a `deleted` mark). Old per-project lists are merged in once and kept read-only (ADR 0016).
 
-**Delay reason** (code: `pool_delayReasons`, `point.delayReasonId`; UI: «Причина задержки») — why a point is not done, in general (also the delay of a day entry, `entry.delayReason`); does not make a point red. A shared list (planned, stage 6).
+**Delay reason** (code: `pool_delayReasons`, `point.delayReasonId`; UI: «Причина задержки») — why a point is not done, in general (also the delay of a day entry, `entry.delayReason`); does not make a point red. A shared list (ADR 0016).
 
-**Culprit** (code: `pool_culprits`, `entry.delayCulprit`; UI: «Виновник простоя») — who caused the downtime of a day entry; «Месяц» sums downtime by culprit. A shared list (planned, stage 6).
+**Culprit** (code: `pool_culprits`, `entry.delayCulprit`; UI: «Виновник простоя») — who caused the downtime of a day entry; «Месяц» sums downtime by culprit. A shared list (ADR 0016).
 
 **Problem** (code: `pool_problems`; UI: «Проблема») — a concrete trouble from the shared «Проблемы» list: a Russian and Hebrew name, the point types it is for (empty — all) and ready descriptions. _Avoid_: fault (that is «Неисправна», a failed check).
 
-**Problem mark** (code: `problemMarks`, `src/domain/problems.js`) — a problem on one point: a ready description or own Hebrew text, who and when marked, who and when solved; an open mark makes the point red on the plan, in «PDF с номерами» and in the management sheet; «Решено» closes it and keeps it in history (ADR 0017, planned).
+**Problem mark** (code: `problemMarks`, `src/domain/problems.js`) — a problem on one point: a ready description or own Hebrew text, who and when marked, who and when solved; an open mark makes the point red on the plan, in «PDF с номерами» and in the management sheet; «Решено» closes it and keeps it in history (ADR 0017).
 
 **Progress colour** (code: `planColor` in `src/domain/plan.js`) — the plan colour of a point by its pull and the works after it: pink for a pulled point (whatever its type), then an even OKLab gradient from yellow to green with every work done after the pull (works = the lines of the point's work list), a thick dark-green frame when all are done; red for an open problem or «Неисправна». An unfinished pull shows a circle per cable (filled for a pulled one) when zoomed in. Idea 006, ticket 6.8; before it the colour was the share of stages done (ticket 6.5).
 

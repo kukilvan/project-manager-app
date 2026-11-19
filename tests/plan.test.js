@@ -37,7 +37,7 @@ const colorOf = (typeId, works, pt = {}) => { const ctx = make([{ id: 'a', label
 test('план: палитра и легенда', () => {
   assert.deepEqual({ ...PLAN_PALETTE }, { gray: '#9e9e9e', blue: '#2979ff', pink: '#E0609F', from: '#fdd835', to: '#2e9e45', full: '#1b5e20', red: '#ff1744' });
   assert.deepEqual(PLAN_LEGEND.map((x) => x.ru), ['новая', 'померяно', 'протянута', 'работы после протяжки', 'готово', 'проблема / неисправна', 'кружочки — протянутые кабели']);
-  assert.deepEqual(PLAN_LEGEND.map((x) => x.he), ['חדשה', 'נמדד', 'נמשכה', 'עבודות אחרי המשיכה', 'הושלם', 'בעיה / תקלה', 'עיגולים – כבלים שנמשכו']);
+  assert.deepEqual(PLAN_LEGEND.map((x) => x.he), ['חדשה', 'נמדד', 'הושחלה', 'עבודות אחרי ההשחלה', 'הושלם', 'בעיה / תקלה', 'עיגולים – כבלים שהושחלו']);
   assert.deepEqual(PLAN_LEGEND.filter((x) => x.thick).map((x) => x.color), ['#1b5e20']);
   assert.deepEqual(PLAN_LEGEND.find((x) => x.gradient).gradient, ['#fdd835', '#2e9e45']);
   assert.deepEqual(PLAN_LEGEND.filter((x) => x.circles).map((x) => x.ru), ['кружочки — протянутые кабели']);
