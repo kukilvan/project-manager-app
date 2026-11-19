@@ -23,6 +23,7 @@ test('i18n: английский', async () => {
   assert.equal(tr('👋 Знакомство'), '👋 Introduction');
   assert.equal(tr('1️⃣ Шаг 1. Добавить точки'), '1️⃣ Step 1. Add points');
   assert.equal(tr('Установка камеры (8)'), 'Camera installation (8)');
+  assert.equal(tr('Установка камеры ×3'), 'Camera installation ×3');
   assert.equal(tr('test@example.com (вы)'), 'test@example.com (you)');
   assert.equal(tr('точек cat7: 8 (портов 8) · расставлено 0 из 8 · плана ещё нет'), 'cat7 points: 8 (ports 8) · placed 0 of 8 · no plan yet');
   assert.equal(tr('45 м на 1 кабель (всего 45 м)'), '45 m per cable (total 45 m)');

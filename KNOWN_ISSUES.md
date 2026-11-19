@@ -19,6 +19,7 @@ Bugs decided not to fix now, and rare cases where the app can go wrong (source d
 | KI-4 | an editor's sort of the points sheet scatters section and empty rows | management sheet (Google Sheets), `src/domain/report.js` | open | — |
 | KI-5 | a working day and a day off on one date after offline edits on two devices | `src/app/views/doh.js` (day form checks), `src/domain/month.js` | open | — |
 | KI-6 | a conflicting Hebrew name merged into a shared list on two devices at once keeps the last write | `src/app/shared.js` (merge), `src/domain/shared.js` (`mergePlan`) | open | — |
+| KI-7 | the translation coverage test sees string literals, not sentences built from parts; catalog names show Russian in English | `tests/i18n-coverage.test.js`, catalogs (`src/domain/seed.js`, `src/domain/problems.js`, colours in `src/domain/rack.js`) | open | — |
 
 ## Entries
 
@@ -84,3 +85,12 @@ Entry format:
 - What's wrong: each device plans the merge from its own server read. When two devices merge at the same time, both see a pool item with empty Hebrew (or an absent item) and both write their project's Hebrew for the same name; the write that reaches the server last wins. The other Hebrew is not listed as a conflict in either event log.
 - How to reproduce: two projects with the same reason and different Hebrew, neither merged; two devices of different members open the app at the same moment, each on a project of its own.
 - Why not fixed now: it needs a transaction per item, and it happens only during the one-time merge. Nothing is lost: the old project lists still hold both names, and the Hebrew can be fixed in «Выпадающие списки» by hand.
+
+## KI-7. The translation coverage test sees string literals, not sentences built from parts
+
+- Where: `tests/i18n-coverage.test.js` (through `scripts/i18n-extract.mjs`); the catalogs `src/domain/seed.js`, `src/domain/problems.js`, the colour names in `src/domain/rack.js`.
+- What's wrong: the test checks every Russian literal, so a sentence assembled at run time from pieces (`` `${label} ×${n}` ``, `` `${action}: ${name}` ``) passes while the screen can show a mix of Russian and the other language. Found on screen at ticket 6.7: a trailing « ×3» (fixed in `tr()`), the history rows «создал: Точка …» in Hebrew (fixed with `tr()` per part). Names that are data of a catalog (the example problems, the colour names) have a Hebrew name of their own but no English one, so the English UI shows them in Russian («default (зелёный)», the groups «Замок», «Доступ»).
+- How to reproduce: English UI → a point type, work or colour added to a catalog with a Russian name only; or any new sentence built with `+` or a template of translated parts without `tr()` on each part.
+- Likelihood / impact: every new UI line built from parts; a few Russian words in a translated screen, nothing breaks.
+- Status: open
+- Found: 2026-11-19, screen check of ticket 6.7.

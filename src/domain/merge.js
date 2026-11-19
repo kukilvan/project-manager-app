@@ -108,12 +108,12 @@ export function previewMerge(group, mode, data, ctx) {
   const notes = [];
   const pts = (ids) => ids.map((id) => ctx.points.get(id)).filter(Boolean);
   const lens = [...new Set(pts(removed).map((p) => p.length).filter((v) => !blank(v)))];
-  if (lens.length > 1) notes.push(`разная длина: ${lens.join(' и ')} м — останется ${Math.max(...lens)} м`);
+  if (lens.length > 1) notes.push(`разная длина: ${lens.join(' / ')} м — останется ${Math.max(...lens)} м`);
   for (const f of ['mac', 'serial']) { const vs = [...new Set(pts([...removed, ...kept]).map((p) => p[f]).filter((v) => !blank(v)))]; if (vs.length > 1) notes.push(`разные ${f === 'mac' ? 'MAC' : 'серийные номера'}: ${vs.join(', ')} — останется ${vs[0]}`); }
   for (const pl of data.pulls) {
     if (!(pl.pointIds || []).some((id) => removed.includes(id))) continue;
     const vals = (arr) => [...new Set((arr || []).filter((x) => removed.includes(x.id)).map((x) => x.v))];
-    const m = vals(pl.meters); if (m.length > 1) notes.push(`протяжка: разный метраж (${m.join(' и ')} м) — останется ${Math.max(...m)} м`);
+    const m = vals(pl.meters); if (m.length > 1) notes.push(`протяжка: разный метраж (${m.join(' / ')} м) — останется ${Math.max(...m)} м`);
     for (const k of ['finished', 'checked']) {
       const inPull = removed.filter((id) => pl.pointIds.includes(id)); const n = inPull.filter((id) => (pl[k] || []).includes(id)).length;
       if (n && n < inPull.length) notes.push(`протяжка: ${k === 'finished' ? 'протянута' : 'отмечена'} только часть одинарных — у ${mode === 'double' ? 'двойной' : 'одинарных'} отметки не будет`);

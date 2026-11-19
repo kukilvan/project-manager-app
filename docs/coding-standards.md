@@ -58,13 +58,13 @@ One rule per item: the rule, why, how it is checked. Reviews check against this 
 
 **Checked.** A search for these calls in the diff.
 
-## 8. UI strings are translated; user-visible changes reach the guide
+## 8. User-visible changes reach the guide
 
-**Rule.** New Russian UI strings get English and Hebrew in `src/i18n/src/*.json`, then `node scripts/i18n-build.mjs`; templates use `{}`. A change of behaviour the user sees gets a line in `src/app/views/guide.js`.
+**Rule.** A change of behaviour the user sees gets a line in `src/app/views/guide.js` (its texts are translated like every UI string, rule 12).
 
 **Why.** Colleagues use English or Hebrew; they learn the app from the guide (ADR 0008).
 
-**Checked.** `tests/i18n.test.js`; review compares new strings with the dictionaries.
+**Checked.** Review compares the change with the guide.
 
 ## 9. UI helpers: no nulls in children; custom form fields re-render only on change
 
@@ -89,3 +89,11 @@ One rule per item: the rule, why, how it is checked. Reviews check against this 
 **Why.** Comment and doc changes then need no browser walk and cannot break the live site.
 
 **Checked.** The tool in the self-check of every such change.
+
+## 12. Every UI string has English and Hebrew
+
+**Rule.** A ticket or quick fix that adds a Russian UI string adds its English and Hebrew to `src/i18n/src/*.json` (`{ "<Russian>": ["<English>", "<Hebrew>"] }`, `{}` for each inserted value) and runs `node scripts/i18n-build.mjs`. A line of the guide is a key without its leading «• » / «# ». A Russian string that is not UI (a report text sent to the employer, a stored identifier, a file or folder name on Drive, a sheet caption) goes to `src/i18n/not-ui.json` with the reason; texts that go only to the event log or the console (`info`, `warn`, `error`, `console.*`) need nothing. A sentence built from parts is translated part by part with `tr()` from `src/i18n/index.js`, never by a key for the joined text.
+
+**Why.** The English and Hebrew UI showed Russian for months; the owner's colleagues and managers read Hebrew.
+
+**Checked.** `tests/i18n-coverage.test.js` (part of `npm test`, so the deploy stops): every Russian string found by `scripts/i18n-extract.mjs` is translated in both dictionaries or listed in `not-ui.json`; an entry of `not-ui.json` that is no longer in `src/` fails it too.

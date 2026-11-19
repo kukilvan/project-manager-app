@@ -1,6 +1,6 @@
 // Change history screen: who changed what and when, with undo of one record and undo of all a member's edits in a period.
 // Reads history through repo.loadHistory and writes undo through repo.revertTo; re-syncs journal rows after an entry is undone (syncJournal in doh.js).
-import { lang as uiLang } from '../../i18n/index.js';
+import { lang as uiLang, tr } from '../../i18n/index.js';
 import { h, confirmDialog, toast } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
 import { dateText, entryLine, problemLabel } from '../../domain/index.js';
@@ -89,7 +89,7 @@ export function historyView(ui) {
       const d = new Date(r.at);
       const when = `${d.toLocaleDateString('ru-RU')} ${d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
       return h('div', { class: 'item' },
-        h('div', { class: 'name' }, `${ACTIONS[r.action] || r.action}: ${COLL_NAMES[r.coll] || r.coll} — ${describe(r.coll, r.after || r.before)}`,
+        h('div', { class: 'name' }, `${tr(ACTIONS[r.action] || r.action)}: ${tr(COLL_NAMES[r.coll] || r.coll)} — ${describe(r.coll, r.after || r.before)}`,
           h('div', { class: 'sub' }, `${when} · ${r.byName || names.get(r.by) || r.by}`)),
         h('button', { class: 'sec', style: { flex: 'none' }, onclick: async () => {
           if (!(await confirmDialog(`Отменить это изменение (${COLL_NAMES[r.coll] || r.coll})? Запись вернётся к состоянию до него.`, { yes: 'Откатить' }))) return;

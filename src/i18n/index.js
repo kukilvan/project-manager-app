@@ -75,8 +75,8 @@ export function tr(s, depth = 0) {
     return lead + out + trail;
   }
   if (icon) { const rest = tr(icon[2], depth + 1); if (rest !== icon[2]) return lead + icon[1] + rest + trail; }
-  // a number in brackets at the end («Установка камеры (8)»)
-  const cnt = core.match(/^([\s\S]+?)(\s*\(\d+\))$/);
+  // a number in brackets or a multiplier at the end («Установка камеры (8)», «Установка камеры ×3»)
+  const cnt = core.match(/^([\s\S]+?)(\s*(?:\(\d+\)|×\d+))$/);
   if (cnt) { const a = tr(cnt[1], depth + 1); if (a !== cnt[1]) return lead + a + cnt[2] + trail; }
   return s;
 }

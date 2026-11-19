@@ -27,7 +27,7 @@ The approved description is the source of truth for its stage; when it changes t
 
 **Slicing.** One file per ticket, numbered from `01`. Each ticket is a finished piece the owner can check on its own and fits one session. Its `Complexity:` (simple · medium · complex) picks the model of its session.
 
-**Ticket.** Code, tests, then the header comment of every module it adds or changes: its first sentence says what the module holds and becomes the line of `docs/code-map.md`. Nobody edits the map by hand: run the code-map command (`CLAUDE.md`, "Run"); its test fails when the map is stale. Then the self-check, then the owner's check.
+**Ticket.** Code, tests, then the header comment of every module it adds or changes: its first sentence says what the module holds and becomes the line of `docs/code-map.md`. Nobody edits the map by hand: run the code-map command (`CLAUDE.md`, "Run"); its test fails when the map is stale. New UI strings are translated into English and Hebrew in the same session (`docs/coding-standards.md`, rule 12). Then the self-check, then the owner's check.
 
 **Review.** The whole stage against its spec and `docs/coding-standards.md` — with a code-review skill when one is installed: one pass for standards, one for the spec. Run things, not only read them. Each finding gets one decision in `review.md`:
 - **fix now** — minutes of work and no design choice (typo, label, spacing): fixed in this session;
@@ -44,7 +44,7 @@ The owner finds most fixes in real field work and writes them in Russian, often 
 
 - For: a bug, a wrong label, a small behaviour change in one area. Something that needs design decisions, a new screen or data migration → tell the owner and file it as an idea (`/add-idea`) or a stage.
 - Ask only when the decision really is the owner's, with options to pick. If you need their screenshots or backup file, say so.
-- Branch `claude/fix-<slug>`; then: understand by the code (and, if needed, on a copy of the owner's data: the backup JSON they send, kept in the scratchpad); fix; tests in `tests/` for the `src/domain` logic; new UI strings into `src/i18n/src/*.json` + `node scripts/i18n-build.mjs`; user-visible behaviour change → a line in the in-app guide (`src/app/views/guide.js`); module header comments and the code map.
+- Branch `claude/fix-<slug>`; then: understand by the code (and, if needed, on a copy of the owner's data: the backup JSON they send, kept in the scratchpad); fix; tests in `tests/` for the `src/domain` logic; new UI strings translated into English and Hebrew in the same session — `src/i18n/src/*.json` + `node scripts/i18n-build.mjs` (`docs/coding-standards.md`, rule 12); user-visible behaviour change → a line in the in-app guide (`src/app/views/guide.js`); module header comments and the code map.
 - Self-check (below), then straight to `main` (ADR 0011) and wait for the deploy. Reply short: what was done in one or two sentences and numbered check steps on the phone. No code retelling.
 - `KNOWN_ISSUES.md` entry only if something is left unfixed; a line in `docs/history.md`.
 
