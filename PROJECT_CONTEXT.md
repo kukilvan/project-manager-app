@@ -4,7 +4,7 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 ## Next step
 
-«Тикет 6.7» — ticket 07 «Translations 2: the rest and the coverage test» of stage 6 (`.scratch/06-field-improvements/issues/07-translations-rest.md`, medium; note on the guide prefixes «• » / «# » added at 6.6). Model: Sonnet 5.5, effort high (`docs/models.md`). It is the last ticket (01–06 done); «Ревью 6» follows. The owner finishes the whole stage 6 first, while the NAS is being checked.
+«Ревью 6» — the review of the whole stage 6 against its spec and `docs/coding-standards.md` (`.scratch/06-field-improvements/`; tickets 01–07 are done). Model: Opus 5.5, effort xhigh (7 tickets, `docs/models.md`). The owner finishes the whole stage 6 first, while the NAS is being checked.
 
 After «Ревью 6»: «Описание 4» — stage 4, PocketBase storage (`docs/project-spec.md`, stage 4). It starts only when the NAS acceptance checks A1–A7 and A10–A13 pass (`docs/nas-requirements.md`) and the owner says the NAS is reliable; until then only «Правка: …», «Вопрос: …» and «Идея: …» sessions. Model: Opus 5.5, effort high.
 
@@ -29,6 +29,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 - Ticket 6.4 (problems in the management sheet) live and accepted 2026-11-18: column «Проблема» / «בעיה» (`src/domain/report.js`, open problems one per line, oldest first), row colour `PROBLEM_COLOR` `#E57373`, legend cell G, summary counter «С проблемами» / «עם בעיות» (points with an open problem; added after the owner's check), default profiles have the column (saved ones need the tick), `STYLE_V` 8, wrap request in `managers.js`, the nightly job reads `problemMarks`. Tests: 252.
 - Ticket 6.5 (plan colours by progress) live and accepted 2026-11-18: `planColor` / `markColor` / `PLAN_LEGEND` and the plan filter in `src/domain/plan.js`, `leftTasks` in `src/domain/remaining.js`, plan legend and grouped stage filter («Осталось» with «шилют», «Работа», «Проблемы»), «PDF с номерами» colours, thicker finished frames and new legends (every file re-rendered once). Owner's changes at the check: no stage dots at all; plan lines ×2 on a computer with a mouse. Tests: 263.
 - Ticket 6.6 (guide translations) live and accepted 2026-11-19: the guide checked on screen in English and Hebrew; 15 lines had dictionary keys with the «• » / «# » prefix that `body()` of `guide.js` strips, so they showed Russian — keys fixed; quoted button names aligned with the buttons; Latin point-code runs isolated in Hebrew. Plan legend and filter not walked on screen (no drawing in `?mem=1`).
+- Ticket 6.7 (translations 2) live and accepted 2026-11-19: `tests/i18n-coverage.test.js` (part of `npm test`) fails on any Russian UI string without English and Hebrew or a reasoned entry in `src/i18n/not-ui.json`; 54 strings translated, sentences built from parts translated per part with `tr()`, rule 12 in the coding standards; KI-7 open (the test cannot see composed sentences; catalog names have no English). Tests: 268.
 
 ## Stages
 
@@ -39,7 +40,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 | 3 | Management sheets | done | 8 | — |
 | 4 | PocketBase storage (when the owner trusts the NAS) | not started | 16 | — |
 | 5 | Move to the NAS | not started | 10 | — |
-| 6 | Field improvements (now, before stage 4) | tickets 6/7 | 14 | 001, 002, 003, 004, 005 |
+| 6 | Field improvements (now, before stage 4) | review | 14 | 001, 002, 003, 004, 005 |
 
 Status values: not started · description · spec · tickets k/n · review · fix round k · done. Ideas: numbers of `docs/ideas/` files filed for the stage.
 

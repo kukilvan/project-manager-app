@@ -2,6 +2,14 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-19 — Ticket 6.7: translations 2, the rest and the coverage test («Тикет 6.7»)
+
+- `scripts/i18n-extract.mjs` exports `collectStrings()`; everything inside the arguments of `info` / `warn` / `error` and `console.*` is skipped (the event log is Russian). `tests/i18n-coverage.test.js` runs each string through the real `tr()` with `{}` → `0` (Russian may stay only inside quotes or `{…}` tokens), cuts the guide's «• » / «# » prefix, fails listing up to 30 strings with files, and fails on a stale or reason-less `src/i18n/not-ui.json` entry (63 entries: Drive folder and file names, Russian report and sheet captions, seed data, stored stage keys, label-template tokens).
+- 54 strings translated in `src/i18n/src/19-rest.json`. Sentences built from parts are now translated per part with `tr()`: plan-version notes (`planversion.js`), own-works line (`ownworks.js`), Drive move toast (`project.js`), history rows (`history.js`); `tr()` got a trailing « ×N» rule like «(N)»; merge notes join with « / » instead of « и ».
+- Rule 12 in `docs/coding-standards.md` (rule 8 keeps only the guide), `docs/workflow.md` Ticket paragraph and quick-fix list point to it. KI-7: the test cannot see sentences built from parts; catalog names (colours, example problems) have no English.
+- Screen check in `?mem=1` at 420 px: about 100 screens in English and 50 in Hebrew walked by script (menu, tabs, lists, labels, history); found and fixed «Подключение в шкафу ×3» and the history rows. Not walked: plan (no drawing in `?mem=1`), forms behind danger-word filters (Google, Drive, export). Owner checked English and Hebrew on the phone: works.
+- Commit `8ffa48b`; the push to `main` was first stopped by the auto-mode classifier and went after the owner's «Да, в main».
+
 ## 2026-11-19 — Ticket 6.6: translations 1, the guide («Тикет 6.6»)
 
 - A check of every `guide.js` literal through `tr()` said all covered, but the guide shows lines without their leading «• » / «# » (`body()`), and `tr()` translated the raw literal through its icon branch. On screen 15 lines (added by tickets 1–5) stayed Russian; their keys and values lost the prefix in `src/i18n/src/` files 07, 13, 15, 16, 17, 18.
