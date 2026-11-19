@@ -1,4 +1,4 @@
-// «🗺 План»: the project's drawing with points colored by progress (how many of their stages are done); tapping a point opens its card, and «📍 На чертеже» on a point card opens the plan at that point.
+// «🗺 План»: the project's drawing with points colored by progress (pink — pulled, then yellow → green); tapping a point opens its card, and «📍 На чертеже» on a card opens the plan there.
 // Draws the sheets with the planview.js viewer through the tohnit worker (MuPDF), reads and writes drawings with drawings.js, and saves points through repo.save;
 // the tools on the plan call planversion.js (new drawing version), planlink.js (link points), plannumbers.js (PDF with numbers), tohnitview.js (parse, icons) and pointmerge.js.
 //
@@ -43,7 +43,7 @@ export const shOf = (p) => { const c = doorCfgOf(p, state.ctx); const t = c ? do
 export const tagOf = (p) => { const c = doorCfgOf(p, state.ctx); const sh = c ? doorCfgShort(state.ctx, c) : ''; return sh ? `${p.label} ${sh}` : p.label; };
 import { typeMatch, typeFilterOptions } from '../typegroups.js';
 
-import { markColor, PLAN_LEGEND, LEFT_FILTERS, planFilterMatch, planFilterGroups, problemName } from '../../domain/index.js';
+import { markColor, gradientColor, PLAN_LEGEND, LEFT_FILTERS, planFilterMatch, planFilterGroups, problemName } from '../../domain/index.js';
 import { lang, tr } from '../../i18n/index.js';
 // a caption on the drawing — a frame around the text; an icon without a caption — a circle of its size
 export const isText = (pos) => { const w = pos.w || 0; const hh = pos.h || 0; return w && hh && Math.max(w, hh) / Math.min(w, hh) > 1.6; };
@@ -55,18 +55,33 @@ export function outline(g, api, pos, color, { width = 1.5, pad = 1.5, fill = nul
   if (fill) { g.fillStyle = fill; g.fill(); }
   g.stroke();
 }
+// the font of the tags and the pull circles: they grow with the zoom
+const tagFont = (api) => Math.round(Math.min(26, Math.max(12, 5.5 * api.view.s)));
+// the circles of an unfinished pull: one per cable (at most 10 shown), filled for a pulled one
+const PULL_DOT = '#C2417F';
+const dotsRad = (fs) => Math.max(2.5, fs * 0.22);
+const dotsRow = (fs) => 2 * dotsRad(fs) + 3;
+const dotsCount = (pull) => Math.min(pull.total, 10);
+const dotsWidth = (pull, fs) => dotsCount(pull) * (2 * dotsRad(fs) + 2) - 2;
+function drawPullDots(g, pull, x0, cy, fs) {
+  const rad = dotsRad(fs); const n = dotsCount(pull);
+  const filled = n === pull.total ? pull.done : Math.min(n - 1, Math.max(pull.done > 0 ? 1 : 0, Math.round((pull.done / pull.total) * n)));
+  g.lineWidth = 1; g.strokeStyle = PULL_DOT;
+  for (let i = 0; i < n; i++) { g.beginPath(); g.arc(x0 + rad + i * (2 * rad + 2), cy, rad - 0.5, 0, Math.PI * 2); g.fillStyle = i < filled ? PULL_DOT : '#fff'; g.fill(); g.stroke(); }
+}
 const labelLike = (t = '') => /\d/.test(t) && !/[\u0590-\u05FF]/.test(t) && t.length <= 24 && !/\s{2,}/.test(t);
 // tags of icons (points with no caption on the drawing): they grow with the zoom, sit in a frame of the point's color,
-// and are placed where they do not cover icons and other tags; t.width thickens the frame (a finished point), t.line — all lines (2 on a computer)
+// and are placed where they do not cover icons and other tags; t.width thickens the frame (a finished point), t.line — all lines (2 on a computer, 0.75 on a phone);
+// t.pull ({ done, total }) adds a row of circles to the tag, one per cable of an unfinished pull
 export function placeTags(g, api, tags, circles, frames = []) {
-  const fs = Math.round(Math.min(26, Math.max(12, 5.5 * api.view.s)));
+  const fs = tagFont(api);
   g.font = `bold ${fs}px system-ui`; g.textBaseline = 'middle';
   const placed = [...frames]; const padX = 4;
   const hitsBox = (b) => placed.some((q) => b[0] < q[2] && b[2] > q[0] && b[1] < q[3] && b[3] > q[1]);
   const hitsCircle = (b) => circles.some(([cx, cy, cr]) => { const dx = Math.max(b[0] - cx, 0, cx - b[2]); const dy = Math.max(b[1] - cy, 0, cy - b[3]); return dx * dx + dy * dy < cr * cr; });
   for (const t of tags.sort((a, b) => a.y - b.y || a.x - b.x)) {
-    const lines = combineLabels(t.labels || [t.p.label]); const lh = fs + 2; const hh = lines.length * lh + 4;
-    const w = Math.max(...lines.map((l) => g.measureText(l).width)) + 2 * padX; const gap = 3; const r = t.r;
+    const lines = combineLabels(t.labels || [t.p.label]); const lh = fs + 2; const hh = lines.length * lh + 4 + (t.pull ? dotsRow(fs) : 0);
+    const w = Math.max(...lines.map((l) => g.measureText(l).width), t.pull ? dotsWidth(t.pull, fs) : 0) + 2 * padX; const gap = 3; const r = t.r;
     const opts = [[t.x + r + gap, t.y - r - hh + 4], [t.x + r + gap, t.y - hh / 2], [t.x + r + gap, t.y + r - 4], [t.x - w / 2, t.y - r - hh - gap], [t.x - w / 2, t.y + r + gap],
       [t.x - r - gap - w, t.y - r - hh + 4], [t.x - r - gap - w, t.y - hh / 2], [t.x - r - gap - w, t.y + r - 4],
       [t.x + r + gap, t.y - r - 2 * hh], [t.x - w / 2, t.y + r + gap + hh], [t.x - w / 2, t.y - r - 2 * hh - gap], [t.x + r + gap, t.y + r + hh]];
@@ -86,6 +101,7 @@ export function placeTags(g, api, tags, circles, frames = []) {
       }
       g.fillText(l, best[0] + padX, yy);
     });
+    if (t.pull) drawPullDots(g, t.pull, best[0] + padX, best[1] + 2 + lines.length * lh + dotsRad(fs) + 1, fs);
   }
   g.textBaseline = 'alphabetic';
 }
@@ -98,6 +114,13 @@ function iconImg(t, png, redraw) {
   const im = new Image(); im.onload = redraw; im.src = png; iconImgs.set(k, im); return im;
 }
 const toDataUrl = (bytes) => { let s = ''; const u = new Uint8Array(bytes); for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return `data:image/png;base64,${btoa(s)}`; };
+
+// the swatch of a legend line: a frame in the color, a strip for the gradient, two circles (filled and empty) for the cables
+function legendSwatch(x) {
+  if (x.gradient) return h('span', { style: { display: 'inline-block', width: '34px', height: '11px', borderRadius: '2px', background: `linear-gradient(to right, ${[0, 0.25, 0.5, 0.75, 1].map((t) => gradientColor(t)).join(', ')})` } });
+  if (x.circles) { const dot = (fill) => h('span', { style: { display: 'inline-block', width: '9px', height: '9px', boxSizing: 'border-box', border: `1px solid ${PULL_DOT}`, background: fill, borderRadius: '50%' } }); return h('span', { style: { display: 'inline-flex', gap: '2px' } }, dot(PULL_DOT), dot('#fff')); }
+  return h('span', { style: { display: 'inline-block', width: '11px', height: '11px', border: `${x.thick ? 3.5 : 2}px solid ${x.color}`, background: '#fff', borderRadius: '2px' } });
+}
 
 export function planModal({ point = null, placeFor = null } = {}) {
   const box = h('div', {});
@@ -171,7 +194,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
           if (tool === 'doors') { const p = nearest(doorPts(), (q) => q.pos, x, y, page); if (p) (doorMode === 'brush' ? brushTap(p) : goDoor(p)); else if (nearest(sheetPts(d), (q) => q.pos, x, y, page)) toast('Это не дверь'); return; }
           if (tool) { toolTap(d, o.pages, x, y, page, nearest); return; }
           if (fType === UNL || fType === HID) { const m = nearest(marks(), (it) => it.pos, x, y, page); if (m) markCard(d, m, fType === HID); return; }
-          const best = nearest(pts().filter(stageOk), (p) => p.pos, x, y, page); if (!best) return;
+          const best = nearest(pts().filter(stageOk), (p) => p.pos, x, y, page); if (!best) { if (focusId) { focusId = null; viewer.draw(); } return; }  // a tap on an empty spot drops the focus frame
           if (selMode) sel.has(best.id) ? sel.delete(best.id) : sel.add(best.id);
           const group = pts().filter((p) => p.id !== best.id && posKey(p.pos) === posKey(best.pos));
           if (selMode) { [best, ...group].forEach((p) => (sel.has(best.id) ? sel.add(p.id) : sel.delete(p.id))); selBar(); viewer.draw(); return; }
@@ -187,8 +210,8 @@ export function planModal({ point = null, placeFor = null } = {}) {
           const icons = currentProject()?.typeIcons || {}; const tags = []; const circles = []; const frames = [];
           // several points on one mark share one frame, color and tag: the color of the least finished point (markColor)
           const groups = new Map();
-          // on a computer the colored lines are twice as thick: on a big screen without zooming in the color is hard to tell (the owner's wish); the phone keeps them thin
-          const lineK = mousePc() ? 2 : 1;
+          // on a computer the colored lines are twice as thick: on a big screen without zooming in the color is hard to tell (the owner's wish); on a phone every point frame is a quarter thinner (ticket 6.8)
+          const lineK = mousePc() ? 2 : 0.75; const capDots = [];
           for (const p of pts()) { if ((p.pos.page || 0) !== api.page) continue; const k = posKey(p.pos); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); }
           for (const grp of groups.values()) {
             const p = grp[0]; const on = grp.some(stageOk); const pc = markColor(grp, state.ctx, infoOf); const col = on ? pc.color : '#d0d0d0';
@@ -201,16 +224,19 @@ export function planModal({ point = null, placeFor = null } = {}) {
             const labels = grp.map(tagOf); const [x, y] = api.toScr(p.pos.x, p.pos.y);
             if (!isText(p.pos)) {
               const r = Math.max(5, (Math.max(p.pos.w || 8, p.pos.h || 8) / 2 + 1.5) * api.view.s); circles.push([x, y, r]);
-              if (on && big) tags.push({ p, col, x, y, r, labels, sh: shOf(p), width: pc.width, line: lineK });
+              if (on && big) tags.push({ p, col, x, y, r, labels, sh: shOf(p), width: pc.width, line: lineK, pull: pc.pull });
             } else {
               // a caption on the drawing: no tag of our own is needed if there is one point and it is named the same; otherwise (several points, another name) — a tag
               const hw = (p.pos.w / 2 + 2) * api.view.s; const hh2 = (p.pos.h / 2 + 2) * api.view.s;
               const need = grp.length > 1 || !!(p.pos.text && p.pos.text !== p.label);
-              frames.push([x - hw, y - hh2, x + hw, y + hh2]);
-              if (on && big && need) tags.push({ p, col, x, y, r: Math.max(hw, hh2), labels, sh: shOf(p), width: pc.width, line: lineK });
+              // no tag of its own: the circles of an unfinished pull go right under the caption's frame, and the tags keep that room
+              const dots = on && big && !need && pc.pull; frames.push([x - hw, y - hh2, x + hw, y + hh2 + (dots ? dotsRow(tagFont(api)) : 0)]);
+              if (dots) capDots.push({ pull: pc.pull, x: x - dotsWidth(pc.pull, tagFont(api)) / 2, y: y + hh2 + dotsRow(tagFont(api)) / 2 });
+              if (on && big && need) tags.push({ p, col, x, y, r: Math.max(hw, hh2), labels, sh: shOf(p), width: pc.width, line: lineK, pull: pc.pull });
             }
           }
           placeTags(g, api, tags, circles, frames);
+          capDots.forEach((c) => drawPullDots(g, c.pull, c.x, c.y, tagFont(api)));
           const rv = reviewOf(cur()); if (rv.length) { g.setLineDash([4, 3]); for (const x of rv) { const p = state.ctx.points.get(x.id); if (p?.pos && (p.pos.page || 0) === api.page) outline(g, api, p.pos, '#ff9500', { width: 2.5, pad: 3 + 4 / api.view.s }); } g.setLineDash([]); }
           const f = focusId && state.ctx.points.get(focusId);
           if (f?.pos && (f.pos.page || 0) === api.page && drawingFor(f)?.id === d.id) { outline(g, api, f.pos, '#e0007a', { width: 3, pad: 1.5 + 4 / api.view.s }); }
@@ -374,11 +400,10 @@ export function planModal({ point = null, placeFor = null } = {}) {
       holder.replaceChildren(
         h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '0 0 6px' } }, search, typeSel, cfgSel, cabSel, stageSel),
         h('div', { class: 'btns', style: { marginTop: 0 } }, revBtn, ...viewer.zoomBtns(), selBtn, doorBtn, addBtn, iconBtn, dimBtn, layersBtn), bar, tbar, viewer.el, doorBar,
-        // the legend: the color is the share of the point's stages done
+        // the legend: pink — pulled, yellow → green — the works after the pull, circles — the cables of an unfinished pull
         h('div', { style: { display: 'flex', gap: '6px 12px', flexWrap: 'wrap', alignItems: 'center', margin: '6px 2px', fontSize: '13px' } },
-          h('span', {}, 'Цвет — доля сделанных этапов точки:'),
-          ...PLAN_LEGEND.map((x) => h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' } },
-            h('span', { style: { display: 'inline-block', width: '11px', height: '11px', border: `${x.thick ? 3.5 : 2}px solid ${x.color}`, background: '#fff', borderRadius: '2px' } }), x.ru))),
+          h('span', {}, 'Цвет — протяжка и работы после неё:'),
+          ...PLAN_LEGEND.map((x) => h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' } }, legendSwatch(x), x.ru))),
         h('div', { class: 'btns' },
           h('button', { class: 'sec', onclick: () => linkPoints(d, buf, { onDone: () => draw(d.id) }).catch((e) => toast(e.message)) }, '🔗 Связать точки'),
           h('button', { class: 'sec', onclick: async () => { try { await exportNumberedPdf(cur(), buf); } catch (e) { toast(`Не получилось: ${e.message}`); } } }, '📄 Скачать PDF с номерами'),
@@ -644,7 +669,8 @@ export function planModal({ point = null, placeFor = null } = {}) {
       } }, 'Сохранить'))), { sticky: true });
   }
 
-  openCard = (p) => import('./points.js').then((m) => m.pointCard(p, { fromPlan: true }));
+  // the card of a point opened from the plan: the focus frame goes (the owner acts on the point there; back on the plan it is not in the way)
+  openCard = (p) => { focusId = null; viewer?.draw(); return import('./points.js').then((m) => m.pointCard(p, { fromPlan: true })); };
   draw();
   void close;
 }

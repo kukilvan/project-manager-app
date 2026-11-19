@@ -1,5 +1,5 @@
 // Builds «PDF с номерами»: the drawing PDF marked like the plan in the app, with a legend page at the end (in Russian or in Hebrew through legendhe.js).
-// Captions on the drawing get a frame in the point's progress color (planColor of plan.js; thicker for a finished point) and icons get a circle; a tag of its own (framed, white background) is placed where it does not cover icons, frames or other captions.
+// Captions on the drawing get a frame in the point's color (planColor of plan.js: pink — pulled, yellow → green by the works after the pull; thicker for a finished point; no pull circles here) and icons get a circle; a tag of its own (framed, white background) is placed where it does not cover icons, frames or other captions.
 // Several points on one mark share one tag («TV13-14» or stacked). Hidden items are painted over in white. The PDF marks are split into layers «Номера: <тип>»,
 // so a viewer can keep only the needed ones. Works on MuPDF objects passed in by the caller (worker.js and scripts/server-tables-lib.mjs); uses src/domain/points.js and plan.js.
 import { combineLabels } from '../domain/points.js';
@@ -9,6 +9,8 @@ import { legendPdfHe } from './legendhe.js';
 export const TYPE_COLORS = ['#e0007a', '#0a84ff', '#ff9f0a', '#30a14e', '#bf5af2', '#ff453a', '#0fb5ae', '#8e6c00', '#5856d6', '#c2185b'];
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(String(hex || '#9e9e9e').slice(i, i + 2), 16) / 255);
 const isText = (pos) => { const w = pos.w || 0; const h = pos.h || 0; return w && h && Math.max(w, h) / Math.min(w, h) > 1.6; };
+// the legend lines of the PDF: the plan's, without the line about the cable circles (the PDF has none)
+const LEGEND = PLAN_LEGEND.filter((x) => !x.circles);
 const keyOf = (p) => `${p.pos.page || 0}|${Math.round(p.pos.x)}|${Math.round(p.pos.y)}`;
 
 /** Layout of the tags (PDF sheet units): tags [{x,y,r,lines}] → [{tag, box:[x0,y0,x1,y1]}]. A pure function, checked by a test. */
@@ -94,8 +96,8 @@ export function numberedPdf(mupdf, data, points, { title = '', icons = {}, hidde
   if (lang === 'he') {
     const L = [{ text: `מקרא: ${title}`, size: 16 }];
     if (updated) L.push({ text: `עודכן: ${updated}`, size: 10, color: [0.3, 0.3, 0.3] });
-    L.push({ text: 'צבע המסגרת = חלק השלבים שבוצעו', size: 10, color: [0.3, 0.3, 0.3] });
-    PLAN_LEGEND.forEach((x) => L.push({ text: x.he, size: 10, swatch: rgb(x.color) }));
+    L.push({ text: 'צבע המסגרת = משיכה ועבודות אחריה', size: 10, color: [0.3, 0.3, 0.3] });
+    LEGEND.forEach((x) => L.push({ text: x.he, size: 10, swatch: rgb(x.color) }));
     for (const t of types) {
       const ls = points.filter((p) => p.typeId === t).map((p) => p.label);
       L.push({ text: `${typeNames[t] || t} ${ls.length}`, size: 12, color: typeColor(t) });
@@ -111,8 +113,8 @@ export function numberedPdf(mupdf, data, points, { title = '', icons = {}, hidde
   const W = 842; const H = 595; const lines = [];
   lines.push([`Легенда номеров${title ? ` - ${title}` : ''}`, 14, [0, 0, 0]]);
   // the annotation font prints «≈» only in a line with Cyrillic, and never «—», «…» or «■»: plain dashes and dots, each line in its color
-  lines.push(['Цвет рамки - доля сделанных этапов точки: новая, померяно, ≈ 20% ... ≈ 80%, готово, проблема / неисправна', 9, [0.3, 0.3, 0.3]]);
-  PLAN_LEGEND.forEach((x) => lines.push([`${x.ru}${x.ru.startsWith('≈') ? ' этапов' : ''}${x.thick ? ' (толстая рамка)' : ''}`, 9, rgb(x.color)]));
+  lines.push(['Цвет рамки - протяжка и работы после неё: новая, померяно, протянута, работы после протяжки (от жёлтого к зелёному), готово, проблема / неисправна', 9, [0.3, 0.3, 0.3]]);
+  LEGEND.forEach((x) => lines.push([`${x.ru}${x.gradient ? ' (от жёлтого к зелёному)' : ''}${x.thick ? ' (толстая рамка)' : ''}`, 9, rgb(x.color)]));
   for (const t of types) {
     const ls = points.filter((p) => p.typeId === t).map((p) => p.label);
     lines.push([`${t}: ${ls.length}`, 11, typeColor(t)]);

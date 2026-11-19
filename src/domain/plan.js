@@ -1,4 +1,4 @@
-// Drawing plan, the part shared by the app and the server: the progress color of a point (planColor), the plan legend, the drawing's points for the «PDF с номерами» and its fingerprint.
+// Drawing plan, the part shared by the app and the server: the color of a point (planColor), the plan legend, the drawing's points for the «PDF с номерами» and its fingerprint.
 // Statuses come from status.js, stages from compose.js, open problems from problems.js, what is left from remaining.js (the plan filter); the server side is src/tohnit/numbered.js. statusColor stays for the pull screen.
 import { pointInfo } from './status.js';
 import { STAGES } from './compose.js';
@@ -14,17 +14,42 @@ export const statusColor = (st = '') => (st === 'Неисправна' ? C['пр
   : st.startsWith('Установлено') ? C['установлено не всё'] : st === 'Захивучена' ? C['захивучено'] : st === 'Протянута' ? C['протянуто']
   : st.startsWith('Протянуто') ? C['протянуто частично'] : st === 'Посчитана' ? C['померяно'] : C['новая']);
 
-// Progress colors of the plan and «PDF с номерами» (palette «Жёлтые чуть темнее», chosen by the owner): steps 1–4 ≈ 20% … 80% of the stages done
-export const PLAN_PALETTE = { gray: '#9e9e9e', blue: '#2979ff', steps: ['#f2c80f', '#c0ca33', '#8bc34a', '#43a047'], full: '#1b5e20', red: '#ff1744' };
+// Colors of the plan and «PDF с номерами»: a pulled point is pink, the works after the pull move it evenly from yellow to green (OKLab), all done — dark green
+export const PLAN_PALETTE = { gray: '#9e9e9e', blue: '#2979ff', pink: '#E99AC4', from: '#fdd835', to: '#2e9e45', full: '#1b5e20', red: '#ff1744' };
 // A finished point's frame is this many times thicker (plan 2 → 3.5)
 export const FULL_WIDTH = 1.75;
-// The legend of the plan and of both «PDF с номерами» legends: { color, ru, he, thick? }
+
+// ---- gradient in OKLab (matrices of Björn Ottosson): the shades between two ends are evenly spaced for any number of works ----
+const toLin = (c) => { const v = c / 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+const fromLin = (v) => Math.round(255 * Math.min(1, Math.max(0, v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055)));
+const rgbOf = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+function toLab(hex) {
+  const [r, g, b] = rgbOf(hex).map(toLin);
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b); const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b); const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s, 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s];
+}
+function fromLab([L, A, B]) {
+  const l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3; const m = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3; const s = (L - 0.0894841775 * A - 1.291485548 * B) ** 3;
+  return [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s, -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s];
+}
+/** The color at t (0 … 1) between two hex colors, interpolated in OKLab → hex; the ends come back exactly */
+export function gradientColor(t, from = PLAN_PALETTE.from, to = PLAN_PALETTE.to) {
+  if (t <= 0) return from;
+  if (t >= 1) return to;
+  const a = toLab(from); const b = toLab(to);
+  return `#${fromLab(a.map((x, i) => x + (b[i] - x) * t)).map((v) => fromLin(v).toString(16).padStart(2, '0')).join('')}`;
+}
+
+// The legend of the plan and of both «PDF с номерами» legends: { color, ru, he, thick?, gradient?: [from, to], circles? }.
+// The gradient strip stands for «works after the pull»; the circles line is only for the plan (the PDF has no circles)
 export const PLAN_LEGEND = [
   { color: PLAN_PALETTE.gray, ru: 'новая', he: 'חדשה' },
   { color: PLAN_PALETTE.blue, ru: 'померяно', he: 'נמדד' },
-  ...PLAN_PALETTE.steps.map((color, i) => ({ color, ru: `≈ ${(i + 1) * 20}%`, he: `≈ ${(i + 1) * 20}%` })),
+  { color: PLAN_PALETTE.pink, ru: 'протянута', he: 'נמשכה' },
+  { color: gradientColor(0.5), gradient: [PLAN_PALETTE.from, PLAN_PALETTE.to], ru: 'работы после протяжки', he: 'עבודות אחרי המשיכה' },
   { color: PLAN_PALETTE.full, ru: 'готово', he: 'הושלם', thick: true },
   { color: PLAN_PALETTE.red, ru: 'проблема / неисправна', he: 'בעיה / תקלה' },
+  { color: PLAN_PALETTE.pink, ru: 'кружочки — протянутые кабели', he: 'עיגולים – כבלים שנמשכו', circles: true },
 ];
 
 const blank = (v) => v === undefined || v === null || v === '';
@@ -45,31 +70,51 @@ export function pointStages(point, ctx, info = pointInfo(point, ctx)) {
   return { list, started: list.some((x) => x.done) || info.pullDone > 0 };
 }
 
+// The pull in cables: { done, total } — a composite point counts the quantity of its pull tasks (a «6005×3» task is three cables), a legacy one the counts of its cable kinds
+function pullCables(info) {
+  if (info.composed) {
+    const t = info.tasks.filter((x) => x.stage === 'Протяжка');
+    return { done: t.filter((x) => x.done).reduce((n, x) => n + x.qty, 0), total: t.reduce((n, x) => n + x.qty, 0) };
+  }
+  return { done: info.cableList.filter((c) => info.pulledKinds.includes(c.cable)).reduce((n, c) => n + c.count, 0), total: info.cableList.reduce((n, c) => n + c.count, 0) };
+}
+// The works after the pull → { M, j }: the point's tasks other than the pull (composite — each line of the card's work list), the type's other stages (legacy); j of them done
+function worksAfterPull(info, list) {
+  const w = info.composed ? info.tasks.filter((t) => t.stage !== 'Протяжка') : list.filter((x) => x.stage !== 'Протяжка');
+  return { M: w.length, j: w.filter((x) => x.done).length };
+}
+
 /**
- * The color of a point on the plan → { color, done: bool[] (one per stage of S), stages, k, n, step, full, width, red }.
+ * The color of a point on the plan → { color, done: bool[] (one per stage of S), stages, k, n, full, width, red, started, j, M, pull }.
  * First rule that fires: an open problem or «Неисправна» → red; nothing started (or no stages) → blue with a length, else gray;
- * every stage done → dark green, full, width ×1.75; otherwise step clamp(round(k / n × 5), 1, 4) of the palette.
+ * every stage done → dark green, full, width ×1.75; j of M works after the pull done (j ≥ 1, and j < M or the pull unfinished) → the OKLab gradient yellow → green at t = (j − 1) / (M − 1)
+ * (t = 1 when M = 1: the only work is done, the pull is not); otherwise (the pull started or done, nothing after it) → pink. A type without a pull stage never gets pink.
+ * pull: { done, total } in cables while the pull of a started point is unfinished (the plan draws a circle per cable), else null.
  * The plan shows no stage dots: the owner found them more in the way than helpful at the check of ticket 6.5. infoFn — the status function (the app passes its cached infoOf).
  */
 export function planColor(point, ctx, infoFn = pointInfo) {
   const info = infoFn(point, ctx);
   const { list, started } = pointStages(point, ctx, info);
   const done = list.map((x) => x.done); const n = list.length; const k = done.filter(Boolean).length;
-  const base = { done, stages: list.map((x) => x.stage), k, n, step: 0, full: false, width: 1, red: false };
+  const { M, j } = worksAfterPull(info, list);
+  const base = { done, stages: list.map((x) => x.stage), k, n, full: false, width: 1, red: false, started: false, j, M, pull: null };
   if (openProblemsOf(point, ctx).length || info.status === 'Неисправна') return { ...base, color: PLAN_PALETTE.red, red: true };
   if (!n || !started) return { ...base, color: blank(point.length) ? PLAN_PALETTE.gray : PLAN_PALETTE.blue };
-  if (k === n) return { ...base, color: PLAN_PALETTE.full, full: true, width: FULL_WIDTH };
-  const step = Math.min(4, Math.max(1, Math.round((k / n) * 5)));
-  return { ...base, color: PLAN_PALETTE.steps[step - 1], step };
+  const pc = list.some((x) => x.stage === 'Протяжка' && !x.done) ? pullCables(info) : null;
+  const on = { ...base, started: true, pull: pc && pc.total > 0 ? pc : null };
+  if (k === n) return { ...on, color: PLAN_PALETTE.full, full: true, width: FULL_WIDTH };
+  if (j >= 1) return { ...on, color: gradientColor(M > 1 ? (j - 1) / (M - 1) : 1) };
+  return { ...on, color: PLAN_PALETTE.pink };
 }
 
+// How far a point is: not started < pull unfinished (by the share of cables) < pulled only < works after the pull (by j / M) < finished
+const progressOf = (c) => (!c.started ? -1 : c.pull ? c.pull.done / c.pull.total : 1 + (c.M ? c.j / c.M : 0));
 // A mark shared by several points (a pair, a triple, one tag): red when any point is red; otherwise the least finished point
-// (smallest k / n, then the first label) gives the color
+// (progressOf, then the first label) gives the color and the circles
 export function markColor(points, ctx, infoFn = pointInfo) {
   const all = [...points].sort(comparePoints).map((p) => planColor(p, ctx, infoFn));
   const red = all.find((c) => c.red); if (red) return red;
-  const ratio = (c) => (c.n ? c.k / c.n : 0);
-  return all.reduce((best, c) => (ratio(c) < ratio(best) ? c : best), all[0]);
+  return all.reduce((best, c) => (progressOf(c) < progressOf(best) ? c : best), all[0]);
 }
 
 // ---- the plan's stage filter: matching points stay bright, the others go pale ----
@@ -115,7 +160,7 @@ export function numberedInput(points, ctx, d) {
     .sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0));
 }
 // The look of «PDF с номерами» (colors, legend): a new value changes every fingerprint, so the nightly job re-renders each file once
-const NUMBERED_V = 2;
+const NUMBERED_V = 3;
 // Fingerprint of the «PDF с номерами» content: changed points, colors, hidden ones or icons give a different one
 export function numberedHash(input, d, icons = {}, extra = '') {
   const s = JSON.stringify([NUMBERED_V, input.map((x) => [x.label, x.typeId, Math.round(x.pos.x), Math.round(x.pos.y), x.pos.page || 0, x.pos.icon ? 1 : 0, x.color]),

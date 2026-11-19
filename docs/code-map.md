@@ -101,7 +101,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/app/views/pdfpick.js` — Modal picker for a drawing PDF: from this project, from Google Drive (the «Чертежи» folders of the app's projects) or from the device.
 - `src/app/views/planassign.js` — «🗺 Распределить на плане»: a modal where the marks of a drawing whose rack is unclear (one number exists in several racks) are assigned to racks.
 - `src/app/views/planlink.js` — «🔗 Связать точки с чертежом»: parses a drawing by the caption catalog so that project points with the same labels get a place on the drawing.
-- `src/app/views/planmodal.js` — «🗺 План»: the project's drawing with points colored by progress (how many of their stages are done); tapping a point opens its card, and «📍 На чертеже» on a point card opens the plan at that point.
+- `src/app/views/planmodal.js` — «🗺 План»: the project's drawing with points colored by progress (pink — pulled, then yellow → green); tapping a point opens its card, and «📍 На чертеже» on a card opens the plan there.
 - `src/app/views/plannumbers.js` — Builds the «📄 PDF с номерами» file of a drawing: the plan as the app shows it, with frames in the plan's progress colors, non-overlapping captions, hidden marks in white and a legend.
 - `src/app/views/planpick.js` — «🔎 Значки без номеров»: a modal where icons on the drawing plan are found, numbered and turned into points.
 - `src/app/views/planversion.js` — «🔄 Новая версия чертежа»: moves the points of a drawing onto its updated version, with recalculated coordinates.
@@ -141,7 +141,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/domain/month.js` — Month report: the sum of all daily reports of a month (RU) and «דוח חודשי» in Hebrew (section 5.2 of the technical specification).
 - `src/domain/openrules.js` — Derives the open-version Firestore rules from firestore.rules, so the two files never diverge.
 - `src/domain/ownworks.js` — The own set of works on selected points (the point's or a group's «Изменить» window): what is required now and what to write into the point.
-- `src/domain/plan.js` — Drawing plan, the part shared by the app and the server: the progress color of a point (planColor), the plan legend, the drawing's points for the «PDF с номерами» and its fingerprint.
+- `src/domain/plan.js` — Drawing plan, the part shared by the app and the server: the color of a point (planColor), the plan legend, the drawing's points for the «PDF с номерами» and its fingerprint.
 - `src/domain/points.js` — Points: natural sorting, cables and metrage (sections 3.4, 3.8, Appendix A).
 - `src/domain/pointsimport.js` — Adds points from a file (for example after a drawing is parsed): parses it, plans the import and builds the write operations.
 - `src/domain/pool.js` — Shared pool (one database for everyone): point types, devices, cables and works; fingerprints, dependencies, inbox candidates and change lists.
