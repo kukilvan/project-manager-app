@@ -1,10 +1,10 @@
 # Project context
 
-Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live in `docs/history.md`. Updated: 2026-11-18.
+Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live in `docs/history.md`. Updated: 2026-11-19.
 
 ## Next step
 
-«Тикет 6.6» — ticket 06 «Translations 1: the guide» of stage 6 (`.scratch/06-field-improvements/issues/06-translations-guide.md`, medium). Model: Sonnet 5.5, effort high (`docs/models.md`). Order: 06 → 07 (01–05 done). The owner finishes the whole stage 6 first, while the NAS is being checked.
+«Тикет 6.7» — ticket 07 «Translations 2: the rest and the coverage test» of stage 6 (`.scratch/06-field-improvements/issues/07-translations-rest.md`, medium; note on the guide prefixes «• » / «# » added at 6.6). Model: Sonnet 5.5, effort high (`docs/models.md`). It is the last ticket (01–06 done); «Ревью 6» follows. The owner finishes the whole stage 6 first, while the NAS is being checked.
 
 After «Ревью 6»: «Описание 4» — stage 4, PocketBase storage (`docs/project-spec.md`, stage 4). It starts only when the NAS acceptance checks A1–A7 and A10–A13 pass (`docs/nas-requirements.md`) and the owner says the NAS is reliable; until then only «Правка: …», «Вопрос: …» and «Идея: …» sessions. Model: Opus 5.5, effort high.
 
@@ -38,7 +38,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 | 3 | Management sheets | done | 8 | — |
 | 4 | PocketBase storage (when the owner trusts the NAS) | not started | 16 | — |
 | 5 | Move to the NAS | not started | 10 | — |
-| 6 | Field improvements (now, before stage 4) | tickets 5/7 | 14 | 001, 002, 003, 004, 005 |
+| 6 | Field improvements (now, before stage 4) | tickets 6/7 | 14 | 001, 002, 003, 004, 005 |
 
 Status values: not started · description · spec · tickets k/n · review · fix round k · done. Ideas: numbers of `docs/ideas/` files filed for the stage.
 
