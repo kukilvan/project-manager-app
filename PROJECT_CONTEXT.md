@@ -4,9 +4,7 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 ## Next step
 
-«Ревью 6» — the review of the whole stage 6 against its spec and `docs/coding-standards.md` (`.scratch/06-field-improvements/`; tickets 01–08 are done). Model: Opus 5.5, effort xhigh (8 tickets, `docs/models.md`). The owner finishes the whole stage 6 first, while the NAS is being checked.
-
-After «Ревью 6»: «Описание 4» — stage 4, PocketBase storage (`docs/project-spec.md`, stage 4). It starts only when the NAS acceptance checks A1–A7 and A10–A13 pass (`docs/nas-requirements.md`) and the owner says the NAS is reliable; until then only «Правка: …», «Вопрос: …» and «Идея: …» sessions. Model: Opus 5.5, effort high.
+«Описание 4» — stage 4, PocketBase storage (`docs/project-spec.md`, stage 4). It starts only when the NAS acceptance checks A1–A7 and A10–A13 pass (`docs/nas-requirements.md`) and the owner says the NAS is reliable; until then only «Правка: …», «Вопрос: …» and «Идея: …» sessions. Model: Opus 5.5, effort high. The description pulls in KI-8 and the review-6 wish for the shared-list rules (`.scratch/06-field-improvements/review.md`).
 
 Quick fixes «Правка: …» may come at any time; they do not change this step.
 
@@ -17,20 +15,11 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 - Stage 1 done 2026-11-15: «Ревью 1» accepted (16 findings: 15 fixed, KI-3 deferred; no fix round), the owner checked the stage on the phone (spec 12).
 - Stage 1: description, spec and slicing accepted 2026-11-10 — all Russian comments translated in this stage; 9 tickets in `.scratch/01-code-docs/issues/` (01 tools, 02 domain, 03 app core, 04–06 views, 07 drawings/scripts/config, 08 tests and Python, 09 architecture and strict checks); every ticket proves «only comments changed, built site byte-identical» with `tools/same-code.mjs` (ticket 01) and goes live without waiting for «Работает»; the owner checks once after the stage review.
 - 2026-11-10: project moved onto this workflow (`docs/history.md`); `HANDOFF.md` split into these docs and removed (original at commit `44ac16d`).
-- Tests: 272, all pass on the owner's Windows PC and on the Linux deploy.
+- Tests: 273, all pass on the owner's Windows PC and on the Linux deploy.
 - Stage 1: baseline 1,751 Russian comments in 144 files, 0 left; every one of the 127 modules in `docs/code-map.md` has an English header; the map has its architecture section; `PENDING` is gone, so `tools/code-map.mjs` and `tools/ru-comments.mjs` (and `tests/code-docs.test.js`) are strict; `tools/tohnit/__pycache__` is no longer tracked.
 - The owner's NAS arrives 2026-11-11 without disks; its setup is a separate project, which builds from `docs/nas-requirements.md` (the owner gives it the GitHub link and says when the version line changes).
 - Stage 3 done 2026-11-16: «Ревью 3» accepted (6 findings, all fixed; no fix round). Management sheets: legend, update stamp «Обновлено» in E2 written on every refresh (date-only write when the data is unchanged), no pink, thin borders, sections by point type in the profile's `typeOrder`, the last tab «Итоги по шкафам» (percents rounded down, progress colours), profile ticks for sections and the rack sheet, KI-4; `STYLE_V` 7. Checked by the owner on the phone and the PC ticket by ticket; the Sheets requests were accepted by Google on the owner's file. Not checked against a real response: a profile with no points (review F1, guarded). Details: `docs/history.md`.
-- Stage 6: description accepted 2026-11-17 (`.scratch/06-field-improvements/description.md`, 4 mockups): ideas 001–005 in that order; owner added: day off blocked on a date with a working day in another project, culprits shared too (ADR 0016 replaces 0015 in the spec), point types per problem, open-problems counter on «Проект»; colour by stages, not single works. Spec accepted 2026-11-17 (`spec.md`): answers to the 14 open questions; shared lists read straight from the pool, old project lists merged once per project (ADR 0016 replaces 0015); problem marks in the project subcollection `problemMarks` (ADR 0017); palette «Жёлтые чуть темнее»; ticket 02 needs the owner to publish the new `firestore.rules` before its code reaches `main`.
-
-- Ticket 6.1 (day off) live and accepted 2026-11-17: `src/domain/dayoff.js`, day form checks, «Отчёты» and «Месяц» lines, recording block on a day-off date; KI-5.
-- Ticket 6.2 (shared delay reasons and culprits) live and accepted 2026-11-18: the owner published the new `firestore.rules` (three `pool_*` blocks) first; `src/domain/shared.js`, `src/app/shared.js` (merge, seeding of reasons and culprits; `SHARED_DEFAULTS` waits for the example problems of ticket 03), pool writes from «Выпадающие списки», backup / import / nightly job with `shared`; KI-6.
-- Ticket 6.3 (problems on points) live and accepted 2026-11-18: `src/domain/problems.js`, `src/app/views/problems.js`, project subcollection `problemMarks` (in `COLLECTIONS`, history, backup and import), the four example problems seeded into an empty `pool_problems`, selection-bar buttons in «Точки», plan and rack, point card block, «Точки» filter and red line, «Проект» line, point merge moves open marks. Plan red: ticket 05. Tests: 240.
-- Ticket 6.4 (problems in the management sheet) live and accepted 2026-11-18: column «Проблема» / «בעיה» (`src/domain/report.js`, open problems one per line, oldest first), row colour `PROBLEM_COLOR` `#E57373`, legend cell G, summary counter «С проблемами» / «עם בעיות» (points with an open problem; added after the owner's check), default profiles have the column (saved ones need the tick), `STYLE_V` 8, wrap request in `managers.js`, the nightly job reads `problemMarks`. Tests: 252.
-- Ticket 6.5 (plan colours by progress) live and accepted 2026-11-18: `planColor` / `markColor` / `PLAN_LEGEND` and the plan filter in `src/domain/plan.js`, `leftTasks` in `src/domain/remaining.js`, plan legend and grouped stage filter («Осталось» with «шилют», «Работа», «Проблемы»), «PDF с номерами» colours, thicker finished frames and new legends (every file re-rendered once). Owner's changes at the check: no stage dots at all; plan lines ×2 on a computer with a mouse. Tests: 263.
-- Ticket 6.6 (guide translations) live and accepted 2026-11-19: the guide checked on screen in English and Hebrew; 15 lines had dictionary keys with the «• » / «# » prefix that `body()` of `guide.js` strips, so they showed Russian — keys fixed; quoted button names aligned with the buttons; Latin point-code runs isolated in Hebrew. Plan legend and filter not walked on screen (no drawing in `?mem=1`).
-- Ticket 6.7 (translations 2) live and accepted 2026-11-19: `tests/i18n-coverage.test.js` (part of `npm test`) fails on any Russian UI string without English and Hebrew or a reasoned entry in `src/i18n/not-ui.json`; 54 strings translated, sentences built from parts translated per part with `tr()`, rule 12 in the coding standards; KI-7 open (the test cannot see composed sentences; catalog names have no English). Tests: 268.
-- Ticket 6.8 (plan colours by works, idea 006) live and accepted 2026-11-19: `planColor` — pink `#E0609F` for a pulled point (owner made it stronger at the check), an OKLab gradient `#fdd835` → `#2e9e45` by the works after the pull, dark green when all are done; `pull: { done, total }` in cables → circles under the tag or caption while the pull is unfinished (plan only); `markColor` ranks by pull then works; phone frames ×0.75; the focus frame goes when a card opens or on a tap on an empty spot; «PDF с номерами» new colours and legend, `NUMBERED_V` 3. Tests: 272.
+- Stage 6 done 2026-11-19: «Ревью 6» accepted (5 findings: 4 fixed, KI-8 deferred; no fix round). Field improvements, ideas 001–006 in 8 tickets, each checked by the owner on the phone: day off with a reason (KI-5); shared delay reasons, culprits and problems in the pool (ADR 0016, KI-6; the owner published the rules 2026-11-18); problems on points in the subcollection `problemMarks` (ADR 0017), red on the plan and in the management sheet (column «Проблема», `STYLE_V` 8); plan colours by works after the pull (idea 006: pink, OKLab gradient, pull circles; `NUMBERED_V` 4 after the review); the English and Hebrew UI translated with a coverage test (rule 12, KI-7). Details: `docs/history.md`.
 
 ## Stages
 
@@ -41,7 +30,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 | 3 | Management sheets | done | 8 | — |
 | 4 | PocketBase storage (when the owner trusts the NAS) | not started | 16 | — |
 | 5 | Move to the NAS | not started | 10 | — |
-| 6 | Field improvements (now, before stage 4) | tickets 7/8 | 15 | 001, 002, 003, 004, 005, 006 |
+| 6 | Field improvements (now, before stage 4) | done | 15 | 001, 002, 003, 004, 005, 006 |
 
 Status values: not started · description · spec · tickets k/n · review · fix round k · done. Ideas: numbers of `docs/ideas/` files filed for the stage.
 
@@ -60,6 +49,7 @@ Status values: not started · description · spec · tickets k/n · review · fi
 
 - The pool bot may commit to `main` on Mondays 09:00 UTC («Стартовый набор: обновлён из общего пула»): `git pull --rebase` before pushing.
 - In `?mem=1` listeners are synchronous: real Firestore races (e.g. an old project snapshot dropping a new drawing) do not reproduce — reason them out in the code.
+- `?mem=1` has no drawing: to walk the plan, build a small PDF in the page and add it through «➕ Чертёж (PDF)» with a `DataTransfer` file; give the points `pos` on that sheet (recipe: `docs/history.md`, «Ревью 6»).
 - PDF captions: two labels may be one text run (`FC/B09-10 FC/B11-12`); `splitLabelRuns` in `src/tohnit/engine.js` splits them.
 - `RANGE` in `src/domain/merge.js` counts by the last digits (`B05-06` → 2), limits 1–8, else cables-by-label is not applied.
 - Double-tap zoom on iPhone is stopped by three measures: `touch-action: manipulation`, `src/app/nodoubletap.js`, no text selection on touch screens; plus `maximum-scale=1`.

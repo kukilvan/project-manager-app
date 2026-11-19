@@ -1,4 +1,4 @@
-Status: in review
+Status: accepted
 
 # Stage 6. Field improvements — review
 
@@ -46,7 +46,7 @@ No fix-round finding: the stage closes with this review. One entry deferred to `
 ## Wishes for later stages
 
 - **Owner, after this review goes live:** nothing to do; the next night every «PDF с номерами» on Drive is rebuilt once (the Hebrew legend says השחלה).
-- **A test drawing for `?mem=1`:** tickets 6.5, 6.6 and 6.8 could not walk the plan on screen; this review built a tiny PDF in the page. A test-mode helper (for example `&memPlan=1`: a drawing and points at every stage, a partial pull included) would let every plan ticket check itself — a quick fix or part of the next stage that touches the plan.
+- **A test drawing for `?mem=1`:** ticket 6.6 could not walk the plan on screen, tickets 6.5 and 6.8 and this review each built a PDF by hand. A test-mode helper (for example `&memPlan=1`: a drawing and points at every stage, a partial pull included) would let every plan ticket check itself — a quick fix or part of the next stage that touches the plan.
 - **KI-8** as a quick fix when a colleague with their own database starts using the app; until then the guide's «📋 Скопировать правила» covers it.
 - **Stage 4 (PocketBase):** the new data is listed in `docs/project-spec.md`; the shared lists need the same split as ADR 0016 (members create and update with `deleted: false`, only the administrator marks deleted) and must stay readable by every member, or KI-8 comes back in another form.
 - **KI-7** stays open: sentences built from parts and catalog names without English.

@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-19 — Review 6: stage 6 closed («Ревью 6»)
+
+- Reviewed `6dc9e20..a918180` (tickets 6.1–6.8) against the spec, idea 006 and the coding standards; tests 272 → 273. Walked in `?mem=1` at 420 px: day off (checks, day screen, recording block, the other-project block, «Месяц»), the shared-list merge and seeding, administrator delete, problems (fit on a mixed selection, own Hebrew text, filter, «Проект» line, card block), the management sheet through the Google stub, the plan with a generated drawing.
+- F1: the plan and Hebrew PDF legends of ticket 6.8 said משיכה; now השחלה as everywhere, also one drawing-version line; `NUMBERED_V` 4, so every «PDF с номерами» on Drive is rebuilt once. F2: 18 Russian texts had two different translations in `src/i18n/src` (the build keeps the last file's); the overridden entries removed — built translations unchanged, compared key by key — and `tests/i18n.test.js` fails on a new clash. F3: the guide line of the «Проблема» column had a wrong path and tied the red row to the column. F4: ADR 0016 / 0017 accepted, glossary «planned» marks, the project-spec stage-6 line, a «Changed» note in spec § 4. F5 deferred as KI-8: a database with rules older than ticket 6.2 cannot read the shared lists (no merge, no seeding, no toast, empty lists in a new project).
+- Test drawing recipe for `?mem=1`: a PDF string with `/MediaBox[0 0 600 400]`, Helvetica and `BT /F1 12 Tf x y Td (D-01) Tj ET` per caption, xref offsets computed in the page, `TextEncoder` → `File`; open «🗺 План» → «➕ Чертёж (PDF)», set the hidden file input's `files` through a `DataTransfer` and dispatch `change`; points get `pos: { sheet: <file name>, page: 0, x, y: 400 − pdfY, w: 30, h: 10, text }`; progress through journal edit rows `{ pointId, editDate, editWorkId, editCableId }` (catalog ids such as `PR_PTS`, `HIV_DEV`).
+
 ## 2026-11-19 — Ticket 6.8: plan colours by works («Тикет 6.8»)
 
 - `src/domain/plan.js`: `planColor` by idea 006 (pink for pulled, `gradientColor` — OKLab yellow → green at `t = (j − 1) / (M − 1)`, dark green when all done, red over all), `pull: { done, total }` counted in cables (composite: quantity of pull tasks, legacy: counts of cable kinds), `markColor` ranks by `progressOf`, new `PLAN_PALETTE` / `PLAN_LEGEND` (gradient and circles entries), `NUMBERED_V` 3.
