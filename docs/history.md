@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-19 — Ticket 6.6: translations 1, the guide («Тикет 6.6»)
+
+- A check of every `guide.js` literal through `tr()` said all covered, but the guide shows lines without their leading «• » / «# » (`body()`), and `tr()` translated the raw literal through its icon branch. On screen 15 lines (added by tickets 1–5) stayed Russian; their keys and values lost the prefix in `src/i18n/src/` files 07, 13, 15, 16, 17, 18.
+- Quoted names aligned with the real buttons: Hebrew «תקולה», «השחלת כבלים», «רשימות נפתחות»; English «Termination in the cabinet», «Your own database», «Drop-down lists». Hebrew Latin point-code runs wrapped in LRI/PDI.
+- Checked in `?mem=1` at 420 px in English and Hebrew (all guide sections, day form, day off, shared lists, problem forms, point card): no Russian except the Russian input examples. Ticket 07 got a note so its coverage test strips the guide prefixes. Owner checked: works.
+
 ## 2026-11-18 — Ticket 6.5: plan colours by progress («Тикет 6.5»)
 
 - `src/domain/plan.js`: `pointStages` (composite — stages with tasks; legacy — the type's `stages`, all five without them), `planColor` (red for an open problem or «Неисправна»; gray / blue when nothing is started; dark green `#1b5e20` with frame ×1.75 when every stage is done; otherwise step clamp(round(k / n × 5), 1, 4) of `#f2c80f`, `#c0ca33`, `#8bc34a`, `#43a047`), `markColor` (a shared mark follows its least finished point, red when any is red), `PLAN_LEGEND`, `LEFT_FILTERS`, `planFilterMatch`, `planFilterGroups`; `numberedInput` gives each point its mark's color and `full`; `numberedHash` got a look version, so every «PDF с номерами» is re-rendered once (by the nightly job when the project changes or at the 3-day full run). `statusColor` stays for the pull screen. `leftTasks` moved from `views/points.js` to `src/domain/remaining.js` (tested against the old function). Commits `a4199f6` … `e07f127`.
