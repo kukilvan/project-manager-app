@@ -263,9 +263,9 @@
     "✔ All checked — clear the list",
     "✔ הכול נבדק — לנקות את הרשימה"
   ],
-  "• «🔄 Новая версия чертежа»: прислали обновлённый тохнит (другого размера, дорисованы другие части здания). Точки сами переедут на новый лист, номера сохранятся. Что изменилось на новом листе, попадёт в список «⚠ Проверить». Старый чертёж останется в проекте.": [
-    "• “🔄 New drawing version”: you received an updated tohnit (different size, other parts of the building added). Points move to the new sheet by themselves, numbers are kept. What changed on the new sheet goes to the “⚠ Check” list. The old drawing stays in the project.",
-    "• „🔄 גרסה חדשה של השרטוט“: התקבל תוכנית מעודכנת (בגודל אחר, נוספו חלקים אחרים של הבניין). הנקודות יעברו לגיליון החדש בעצמן, המספרים יישמרו. מה שהשתנה בגיליון החדש ייכנס לרשימה „⚠ לבדוק“. השרטוט הישן נשאר בפרויקט."
+  "«🔄 Новая версия чертежа»: прислали обновлённый тохнит (другого размера, дорисованы другие части здания). Точки сами переедут на новый лист, номера сохранятся. Что изменилось на новом листе, попадёт в список «⚠ Проверить». Старый чертёж останется в проекте.": [
+    "“🔄 New drawing version”: you received an updated tohnit (different size, other parts of the building added). Points move to the new sheet by themselves, numbers are kept. What changed on the new sheet goes to the “⚠ Check” list. The old drawing stays in the project.",
+    "„🔄 גרסה חדשה של השרטוט“: התקבל תוכנית מעודכנת (בגודל אחר, נוספו חלקים אחרים של הבניין). הנקודות יעברו לגיליון החדש בעצמן, המספרים יישמרו. מה שהשתנה בגיליון החדש ייכנס לרשימה „⚠ לבדוק“. השרטוט הישן נשאר בפרויקט."
   ],
   "{} — на её месте теперь «{}»": [
     "{} — in its place now “{}”",
@@ -575,8 +575,8 @@
     "Own works",
     "עבודות משלה"
   ],
-  "• «Работы на точках» в окне «✏️ Изменить» (одна точка или выбранные в «Точках», на плане, в шкафу): какие работы требуются и сколько. Можно добавить работу, убрать её или задать количество — на точку или на каждый кабель (например, метаэм пас-дин: у двойного бакара 2, у одинарного 1). «↩︎» — вернуть как по составу.": [
-    "• \"Works on points\" in the \"✏️ Edit\" window (one point or points selected in Points, on the plan, in a cabinet): which works are required and how many. You can add a work, remove it or set the quantity — per point or per cable (e.g. DIN-rail adapter: 2 for a double controller, 1 for a single). \"↩︎\" — back to the composition.",
-    "• \"עבודות בנקודות\" בחלון \"✏️ עריכה\" (נקודה אחת או נקודות שנבחרו בנקודות, בתוכנית, בארון): אילו עבודות נדרשות וכמה. אפשר להוסיף עבודה, להסיר אותה או לקבוע כמות — לנקודה או לכל כבל (למשל מתאם פס דין: בבקר כפול 2, בבודד 1). \"↩︎\" — חזרה להרכב."
+  "«Работы на точках» в окне «✏️ Изменить» (одна точка или выбранные в «Точках», на плане, в шкафу): какие работы требуются и сколько. Можно добавить работу, убрать её или задать количество — на точку или на каждый кабель (например, метаэм пас-дин: у двойного бакара 2, у одинарного 1). «↩︎» — вернуть как по составу.": [
+    "\"Works on points\" in the \"✏️ Edit\" window (one point or points selected in Points, on the plan, in a cabinet): which works are required and how many. You can add a work, remove it or set the quantity — per point or per cable (e.g. DIN-rail adapter: 2 for a double controller, 1 for a single). \"↩︎\" — back to the composition.",
+    "\"עבודות בנקודות\" בחלון \"✏️ עריכה\" (נקודה אחת או נקודות שנבחרו בנקודות, בתוכנית, בארון): אילו עבודות נדרשות וכמה. אפשר להוסיף עבודה, להסיר אותה או לקבוע כמות — לנקודה או לכל כבל (למשל מתאם פס דין: בבקר כפול 2, בבודד 1). \"↩︎\" — חזרה להרכב."
   ]
 }
