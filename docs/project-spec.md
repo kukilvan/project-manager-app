@@ -67,7 +67,7 @@ Description approved: `.scratch/01-code-docs/description.md` (it overrides this 
 - Goal: every part of the code is described so a session finds what it needs without reading the code through; the owner asked to document how everything works and what connects to what.
 - The owner sees at the end: the site works exactly as before; every module starts with an English header comment — what it holds, what it talks to; no Russian comments left in the code and config files (Russian strings stay); `docs/code-map.md` has the architecture (storage, sync, offline, data paths, server jobs) and the module list built by a script; all tests green on Windows too. The owner checks once, after the stage review.
 - Contains: `tools/code-map.mjs` and its test (behaviour: `docs/formats.md`, "Code map"); English header comments for all modules in `src/` and `scripts/` and for test modules; translation of all Russian comments (`src/`, `scripts/`, `tests/`, `tools/tohnit/`, `firestore.rules`, `vite.config.js`, workflows); a check that comment-only changes leave the built site unchanged; architecture section; fix KI-1 and KI-2; the Run line of `CLAUDE.md` for the code map.
-- Sessions (est.): ≈ 14.
+- Sessions (est.): ≈ 15.
 
 ### Stage 2. What the app needs from the NAS
 
@@ -112,5 +112,6 @@ Runs now, before stage 4, while the NAS is being checked; the owner finishes the
 
 - Goal: the owner's wishes from field work, filed 2026-11-17 as ideas 001–005, in this order; description: `.scratch/06-field-improvements/description.md`.
 - The owner sees at the end: a day off with a reason, blocked on a date with a working day in another project (idea 001); one shared list of delay reasons and one of culprits for all projects (idea 002 plus the owner's addition; ADR 0016, which replaced ADR 0015); problems on points — reference list «Проблемы» with point types per problem, marking one by one and in bulk, red on the plan and in the management sheet, «Решено» with history, an open-problems counter on «Проект» (idea 003); plan colours by the share of stages done, with dots for done stages and the stage filter with shilut on the plan (idea 004); everything in the English and Hebrew UI translated, and a check that stops untranslated strings (idea 005).
+- Idea 006 (added 2026-11-19, after slicing; ticket 08 `.scratch/06-field-improvements/issues/08-plan-colours-works.md`): plan colour by works after the pull instead of stages — pink `#E99AC4` for a pulled point, an even yellow → green gradient for the works after it, circles per cable for an unfinished pull; phone plan frames ×0.75; the focus frame goes away after an action on the point.
 - New data (day-off fields, shared pool collections, problem marks) must be carried by stage 4's PocketBase storage.
-- Sessions (est.): ≈ 14.
+- Sessions (est.): ≈ 15.
