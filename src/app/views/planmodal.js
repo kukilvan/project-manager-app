@@ -58,7 +58,7 @@ export function outline(g, api, pos, color, { width = 1.5, pad = 1.5, fill = nul
 // the font of the tags and the pull circles: they grow with the zoom
 const tagFont = (api) => Math.round(Math.min(26, Math.max(12, 5.5 * api.view.s)));
 // the circles of an unfinished pull: one per cable (at most 10 shown), filled for a pulled one
-const PULL_DOT = '#C2417F';
+const PULL_DOT = '#A8285F';
 const dotsRad = (fs) => Math.max(2.5, fs * 0.22);
 const dotsRow = (fs) => 2 * dotsRad(fs) + 3;
 const dotsCount = (pull) => Math.min(pull.total, 10);

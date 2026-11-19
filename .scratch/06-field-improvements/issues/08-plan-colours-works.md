@@ -4,7 +4,7 @@ Blocked by: 05, 07
 
 # 08. Plan colours by works, pink for pulled, thinner phone frames, focus frame
 
-A point that is only pulled is pink `#E99AC4` whatever its type; works after the pull move the colour evenly from yellow to green; an unfinished pull shows circles per cable; phone frames ×0.75; the magenta focus frame goes away after an action on the point. Idea 006 (`docs/ideas/006-plan-colours-by-works.md`), added after slicing; it changes what ticket 05 built.
+A point that is only pulled is pink `#E0609F` whatever its type; works after the pull move the colour evenly from yellow to green; an unfinished pull shows circles per cable; phone frames ×0.75; the magenta focus frame goes away after an action on the point. Idea 006 (`docs/ideas/006-plan-colours-by-works.md`), added after slicing; it changes what ticket 05 built.
 
 ## Spec sections
 

@@ -15,7 +15,7 @@ export const statusColor = (st = '') => (st === 'Неисправна' ? C['пр
   : st.startsWith('Протянуто') ? C['протянуто частично'] : st === 'Посчитана' ? C['померяно'] : C['новая']);
 
 // Colors of the plan and «PDF с номерами»: a pulled point is pink, the works after the pull move it evenly from yellow to green (OKLab), all done — dark green
-export const PLAN_PALETTE = { gray: '#9e9e9e', blue: '#2979ff', pink: '#E99AC4', from: '#fdd835', to: '#2e9e45', full: '#1b5e20', red: '#ff1744' };
+export const PLAN_PALETTE = { gray: '#9e9e9e', blue: '#2979ff', pink: '#E0609F', from: '#fdd835', to: '#2e9e45', full: '#1b5e20', red: '#ff1744' };
 // A finished point's frame is this many times thicker (plan 2 → 3.5)
 export const FULL_WIDTH = 1.75;
 

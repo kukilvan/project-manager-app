@@ -35,13 +35,13 @@ const first = (id, n, order = FIVE) => order.slice(0, n).map((w) => [id, w]);
 const colorOf = (typeId, works, pt = {}) => { const ctx = make([{ id: 'a', label: 'A-01', typeId, ...pt }], works); return planColor(ctx.points.get('a'), ctx); };
 
 test('план: палитра и легенда', () => {
-  assert.deepEqual({ ...PLAN_PALETTE }, { gray: '#9e9e9e', blue: '#2979ff', pink: '#E99AC4', from: '#fdd835', to: '#2e9e45', full: '#1b5e20', red: '#ff1744' });
+  assert.deepEqual({ ...PLAN_PALETTE }, { gray: '#9e9e9e', blue: '#2979ff', pink: '#E0609F', from: '#fdd835', to: '#2e9e45', full: '#1b5e20', red: '#ff1744' });
   assert.deepEqual(PLAN_LEGEND.map((x) => x.ru), ['новая', 'померяно', 'протянута', 'работы после протяжки', 'готово', 'проблема / неисправна', 'кружочки — протянутые кабели']);
   assert.deepEqual(PLAN_LEGEND.map((x) => x.he), ['חדשה', 'נמדד', 'נמשכה', 'עבודות אחרי המשיכה', 'הושלם', 'בעיה / תקלה', 'עיגולים – כבלים שנמשכו']);
   assert.deepEqual(PLAN_LEGEND.filter((x) => x.thick).map((x) => x.color), ['#1b5e20']);
   assert.deepEqual(PLAN_LEGEND.find((x) => x.gradient).gradient, ['#fdd835', '#2e9e45']);
   assert.deepEqual(PLAN_LEGEND.filter((x) => x.circles).map((x) => x.ru), ['кружочки — протянутые кабели']);
-  assert.equal(PLAN_LEGEND.find((x) => x.ru === 'протянута').color, '#E99AC4');
+  assert.equal(PLAN_LEGEND.find((x) => x.ru === 'протянута').color, '#E0609F');
   assert.ok(LEFT_FILTERS.some(([v, t]) => v === 'Шилют' && t === 'Осталось: шилют'));
 });
 
@@ -58,15 +58,15 @@ test('план: градиент OKLab — концы точные, оттенк
 
 test('план: протянута и больше ничего — одна розовая у точек разных типов', () => {
   // 5, 4, 3 and 2 stages: the number of works after the pull does not matter
-  assert.equal(colorOf('Камера', first('a', 1)).color, '#E99AC4');
-  assert.equal(colorOf('Точка', first('a', 1, ['PR_PTS', 'HIV_KEY', 'CHK_FLUKE', 'SHL'])).color, '#E99AC4');
-  assert.equal(colorOf('Бакар', first('a', 1, ['PR_PTS', 'HIV_KEY', 'CHK_FLUKE'])).color, '#E99AC4');
-  assert.equal(colorOf('Два', first('a', 1)).color, '#E99AC4');
+  assert.equal(colorOf('Камера', first('a', 1)).color, '#E0609F');
+  assert.equal(colorOf('Точка', first('a', 1, ['PR_PTS', 'HIV_KEY', 'CHK_FLUKE', 'SHL'])).color, '#E0609F');
+  assert.equal(colorOf('Бакар', first('a', 1, ['PR_PTS', 'HIV_KEY', 'CHK_FLUKE'])).color, '#E0609F');
+  assert.equal(colorOf('Два', first('a', 1)).color, '#E0609F');
   const c = colorOf('Камера', first('a', 1));
   assert.equal(c.pull, null); assert.equal(c.full, false); assert.equal(c.width, 1); assert.equal(c.started, true);
   // a composite point: the pull done, its works not
   const ctx = make([{ id: 'a', label: 'A-01', typeId: 'Комп' }], [['a', 'PR_PTS']]);
-  const k = planColor(ctx.points.get('a'), ctx); assert.equal(k.color, '#E99AC4'); assert.equal(k.pull, null);
+  const k = planColor(ctx.points.get('a'), ctx); assert.equal(k.color, '#E0609F'); assert.equal(k.pull, null);
 });
 
 test('план: j работ после протяжки из M — ровный сдвиг от жёлтого к зелёному', () => {
@@ -87,7 +87,7 @@ test('план: j работ после протяжки из M — ровный
   for (let j = 1; j <= 9; j++) assert.equal(planColor(ctx.points.get('x'), ctx, () => info(j)).color, gradientColor((j - 1) / 9), `j = ${j}`);
   assert.equal(planColor(ctx.points.get('x'), ctx, () => info(10)).color, '#1b5e20');
   // M = 1 («Два»: pull and termination): pulled — pink, done — dark green; the gradient is not used
-  assert.equal(colorOf('Два', first('a', 1)).color, '#E99AC4'); assert.equal(colorOf('Два', first('a', 2)).color, '#1b5e20');
+  assert.equal(colorOf('Два', first('a', 1)).color, '#E0609F'); assert.equal(colorOf('Два', first('a', 2)).color, '#1b5e20');
 });
 
 test('план: всё сделано — тёмно-зелёная толстая рамка', () => {
@@ -110,7 +110,7 @@ test('план: ничего не начато — серая, с длиной �
 test('план: часть кабелей протянута — розовая и кружочки по кабелям', () => {
   // «Интерком»: 6005 and cat7; only 6005 pulled, no other work: pink with a circle per cable
   const c = colorOf('Интерком', [['a', 'PR_PTS', { cableId: '6005' }]]);
-  assert.equal(c.color, '#E99AC4'); assert.deepEqual(c.pull, { done: 1, total: 2 }); assert.deepEqual(c.done, [false, false]);
+  assert.equal(c.color, '#E0609F'); assert.deepEqual(c.pull, { done: 1, total: 2 }); assert.deepEqual(c.done, [false, false]);
   // other works already done: the gradient colour (the only work after the pull, the pull unfinished — the top shade) and the circles stay
   const w = colorOf('Интерком', [['a', 'PR_PTS', { cableId: '6005' }], ['a', 'HIV_KEY']]);
   assert.equal(w.color, '#2e9e45'); assert.deepEqual(w.pull, { done: 1, total: 2 }); assert.equal(w.full, false);
@@ -122,16 +122,16 @@ test('план: часть кабелей протянута — розовая 
   assert.equal(all.color, '#2e9e45'); assert.equal(all.full, false); assert.deepEqual(all.pull, { done: 0, total: 1 });
   // the last cable pulled: the circles go
   const done = colorOf('Интерком', [['a', 'PR_PTS', { cableId: '6005' }], ['a', 'PR_PTS', { cableId: 'cat7' }]]);
-  assert.equal(done.color, '#E99AC4'); assert.equal(done.pull, null);
+  assert.equal(done.color, '#E0609F'); assert.equal(done.pull, null);
   // a type whose only stage is the pull, partly pulled
   const ctx = make([{ id: 'a', label: 'A-01', typeId: 'Одна' }], [['a', 'PR_PTS', { cableId: '6005' }]]);
-  const one = planColor(ctx.points.get('a'), ctx); assert.equal(one.color, '#E99AC4'); assert.deepEqual(one.pull, { done: 1, total: 2 });
+  const one = planColor(ctx.points.get('a'), ctx); assert.equal(one.color, '#E0609F'); assert.deepEqual(one.pull, { done: 1, total: 2 });
 });
 
 test('план: кружочки считают кабели, а не задачи (строка 6005×3 — три кабеля)', () => {
   const pt = { id: 'a', label: 'A-01', typeId: 'Комп', cableOverride: [{ cable: '6005', count: 3 }, { cable: 'cat7', count: 2 }] };
   const part = make([pt], [['a', 'PR_PTS', { cableId: '6005' }]]); const c = planColor(part.points.get('a'), part);
-  assert.equal(c.color, '#E99AC4'); assert.deepEqual(c.pull, { done: 3, total: 5 });
+  assert.equal(c.color, '#E0609F'); assert.deepEqual(c.pull, { done: 3, total: 5 });
   const none = make([pt], []); assert.equal(planColor(none.points.get('a'), none).pull, null);  // nothing started: no circles
   const full = make([pt], [['a', 'PR_PTS', { cableId: '6005' }], ['a', 'PR_PTS', { cableId: 'cat7' }]]); assert.equal(planColor(full.points.get('a'), full).pull, null);
   // a legacy point: the counts of its cable kinds
@@ -169,7 +169,7 @@ test('план: старая точка по этапам типа, тип бе�
   assert.equal(colorOf('Бакар', first('a', 2)).color, '#fdd835');
   assert.equal(colorOf('Бакар', first('a', 2)).n, 3);
   const old = colorOf('Старый', first('a', 1));
-  assert.equal(old.n, 5); assert.equal(old.M, 4); assert.equal(old.color, '#E99AC4');
+  assert.equal(old.n, 5); assert.equal(old.M, 4); assert.equal(old.color, '#E0609F');
   // a composite point: the stages that have tasks (cat7 brings two terminations, the check and port labels; the device its installation)
   const ctx = make([{ id: 'a', label: 'A-01', typeId: 'Комп' }], [['a', 'PR_PTS'], ['a', 'HIV_KEY'], ['a', 'HIV_DEV']]);
   const st = pointStages(ctx.points.get('a'), ctx);
@@ -196,8 +196,8 @@ test('план: общая отметка — красная, если люба�
     [['p', 'PR_PTS', { cableId: '6005' }], ...first('q', 1), ...first('r', 3)]);
   const [p, q, r] = ['p', 'q', 'r'].map((id) => rank.points.get(id));
   const pick = (list) => { const c = markColor(list, rank); return { color: c.color, pull: c.pull }; };
-  assert.deepEqual(pick([q, r, p]), { color: '#E99AC4', pull: { done: 1, total: 2 } });   // the half-pulled one has the circles
-  assert.deepEqual(pick([q, r]), { color: '#E99AC4', pull: null });                        // pulled only goes before the one with works
+  assert.deepEqual(pick([q, r, p]), { color: '#E0609F', pull: { done: 1, total: 2 } });   // the half-pulled one has the circles
+  assert.deepEqual(pick([q, r]), { color: '#E0609F', pull: null });                        // pulled only goes before the one with works
   assert.deepEqual(pick([r]), { color: '#c1c63f', pull: null });
   // a point with a work but an unfinished pull is behind a point that is only pulled
   const mix = make([{ id: 'u', label: 'I-01', typeId: 'Интерком' }, { id: 'v', label: 'C-01', typeId: 'Камера' }], [['u', 'PR_PTS', { cableId: '6005' }], ['u', 'HIV_KEY'], ...first('v', 1)]);
@@ -216,7 +216,7 @@ test('PDF с номерами: цвета плана, розовая у прот
   const d = { name: 'a.pdf' };
   const input = numberedInput(ctx.points.values(), ctx, d);
   // no circles in the PDF: only the color and «full» go in
-  assert.deepEqual(input.map((x) => [x.label, x.color, x.full]), [['C-01', '#9e9e9e', false], ['C-02', '#2979ff', false], ['C-03', '#1b5e20', true], ['C-04', '#E99AC4', false], ['C-05', '#E99AC4', false]]);
+  assert.deepEqual(input.map((x) => [x.label, x.color, x.full]), [['C-01', '#9e9e9e', false], ['C-02', '#2979ff', false], ['C-03', '#1b5e20', true], ['C-04', '#E0609F', false], ['C-05', '#E0609F', false]]);
   assert.ok(input.every((x) => !('pull' in x)));
   // two builds of an unchanged project give the same fingerprint
   const h1 = numberedHash(input, d); assert.equal(numberedHash(numberedInput(make(pts, works).points.values(), make(pts, works), d), d), h1);
