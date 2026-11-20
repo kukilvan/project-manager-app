@@ -4,7 +4,8 @@
 //
 // Contents:
 // - shOf(), tagOf(), outline(), placeTags(), iconImg() — drawing helpers: door short labels, frames, non-overlapping tags, type icons
-// - planModal() — the plan screen: sheet pages, stage filters (what is left, works, problems), the legend, layers, the «🚪 Двери» wizard and the brush
+// - planModal() — the plan screen: sheet pages, several-value filters (types with the two modes, door configurations, racks — shared with «Точки» through
+//   sharedfilters.js; stages: what is left, works, problems), the focus point shown through the filters, the legend, layers, the «🚪 Двери» wizard and the brush
 // - addPdf() — add a drawing to the project from a PDF
 // - tap handling and addCard(), existingCard(), pickGroup() — «➕ Точка на плане»: add a point, link a place to a point, draw or remove a type icon
 // - markCard(), moveMark(), chooseFor(), hideArea() — an unlinked caption («Не размеченая»): hide it or link it to a project point
@@ -33,7 +34,11 @@ import { problemButtons } from './problems.js';
 import { editForm as historyEditForm } from './journal.js';
 import { doorCfgOf, doorCfgShort, usesConfig } from '../../domain/index.js';
 import { latinKey } from '../../domain/index.js';
-import { cfgMatch, cfgFilterOptions, cfgFilterValid } from '../cfgfilter.js';
+import { cfgOptions, cfgSetMatch } from '../cfgfilter.js';
+import { rackMatch, typeSetMatch, rackOptions, missingValues, isOff, prune } from '../../domain/filters.js';
+import { stageOptions, stageMatch, shownPoints, noneUnderFilters } from '../../domain/planfilters.js';
+import { sharedFilters, setShared, clearShared } from '../sharedfilters.js';
+import { multiFilter, resetButton } from './multifilter.js';
 import { allDoorCfgs, pinsOf as doorPins, ensureDoorCfg } from '../doorpool.js';
 import { doorPicker } from './doorcfgview.js';
 import { doorChips } from './doorchips.js';
@@ -41,9 +46,9 @@ import { doorShortColor } from '../../domain/index.js';
 // the point's tag on the plan: a door with a configuration also gets «ЭМ» / «МХ»
 export const shOf = (p) => { const c = doorCfgOf(p, state.ctx); const t = c ? doorCfgShort(state.ctx, c) : ''; return t ? { text: t, color: doorShortColor(state.ctx, c) || '#111' } : null; };
 export const tagOf = (p) => { const c = doorCfgOf(p, state.ctx); const sh = c ? doorCfgShort(state.ctx, c) : ''; return sh ? `${p.label} ${sh}` : p.label; };
-import { typeMatch, typeFilterOptions } from '../typegroups.js';
+import { typeOptions } from '../typegroups.js';
 
-import { markColor, gradientColor, PLAN_LEGEND, LEFT_FILTERS, planFilterMatch, planFilterGroups, problemName } from '../../domain/index.js';
+import { markColor, gradientColor, PLAN_LEGEND, planFilterGroups, problemName } from '../../domain/index.js';
 import { lang, tr } from '../../i18n/index.js';
 // a caption on the drawing — a frame around the text; an icon without a caption — a circle of its size
 export const isText = (pos) => { const w = pos.w || 0; const hh = pos.h || 0; return w && hh && Math.max(w, hh) / Math.min(w, hh) > 1.6; };
@@ -124,7 +129,9 @@ function legendSwatch(x) {
 
 export function planModal({ point = null, placeFor = null } = {}) {
   const box = h('div', {});
-  let wk = null; let viewer = null; let current = null; let focusId = point?.id || null; let fType = ''; let fCab = ''; let fStage = ''; let fCfg = '';
+  let wk = null; let viewer = null; let current = null; let focusId = point?.id || null;
+  // filters: racks, types and door configurations are the shared sets of «Точки» (sharedfilters.js); the stage set and the mode («❔ Не размеченые» / «🙈 Скрытые») live while the plan is open
+  let fStage = new Set(); let fMode = '';
   let dimDrawing = false; let selMode = false; let rectSel = false; const sel = new Set(); let selBar = () => {};
   let openCard = null; let doorPts = () => []; let goDoor = () => {}; let brushTap = () => {};
   const doorSkip = new Set(); let doorCur = null; let doorMode = 'wizard'; let brushId = ''; let pipette = false;  // «Кисть»: a configuration applied by a tap; the pipette takes it from a door  // the «🚪 Двери» wizard: skipped doors and the current door
@@ -179,22 +186,26 @@ export function planModal({ point = null, placeFor = null } = {}) {
       if (offLayers.length) await wk.call('setLayers', { off: offLayers });
       const cur = () => drawingsOf().find((x) => x.id === d.id) || d;
       const unl = () => (cur().unlinked || []); const hid = () => (cur().hidden || []);
-      // the stage filter (groups «Осталось», «Работа», «Проблемы»): matching points stay bright
-      const stageOk = (p) => planFilterMatch(fStage, p, state.ctx, infoOf);
-      const pts = () => (fType === UNL || fType === HID ? [] : sheetPts(d).filter((p) => typeMatch(fType, p.typeId) && cfgMatch(fCfg, p) && (!fCab || (p.cabinet || '') === fCab)));
-      const marks = () => (fType === UNL ? unl() : fType === HID ? hid() : []);
+      // a point passes the type, rack and door-configuration filters (the shared sets; values of one filter add up)
+      const pass = (p) => { const f = sharedFilters(); return rackMatch(f.cab, p) && typeSetMatch(f.type, p) && cfgSetMatch(f.cfg, p); };
+      // the stage filter (sections «Осталось», «Работа», «Проблемы»): points matching any ticked value stay bright
+      const stageOk = (p) => stageMatch(fStage, p, state.ctx, infoOf);
+      // drawn points: those passing the filters and the point in focus even when the filters hide it; it is bright and tappable
+      const pts = () => (fMode ? [] : shownPoints(sheetPts(d), pass, focusId));
+      const lit = (p) => stageOk(p) || p.id === focusId;
+      const marks = () => (fMode === UNL ? unl() : fMode === HID ? hid() : []);
       // hit test: inside the frame or circle with a 10 px margin; of several, the nearest edge wins
       const hitDist = (pos, x, y) => { const s = viewer.view.s; const pad = 2 + 10 / s;
         if (isText(pos)) { const dx = Math.max(0, Math.abs(x - pos.x) - pos.w / 2 - pad); const dy = Math.max(0, Math.abs(y - pos.y) - pos.h / 2 - pad); return Math.hypot(dx, dy); }
         return Math.max(0, Math.hypot(x - pos.x, y - pos.y) - Math.max(pos.w || 8, pos.h || 8) / 2 - pad); };
       const nearest = (list, getPos, x, y, page) => { let best = null; let bd = Infinity; for (const it of list) { const pos = getPos(it); if ((pos.page || 0) !== page) continue; const dd = hitDist(pos, x, y); if (dd < bd) { bd = dd; best = it; } } return bd === 0 ? best : null; };
       viewer = createViewer({ wk, pages: o.pages, height: '62vh', dim: () => (dimDrawing ? 0.35 : 1), rectMode: () => selMode && rectSel,
-        onRect: (b, page) => { pts().filter((p) => stageOk(p) && (p.pos.page || 0) === page && p.pos.x >= b[0] && p.pos.x <= b[2] && p.pos.y >= b[1] && p.pos.y <= b[3]).forEach((p) => sel.add(p.id)); selBar(); viewer.draw(); },
+        onRect: (b, page) => { pts().filter((p) => lit(p) && (p.pos.page || 0) === page && p.pos.x >= b[0] && p.pos.x <= b[2] && p.pos.y >= b[1] && p.pos.y <= b[3]).forEach((p) => sel.add(p.id)); selBar(); viewer.draw(); },
         onTap: (x, y, page) => {
           if (tool === 'doors') { const p = nearest(doorPts(), (q) => q.pos, x, y, page); if (p) (doorMode === 'brush' ? brushTap(p) : goDoor(p)); else if (nearest(sheetPts(d), (q) => q.pos, x, y, page)) toast('Это не дверь'); return; }
           if (tool) { toolTap(d, o.pages, x, y, page, nearest); return; }
-          if (fType === UNL || fType === HID) { const m = nearest(marks(), (it) => it.pos, x, y, page); if (m) markCard(d, m, fType === HID); return; }
-          const best = nearest(pts().filter(stageOk), (p) => p.pos, x, y, page); if (!best) { if (focusId) { focusId = null; viewer.draw(); } return; }  // a tap on an empty spot drops the focus frame
+          if (fMode) { const m = nearest(marks(), (it) => it.pos, x, y, page); if (m) markCard(d, m, fMode === HID); return; }
+          const best = nearest(pts().filter(lit), (p) => p.pos, x, y, page); if (!best) { if (focusId) { focusId = null; viewer.draw(); } return; }  // a tap on an empty spot drops the focus frame
           if (selMode) sel.has(best.id) ? sel.delete(best.id) : sel.add(best.id);
           const group = pts().filter((p) => p.id !== best.id && posKey(p.pos) === posKey(best.pos));
           if (selMode) { [best, ...group].forEach((p) => (sel.has(best.id) ? sel.add(p.id) : sel.delete(p.id))); selBar(); viewer.draw(); return; }
@@ -204,7 +215,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
         },
         overlay: (g, api) => {
           const big = api.view.s > 0.6;
-          if (fType === UNL || fType === HID) { for (const m of marks()) { if ((m.pos.page || 0) !== api.page) continue; if (fType === HID) { outline(g, api, m.pos, '#c7c7cc', { width: 1, fill: 'rgba(255,255,255,.9)' }); } else outline(g, api, m.pos, '#ff9500', { width: 2 }); } return; }
+          if (fMode) { for (const m of marks()) { if ((m.pos.page || 0) !== api.page) continue; if (fMode === HID) { outline(g, api, m.pos, '#c7c7cc', { width: 1, fill: 'rgba(255,255,255,.9)' }); } else outline(g, api, m.pos, '#ff9500', { width: 2 }); } return; }
           // hidden captions and icons are painted white so they do not get in the way
           for (const m of hid()) { if ((m.pos.page || 0) === api.page) outline(g, api, m.pos, '#ffffff', { width: 2, pad: 2, fill: '#ffffff' }); }
           const icons = currentProject()?.typeIcons || {}; const tags = []; const circles = []; const frames = [];
@@ -214,7 +225,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
           const lineK = mousePc() ? 2 : 0.75; const capDots = [];
           for (const p of pts()) { if ((p.pos.page || 0) !== api.page) continue; const k = posKey(p.pos); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); }
           for (const grp of groups.values()) {
-            const p = grp[0]; const on = grp.some(stageOk); const pc = markColor(grp, state.ctx, infoOf); const col = on ? pc.color : '#d0d0d0';
+            const p = grp[0]; const on = grp.some(lit); const pc = markColor(grp, state.ctx, infoOf); const col = on ? pc.color : '#d0d0d0';
             for (const q of grp) {
               const ic = q.pos.icon && icons[q.typeId];
               if (ic) { const im = iconImg(q.typeId, ic.png, () => viewer?.draw()); if (im.complete && im.naturalWidth) { const [sx, sy] = api.toScr(q.pos.x, q.pos.y); const w = (ic.w || 12) * api.view.s; const hh = (ic.h || 12) * api.view.s; g.globalAlpha = on ? 1 : 0.4; g.drawImage(im, sx - w / 2, sy - hh / 2, w, hh); g.globalAlpha = 1; } }
@@ -243,38 +254,55 @@ export function planModal({ point = null, placeFor = null } = {}) {
           if (tool === 'doors') for (const p of doorPts()) { if ((p.pos.page || 0) !== api.page || p.id === doorCur) continue; outline(g, api, p.pos, doorCfgOf(p, state.ctx) ? '#34c759' : doorSkip.has(p.id) ? '#8e8e93' : '#ff9500', { width: 3, pad: 1.5 + 3 / api.view.s }); }
           if (temp && (temp.page || 0) === api.page) { g.setLineDash([5, 3]); outline(g, api, temp, '#e0007a', { width: 2.5, pad: 2 + 3 / api.view.s, fill: 'rgba(224,0,122,.12)' }); g.setLineDash([]); }
         } });
-      const types = [...new Set(sheetPts(d).map((p) => p.typeId))].sort((a, b) => a.localeCompare(b, 'ru'));
-      const cabs = [...new Set(sheetPts(d).map((p) => p.cabinet || ''))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'ru', { numeric: true }));
       const search = h('input', { type: 'search', placeholder: 'Найти точку или порт U38-05', style: { flex: 1, minWidth: '120px' }, onchange: (e) => {
         const q = e.target.value.trim().toLowerCase(); if (!q) return;
         let p = sheetPts(d).find((x) => latinKey(x.label) === latinKey(q));
         if (!p) {  // by a panel port (U38-05): first in the chosen rack
-          const byPort = sheetPts(d).filter((x) => matchesPanelQuery(x, q)).sort((a, b) => (b.cabinet === fCab) - (a.cabinet === fCab));
+          const byPort = sheetPts(d).filter((x) => matchesPanelQuery(x, q)).sort((a, b) => sharedFilters().cab.has(b.cabinet) - sharedFilters().cab.has(a.cabinet));
           if (byPort.length) { p = byPort[0]; toast(byPort.length > 1 ? `Порт ${q.toUpperCase()} есть в шкафах: ${byPort.map((x) => `${x.cabinet || '—'} (${x.label})`).join(', ')}. Показана ${p.label}` : `Порт в панели ${q.toUpperCase()}: ${p.label}`); }
         }
         p ??= sheetPts(d).find((x) => latinKey(x.label).includes(latinKey(q)));
         if (!p) { toast('Такой точки на этом чертеже нет'); return; }
         focusId = p.id; viewer.focus(p.pos.x, p.pos.y, p.pos.page || 0);
       } });
-      const typeSel = h('select', { onchange: (e) => { fType = e.target.value; sel.clear(); selBar(); viewer.draw(); } }, h('option', { value: '' }, 'Все типы'), ...typeFilterOptions(types).map(([v, t]) => h('option', { value: v, selected: v === fType }, t)),
-        h('option', { value: UNL, selected: fType === UNL }, `❔ Не размеченые (${unl().length})`), h('option', { value: HID, selected: fType === HID }, `🙈 Скрытые (${hid().length})`));
-      const cabSel = cabs.length ? h('select', { onchange: (e) => { fCab = e.target.value; viewer.draw(); } }, h('option', { value: '' }, 'Все шкафы'), ...cabs.map((c) => h('option', { value: c, selected: c === fCab }, `Шкаф ${c}`))) : null;
-      const cfgOpts = cfgFilterOptions(sheetPts(d));
-      const cfgSel = cfgOpts.length ? h('select', { onchange: (e) => { fCfg = e.target.value; sel.clear(); selBar(); viewer.draw(); } }, h('option', { value: '' }, 'Все конфигурации дверей'), ...cfgOpts.map(([v, t]) => h('option', { value: v, selected: v === fCfg }, t))) : null;
-      const stageSel = h('select', { onchange: (e) => { fStage = e.target.value; viewer.draw(); } });
-      // groups «Осталось», «Работа» (works waiting on this drawing's points, N > 0), «Проблемы» (only when some point has an open problem); rebuilt as the data changes
-      const fillStageSel = () => {
-        const gr = planFilterGroups(sheetPts(d), state.ctx, infoOf); const opt = (v, t) => h('option', { value: v, selected: v === fStage }, t);
-        const works = gr.works.map((w) => opt(`w|${w.key}`, `${w.label} (${w.n})`));
-        const probs = gr.problems.n ? [opt('pr|*', `⚠ С проблемами (${gr.problems.n})`),
-          ...gr.problems.list.map((x) => opt(`pr|${x.problemId}`, `Проблема: ${problemName(state.ctx.problems?.get(x.problemId), lang()) || x.problemId} (${x.n})`))] : [];
-        const known = new Set(['', ...LEFT_FILTERS.map(([v]) => v), ...gr.works.map((w) => `w|${w.key}`), ...(gr.problems.n ? ['pr|*', ...gr.problems.list.map((x) => `pr|${x.problemId}`)] : [])]);
-        if (!known.has(fStage)) fStage = '';  // the chosen work or problem is gone (all done) — back to all points
-        stageSel.replaceChildren(...[opt('', 'Все этапы'),
-          h('optgroup', { label: tr('Осталось') }, ...LEFT_FILTERS.map(([v, t]) => opt(v, t))),
-          works.length ? h('optgroup', { label: tr('Работа') }, ...works) : null,
-          probs.length ? h('optgroup', { label: tr('Проблемы') }, ...probs) : null].filter(Boolean));
-        stageSel.value = fStage;
+      // ---- the filter row: types (with the two modes), door configurations, racks, stages — several-value buttons (multifilter.js) ----
+      // options are built from this drawing's points on every draw; counts are points of this drawing
+      const countIn = (key) => { const n = new Map(); sheetPts(d).forEach((p) => { const k = key(p); n.set(k, (n.get(k) || 0) + 1); }); return n; };
+      const typeOpts = () => { const n = countIn((p) => p.typeId);
+        return [...typeOptions([...n.keys()], (t) => n.get(t)),
+          { value: UNL, text: '❔ Не размеченые', kind: 'mode', count: unl().length }, { value: HID, text: '🙈 Скрытые', kind: 'mode', count: hid().length }]; };
+      const cabOpts = () => rackOptions(sheetPts(d));
+      const cfgOpts = () => cfgOptions(sheetPts(d));
+      const stageOpts = () => stageOptions(planFilterGroups(sheetPts(d), state.ctx, infoOf), (id) => problemName(state.ctx.problems?.get(id), lang()));
+      // a shared value absent on this drawing (rack FC ticked in «Точки») stays ticked, greyed at the end of the window (spec 7 D2); the plan never prunes shared sets
+      const cfgName = (v) => (v === '__nolock' ? '⚠ Без запирания' : v === '__none' ? 'Без конфигурации' : allDoorCfgs().get(v)?.name || state.ctx.configs?.get(v)?.name || v);
+      const missingOf = (key, opts, nameOf) => () => missingValues(sharedFilters()[key], opts()).map((v) => { const label = nameOf(v); return { value: v, label, text: `${label} — нет на этом чертеже` }; });
+      const cabMissing = missingOf('cab', cabOpts, (v) => (v === '__none' ? 'Без шкафа' : v));
+      const typeMissing = missingOf('type', typeOpts, (v) => v);
+      const cfgMissing = missingOf('cfg', cfgOpts, cfgName);
+      const changed = (clearSel) => { if (clearSel) { sel.clear(); selBar(); } refreshFilters(); viewer.draw(); };
+      const shared = (key, title, allText, prefix, options, missing, covering, clearSel) => multiFilter({ title, allText, prefix, options, missing, covering,
+        get: () => sharedFilters()[key], set: (s) => setShared(key, s), onChange: () => changed(clearSel) });
+      // types: the shared set plus the plan-local mode; ticking a mode clears the shared type set (so «Точки» shows every type after it)
+      const typeF = multiFilter({ title: 'Типы', allText: 'Все типы', prefix: 'Типы', options: typeOpts, missing: typeMissing, covering: true,
+        get: () => { const s = new Set(sharedFilters().type); if (fMode) s.add(fMode); return s; },
+        set: (s) => { fMode = s.has(UNL) ? UNL : s.has(HID) ? HID : ''; setShared('type', fMode ? new Set() : [...s].filter((v) => v !== UNL && v !== HID)); },
+        onChange: () => changed(true) });
+      const cfgF = shared('cfg', 'Конфигурации дверей', 'Все конфигурации дверей', 'Двери', cfgOpts, cfgMissing, false, true);
+      // covering is against this drawing's racks: all of them ticked — the filter is off here, the button «Все шкафы»
+      const cabF = shared('cab', 'Шкафы', 'Все шкафы', 'Шкафы', cabOpts, cabMissing, true, false);
+      const stageF = multiFilter({ title: 'Этапы', allText: 'Все этапы', prefix: 'Этапы', options: stageOpts, get: () => fStage, set: (s) => { fStage = s; }, onChange: () => changed(false) });
+      const active = () => { const f = sharedFilters();
+        return !!fMode || fStage.size > 0 || f.cfg.size > 0 || !isOff(f.cab, cabOpts(), { covering: true }) || !isOff(f.type, typeOpts(), { covering: true }); };
+      // «✖ Сбросить фильтры»: shared sets (for «Точки» too), stages and the mode; the selection is cleared as a type change clears it; «Найти точку» stays
+      const reset = resetButton({ active, onReset: () => { clearShared(); fStage = new Set(); fMode = ''; sel.clear(); selBar(); refreshFilters(); viewer.draw(); } });
+      const noneLine = h('div', { class: 'mut', style: { fontSize: '13px', margin: '6px 2px 0' } }, 'Под фильтры на этом чертеже точек нет');
+      const refreshFilters = () => {
+        fStage = prune(fStage, stageOpts());   // a gone work or problem (all done) is dropped silently
+        cfgF.el.style.display = cfgOpts().length || cfgMissing().length ? '' : 'none';
+        cabF.el.style.display = cabOpts().length || cabMissing().length ? '' : 'none';
+        [typeF, cfgF, cabF, stageF, reset].forEach((x) => x.refresh());
+        noneLine.style.display = noneUnderFilters(sheetPts(d), pass, { active: active(), mode: !!fMode }) ? '' : 'none';
       };
       const selBtn = h('button', { class: 'sec', onclick: () => { selMode = !selMode; rectSel = false; if (!selMode) sel.clear(); if (selMode) tool = null; toolBar(); selBar(); viewer.draw(); } });
       const addBtn = h('button', { class: 'sec', onclick: () => { tool = tool === 'add' ? null : 'add'; if (tool) { selMode = false; sel.clear(); selBar(); } temp = null; toolBar(); viewer.draw(); } });
@@ -391,14 +419,14 @@ export function planModal({ point = null, placeFor = null } = {}) {
       updateInfo = () => {
         const nr = reviewOf(cur()).length; revBtn.style.display = nr ? '' : 'none'; revBtn.textContent = `⚠ Проверить после новой версии (${nr})`;
         const n = sheetPts(d).length;
-        status.textContent = `${drawingTitle(d)}${d.title ? ` (файл ${d.name})` : ''}${d.floor ? ` · этаж ${d.floor}` : ''} · точек на чертеже: ${n}${unl().length ? ` · не размеченых: ${unl().length}` : ''}`;
-        const ou = typeSel.querySelector(`option[value="${UNL}"]`); if (ou) ou.textContent = `❔ Не размеченые (${unl().length})`;
-        const oh = typeSel.querySelector(`option[value="${HID}"]`); if (oh) oh.textContent = `🙈 Скрытые (${hid().length})`;
-        fillStageSel();
+        // each part is a text of its own, so the translation layer finds its pattern
+        status.replaceChildren(...[drawingTitle(d), d.title ? h('span', {}, ` (файл ${d.name})`) : null, d.floor ? h('span', {}, ` · этаж ${d.floor}`) : null,
+          h('span', {}, ` · точек на чертеже: ${n}`), unl().length ? h('span', {}, ` · не размеченых: ${unl().length}`) : null].filter(Boolean));
+        refreshFilters();
       };
       updateInfo();
       holder.replaceChildren(
-        h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '0 0 6px' } }, search, typeSel, cfgSel, cabSel, stageSel),
+        h('div', { class: 'mf-bar', style: { margin: '0 0 6px' } }, search, typeF.el, cfgF.el, cabF.el, stageF.el), reset.el, noneLine,
         h('div', { class: 'btns', style: { marginTop: 0 } }, revBtn, ...viewer.zoomBtns(), selBtn, doorBtn, addBtn, iconBtn, dimBtn, layersBtn), bar, tbar, viewer.el, doorBar,
         // the legend: pink — pulled, yellow → green — the works after the pull, circles — the cables of an unfinished pull
         h('div', { style: { display: 'flex', gap: '6px 12px', flexWrap: 'wrap', alignItems: 'center', margin: '6px 2px', fontSize: '13px' } },
@@ -535,7 +563,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
       const pts = [...state.ctx.points.values()];
       const cabs = [...new Set(pts.map((p) => p.cabinet || ''))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'ru', { numeric: true }));
       const near = sheetPts(d).filter((p) => p.cabinet).sort((a, b) => Math.hypot(a.pos.x - temp.x, a.pos.y - temp.y) - Math.hypot(b.pos.x - temp.x, b.pos.y - temp.y))[0];
-      let tid = ''; let cab = fCab || near?.cabinet || ''; let edited = false;
+      const one = [...sharedFilters().cab].filter((c) => c !== '__none'); let tid = ''; let cab = (one.length === 1 ? one[0] : '') || near?.cabinet || ''; let edited = false;
       const name = h('input', { placeholder: 'Название точки', oninput: () => { edited = true; hint.textContent = ''; } });
       const hint = h('small', { class: 'mut' });
       const cabSel = h('select', { onchange: () => { cab = cabSel.value; cp.setType(tid, cab); suggest(); } }, h('option', { value: '' }, '— выберите шкаф —'), ...cabs.map((x) => h('option', { value: x, selected: x === cab }, `Шкаф ${x}`)));

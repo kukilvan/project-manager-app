@@ -11,5 +11,10 @@
 "⚠ Без запирания": ["⚠ No locking", "⚠ בלי נעילה"],
 "Без конфигурации": ["No configuration", "בלי תצורה"],
 "Фильтры точек — кнопки: нажмите, отметьте галочками несколько значений (например, два шкафа и три типа) и нажмите «Готово». Значения одного фильтра складываются, разные фильтры сужают список.": ["Point filters are buttons: tap one, tick several values (for example two cabinets and three types) and press “Done”. Values of one filter add up; different filters narrow the list.", "מסנני הנקודות הם כפתורים: הקישו, סמנו כמה ערכים (למשל שני ארונות ושלושה סוגים) והקישו „סיום”. ערכים של מסנן אחד מצטרפים, ומסננים שונים מצמצמים את הרשימה."],
-"«✖ Сбросить фильтры» под фильтрами очищает все фильтры и строку поиска этого экрана. Отмеченные для действия точки остаются.": ["“✖ Reset filters” under the filters clears all filters and the search line of this screen. Points ticked for an action stay ticked.", "„✖ איפוס מסננים” מתחת למסננים מנקה את כל המסננים ואת שורת החיפוש של המסך. נקודות שסומנו לפעולה נשארות מסומנות."]
+"«✖ Сбросить фильтры» под фильтрами очищает все фильтры и строку поиска этого экрана. Отмеченные для действия точки остаются.": ["“✖ Reset filters” under the filters clears all filters and the search line of this screen. Points ticked for an action stay ticked.", "„✖ איפוס מסננים” מתחת למסננים מנקה את כל המסננים ואת שורת החיפוש של המסך. נקודות שסומנו לפעולה נשארות מסומנות."],
+"Под фильтры на этом чертеже точек нет": ["No points on this drawing match the filters", "אין בתוכנית הזו נקודות שמתאימות למסננים"],
+"{} — нет на этом чертеже": ["{} — not on this drawing", "{} — לא בתוכנית הזו"],
+"❔ Не размеченые": ["❔ Unmarked", "❔ לא מסומנים"],
+"🙈 Скрытые": ["🙈 Hidden", "🙈 מוסתרים"],
+"Шкафы, типы и конфигурации дверей общие у «Точек» и «Плана», пока приложение открыто: план открывается с тем, что выбрано в «Точках», и наоборот.": ["Cabinets, types and door configurations are shared by “Points” and “Plan” while the app is open: the plan opens with what you chose in “Points”, and the other way round.", "ארונות, סוגים ותצורות דלתות משותפים ל„נקודות” ול„תוכנית” כל עוד האפליקציה פתוחה: התוכנית נפתחת עם מה שנבחר ב„נקודות”, וגם להפך."]
 }

@@ -34,7 +34,7 @@ import { latinKey, choiceList, openProblemsOf, problemCounts, markName } from '.
 import { problemsBlock, problemButtons } from './problems.js';
 import { lang } from '../../i18n/index.js';
 import { cfgMatch, cfgFilterOptions, cfgOptions, cfgSetMatch } from '../cfgfilter.js';
-import { rackMatch, typeSetMatch, problemMatch, prune, normalize, isOff } from '../../domain/filters.js';
+import { rackMatch, typeSetMatch, problemMatch, prune, normalize, isOff, rackOptions } from '../../domain/filters.js';
 import { sharedFilters, setShared, clearShared, onSharedChange } from '../sharedfilters.js';
 import { multiFilter, resetButton } from './multifilter.js';
 import { planModal } from './planmodal.js';
@@ -676,9 +676,7 @@ export function meterView(ui) {
   }
   const search = h('input', { type: 'search', placeholder: 'Поиск по обозначению', value: searchText, oninput: (e) => { searchText = e.target.value; reset.refresh(); fill(); } });
   // options with point counts of the whole project
-  const cabN = countBy(total, (p) => p.cabinet || '__none');
-  const cabOpts = [...cabN.keys()].filter((c) => c !== '__none').sort(sortRu).map((c) => ({ value: c, text: `Шкаф ${c}`, label: c, count: cabN.get(c) }))
-    .concat(cabN.has('__none') ? [{ value: '__none', text: 'Без шкафа', count: cabN.get('__none') }] : []);
+  const cabOpts = rackOptions(total);
   const typeN = countBy(total, (p) => p.typeId);
   const typeOpts = typeFilterItems([...typeN.keys()], (t) => typeN.get(t));
   const cfgOpts = cfgOptions(total);

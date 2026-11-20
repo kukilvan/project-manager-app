@@ -120,3 +120,17 @@ export function typeSetMatch(set, point) {
 export function problemMatch(set, openIds) {
   return anyOf(set, (v) => (v === '__any' ? openIds.length > 0 : openIds.includes(v)));
 }
+
+/** Rack options of a list of points: «Шкаф X» by name (label X), then «Без шкафа» (`__none`); counts are points of the list. */
+export function rackOptions(points) {
+  const n = new Map(); points.forEach((p) => { const k = p.cabinet || '__none'; n.set(k, (n.get(k) || 0) + 1); });
+  return [...n.keys()].filter((c) => c !== '__none').sort((a, b) => String(a).localeCompare(String(b), 'ru', { numeric: true }))
+    .map((c) => ({ value: c, text: `Шкаф ${c}`, label: c, count: n.get(c) }))
+    .concat(n.has('__none') ? [{ value: '__none', text: 'Без шкафа', count: n.get('__none') }] : []);
+}
+
+/** Ticked values that are not among the options (spec 7 D2: a shared value absent on this drawing), in the set's order. */
+export function missingValues(set, options) {
+  const known = new Set(options.filter((o) => !['head', 'group'].includes(kindOf(o))).map((o) => o.value));
+  return [...(set || [])].filter((v) => !known.has(v));
+}

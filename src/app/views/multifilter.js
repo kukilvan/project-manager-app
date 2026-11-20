@@ -30,8 +30,15 @@ export function multiFilter({ title, allText, prefix, options, get, set, coverin
     const lines = [];   // [option, checkbox]
     const all = [...opts, ...miss.map((m) => ({ ...m, kind: 'missing' }))];
     const sync = () => lines.forEach(([o, cb]) => { cb.checked = o.kind === 'group' ? groupState(copy, o, opts) : copy.has(o.value); });
+    // a missing value is a plain value of another screen: ticking it again unticks the modes, and ticking a mode unticks it (spec 7 § 1.3)
+    const modes = opts.filter((o) => o.kind === 'mode').map((o) => o.value);
     const tap = (o) => {
-      if (o.kind === 'missing') { if (copy.has(o.value)) copy.delete(o.value); else copy.add(o.value); } else copy = toggleValue(copy, o, opts);
+      if (o.kind === 'missing') {
+        if (copy.has(o.value)) copy.delete(o.value); else { copy.add(o.value); modes.forEach((v) => copy.delete(v)); }
+      } else {
+        copy = toggleValue(copy, o, opts);
+        if (o.kind === 'mode' && copy.has(o.value)) miss.forEach((m) => copy.delete(m.value));
+      }
       sync();
     };
     const rows = h('div', { class: 'mf-rows' }, all.map((o) => {
