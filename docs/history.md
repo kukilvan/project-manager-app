@@ -2,6 +2,11 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-20 — Tickets 7: field improvements 2 («Тикеты 7»)
+
+- Seven tickets in `.scratch/07-field-improvements-2/issues/`: 01 test drawing (medium), 02 filter control, rules and «Точки» (complex), 03 plan filters (complex), 04 «Что осталось» filters and «Протяжки» (medium), 05 pickers (simple), 06 several works and pull by ticked cables (complex), 07 English names (medium). Order 01 → 02 → 03 → 04 → 05 → 06 → 07; 07 has no dependency.
+- Decisions: the coding-standards check for `multiFilter` starts as an allow-list of screens not yet converted and each of tickets 03–05 shrinks it, ticket 05 leaves it empty; ticket 04 keeps the record button on one work (disabled for none or several), ticket 06 replaces it by the table of spec § 4.1; KI-7 is closed only after the review.
+
 ## 2026-11-20 — Spec 7: field improvements 2 («Спека 7»)
 
 - `.scratch/07-field-improvements-2/spec.md`: one filter control for every point filter (`src/domain/filters.js` pure rules, `src/app/views/multifilter.js` button and checkbox window, `src/app/sharedfilters.js` racks/types/door configurations shared by «Точки» and «План» per project in memory), «✖ Сбросить фильтры» per screen with its «active» and defaults table, «Что осталось» → «Несколько работ» with a preset (`addWorksForPoints`, the day created in the same save), English names, the test drawing `?mem=1&memPlan=1` (`src/domain/testplan.js` builds the PDF; points at every plan look). RU/EN/HE strings and guide lines in § 8; 7 proposed tickets.

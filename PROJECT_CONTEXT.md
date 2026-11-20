@@ -4,7 +4,7 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 ## Next step
 
-«Тикеты 7» — stage 7, field improvements 2: slice `.scratch/07-field-improvements-2/spec.md` into ticket files (the spec proposes 7 tickets, § 12: test drawing, filter control and «Точки», plan, «Что осталось» filters and «Протяжки», pickers, several works from «Что осталось», English names). Model: Sonnet 5.5, effort high (`docs/models.md`, slicing). The owner finishes the whole stage 7 first, while the NAS is being checked.
+«Тикет 7.1» — stage 7, field improvements 2: the test drawing `?mem=1&memPlan=1` (`.scratch/07-field-improvements-2/issues/01-test-drawing.md`). Medium: Sonnet 5.5, effort high (`docs/models.md`). Order of the stage: 01 → 02 → 03 → 04 → 05 → 06 → 07 (07 has no dependency); 02, 03 and 06 are complex (Opus 5.5, effort high). The owner finishes the whole stage 7 first, while the NAS is being checked.
 
 After «Ревью 7»: «Описание 4» — stage 4, PocketBase storage (`docs/project-spec.md`, stage 4). It starts only when the NAS acceptance checks A1–A7 and A10–A13 pass (`docs/nas-requirements.md`) and the owner says the NAS is reliable; until then only «Правка: …», «Вопрос: …» and «Идея: …» sessions. Model: Opus 5.5, effort high. The description pulls in KI-8 and the review-6 wish for the shared-list rules (`.scratch/06-field-improvements/review.md`).
 
