@@ -1,6 +1,6 @@
 # Idea 007: Several values in every point filter, «Сбросить фильтры», shared filters of «Точки» and «План»
 
-Status: planned — stage 7, taken in by its description
+Status: taken in — `.scratch/07-field-improvements-2/description.md`
 Added: 2026-11-20
 
 ## Why
