@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-20 — Spec 7: field improvements 2 («Спека 7»)
+
+- `.scratch/07-field-improvements-2/spec.md`: one filter control for every point filter (`src/domain/filters.js` pure rules, `src/app/views/multifilter.js` button and checkbox window, `src/app/sharedfilters.js` racks/types/door configurations shared by «Точки» and «План» per project in memory), «✖ Сбросить фильтры» per screen with its «active» and defaults table, «Что осталось» → «Несколько работ» with a preset (`addWorksForPoints`, the day created in the same save), English names, the test drawing `?mem=1&memPlan=1` (`src/domain/testplan.js` builds the PDF; points at every plan look). RU/EN/HE strings and guide lines in § 8; 7 proposed tickets.
+- Spec decisions the owner accepted with «Коммит»: «all ticked = off» only for racks and types (door configurations, problems, works and stages do not cover every point); a shared value missing on the drawing stays ticked and greyed in the plan's window; the one-work pull from «Что осталось» is also limited to the ticked cable (found: `entryForm` took every open cable of points made of devices); the seed and starter pool are not changed — the dictionaries already translate 103 of 123 built-in names, the gap is the example problems and «по умолчанию (…)»; `nameEn` on works, types, devices, cables and problems, not door configurations; an own English name wins over the dictionary in English only.
+- Stage 7 estimate → 11 sessions.
+
 ## 2026-11-20 — Description 7: stage 7 described («Описание 7»)
 
 - `.scratch/07-field-improvements-2/description.md` with the mockup `mockups/filters.html`. It takes idea 007 in full (several values in every point filter, «✖ Сбросить фильтры», filters shared by «Точки» and «План», «Что осталось» recording several works through «Несколько работ»). It also adds KI-7's catalog part (English names of catalog items: built-in by the Russian name, an optional `nameEn` for own items) and the review-6 test drawing `?mem=1&memPlan=1`.
