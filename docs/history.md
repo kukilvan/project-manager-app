@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-20 — Description 7: stage 7 described («Описание 7»)
+
+- `.scratch/07-field-improvements-2/description.md` with the mockup `mockups/filters.html`. It takes idea 007 in full (several values in every point filter, «✖ Сбросить фильтры», filters shared by «Точки» and «План», «Что осталось» recording several works through «Несколько работ»). It also adds KI-7's catalog part (English names of catalog items: built-in by the Russian name, an optional `nameEn` for own items) and the review-6 test drawing `?mem=1&memPlan=1`.
+- Owner's decisions: a pull ticked per cable in «Что осталось» records only the ticked cables; the test drawing and English catalog names are part of stage 7. Agent: the English fallback by the Russian name of a built-in item, so no data migration.
+- Facts for the spec: `batchForm` has no preset and does not create today's day (`addWorkForPoints` does); filters are inline `<select>`s with no shared control. `docs/project-spec.md`: stage 7 line updated (≈ 8 sessions), stage 4 carries `nameEn`. Idea 007 status → taken in.
+
 ## 2026-11-19 — Review 6: stage 6 closed («Ревью 6»)
 
 - Reviewed `6dc9e20..a918180` (tickets 6.1–6.8) against the spec, idea 006 and the coding standards; tests 272 → 273. Walked in `?mem=1` at 420 px: day off (checks, day screen, recording block, the other-project block, «Месяц»), the shared-list merge and seeding, administrator delete, problems (fit on a mixed selection, own Hebrew text, filter, «Проект» line, card block), the management sheet through the Google stub, the plan with a generated drawing.
