@@ -1,6 +1,6 @@
 // Pulls «🧵 Протяжки»: pick points on the plan → «До шкафа» → meters per point (own numeric keypad) → checklist → «Завершить» (the report form).
 // Every action is saved at once on the phone (localStorage, key pz.pull.<pid>.<id>) and on the server (the pulls collection), so reopening continues from the same place.
-// Pull logic comes from src/domain/pull.js; the plan is shown with planview.js and planmodal.js helpers, the work is recorded through doh.js.
+// The point filters of steps 1 and 3 are several-value buttons (multifilter.js, rules in src/domain/filters.js). Pull logic comes from src/domain/pull.js; the plan is shown with planview.js and planmodal.js helpers, the work is recorded through doh.js.
 //
 // Contents:
 // - localAll(), allPulls(), savePull() — storage: phone + server, the fresher copy wins
@@ -18,8 +18,10 @@ import { makeWorker } from './tohnitview.js';
 import { outline, placeTags, tagOf, shOf, isText } from './planmodal.js';
 import { addWorkForPoints } from './doh.js';
 import { latinKey } from '../../domain/index.js';
-import { typeMatch, typeFilterOptions } from '../typegroups.js';
-import { cfgMatch, cfgFilterOptions } from '../cfgfilter.js';
+import { typeOptions as typeFilterItems } from '../typegroups.js';
+import { cfgSetMatch, cfgOptions } from '../cfgfilter.js';
+import { rackMatch, typeSetMatch, rackOptions, prune, normalize } from '../../domain/filters.js';
+import { multiFilter, resetButton } from './multifilter.js';
 
 // ---------- storage: phone + server ----------
 const lsKey = (pid, id) => `pz.pull.${pid}.${id}`;
@@ -128,11 +130,11 @@ export async function openPull(id) {
   const sheetPts = () => [...ctx().points.values()].filter((p) => p.pos && drawingFor(p)?.id === d.id);
   const chosen = () => (P.pointIds || []).map((x) => ctx().points.get(x)).filter(Boolean);
   const needsLen = (p) => hasCablesOf(p, ctx());   // a point without a cable needs no meters and has nothing to pull
-  // type filter on the meters step: meters are entered for one type, the nearest point is chosen within it
-  let mType = '';
+  // type filter on the meters step: meters are entered for the ticked types, the nearest point is chosen among them (empty — all)
+  let mTypes = new Set();
   // the path through the points in the meters dialog: «Предыдущая» goes back (and further back); after editing an old point we return to where we left
   const hist = []; let origin = null;
-  const mchosen = () => chosen().filter((p) => needsLen(p) && typeMatch(mType, p.typeId));
+  const mchosen = () => chosen().filter((p) => needsLen(p) && typeSetMatch(mTypes, p));
   const meas = (id) => isMeasured(P, id) || finSet().has(id);
   const meters = () => pairsToMap(P.meters); const kept = () => pairsToMap(P.kept);
   // «pulled» in the pull, but the report no longer has the pull record (it was deleted) — the point is not pulled again
@@ -147,8 +149,8 @@ export async function openPull(id) {
   catch (e) { body.replaceChildren(h('div', { class: 'empty' }, `Чертёж не открылся: ${e.message}`)); return; }
 
   // selection filters
-  let fType = ''; let fCab = ''; let fCfg = ''; let onlyOpen = false; let rectSel = false; let focusId = P.curId || null;
-  const visible = () => sheetPts().filter((p) => typeMatch(fType, p.typeId) && cfgMatch(fCfg, p) && (!fCab || (p.cabinet || '') === fCab) && (!onlyOpen || !infoOf(p).pulled));
+  let fType = new Set(); let fCab = new Set(); let fCfg = new Set(); let onlyOpen = false; let rectSel = false; let focusId = P.curId || null;
+  const visible = () => sheetPts().filter((p) => typeSetMatch(fType, p) && cfgSetMatch(fCfg, p) && rackMatch(fCab, p) && (!onlyOpen || !infoOf(p).pulled));
   const selSet = () => new Set(P.pointIds || []);
   const toggle = (list, on) => { const s = selSet(); list.forEach((p) => (on ? s.add(p.id) : s.delete(p.id))); set({ pointIds: [...s] }); };
 
@@ -191,10 +193,19 @@ export async function openPull(id) {
   // ---- step 1: choose points ----
   function selectScreen() {
     const pts = sheetPts();
-    const types = [...new Set(pts.map((p) => p.typeId))].sort((a, b) => a.localeCompare(b, 'ru'));
-    const cabs = [...new Set(pts.map((p) => p.cabinet || ''))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'ru', { numeric: true }));
-    const sel = (first, opts, cur, fn) => h('select', { onchange: (e) => { fn(e.target.value); screen(); } }, h('option', { value: '' }, first), ...opts.map(([v, t]) => h('option', { value: v, selected: v === cur }, t)));
-    const cfgOpts = cfgFilterOptions(pts);
+    // options of this drawing's points with counts; values that vanished are dropped, a full covering set of racks or types counts as off (spec 7 § 1.5, D1)
+    const cabOpts = rackOptions(pts);
+    const typeN = new Map(); pts.forEach((p) => typeN.set(p.typeId, (typeN.get(p.typeId) || 0) + 1));
+    const typeOpts = typeFilterItems([...typeN.keys()], (t) => typeN.get(t));
+    const cfgOpts = cfgOptions(pts);
+    fCab = normalize(prune(fCab, cabOpts), cabOpts, { covering: true });
+    fType = normalize(prune(fType, typeOpts), typeOpts, { covering: true });
+    fCfg = prune(fCfg, cfgOpts);
+    const mf = (title, allText, prefix, options, get, set, covering) => multiFilter({ title, allText, prefix, options: () => options, covering, get, set, onChange: screen });
+    const typeF = mf('Типы', 'Все типы', 'Типы', typeOpts, () => fType, (s) => { fType = s; }, true);
+    const cfgF = cfgOpts.length ? mf('Конфигурации дверей', 'Все конфигурации дверей', 'Двери', cfgOpts, () => fCfg, (s) => { fCfg = s; }, false) : null;
+    const cabF = cabOpts.some((o) => o.value !== '__none') ? mf('Шкафы', 'Все шкафы', 'Шкафы', cabOpts, () => fCab, (s) => { fCab = s; }, true) : null;
+    const reset = resetButton({ active: () => !!(fType.size || fCfg.size || fCab.size || onlyOpen), onReset: () => { fType = new Set(); fCfg = new Set(); fCab = new Set(); onlyOpen = false; screen(); } });
     const search = h('input', { type: 'search', placeholder: 'Найти точку и добавить', style: { flex: 1, minWidth: '140px' }, onchange: (e) => {
       const q = e.target.value.trim().toLowerCase(); if (!q) return;
       const p = pts.find((x) => latinKey(x.label) === latinKey(q)) || pts.find((x) => latinKey(x.label).includes(latinKey(q)));
@@ -205,10 +216,9 @@ export async function openPull(id) {
     return [
       h('div', { class: 'mut', style: { fontSize: '13px' } }, h('b', {}, 'Шаг 1. Выберите точки'), ' — нажатием, рамкой, поиском или «Все видимые» после фильтров. Серые — уже протянуты.'),
       h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', margin: '6px 0' } }, search,
-        sel('Все типы', typeFilterOptions(types), fType, (v) => { fType = v; }),
-        cfgOpts.length ? sel('Все конфигурации дверей', cfgOpts, fCfg, (v) => { fCfg = v; }) : null,
-        cabs.length ? sel('Все шкафы', cabs.map((c) => [c, `Шкаф ${c}`]), fCab, (v) => { fCab = v; }) : null,
+        typeF.el, cfgF?.el, cabF?.el,
         h('label', { class: 'pickrow', style: { margin: 0 } }, h('input', { type: 'checkbox', checked: onlyOpen, onchange: (e) => { onlyOpen = e.target.checked; screen(); } }), h('span', {}, 'Только не протянутые'))),
+      reset.el,
       h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', margin: '4px 0' } }, ...viewer.zoomBtns(),
         h('button', { class: rectSel ? '' : 'sec', onclick: () => { rectSel = !rectSel; screen(); } }, rectSel ? '▭ Рамкой (вкл.)' : '▭ Рамкой'),
         h('button', { class: 'sec', onclick: () => { toggle(visible(), true); screen(); } }, `☑ Все видимые (${visible().length})`)),
@@ -258,15 +268,22 @@ export async function openPull(id) {
 
   // ---- step 3: meters per point ----
   function measureScreen() {
+    // type options of the chosen points; a ticked type that left the selection is dropped, every type ticked counts as off (D1)
+    const typeN = new Map(); chosen().forEach((p) => typeN.set(p.typeId, (typeN.get(p.typeId) || 0) + 1));
+    const typeOpts = typeFilterItems([...typeN.keys()], (t) => typeN.get(t));
+    mTypes = normalize(prune(mTypes, typeOpts), typeOpts, { covering: true });
+    const typeF = typeOpts.filter((o) => o.kind !== 'group').length > 1
+      ? multiFilter({ title: 'Типы', allText: 'Все типы', prefix: 'Типы', options: () => typeOpts, covering: true, get: () => mTypes, set: (s) => { mTypes = s; }, onChange: () => { screen(); viewer.draw(); } }) : null;
+    const reset = resetButton({ active: () => mTypes.size > 0, onReset: () => { mTypes = new Set(); screen(); viewer.draw(); } });
     const all = mchosen(); const done = all.filter((p) => meas(p.id)).length;
-    const typeOpts = typeFilterOptions(chosen().map((p) => p.typeId));
     const next = () => { const left = all.filter((p) => !meas(p.id)); const cur = ctx().points.get(P.curId); return nearestPoint(cur, left); };
     return [
       h('div', { class: 'mut', style: { fontSize: '13px' } }, h('b', {}, 'Шаг 3. Метраж'), ' — нажмите выделенную точку. Зелёные — с метражом, оранжевые — без.'),
       h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', margin: '6px 0' } },
         h('b', {}, `Метраж: ${done} из ${all.length}`),
-        typeOpts.length > 1 ? h('select', { onchange: (e) => { mType = e.target.value; screen(); viewer.draw(); } }, h('option', { value: '' }, 'Все типы'), ...typeOpts.map(([v, t]) => h('option', { value: v, selected: v === mType }, t))) : null,
+        typeF?.el,
         h('button', { class: 'sec', onclick: () => { set({ screen: 'base' }); screen(); } }, `До шкафа: ${P.base ?? 0} м ✎`)),
+      reset.el,
       h('div', { class: 'mut', style: { fontSize: '12px', margin: '-2px 0 6px' } }, '«До шкафа» — сколько метров кабеля от шкафа до места, где трасса расходится к точкам (общий для всех участок). Эти метры прибавляются к метражу каждой точки.'),
       h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', margin: '4px 0' } }, ...viewer.zoomBtns(),
         done < all.length ? h('button', { class: 'sec', onclick: () => { const p = next(); if (p) { hist.length = 0; origin = null; numpad(p.id); } } }, '▶ Следующая') : null,
@@ -300,7 +317,7 @@ export async function openPull(id) {
       if (nx) { hist.push(from.id); if (hist.length > 80) hist.shift(); numpad(nx.id, sk); return; }
       padClose?.(); padClose = null;
       if (chosen().every((x) => meas(x.id) || !needsLen(x))) { set({ screen: 'check', pad: false }); toast('Метраж у всех точек ✅'); screen(); }
-      else if (mType && mchosen().every((x) => meas(x.id))) { set({ pad: false }); toast(`Все точки этого типа с метражом ✅ Выберите другой тип или сбросьте фильтр`); screen(); }
+      else if (mTypes.size && mchosen().every((x) => meas(x.id))) { set({ pad: false }); toast(`Все точки этого типа с метражом ✅ Выберите другой тип или сбросьте фильтр`); screen(); }
       else { set({ pad: false }); toast('Остались пропущенные — нажмите их на плане'); screen(); }
     };
     // several points on one mark of the plan (a pair «17-18», a triple, etc.) get one meter value at a time

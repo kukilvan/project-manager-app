@@ -99,9 +99,9 @@ test('door configurations: several values match by cfgMatch (no locking, no conf
 });
 
 // Rule 13 (docs/coding-standards.md): point filters use multiFilter; no new single-value drop-down with an «all» text.
-// The allow-list holds the files tickets 03–05 still convert; each removes its file, ticket 05 leaves it empty.
+// The allow-list holds the files ticket 05 still converts; ticket 05 leaves it empty.
 // wizard.js stays outside the rule: its «Все типы» filters catalog types in the setup wizard, not points.
-const STILL_TO_CONVERT = ['points.js', 'pullview.js', 'doh.js', 'pointchooser.js', 'racks.js'];
+const STILL_TO_CONVERT = ['doh.js', 'pointchooser.js', 'racks.js'];
 const NOT_POINT_FILTERS = ['wizard.js'];
 const ALL_TEXTS = ['Все шкафы', 'Все типы', 'Все конфигурации дверей', 'Все работы', 'Все этапы', 'Проблемы: все'];
 const dropDownRe = new RegExp(`(?:h\\('option', \\{ value: '' \\}, |opt\\('', |sel\\()'(?:${ALL_TEXTS.join('|')})'`);

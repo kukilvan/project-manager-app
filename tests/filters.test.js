@@ -3,8 +3,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   toggleValue, tickAll, clearAll, isOff, normalize, prune, buttonText, anyOf, groupState,
-  rackMatch, typeSetMatch, problemMatch,
+  rackMatch, typeSetMatch, problemMatch, worksMatch, singleWorkKey, rackOptions,
 } from '../src/domain/filters.js';
+import { nearestPoint } from '../src/domain/pull.js';
 
 const S = (...v) => new Set(v);
 const arr = (s) => [...s].sort();
@@ -125,4 +126,45 @@ test('matching: racks with __none, types, problems __any and ids', () => {
   assert.equal(problemMatch(S('__any'), []), false);
   assert.equal(problemMatch(S('p1', 'p2'), ['p2']), true);
   assert.equal(problemMatch(S('p1'), ['p2']), false);
+});
+
+test('works matching («Что осталось»): any ticked key, empty passes all', () => {
+  const left = [{ key: 'p:cat7', label: 'Протяжка cat7' }, { key: 'w:HIV', label: 'Хивут' }];
+  assert.equal(worksMatch(S(), left), true);
+  assert.equal(worksMatch(S('w:HIV'), left), true);
+  assert.equal(worksMatch(S('w:INS', 'p:cat7'), left), true, 'one of two ticked works is enough');
+  assert.equal(worksMatch(S('w:INS', 'p:6005'), left), false);
+  assert.equal(worksMatch(S('w:HIV'), []), false);
+  assert.equal(worksMatch(S(), []), true);
+});
+
+test('record button key: exactly one w: / p: key ticked, else none (ticket 7.6 replaces it)', () => {
+  assert.equal(singleWorkKey(S()), null);
+  assert.equal(singleWorkKey(S('w:HIV')), 'w:HIV');
+  assert.equal(singleWorkKey(S('p:cat7')), 'p:cat7');
+  assert.equal(singleWorkKey(S('w:HIV', 'p:cat7')), null);
+  assert.equal(singleWorkKey(S('s:Хивут')), null, 'a stage of an old point cannot be recorded');
+  assert.equal(singleWorkKey(S('s:Хивут', 'w:HIV')), 'w:HIV');
+});
+
+test('racks of a pull: «Без шкафа» is an option and matches points with no rack', () => {
+  const pts = [{ cabinet: 'FA' }, { cabinet: '' }, { cabinet: 'FA' }, {}];
+  assert.deepEqual(rackOptions(pts).map((o) => [o.value, o.count]), [['FA', 2], ['__none', 2]]);
+  assert.equal(pts.filter((p) => rackMatch(S('__none'), p)).length, 2);
+  assert.equal(pts.filter((p) => rackMatch(S('FA', '__none'), p)).length, 4);
+});
+
+test('«Метраж» step: «next unmeasured point» walks through several ticked types', () => {
+  const pt = (id, typeId, x) => ({ id, typeId, pos: { page: 0, x, y: 0 } });
+  const chosen = [pt('a', 'C', 0), pt('b', 'D1', 10), pt('c', 'D2', 20), pt('d', 'W', 30)];
+  const measured = new Set();
+  const mchosen = (set) => chosen.filter((p) => typeSetMatch(set, p));
+  const walk = (set) => {
+    const order = []; let cur = null;
+    for (;;) { const nx = nearestPoint(cur, mchosen(set).filter((p) => !measured.has(p.id))); if (!nx) break; order.push(nx.id); measured.add(nx.id); cur = nx; }
+    return order;
+  };
+  assert.deepEqual(walk(S('C', 'D2')), ['a', 'c'], 'only the ticked types, nearest first');
+  assert.deepEqual(walk(S('D1', 'W')), ['b', 'd'], 'the other types are untouched by the first walk');
+  assert.deepEqual(walk(S()), [], 'everything is measured');
 });

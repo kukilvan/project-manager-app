@@ -9,7 +9,7 @@
 // - generatorForm() — create points in a batch by a label pattern
 // - meterForm() — enter lengths point after point
 // - pointCard() — one point: details, problems, work history and actions (bindToPoint turns a plan mark into an existing point)
-// - remainingModal() — «Что осталось»: works still waiting for points; pick points and record a work
+// - remainingModal() — «Что осталось»: works still waiting for points, several-value filters; pick points and record a work
 // - renameForm(), bulkEditForm() — mass rename and mass change of the selected points
 // - meterView() — the «Точки» tab: the list with search, several-value filters (racks, types and door configurations shared with the plan, problems) and selection;
 //   showProblemPoints() opens it filtered to points with open problems
@@ -29,12 +29,12 @@ import { doorField } from './doorcfgview.js';
 import { doorChips, doorShortChip } from './doorchips.js';
 import { ensureDoorCfg, pinsOf as doorPins, allDoorCfgs } from '../doorpool.js';
 import { drawingFor, drawingsOf } from '../drawings.js';
-import { typeMatch, typeFilterOptions, typeOptions as typeFilterItems } from '../typegroups.js';
+import { typeOptions as typeFilterItems } from '../typegroups.js';
 import { latinKey, choiceList, openProblemsOf, problemCounts, markName } from '../../domain/index.js';
 import { problemsBlock, problemButtons } from './problems.js';
 import { lang } from '../../i18n/index.js';
-import { cfgMatch, cfgFilterOptions, cfgOptions, cfgSetMatch } from '../cfgfilter.js';
-import { rackMatch, typeSetMatch, problemMatch, prune, normalize, isOff, rackOptions } from '../../domain/filters.js';
+import { cfgOptions, cfgSetMatch } from '../cfgfilter.js';
+import { rackMatch, typeSetMatch, problemMatch, prune, normalize, isOff, rackOptions, worksMatch, singleWorkKey } from '../../domain/filters.js';
 import { sharedFilters, setShared, clearShared, onSharedChange } from '../sharedfilters.js';
 import { multiFilter, resetButton } from './multifilter.js';
 import { planModal } from './planmodal.js';
@@ -406,28 +406,41 @@ export function pointCard(startPoint, { fromPlan = false } = {}) {
 
 // the works still waiting on a point (src/domain/remaining.js), with the cached status
 const leftTasksOf = (point) => leftTasks(point, state.ctx, infoOf(point));
-// «Что осталось»: all works still waiting for the project's points (by each point's composition), with filters by work, rack, type and pull.
-// Tick points → «✅ Записать работу» (the report entry form with the chosen work and points).
+// «Что осталось»: all works still waiting for the project's points (by each point's composition), with several-value filters by work, rack, type and door configuration, and a pull drop-down.
+// Tick points → «✅ Записать работу» (the report entry form with the chosen work and points; one ticked work at a time until ticket 7.6).
 export function remainingModal() {
   const ctx = state.ctx;
-  let fWork = ''; let fCab = ''; let fType = ''; let fPull = ''; let fCfg = ''; const chosen = new Set();
+  // own filter sets, empty when the window opens (spec 7 § 2.2); the pull choice stays a two-value drop-down
+  let fWork = new Set(); let fCab = new Set(); let fType = new Set(); let fCfg = new Set(); let fPull = ''; const chosen = new Set();
   const all = pointsSorted().map((point) => ({ point, left: leftTasksOf(point), info: infoOf(point) })).filter((r) => r.left.length);
   const body = h('div', {});
   let close = () => {};
   // work options — with the number of points
   const counts = new Map(); all.forEach((r) => r.left.forEach((t) => { const c = counts.get(t.key) || { ...t, n: 0 }; c.n++; counts.set(t.key, c); }));
   const order = (k) => (k.startsWith('p:') || k === 's:Протяжка' || k === 's:Дотянуть' ? 0 : 1);
-  const workOpts = [...counts.values()].sort((a, b) => order(a.key) - order(b.key) || a.label.localeCompare(b.label, 'ru'));
-  const cabs = [...new Set(all.map((r) => r.point.cabinet || ''))].sort((a, b) => a.localeCompare(b, 'ru', { numeric: true }));
-  const shown = () => all.filter((r) => (!fWork || r.left.some((t) => t.key === fWork)) && (!fCab || (fCab === '__none' ? !r.point.cabinet : r.point.cabinet === fCab))
-    && typeMatch(fType, r.point.typeId) && cfgMatch(fCfg, r.point) && (!fPull || (fPull === 'yes' ? r.info.pulled : !r.info.pulled)));
-  const sel = (first, opts, cur, set) => h('select', { onchange: (e) => { set(e.target.value); fill(); } }, h('option', { value: '' }, first), ...opts.map(([v, t]) => h('option', { value: v, selected: v === cur }, t)));
-  const filters = h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' } },
-    sel('Все работы', workOpts.map((w) => [w.key, `${w.label} (${w.n})`]), fWork, (v) => { fWork = v; }),
-    cabs.length > 1 ? sel('Все шкафы', cabs.map((c) => (c ? [c, `Шкаф ${c}`] : ['__none', 'Без шкафа'])), fCab, (v) => { fCab = v; }) : null,
-    sel('Все типы', typeFilterOptions(all.map((r) => r.point.typeId)), fType, (v) => { fType = v; }),
-    cfgFilterOptions(all.map((r) => r.point)).length ? sel('Все конфигурации дверей', cfgFilterOptions(all.map((r) => r.point)), fCfg, (v) => { fCfg = v; }) : null,
-    sel('Протяжка: все', [['yes', 'Только протянутые'], ['no', 'Ещё не протянутые']], fPull, (v) => { fPull = v; }));
+  const workOpts = [...counts.values()].sort((a, b) => order(a.key) - order(b.key) || a.label.localeCompare(b.label, 'ru'))
+    .map((w) => ({ value: w.key, text: w.label, count: w.n }));
+  const pts = all.map((r) => r.point);
+  const cabOpts = rackOptions(pts);
+  const typeN = new Map(); pts.forEach((p) => typeN.set(p.typeId, (typeN.get(p.typeId) || 0) + 1));
+  const typeOpts = typeFilterItems([...typeN.keys()], (t) => typeN.get(t));
+  const cfgOpts = cfgOptions(pts);
+  const shown = () => all.filter((r) => worksMatch(fWork, r.left) && rackMatch(fCab, r.point) && typeSetMatch(fType, r.point) && cfgSetMatch(fCfg, r.point)
+    && (!fPull || (fPull === 'yes' ? r.info.pulled : !r.info.pulled)));
+  const changed = () => { reset.refresh(); fill(); };
+  const mf = (title, allText, prefix, options, get, set, covering) => multiFilter({ title, allText, prefix, options: () => options, covering, get, set, onChange: changed });
+  const workF = mf('Работы', 'Все работы', 'Работы', workOpts, () => fWork, (s) => { fWork = s; }, false);
+  const cabF = cabOpts.length > 1 ? mf('Шкафы', 'Все шкафы', 'Шкафы', cabOpts, () => fCab, (s) => { fCab = s; }, true) : null;
+  const typeF = mf('Типы', 'Все типы', 'Типы', typeOpts, () => fType, (s) => { fType = s; }, true);
+  const cfgF = cfgOpts.length ? mf('Конфигурации дверей', 'Все конфигурации дверей', 'Двери', cfgOpts, () => fCfg, (s) => { fCfg = s; }, false) : null;
+  const pullSel = h('select', { class: 'mf-select', onchange: (e) => { fPull = e.target.value; changed(); } },
+    ...[['', 'Протяжка: все'], ['yes', 'Только протянутые'], ['no', 'Ещё не протянутые']].map(([v, t]) => h('option', { value: v, selected: v === fPull }, t)));
+  const buttons = [workF, cabF, typeF, cfgF].filter(Boolean);
+  const reset = resetButton({ active: () => !!(fWork.size || fCab.size || fType.size || fCfg.size || fPull), onReset: () => {
+    fWork = new Set(); fCab = new Set(); fType = new Set(); fCfg = new Set(); fPull = ''; pullSel.value = '';
+    buttons.forEach((b) => b.refresh()); fill();
+  } });
+  const filters = h('div', { class: 'mf-bar' }, ...buttons.map((b) => b.el), pullSel);
   const bar = h('div', { class: 'btns', style: { marginTop: '6px' } });
   const listBox = h('div', {});
   function fill() {
@@ -437,29 +450,31 @@ export function remainingModal() {
     const rows = shown(); const ids = new Set(rows.map((r) => r.point.id));
     [...chosen].forEach((id) => { if (!ids.has(id)) chosen.delete(id); });
     const groups = new Map(); rows.forEach((r) => { const k = r.point.cabinet || ''; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); });
-    const w = counts.get(fWork);
+    // the record button follows the works filter: exactly one `w:` / `p:` key ticked behaves as before; none or several — disabled.
+    // Ticket 7.6 replaces this by the several-works table of spec 7 § 4.1.
+    const wKey = singleWorkKey(fWork); const w = wKey ? counts.get(wKey) : null;
     bar.replaceChildren(h('b', { style: { alignSelf: 'center' } }, `Выбрано: ${chosen.size}`),
       h('button', { class: 'sec', onclick: () => { rows.forEach((r) => chosen.add(r.point.id)); fill(); } }, 'Все показанные'),
       h('button', { class: 'sec', onclick: () => { chosen.clear(); fill(); } }, 'Снять'),
-      h('button', { disabled: !chosen.size || !w || w.key.startsWith('s:'), title: !w ? 'Сначала выберите работу в фильтре' : '', onclick: () => {
+      h('button', { disabled: !chosen.size || !w, title: !w ? 'Сначала выберите работу в фильтре' : '', onclick: () => {
         const preset = w.key.startsWith('p:') ? { workType: 'Протяжка', cableId: w.key.slice(2), workId: [...ctx.catalog.values()].find((x) => x.workType === 'Протяжка' && x.active !== false)?.id }
           : { workId: w.key.slice(2), workType: ctx.catalog.get(w.key.slice(2))?.workType };
         const ids2 = rows.map((r) => r.point.id).filter((id) => chosen.has(id));
         close(); setTimeout(() => addWorkForPoints(ids2, preset), 60);
-      } }, w && !w.key.startsWith('s:') ? `✅ Записать «${w.label}» (${chosen.size})` : '✅ Записать работу'));
-    listBox.replaceChildren(h('div', { class: 'rem-total' }, rows.length ? h('span', {}, 'Точек: ', h('b', {}, rows.length), fWork ? ' — фильтр по работе' : '') : (all.length ? 'Ничего не найдено' : 'Всё сделано 🎉')),
+      } }, w ? `✅ Записать «${w.label}» (${chosen.size})` : '✅ Записать работу'));
+    listBox.replaceChildren(h('div', { class: 'rem-total' }, rows.length ? h('span', {}, 'Точек: ', h('b', {}, rows.length), fWork.size ? ' — фильтр по работе' : '') : (all.length ? 'Ничего не найдено' : 'Всё сделано 🎉')),
       rows.length ? h('div', { class: 'rem-list' }, ...[...groups.entries()].flatMap(([cab, items]) => [
         h('div', { class: 'rem-group' }, h('span', {}, cab ? `Шкаф ${cab}` : 'Без шкафа'), h('span', { class: 'rem-count' }, items.length)),
         ...items.map(({ point, left }) => {
           const cb = h('input', { type: 'checkbox', checked: chosen.has(point.id), style: { width: '22px', height: '22px', flex: 'none' }, onclick: (e) => e.stopPropagation(), onchange: () => { cb.checked ? chosen.add(point.id) : chosen.delete(point.id); fill(); } });
           return h('div', { class: 'rem-row', onclick: () => { cb.checked = !cb.checked; cb.checked ? chosen.add(point.id) : chosen.delete(point.id); fill(); } }, cb,
             h('div', { class: 'rem-name' }, h('b', { onclick: (e) => { e.stopPropagation(); close(); setTimeout(() => pointCard(point), 60); }, style: { textDecoration: 'underline dotted' } }, point.label), h('span', {}, `${point.typeId}${point.planName ? ` · ${point.planName}` : ''}`)),
-            h('div', { class: 'rem-chips' }, left.map((t) => h('span', { class: `chip ${t.chip}`, style: t.key === fWork ? { outline: '2px solid var(--txt)' } : {} }, `${t.label}${t.qty > 1 ? ` ×${t.qty}` : ''}`))));
+            h('div', { class: 'rem-chips' }, left.map((t) => h('span', { class: `chip ${t.chip}`, style: fWork.has(t.key) ? { outline: '2px solid var(--txt)' } : {} }, `${t.label}${t.qty > 1 ? ` ×${t.qty}` : ''}`))));
         }),
       ])) : '');
     const nl = listBox.querySelector('.rem-list'); if (nl) nl.scrollTop = keep.list; if (sb) sb.scrollTop = keep.sheet;
   }
-  body.replaceChildren(h('div', { class: 'mut', style: { marginBottom: '6px' } }, 'Выберите работу, шкаф или тип — галочками отметьте точки и запишите работу сразу на все. Нажатие на название — карточка точки.'), filters, bar, listBox);
+  body.replaceChildren(h('div', { class: 'mut', style: { marginBottom: '6px' } }, 'Выберите работу, шкаф или тип — галочками отметьте точки и запишите работу сразу на все. Нажатие на название — карточка точки.'), filters, reset.el, bar, listBox);
   fill();
   close = openModal('Что осталось', body, { wide: true });
 }

@@ -121,6 +121,18 @@ export function problemMatch(set, openIds) {
   return anyOf(set, (v) => (v === '__any' ? openIds.length > 0 : openIds.includes(v)));
 }
 
+/** Works matching («Что осталось»): the point still waits for any ticked work key; `left` is `leftTasks(point)`. Empty set passes all. */
+export function worksMatch(set, left) {
+  return anyOf(set, (key) => left.some((t) => t.key === key));
+}
+
+/** The one work key the record button of «Что осталось» can use: exactly one `w:` / `p:` key ticked (`s:` keys of old points cannot be recorded), else null.
+ *  Ticket 7.6 replaces this by the several-works table of spec 7 § 4.1. */
+export function singleWorkKey(set) {
+  const rec = [...(set || [])].filter((k) => /^[wp]:/.test(k));
+  return rec.length === 1 ? rec[0] : null;
+}
+
 /** Rack options of a list of points: «Шкаф X» by name (label X), then «Без шкафа» (`__none`); counts are points of the list. */
 export function rackOptions(points) {
   const n = new Map(); points.forEach((p) => { const k = p.cabinet || '__none'; n.set(k, (n.get(k) || 0) + 1); });

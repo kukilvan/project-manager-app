@@ -15,7 +15,6 @@ export function typeFilterOptions(typeIds) {
   const groups = [...n.keys()].sort((a, b) => a.localeCompare(b, 'ru')).map((g) => [GRP + g, `▸ Все: ${g} (типов: ${n.get(g)})`]);
   return [...groups, ...ids.map((t) => [t, t])];
 }
-export const typeFilterValid = (f, typeIds) => !f || typeFilterOptions(typeIds).some(([v]) => v === f);
 
 /** Options of the several-value type filter: group lines (kind 'group' with members), then each type; `countOf(typeId)` gives the point count */
 export function typeOptions(typeIds, countOf = () => undefined, ctx = state.ctx) {
