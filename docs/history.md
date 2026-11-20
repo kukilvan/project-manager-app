@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-21 — Ticket 7.4: «Что осталось» and «Протяжки» filters («Тикет 7.4»)
+
+- `remainingModal` (`points.js`): works, racks («Без шкафа» included), types and door configurations are `multiFilter` buttons with counts, own sets reset when the window opens, racks and types covering (D1), works not; «Протяжка: все» stays a drop-down; reset button under the row; chips of every ticked work outlined; «Точек: N — фильтр по работе» while any work is ticked. Pull step 1 (`pullview.js`): types, door configurations, racks with «Без шкафа»; «Все видимые» uses the new matching; reset also unticks «Только не протянутые». Step 3: types of the chosen points as one button, «▶ Следующая» and «Метраж: X из Y» use the set.
+- New pure `worksMatch` and `singleWorkKey` in `src/domain/filters.js`; `typeFilterValid` removed; `points.js` and `pullview.js` left the rule-13 allow-list (left: `doh.js`, `pointchooser.js`, `racks.js`). Tests 308 → 312.
+- Decision: the record button follows the works filter: exactly one ticked `w:` / `p:` key behaves as before, none or several — disabled with «Сначала выберите работу в фильтре»; ticket 7.6 replaces it by recording several works (spec 7 § 4). The owner asked about this after the check: it stays planned for 7.6. Walked at 420 px; owner checked on the phone: works.
+
 ## 2026-11-20 — Ticket 7.3: plan filters («Тикет 7.3»)
 
 - `planModal`: types (with the plan modes «❔ Не размеченые» / «🙈 Скрытые»), door configurations, racks («Без шкафа» included now) and stages are `multiFilter` buttons with counts of this drawing; racks, types and door configurations read and write the shared sets, covering is computed against this drawing's values; a shared value absent on the drawing stays ticked and greyed at the end of the window («{} — нет на этом чертеже») and is never pruned by the plan; stage window with the sections «Осталось» (no counts), «Работа», «Проблемы»; reset button; the muted line «Под фильтры на этом чертеже точек нет». The point in focus (card «📍 На чертеже», «Найти точку», «🚪 Двери», review list) is drawn bright and tappable through the filters and hides again with the focus frame. The type, rack, door and stage drop-downs are gone; `planmodal.js` left the rule-13 allow-list.
