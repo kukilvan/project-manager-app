@@ -2,6 +2,11 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-21 — Ticket 7.5: pickers («Тикет 7.5»)
+
+- Points picker (`doh.js`): racks (when more than one value), types with group lines and door configurations are `multiFilter` buttons with counts; own sets, empty when the picker opens; search and sets cleared by the reset button under the row. Point chooser (`pointchooser.js`): types and racks («Без шкафа» included) as buttons; `choosePoint({ typeId })` opens with that type ticked (a full set counts as off); the reset also ticks «Только точки без места на чертеже» again. Panel dialog (`racks.js` `placeModal`): types as one button, plain types, opens with nothing ticked (was: a single type preselected); «Отметить все» ticks the shown points.
+- `typeMatch`, `cfgFilterOptions`, `cfgFilterValid` removed; the rule-13 allow-list of `tests/filter-control.test.js` is empty and the rule text in `docs/coding-standards.md` no longer mentions it. No new UI strings. Tests stay 312. Walked at 420 px in `?mem=1&memPlan=1`; the owner checked on the phone: works.
+
 ## 2026-11-21 — Ticket 7.4: «Что осталось» and «Протяжки» filters («Тикет 7.4»)
 
 - `remainingModal` (`points.js`): works, racks («Без шкафа» included), types and door configurations are `multiFilter` buttons with counts, own sets reset when the window opens, racks and types covering (D1), works not; «Протяжка: все» stays a drop-down; reset button under the row; chips of every ticked work outlined; «Точек: N — фильтр по работе» while any work is ticked. Pull step 1 (`pullview.js`): types, door configurations, racks with «Без шкафа»; «Все видимые» uses the new matching; reset also unticks «Только не протянутые». Step 3: types of the chosen points as one button, «▶ Следующая» and «Метраж: X из Y» use the set.

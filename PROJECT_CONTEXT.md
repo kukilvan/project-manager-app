@@ -4,7 +4,7 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 ## Next step
 
-«Тикет 7.5» — stage 7, field improvements 2: the three pickers (points picker, point for a mark, placing into a panel) on the shared filter control (`.scratch/07-field-improvements-2/issues/05-pickers.md`). Simple: Sonnet 5.5, effort medium (`docs/models.md`). Order of the stage: 05 → 06 → 07 (07 has no dependency); 06 is complex (Opus 5.5, effort high) and brings recording of several ticked works in «Что осталось» (the owner expects it). The owner finishes the whole stage 7 first, while the NAS is being checked.
+«Тикет 7.6» — stage 7, field improvements 2: «Что осталось» records several ticked works, a pull only for the ticked cables (`.scratch/07-field-improvements-2/issues/06-remaining-several-works.md`). Complex: Opus 5.5, effort high (`docs/models.md`). Order of the stage: 06 → 07 (07 has no dependency). The owner finishes the whole stage 7 first, while the NAS is being checked.
 
 After «Ревью 7»: «Описание 4» — stage 4, PocketBase storage (`docs/project-spec.md`, stage 4). It starts only when the NAS acceptance checks A1–A7 and A10–A13 pass (`docs/nas-requirements.md`) and the owner says the NAS is reliable; until then only «Правка: …», «Вопрос: …» and «Идея: …» sessions. Model: Opus 5.5, effort high. The description pulls in KI-8 and the review-6 wish for the shared-list rules (`.scratch/06-field-improvements/review.md`).
 
@@ -34,7 +34,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 | 4 | PocketBase storage (when the owner trusts the NAS) | not started | 16 | — |
 | 5 | Move to the NAS | not started | 10 | — |
 | 6 | Field improvements (now, before stage 4) | done | 15 | 001, 002, 003, 004, 005, 006 |
-| 7 | Field improvements 2 (now, before stage 4) | tickets 4/7 | 11 | 007 |
+| 7 | Field improvements 2 (now, before stage 4) | tickets 5/7 | 11 | 007 |
 
 Status values: not started · description · spec · tickets k/n · review · fix round k · done. Ideas: numbers of `docs/ideas/` files filed for the stage.
 
