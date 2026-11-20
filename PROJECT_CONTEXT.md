@@ -52,7 +52,7 @@ Status values: not started · description · spec · tickets k/n · review · fi
 
 - The pool bot may commit to `main` on Mondays 09:00 UTC («Стартовый набор: обновлён из общего пула»): `git pull --rebase` before pushing.
 - In `?mem=1` listeners are synchronous: real Firestore races (e.g. an old project snapshot dropping a new drawing) do not reproduce — reason them out in the code.
-- `?mem=1` has no drawing: to walk the plan, build a small PDF in the page and add it through «➕ Чертёж (PDF)» with a `DataTransfer` file; give the points `pos` on that sheet (recipe: `docs/history.md`, «Ревью 6»).
+- `?mem=1&memPlan=1` opens the project «Test drawing»: a generated one-page PDF (`src/domain/testplan.js`) with 16 points at every plan look, one unlinked and one hidden caption, a problem mark and an «ЭМ» door; `?mem=1` alone has no drawing. The button «🔀 Одинаковые точки в разном виде: 1 — объединить» (FB/C-10 and FB/C-11 on one mark) is expected.
 - PDF captions: two labels may be one text run (`FC/B09-10 FC/B11-12`); `splitLabelRuns` in `src/tohnit/engine.js` splits them.
 - `RANGE` in `src/domain/merge.js` counts by the last digits (`B05-06` → 2), limits 1–8, else cables-by-label is not applied.
 - Double-tap zoom on iPhone is stopped by three measures: `touch-action: manipulation`, `src/app/nodoubletap.js`, no text selection on touch screens; plus `maximum-scale=1`.

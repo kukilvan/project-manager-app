@@ -88,6 +88,8 @@ The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. 
 
 **Test mode** — `?mem=1`: in-memory data, stub sign-in and Google (`docs/workflow.md`).
 
+**Test drawing** (code: `src/domain/testplan.js`, `?mem=1&memPlan=1`) — a generated one-page PDF with points at every progress stage, for checking the plan in test mode.
+
 **Connect link** (code: `?connect=…`; UI: «Ссылка для подключения») — carries a Firebase config and OAuth Client ID to colleagues.
 
 **Admin** (code: `meta/admin`) — the first user signed in to a database; runs the shared pool and the allowed e-mails. Members are otherwise equal. **Member** (code: `memberUids`, `invitedEmails`).

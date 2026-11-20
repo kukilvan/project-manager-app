@@ -75,6 +75,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/app/start.js` — First launch of a clean app: welcome → home-screen icon (on a phone) → «Как будете работать»: on this device (no setup) or one's own Firebase database (the wizard), or joining by an invitation link.
 - `src/app/starter.js` — Seeds a new database (open edition) with the starter set of the shared pool on the administrator's first sign-in.
 - `src/app/store.js` — Application state: the user's projects, the data of the current project and the calculation context.
+- `src/app/testplan.js` — Creates the test drawing project in test mode: «Test drawing» with the generated PDF, points at every progress stage, journal rows, a problem mark and an unlinked and a hidden caption.
 - `src/app/theme.js` — Color theme: dark (default), light or follow the phone; applies it to the page and remembers the choice.
 - `src/app/tour/demo.js` — Demo project for the tour, kept in a separate in-memory store: real data is not touched and nothing goes to the server.
 - `src/app/tour/engine.js` — Tour engine: a dimmed screen with a «window» around the target element, a caption and a «Далее» button.
@@ -156,6 +157,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/domain/shilutsheet.js` — Rack table for Google Drive: a «rack plan» sheet for each rack (section) and a common sheet of port labels.
 - `src/domain/status.js` — Point statuses, installation and completeness (sections 3.1–3.3, Appendix A): pointInfo and the cable helpers around it.
 - `src/domain/sync.js` — Pure decisions about reading from and writing to Firestore, made without touching the network: delta or full read, retention of deleted records, rejected writes, the daily write limit.
+- `src/domain/testplan.js` — The test drawing: a generated one-page PDF and the points, journal rows, problem marks and door configuration that show every progress look of the plan.
 - `src/domain/typelib.js` — Shared pool of point types: the standard types + «my pool» (types saved from any project; kept in the personal settings).
 - `src/edition.js` — Connection to the database, the work mode (Firebase or on this device) and the pool administrator.
 - `src/firebase.js` — Firebase connection: Google sign-in and a Firestore database with a persistent offline cache.

@@ -1,5 +1,5 @@
 // App entry point: starts the language, theme and device helpers, decides what to show (the first-launch screens, the on-device mode or the Firebase sign-in) and starts the shell.
-// Builds the repo on the right backend (Firestore, on-device IndexedDB or memory for `?mem=1` test mode), resolves the database administrator and offers the project migration.
+// Builds the repo on the right backend (Firestore, on-device IndexedDB or memory for `?mem=1` test mode; `&memPlan=1` also creates the test drawing project), resolves the database administrator and offers the project migration.
 // Loads the heavy screens (start.js, setup.js, firebase.js, localdb.js, migrate.js) lazily; keeps `pz.deviceId` and `pm.admin.<projectId>` in localStorage.
 import './style.css';
 import './app/theme.js';
@@ -174,7 +174,14 @@ async function boot() {
     if (!g) return;
     if (g === 'local') { await startLocal(); return; }
   }
-  if (memoryMode) { startSession({ uid: 'test-user', displayName: 'Тестовый пользователь', email: new URLSearchParams(location.search).get('memEmail') || 'test@example.com' }); window.__pz = { store, repo: window.__pzRepo }; return; }
+  if (memoryMode) {
+    const q = new URLSearchParams(location.search);
+    await startSession({ uid: 'test-user', displayName: 'Тестовый пользователь', email: q.get('memEmail') || 'test@example.com' });
+    window.__pz = { store, repo: window.__pzRepo };
+    // `&memPlan=1`: a project with a ready drawing and points at every progress stage (spec 7 § 6); its own chunk, not loaded without the flag
+    if (q.has('memPlan')) import('./app/testplan.js').then((m) => m.startTestPlan()).catch((e) => error('Тестовый чертёж', e));
+    return;
+  }
   showMessage('Проверяю вход…');   // only on a new device: if this device has signed in before, the app opens at once
   fb = await import('./firebase.js');
   fb.initFirebase();
