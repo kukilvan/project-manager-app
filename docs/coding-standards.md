@@ -104,4 +104,4 @@ One rule per item: the rule, why, how it is checked. Reviews check against this 
 
 **Why.** Stage 7 (idea 007): the owner picks several racks or types at once; one control for every screen keeps the behaviour the same and the rules tested.
 
-**Checked.** `tests/filter-control.test.js` (rule 13): no file of `src/app/views/` outside `multifilter.js` builds such a drop-down, apart from an allow-list of the files still to convert (tickets 7.3–7.5 each remove theirs; ticket 7.5 leaves it empty) and `wizard.js`, whose «Все типы» filters catalog types, not points.
+**Checked.** `tests/filter-control.test.js` (rule 13): no file of `src/app/views/` outside `multifilter.js` builds such a drop-down, apart from `wizard.js`, whose «Все типы» filters catalog types, not points.

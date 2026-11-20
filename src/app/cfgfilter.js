@@ -18,7 +18,7 @@ export function cfgMatch(f, p) {
 }
 /** Several-value matching: an empty set passes all, otherwise any ticked value matches by cfgMatch */
 export const cfgSetMatch = (set, p) => anyOf(set, (v) => cfgMatch(v, p));
-/** Options of the several-value filter: [{ value, text, count }] in the order of cfgFilterOptions (empty — no configurations) */
+/** Options of the several-value filter: [{ value, text, count }] (empty — no configurations, no filter needed) */
 export function cfgOptions(points) {
   const all = allDoorCfgs(); const n = new Map(); let none = 0; let nolock = 0;
   points.forEach((p) => {
@@ -29,6 +29,3 @@ export function cfgOptions(points) {
   const list = [...n].map(([id, k]) => ({ value: id, text: all.get(id)?.name || state.ctx.configs.get(id)?.name || id, count: k })).sort((a, b) => a.text.localeCompare(b.text, 'ru'));
   return [...(nolock ? [{ value: NOLOCK, text: '⚠ Без запирания', count: nolock }] : []), ...(none ? [{ value: NONE, text: 'Без конфигурации', count: none }] : []), ...list];
 }
-/** Filter options for a list of points: [[value, text]] (empty — no configurations, no filter needed) */
-export const cfgFilterOptions = (points) => cfgOptions(points).map((o) => [o.value, `${o.text} (${o.count})`]);
-export const cfgFilterValid = (f, points) => !f || cfgFilterOptions(points).some(([v]) => v === f);

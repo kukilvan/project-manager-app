@@ -5,7 +5,6 @@ import { state } from './store.js';
 
 export const GRP = 'grp:';
 export const groupOf = (typeId, ctx = state.ctx) => String(ctx?.types?.get(typeId)?.group || '').trim();
-export const typeMatch = (f, typeId) => !f || (f.startsWith(GRP) ? groupOf(typeId) === f.slice(GRP.length) : typeId === f);
 export const allGroups = (ctx = state.ctx) => [...new Set([...(ctx?.types?.values() || [])].map((t) => String(t.group || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
 
 /** Filter options for the types present in the list: [[value, text]] */

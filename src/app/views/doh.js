@@ -5,7 +5,7 @@
 // - copyText(), shortcutUrl() — copy to the clipboard and the link to the iPhone Shortcuts command «Doh»
 // - dayForm() — create and edit a day (one day per date, «🌴 Выходной» with a reason, a warning for a suspicious date)
 // - todayBlocked() — the check of the recording paths: today is a day off (here or in another project) — a message and nothing is written
-// - pointsPicker() — choose points with filters by rack and type
+// - pointsPicker() — choose points with several-value filters by rack, type and door configuration
 // - entryForm() — one entry (one work): works that fit the chosen points, devices, quantities, delay, saving as several entries
 // - addWorkForPoints(), addWorkForPoint() — «add work to this point» as an entry of today
 // - markShilutForPoints(), releasePorts() — «Шилют поклеен» in one tap and the release of ports when such an entry is deleted
@@ -13,10 +13,12 @@
 // - batchForm() — several works at once for the same points
 // - dayScreen(), dohView() — the screen of one day and the tab itself
 import { lang as uiLang } from '../../i18n/index.js';
-import { typeMatch, typeFilterOptions } from '../typegroups.js';
+import { typeOptions as typeFilterItems } from '../typegroups.js';
 import { latinKey, choiceList } from '../../domain/index.js';
 import { rackPortsOf, stuckPortsOf } from '../../domain/rack.js';
-import { cfgMatch, cfgFilterOptions, cfgFilterValid } from '../cfgfilter.js';
+import { cfgSetMatch, cfgOptions } from '../cfgfilter.js';
+import { rackMatch, typeSetMatch, rackOptions } from '../../domain/filters.js';
+import { multiFilter, resetButton } from './multifilter.js';
 import { h, formModal, openModal, confirmDialog, messageDialog, toast } from '../ui.js';
 import { hint } from './guide.js';
 import { state, getRepo, currentProject, pointsSorted, infoOf, allDays, liveProjects } from '../store.js';
@@ -162,13 +164,13 @@ export function pointsPicker({ typesOf, fits, onPick }) {
     const allowed = typesOf ? typesOf(vals) : null;
     const pts = pointsSorted().filter((pt) => (fits ? fits(pt, vals) : (!allowed || allowed.includes(pt.typeId))));
     const chosen = new Set(ids);
-    let q = ''; let fCab = ''; let fType = ''; let fCfg = '';
+    let q = ''; let fCab = new Set(); let fType = new Set(); let fCfg = new Set();
     const list = h('div', { class: 'picklist' });
     const count = h('b', {});
     const fill = () => {
       list.replaceChildren(); let last = null;
       const shown = pts.filter((pt) => (!q || latinKey(`${pt.label} ${pt.planName ?? ''}`).includes(latinKey(q)))
-        && (!fCab || (fCab === '__none' ? !pt.cabinet : pt.cabinet === fCab)) && typeMatch(fType, pt.typeId) && cfgMatch(fCfg, pt));
+        && rackMatch(fCab, pt) && typeSetMatch(fType, pt) && cfgSetMatch(fCfg, pt));
       if (!shown.length) list.append(h('div', { class: 'empty' }, pts.length ? 'Ничего не найдено' : 'Подходящих точек нет'));
       shown.forEach((pt) => {
         const key = `${pt.cabinet || ''}\u0000${pt.typeId}`;
@@ -179,15 +181,22 @@ export function pointsPicker({ typesOf, fits, onPick }) {
       count.textContent = `Выбрано: ${chosen.size}`;
       list._shown = shown;
     };
-    const search = h('input', { type: 'search', placeholder: 'Поиск по обозначению', oninput: (e) => { q = e.target.value.trim().toLowerCase(); fill(); } });
-    // filters as on the «Точки» tab: rack and type (with shared groups — «▸ Все: Дверь»)
-    const cabs = [...new Set(pts.map((pt) => pt.cabinet || ''))].sort((a, b) => a.localeCompare(b, 'ru', { numeric: true }));
-    const cabSel = h('select', { onchange: (e) => { fCab = e.target.value; fill(); } }, h('option', { value: '' }, 'Все шкафы'), ...cabs.map((c) => (c ? h('option', { value: c }, `Шкаф ${c}`) : h('option', { value: '__none' }, 'Без шкафа'))));
-    const typeSel = h('select', { onchange: (e) => { fType = e.target.value; fill(); } }, h('option', { value: '' }, 'Все типы'), ...typeFilterOptions(pts.map((pt) => pt.typeId)).map(([v, t]) => h('option', { value: v }, t)));
-    const cfgOpts = cfgFilterOptions(pts);
-    const cfgSel = cfgOpts.length ? h('select', { onchange: (e) => { fCfg = e.target.value; fill(); } }, h('option', { value: '' }, 'Все конфигурации дверей'), ...cfgOpts.map(([v, t]) => h('option', { value: v }, t))) : null;
+    const search = h('input', { type: 'search', placeholder: 'Поиск по обозначению', oninput: (e) => { q = e.target.value.trim().toLowerCase(); fill(); reset.refresh(); } });
+    // filters as on the «Точки» tab: several values of rack, type (with group lines — «▸ Все: Дверь») and door configuration; own sets, empty when the picker opens
+    const cabOpts = rackOptions(pts);
+    const typeN = new Map(); pts.forEach((pt) => typeN.set(pt.typeId, (typeN.get(pt.typeId) || 0) + 1));
+    const typeOpts = typeFilterItems([...typeN.keys()], (t) => typeN.get(t));
+    const cfgOpts = cfgOptions(pts);
+    const mf = (title, allText, prefix, options, get, set, covering) => multiFilter({ title, allText, prefix, options: () => options, covering, get, set, onChange: () => { fill(); reset.refresh(); } });
+    const cabF = cabOpts.length > 1 ? mf('Шкафы', 'Все шкафы', 'Шкафы', cabOpts, () => fCab, (s) => { fCab = s; }, true) : null;
+    const typeF = mf('Типы', 'Все типы', 'Типы', typeOpts, () => fType, (s) => { fType = s; }, true);
+    const cfgF = cfgOpts.length ? mf('Конфигурации дверей', 'Все конфигурации дверей', 'Двери', cfgOpts, () => fCfg, (s) => { fCfg = s; }, false) : null;
+    const reset = resetButton({ active: () => !!(q || fCab.size || fType.size || fCfg.size), onReset: () => {
+      q = ''; search.value = ''; fCab = new Set(); fType = new Set(); fCfg = new Set();
+      [cabF, typeF, cfgF].forEach((f) => f?.refresh()); fill();
+    } });
     const close = openModal('Точки', h('div', {},
-      search, h('div', { style: { display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' } }, cabs.length > 1 ? cabSel : null, typeSel, cfgSel), h('div', { class: 'row', style: { margin: '8px 0' } }, count,
+      search, h('div', { style: { display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' } }, cabF?.el, typeF.el, cfgF?.el), reset.el, h('div', { class: 'row', style: { margin: '8px 0' } }, count,
         h('button', { type: 'button', class: 'sec', onclick: () => { (list._shown || []).forEach((pt) => chosen.add(pt.id)); fill(); } }, 'Все показанные'),
         h('button', { type: 'button', class: 'sec', onclick: () => { chosen.clear(); fill(); } }, 'Снять все')),
       list,

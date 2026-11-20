@@ -7,7 +7,7 @@
 // - racksView() — the rack list; showCabinet() opens the plan at a given rack (from the point card)
 // - rackForm() — rack size and numbering (and sections: several physical racks under one name)
 // - wizard() — put points into panels by type
-// - placeModal() — put points into a panel from a chosen port
+// - placeModal() — put points into a panel from a chosen port (several types can be ticked in its filter)
 // - rackEditor() — the rack plan: moving ports, closing ports with a cross, point selection, shilut marks («есть» / «поклеен»)
 import { h, openModal, toast, confirmDialog, formModal } from '../ui.js';
 import { state, getRepo, currentProject, infoOf } from '../store.js';
@@ -21,6 +21,8 @@ import { problemButtons } from './problems.js';
 import { shilutSettings, panelModels, modelName } from './shilutsettings.js';
 import { rackTableCard } from './racktable.js';
 import { markShilutForPoints, addWorkForPoints } from './doh.js';
+import { typeSetMatch } from '../../domain/filters.js';
+import { multiFilter, resetButton } from './multifilter.js';
 
 let openCab = null;   // the open rack
 let moving = null;    // port move: { id, i }
@@ -226,21 +228,24 @@ function placeModal(cab, ui, { u = null, s: sid = '', p = 1 } = {}) {
   const free = cabPoints(cab).filter((pt) => !panelOf(pt).length).sort(comparePoints);
   if (!free.length) { toast('Все точки шкафа уже расставлены'); return; }
   const types = [...new Set(free.map((x) => x.typeId))].sort(sortRu);
-  let fType = types.length === 1 ? types[0] : ''; const on = new Set();
+  // the type filter opens with nothing ticked; several types can be ticked (a full set counts as off)
+  const typeOpts = types.map((t) => ({ value: t, text: t, count: free.filter((x) => x.typeId === t).length }));
+  let fType = new Set(); const on = new Set();
   const panelSel = h('select', {}, panels.map((x, i) => h('option', { value: i, selected: x.u === u && (x.s || '') === (sid || '') }, `Панель ${pName(cab, x)}`)));
   const portIn = h('input', { type: 'text', inputMode: 'numeric', value: String(p), style: { width: '64px' } });
   const list = h('div', { class: 'picklist' }); const go = h('button', {});
   const label = () => { go.textContent = `Поставить (${on.size})`; go.disabled = !on.size; };
   const draw = () => {
-    const shown = free.filter((x) => !fType || x.typeId === fType);
+    const shown = free.filter((x) => typeSetMatch(fType, x));
     list.replaceChildren(...shown.map((x) => {
       const cb = h('input', { type: 'checkbox', checked: on.has(x.id), onchange: () => { cb.checked ? on.add(x.id) : on.delete(x.id); label(); } });
       const n = rackPortsOf(x, state.ctx);
       return h('label', { class: 'pickrow' }, cb, h('span', {}, x.label, h('small', { class: 'mut' }, ` · ${x.typeId}${n > 1 ? ` · портов ${n}` : ''}`)));
     }));
-    label();
+    label(); reset.refresh();
   };
-  const typeSel = h('select', { onchange: (e) => { fType = e.target.value; draw(); } }, h('option', { value: '' }, 'Все типы'), ...types.map((t) => h('option', { value: t, selected: t === fType }, t)));
+  const typeF = multiFilter({ title: 'Типы', allText: 'Все типы', prefix: 'Типы', options: () => typeOpts, covering: true, get: () => fType, set: (v) => { fType = v; }, onChange: draw });
+  const reset = resetButton({ active: () => fType.size > 0, onReset: () => { fType = new Set(); typeF.refresh(); draw(); } });
   go.onclick = () => {
     const start = Number(portIn.value); if (!(start >= 1 && start <= PANEL_PORTS)) { toast('Порт — от 1 до 24'); return; }
     const pnl = panels[Number(panelSel.value)]; const chosen = free.filter((x) => on.has(x.id));
@@ -253,9 +258,10 @@ function placeModal(cab, ui, { u = null, s: sid = '', p = 1 } = {}) {
   draw();
   const c = openModal('➕ Поставить точки в панель', h('div', {},
     h('div', { class: 'mut' }, 'Отмеченные точки встанут подряд по возрастанию номера, начиная с порта; занятые порты пропускаются.'),
-    h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', margin: '8px 0' } }, panelSel, h('span', {}, 'с порта'), portIn, typeSel),
+    h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', margin: '8px 0' } }, panelSel, h('span', {}, 'с порта'), portIn, typeF.el),
+    reset.el,
     h('div', { class: 'btns', style: { marginTop: 0 } },
-      h('button', { class: 'sec', onclick: () => { free.filter((x) => !fType || x.typeId === fType).forEach((x) => on.add(x.id)); draw(); } }, 'Отметить все'),
+      h('button', { class: 'sec', onclick: () => { free.filter((x) => typeSetMatch(fType, x)).forEach((x) => on.add(x.id)); draw(); } }, 'Отметить все'),
       h('button', { class: 'sec', onclick: () => { on.clear(); draw(); } }, 'Снять')),
     list, h('div', { class: 'btns' }, go)), { sticky: true });
 }

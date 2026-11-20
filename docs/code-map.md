@@ -109,7 +109,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/app/views/planpick.js` — «🔎 Значки без номеров»: a modal where icons on the drawing plan are found, numbered and turned into points.
 - `src/app/views/planversion.js` — «🔄 Новая версия чертежа»: moves the points of a drawing onto its updated version, with recalculated coordinates.
 - `src/app/views/planview.js` — Viewer of one drawing sheet on a canvas: dragging, zooming by pinch, wheel or buttons, and a sharp tile re-rendered when zoomed in.
-- `src/app/views/pointchooser.js` — Dialog to choose a point of the project: search, type, rack and «only without a place on the drawing»; on choice it calls onPick(point, { rename }).
+- `src/app/views/pointchooser.js` — Dialog to choose a point of the project: search, several-value type and rack filters, «only without a place on the drawing» and a reset button; on choice it calls onPick(point, { rename }).
 - `src/app/views/pointmerge.js` — Dialogs «🔀 Одинаковые точки» (point merge) and «🔌 Кабели не по номеру»: merge a point recorded two ways, and fix cable counts that do not follow the label.
 - `src/app/views/points.js` — Points screens: the point form, the batch generator, the length input, the point card with history, the «Что осталось» list, mass actions and the «Точки» tab.
 - `src/app/views/pointsfile.js` — Preview and adding of points from drawing parsing (JSON format polevoy-points-1).
