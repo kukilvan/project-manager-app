@@ -133,6 +133,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/domain/doorcfg.js` — Door configurations (new scheme): there is one point type, «Дверь», and the kind of door is set by its configuration.
 - `src/domain/export.js` — Export of a whole project to Excel: sheets with values only (no formulas).
 - `src/domain/fbcheck.js` — Checks of the own-database setup wizard: no sign-in, only public Google endpoints with the key from the settings (apiKey).
+- `src/domain/filters.js` — Pure rules of the several-value point filter: ticking, group lines, special lines, «all ticked = off», button text (spec 7 § 1.6).
 - `src/domain/generator.js` — Batch point generator (section 2.4): prefix + number (+ «-» and the next number for a pair) (+ suffix).
 - `src/domain/index.js` — Re-exports the pure domain modules as one import point for the app.
 - `src/domain/latin.js` — Cyrillic ↔ Latin in point names: look-alike letters, layout-independent search and quick-input shortcuts.
