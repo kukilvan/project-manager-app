@@ -58,7 +58,7 @@ PWA, phone first (420 px), also the browser on Windows. UI in Russian (source), 
 
 ## Stages
 
-Adoption (2026-11-10) moved the project onto this workflow; numbering starts here. Quick fixes («Правка: …») run between any steps. Stage numbers are names, not the order of work: stage 6 runs before stage 4 (the NAS document already names stages 4 and 5, so they keep their numbers).
+Adoption (2026-11-10) moved the project onto this workflow; numbering starts here. Quick fixes («Правка: …») run between any steps. Stage numbers are names, not the order of work: stages 6 and 7 run before stage 4 (the NAS document already names stages 4 and 5, so they keep their numbers).
 
 ### Stage 1. Code documentation
 
@@ -115,3 +115,12 @@ Runs now, before stage 4, while the NAS is being checked; the owner finishes the
 - Idea 006 (added 2026-11-19, after slicing; ticket 08 `.scratch/06-field-improvements/issues/08-plan-colours-works.md`): plan colour by works after the pull instead of stages — pink `#E0609F` for a pulled point, an even yellow → green gradient for the works after it, circles per cable for an unfinished pull; phone plan frames ×0.75; the focus frame goes away after an action on the point.
 - New data (day-off fields, shared pool collections, problem marks) must be carried by stage 4's PocketBase storage.
 - Sessions (est.): ≈ 15.
+
+### Stage 7. Field improvements 2
+
+Runs now, before stage 4, while the NAS is being checked; the owner finishes the whole stage, then «Описание 4» follows (when the NAS checks pass).
+
+- Goal: the owner's next wishes from field work, starting with idea 007 (filed 2026-11-20); the description takes it in and asks the owner for more.
+- The owner sees at the end: several values in every point filter (for example two racks and three point types), a window with checkboxes behind each filter button, «✖ Сбросить фильтры» under the filters, the rack, type and door-configuration filters shared by «Точки» and «План» while the app is open, and «Что осталось» recording several ticked works at once through «Несколько работ» (idea 007).
+- No new data: filters live in memory, so stage 4's storage is not affected.
+- Sessions (est.): ≈ 7.
