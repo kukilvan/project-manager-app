@@ -11,7 +11,8 @@
 // - pointCard() — one point: details, problems, work history and actions (bindToPoint turns a plan mark into an existing point)
 // - remainingModal() — «Что осталось»: works still waiting for points; pick points and record a work
 // - renameForm(), bulkEditForm() — mass rename and mass change of the selected points
-// - meterView() — the «Точки» tab: the list with search, filters (problems too) and selection; showProblemPoints() opens it filtered to points with open problems
+// - meterView() — the «Точки» tab: the list with search, several-value filters (racks, types and door configurations shared with the plan, problems) and selection;
+//   showProblemPoints() opens it filtered to points with open problems
 import { h, formModal, openModal, confirmDialog, toast, qtyList, attachShortcuts } from '../ui.js';
 import { nav, state, getRepo, pointsSorted, infoOf, currentProject, subscribe } from '../store.js';
 import { generateLabels, generatedTotal, MAX_GENERATED, parseSuffixes, comparePoints, renameLabel, renameIssue, sameLabelClash, labelKey, inheritedFromCables, usesConfig, leftTasks, hasDeviceId, normalizeMac, findDuplicate , findSameGroups, cablesMismatch } from '../../domain/index.js';
@@ -28,11 +29,14 @@ import { doorField } from './doorcfgview.js';
 import { doorChips, doorShortChip } from './doorchips.js';
 import { ensureDoorCfg, pinsOf as doorPins, allDoorCfgs } from '../doorpool.js';
 import { drawingFor, drawingsOf } from '../drawings.js';
-import { typeMatch, typeFilterOptions, typeFilterValid } from '../typegroups.js';
+import { typeMatch, typeFilterOptions, typeOptions as typeFilterItems } from '../typegroups.js';
 import { latinKey, choiceList, openProblemsOf, problemCounts, markName } from '../../domain/index.js';
 import { problemsBlock, problemButtons } from './problems.js';
 import { lang } from '../../i18n/index.js';
-import { cfgMatch, cfgFilterOptions, cfgFilterValid } from '../cfgfilter.js';
+import { cfgMatch, cfgFilterOptions, cfgOptions, cfgSetMatch } from '../cfgfilter.js';
+import { rackMatch, typeSetMatch, problemMatch, prune, normalize, isOff } from '../../domain/filters.js';
+import { sharedFilters, setShared, clearShared, onSharedChange } from '../sharedfilters.js';
+import { multiFilter, resetButton } from './multifilter.js';
 import { planModal } from './planmodal.js';
 import { ownWorksField, ownWorksData, ownWorksText } from './ownworks.js';
 import { choosePoint } from './pointchooser.js';
@@ -603,16 +607,23 @@ export function bulkEditForm(ids, done) {
   });
 }
 
-let searchText = ''; let fCab = ''; let fType = ''; let fPlan = ''; let fCfg = ''; let fProb = '';
+// «Точки» filters: search, «План: …» and problems are kept here while the app is open; racks, types and door configurations are the shared sets (sharedfilters.js)
+let searchText = ''; let fPlan = ''; let fProb = new Set();
 const planOk = (p) => !fPlan || (fPlan === 'off' ? !drawingFor(p) : !!drawingFor(p));  // «Нет на плане» / «На плане»
-// problems filter: '' — all, '__any' — points with an open problem, otherwise a problem id
-const probOk = (p) => !fProb || (fProb === '__any' ? openProblemsOf(p, state.ctx).length > 0 : openProblemsOf(p, state.ctx).some((m) => m.problemId === fProb));
-const listOk = (p) => { const q = searchText.trim().toLowerCase(); const qk = latinKey(q);
-  return (!q || latinKey(`${p.label} ${p.planName ?? ''} ${panelText(p)}`).includes(qk) || matchesPanelQuery(p, q)) && (!fCab || (fCab === '__none' ? !p.cabinet : p.cabinet === fCab))
-    && typeMatch(fType, p.typeId) && cfgMatch(fCfg, p) && planOk(p) && probOk(p); };
+// problems filter: empty — all, '__any' — points with an open problem, otherwise problem ids (any of them)
+const probOk = (p) => problemMatch(fProb, openProblemsOf(p, state.ctx).map((m) => m.problemId));
+const listOk = (f = sharedFilters()) => { const q = searchText.trim().toLowerCase(); const qk = latinKey(q);
+  return (p) => (!q || latinKey(`${p.label} ${p.planName ?? ''} ${panelText(p)}`).includes(qk) || matchesPanelQuery(p, q))
+    && rackMatch(f.cab, p) && typeSetMatch(f.type, p) && cfgSetMatch(f.cfg, p) && planOk(p) && probOk(p); };
+// a shared set changed elsewhere (the plan, ticket 03): the rendered «Точки» tab refreshes its buttons and list in place
+let ownChange = false; let liveMeter = null;
+const ownSet = (key, set) => { ownChange = true; try { setShared(key, set); } finally { ownChange = false; } };
+const ownClear = () => { ownChange = true; try { clearShared(); } finally { ownChange = false; } };
+onSharedChange(() => { if (ownChange || !liveMeter) return; if (liveMeter.alive()) liveMeter.refresh(); else liveMeter = null; });
+const countBy = (list, key) => { const n = new Map(); list.forEach((x) => { const k = key(x); n.set(k, (n.get(k) || 0) + 1); }); return n; };
 // «Проект» → «⚠ Открытых проблем … — показать»: the «Точки» list with only the points that have an open problem
 export function showProblemPoints(ui) {
-  searchText = ''; fCab = ''; fType = ''; fPlan = ''; fCfg = ''; fProb = '__any';
+  searchText = ''; fPlan = ''; fProb = new Set(['__any']); ownClear();
   ui.go('meter');
 }
 export function meterView(ui) {
@@ -620,7 +631,7 @@ export function meterView(ui) {
   const total = pointsSorted();
   const withLen = total.filter((p) => p.length !== undefined && p.length !== null && p.length !== '').length;
   const bar = h('div', { class: 'card selbar', style: { position: 'sticky', top: '53px', zIndex: 6, margin: '8px 0 0' } });
-  const shown = () => pointsSorted().filter(listOk);
+  const shown = () => pointsSorted().filter(listOk());
   function updateBar() {
     for (const id of [...selected]) if (!state.ctx.points.has(id)) selected.delete(id);
     bar.style.display = selMode ? '' : 'none';
@@ -643,7 +654,7 @@ export function meterView(ui) {
   }
   function fill() {
     updateBar();
-    const pts = pointsSorted().filter(listOk);
+    const pts = pointsSorted().filter(listOk());
     list.replaceChildren();
     if (!pts.length) { list.append(total.length ? h('div', { class: 'empty' }, 'Ничего не найдено') : hint(ui, 'Точек пока нет. Добавьте их группой («Группа новых точек») или по одной. Нажмите точку: откроется её карточка с историей работ, там же кнопка «📏 Длина».', 'meter', '📖 Как вносить метраж')); return; }
     let lastKey = null;
@@ -663,24 +674,44 @@ export function meterView(ui) {
         h('span', { class: statusClass(info.status) }, info.status)));
     });
   }
-  const search = h('input', { type: 'search', placeholder: 'Поиск по обозначению', value: searchText, oninput: (e) => { searchText = e.target.value; fill(); } });
-  const cabs = [...new Set(total.map((p) => p.cabinet || ''))].sort((a, b) => a.localeCompare(b, 'ru', { numeric: true }));
-  const types = [...new Set(total.map((p) => p.typeId))].sort((a, b) => String(a).localeCompare(String(b), 'ru'));
-  if (!cabs.includes(fCab) && fCab !== '__none') fCab = '';
-  if (!typeFilterValid(fType, types)) fType = '';
-  if (!cfgFilterValid(fCfg, total)) fCfg = '';
+  const search = h('input', { type: 'search', placeholder: 'Поиск по обозначению', value: searchText, oninput: (e) => { searchText = e.target.value; reset.refresh(); fill(); } });
+  // options with point counts of the whole project
+  const cabN = countBy(total, (p) => p.cabinet || '__none');
+  const cabOpts = [...cabN.keys()].filter((c) => c !== '__none').sort(sortRu).map((c) => ({ value: c, text: `Шкаф ${c}`, label: c, count: cabN.get(c) }))
+    .concat(cabN.has('__none') ? [{ value: '__none', text: 'Без шкафа', count: cabN.get('__none') }] : []);
+  const typeN = countBy(total, (p) => p.typeId);
+  const typeOpts = typeFilterItems([...typeN.keys()], (t) => typeN.get(t));
+  const cfgOpts = cfgOptions(total);
   const probs = problemCounts(total, state.ctx);
-  if (fProb && fProb !== '__any' && !probs.byProblem.has(fProb)) fProb = probs.points ? '__any' : '';
-  const probOpts = [['__any', `⚠ С проблемами (${probs.points})`],
-    ...[...probs.byProblem.entries()].map(([id, n]) => [id, `Проблема: ${markName({ problemId: id }, state.ctx, lang() === 'he' ? 'he' : 'ru')} (${n})`]).sort((a, b) => a[1].localeCompare(b[1], 'ru'))];
-  const sel = (all, opts, cur, set) => h('select', { onchange: (e) => { set(e.target.value); fill(); } },
-    h('option', { value: '' }, all), ...opts.map(([v, t]) => h('option', { value: v, selected: v === cur }, t)));
-  const filters = h('div', { style: { display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' } },
-    sel('Все шкафы', cabs.map((c) => (c ? [c, `Шкаф ${c}`] : ['__none', 'Без шкафа'])), fCab, (v) => { fCab = v; }),
-    sel('Все типы', typeFilterOptions(types), fType, (v) => { fType = v; }),
-    cfgFilterOptions(total).length ? sel('Все конфигурации дверей', cfgFilterOptions(total), fCfg, (v) => { fCfg = v; }) : null,
-    sel('План: все', [['off', '📍 Нет на плане'], ['on', '🗺 На плане']], fPlan, (v) => { fPlan = v; }),
-    probs.points || fProb ? sel('Проблемы: все', probOpts, fProb, (v) => { fProb = v; }) : null);
+  const probIds = [...probs.byProblem.keys()];
+  const probOpts = [{ value: '__any', text: '⚠ С проблемами', kind: 'any', members: probIds, count: probs.points },
+    ...probIds.map((id) => ({ value: id, text: `Проблема: ${markName({ problemId: id }, state.ctx, lang() === 'he' ? 'he' : 'ru')}`, count: probs.byProblem.get(id) })).sort((a, b) => a.text.localeCompare(b.text, 'ru'))];
+  // vanished values are dropped silently (spec 7 § 1.5); only «Точки» prunes the shared sets, against the whole project
+  if (total.length) {
+    const f = sharedFilters();
+    [['cab', cabOpts, true], ['type', typeOpts, true], ['cfg', cfgOpts, false]].forEach(([key, opts, covering]) => ownSet(key, normalize(prune(f[key], opts), opts, { covering })));
+    fProb = prune(fProb, probOpts);
+  }
+  const active = () => { const f = sharedFilters();
+    return !!searchText.trim() || !!fPlan || fProb.size > 0 || !isOff(f.cab, cabOpts, { covering: true }) || !isOff(f.type, typeOpts, { covering: true }) || f.cfg.size > 0; };
+  // the tab may have been drawn again while a filter window was open (new data): then draw the current one
+  const refreshAll = () => { if (!list.isConnected) { ui.render(); return; } buttons.forEach((b) => b.refresh()); reset.refresh(); fill(); };
+  const shared = (key, title, allText, prefix, options, covering) => multiFilter({ title, allText, prefix, options: () => options, covering,
+    get: () => sharedFilters()[key], set: (s) => ownSet(key, s), onChange: refreshAll });
+  const cabF = shared('cab', 'Шкафы', 'Все шкафы', 'Шкафы', cabOpts, true);
+  const typeF = shared('type', 'Типы', 'Все типы', 'Типы', typeOpts, true);
+  const cfgF = cfgOpts.length ? shared('cfg', 'Конфигурации дверей', 'Все конфигурации дверей', 'Двери', cfgOpts, false) : null;
+  const probF = probs.points || fProb.size ? multiFilter({ title: 'Проблемы', allText: 'Проблемы: все', prefix: 'Проблемы', options: () => probOpts,
+    get: () => fProb, set: (s) => { fProb = s; }, onChange: refreshAll }) : null;
+  const buttons = [cabF, typeF, cfgF, probF].filter(Boolean);
+  const planSel = h('select', { class: 'mf-select', onchange: (e) => { fPlan = e.target.value; reset.refresh(); fill(); } },
+    ...[['', 'План: все'], ['off', '📍 Нет на плане'], ['on', '🗺 На плане']].map(([v, t]) => h('option', { value: v, selected: v === fPlan }, t)));
+  const reset = resetButton({ active, onReset: () => {
+    searchText = ''; search.value = ''; fPlan = ''; planSel.value = ''; fProb = new Set(); ownClear();
+    buttons.forEach((b) => b.refresh()); fill();
+  } });
+  const filters = h('div', { class: 'mf-bar' }, cabF.el, typeF.el, cfgF?.el, planSel, probF?.el);
+  liveMeter = { alive: () => list.isConnected, refresh: refreshAll };
   fill();
   return h('div', {},
     h('div', { class: 'btns', style: { marginTop: 0 } },
@@ -695,5 +726,5 @@ export function meterView(ui) {
     h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '10px 2px' } },
       h('span', { class: 'mut' }, `Точек: ${total.length} · с длиной: ${withLen}`),
       selMode ? null : h('button', { class: 'sec', style: { padding: '6px 12px' }, onclick: () => { selMode = true; ui.render(); } }, '☑ Выбрать')),
-    search, filters, bar, h('div', { style: { height: '10px' } }), list);
+    search, filters, reset.el, bar, h('div', { style: { height: '10px' } }), list);
 }

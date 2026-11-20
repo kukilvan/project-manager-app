@@ -1,7 +1,8 @@
 // Filter of points by door configuration for lists and the plan: «Без запирания», «Без конфигурации» and each configuration with its point count.
-// Reads the catalog from store.js and doorpool.js; door logic comes from src/domain.
+// Reads the catalog from store.js and doorpool.js; door logic comes from src/domain. cfgOptions/cfgSetMatch serve the several-value filter (spec 7 § 1.4).
 import { state } from './store.js';
 import { usesConfig, doorPartOf, doorCfgOf } from '../domain/index.js';
+import { anyOf } from '../domain/filters.js';
 import { allDoorCfgs } from './doorpool.js';
 
 const NOLOCK = '__nolock'; const NONE = '__none';
@@ -15,15 +16,19 @@ export function cfgMatch(f, p) {
   if (f === NOLOCK) { const c = doorCfgOf(p, state.ctx); return !!c && !hasLock(c); }
   return p.configId === f;
 }
-/** Filter options for a list of points: [[value, text]] (empty — no configurations, no filter needed) */
-export function cfgFilterOptions(points) {
+/** Several-value matching: an empty set passes all, otherwise any ticked value matches by cfgMatch */
+export const cfgSetMatch = (set, p) => anyOf(set, (v) => cfgMatch(v, p));
+/** Options of the several-value filter: [{ value, text, count }] in the order of cfgFilterOptions (empty — no configurations) */
+export function cfgOptions(points) {
   const all = allDoorCfgs(); const n = new Map(); let none = 0; let nolock = 0;
   points.forEach((p) => {
     if (p.configId) { n.set(p.configId, (n.get(p.configId) || 0) + 1); const c = doorCfgOf(p, state.ctx); if (c && !hasLock(c)) nolock++; }
     else if (isDoor(p)) none++;
   });
   if (!n.size && !none) return [];
-  const list = [...n].map(([id, k]) => [id, `${all.get(id)?.name || state.ctx.configs.get(id)?.name || id} (${k})`]).sort((a, b) => a[1].localeCompare(b[1], 'ru'));
-  return [...(nolock ? [[NOLOCK, `⚠ Без запирания (${nolock})`]] : []), ...(none ? [[NONE, `Без конфигурации (${none})`]] : []), ...list];
+  const list = [...n].map(([id, k]) => ({ value: id, text: all.get(id)?.name || state.ctx.configs.get(id)?.name || id, count: k })).sort((a, b) => a.text.localeCompare(b.text, 'ru'));
+  return [...(nolock ? [{ value: NOLOCK, text: '⚠ Без запирания', count: nolock }] : []), ...(none ? [{ value: NONE, text: 'Без конфигурации', count: none }] : []), ...list];
 }
+/** Filter options for a list of points: [[value, text]] (empty — no configurations, no filter needed) */
+export const cfgFilterOptions = (points) => cfgOptions(points).map((o) => [o.value, `${o.text} (${o.count})`]);
 export const cfgFilterValid = (f, points) => !f || cfgFilterOptions(points).some(([v]) => v === f);

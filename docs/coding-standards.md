@@ -97,3 +97,11 @@ One rule per item: the rule, why, how it is checked. Reviews check against this 
 **Why.** The English and Hebrew UI showed Russian for months; the owner's colleagues and managers read Hebrew.
 
 **Checked.** `tests/i18n-coverage.test.js` (part of `npm test`, so the deploy stops): every Russian string found by `scripts/i18n-extract.mjs` is translated in both dictionaries or listed in `not-ui.json`; an entry of `not-ui.json` that is no longer in `src/` fails it too.
+
+## 13. Point filters use `multiFilter`
+
+**Rule.** A filter of points by rack, type, door configuration, work, plan stage or problem is a `multiFilter` button (`src/app/views/multifilter.js`) with its rules in `src/domain/filters.js`, and a screen with filters gets `resetButton` under its filter row. No new single-value drop-down with an «all» text («Все шкафы», «Все типы», «Все конфигурации дверей», «Все работы», «Все этапы», «Проблемы: все») for point filters. Two-value choices such as «План: все» stay drop-downs.
+
+**Why.** Stage 7 (idea 007): the owner picks several racks or types at once; one control for every screen keeps the behaviour the same and the rules tested.
+
+**Checked.** `tests/filter-control.test.js` (rule 13): no file of `src/app/views/` outside `multifilter.js` builds such a drop-down, apart from an allow-list of the files still to convert (tickets 7.3–7.5 each remove theirs; ticket 7.5 leaves it empty) and `wizard.js`, whose «Все типы» filters catalog types, not points.

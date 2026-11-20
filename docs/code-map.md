@@ -71,6 +71,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/app/scan.js` — Barcode and QR scanner for a serial number / MAC: the live camera or a photo from the gallery.
 - `src/app/setup.js` — The «своя база Firebase» wizard: one step at a time, with «Открыть страницу» and «Проверить» buttons; the draft is kept on the device.
 - `src/app/shared.js` — The shared lists inside the app (ADR 0016): listens to pool_delayReasons, pool_culprits and pool_problems, merges the projects' old lists into the pool once and seeds empty lists with their defaults.
+- `src/app/sharedfilters.js` — Shared filters of «Точки» and «План»: the rack, type and door-configuration sets kept in memory per project while the app is open (spec 7 § 3).
 - `src/app/shell.js` — The shell: top bar, bottom bar of 5 tabs, the menu, screen switching, and the status badges (waiting to send, waiting to read, rejected by the server).
 - `src/app/start.js` — First launch of a clean app: welcome → home-screen icon (on a phone) → «Как будете работать»: on this device (no setup) or one's own Firebase database (the wizard), or joining by an invitation link.
 - `src/app/starter.js` — Seeds a new database (open edition) with the starter set of the shared pool on the administrator's first sign-in.
@@ -98,6 +99,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/app/views/manualsview.js` — «Инструкции» card in the guide: a list by section, adding (title, section, file) and viewing photos and PDFs inside the app.
 - `src/app/views/members.js` — Project members: names, invitations and removal (offering to undo the removed member's edits), plus the connect-link card.
 - `src/app/views/month.js` — «Месяц» screen: workdays of one month across all projects (date and place as in the daily report), with copy and send.
+- `src/app/views/multifilter.js` — The several-value point filter control: a button that opens a window with checkboxes, and the «✖ Сбросить фильтры» button (spec 7 § 1.7).
 - `src/app/views/ownworks.js` — Form field «Работы на точках» of the «Изменить» dialog (one point or a group, from «Точки», the plan or a rack): the works required now (from type, devices, cables) and an own set on top of them.
 - `src/app/views/pdfpick.js` — Modal picker for a drawing PDF: from this project, from Google Drive (the «Чертежи» folders of the app's projects) or from the device.
 - `src/app/views/planassign.js` — «🗺 Распределить на плане»: a modal where the marks of a drawing whose rack is unclear (one number exists in several racks) are assigned to racks.

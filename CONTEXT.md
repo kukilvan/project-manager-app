@@ -30,9 +30,9 @@ Per-point works on top of type, devices and cables: `[{ workId, qty, per? }]`, `
 
 **Door configuration** (code: `doorcfg`) — the kind of door (locking, accessories) giving composition and cables to a «Дверь» point.
 
-**Point filter** (UI: «Все шкафы», «Все типы», «Все конфигурации дверей», «Все работы»…) — narrows a list of points or the plan. From stage 7 (idea 007) a button opens a window with checkboxes: ticked values of one filter add up (rack FA or FC), different filters narrow each other; nothing ticked or everything ticked — the filter is off. «✖ Сбросить фильтры» clears a screen's filters and search. _Avoid_: selection (that is the points ticked for an action).
+**Point filter** (UI: «Все шкафы», «Все типы», «Все конфигурации дверей», «Все работы»…) — narrows a list of points or the plan. From stage 7 (idea 007) a button opens a window with checkboxes: ticked values of one filter add up (rack FA or FC), different filters narrow each other; nothing ticked — the filter is off, and for racks and types also everything ticked. «✖ Сбросить фильтры» clears a screen's filters and search. Code: `src/domain/filters.js` (rules), `src/app/views/multifilter.js` (button and window). _Avoid_: selection (that is the points ticked for an action).
 
-**Shared filters** (idea 007) — the rack, type and door-configuration filters that «Точки» and «План» share while the app is open, per project.
+**Shared filters** (idea 007; code: `src/app/sharedfilters.js`) — the rack, type and door-configuration filters that «Точки» and «План» share while the app is open, per project; kept in memory only, another project clears them.
 
 ## Work and reports
 

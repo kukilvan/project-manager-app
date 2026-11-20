@@ -81,6 +81,26 @@ table.sum td { padding: 6px 2px; }
 .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .btns button { flex: 1 1 140px; }
 .empty { text-align: center; color: var(--mut); padding: 30px 10px; }
+/* ---- several-value point filter (src/app/views/multifilter.js, spec 7 § 1.1–1.2) ---- */
+.mf-bar { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
+.mf-bar select.mf-select { width: auto; max-width: 190px; padding: 9px 11px; font-size: 14px; }
+button.mf { display: inline-flex; align-items: center; gap: 6px; max-width: 190px; padding: 9px 11px; font-size: 14px; font-weight: 500; }
+button.mf .mf-txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+button.mf .mf-arrow { flex: none; color: var(--mut); }
+button.mf.on { background: color-mix(in srgb, var(--acc) 22%, transparent); border-color: var(--acc); }
+button.mf-reset { display: block; margin: 8px 0 0; padding: 7px 11px; font-size: 14px; font-weight: 500; color: var(--err); border-color: var(--err); background: color-mix(in srgb, var(--err) 12%, transparent); }
+.mf-rows { max-height: 55vh; overflow-y: auto; overscroll-behavior: contain; }
+.mf-row { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.mf-row input { width: 22px; height: 22px; flex: none; margin: 0; padding: 0; }
+.mf-row .mf-t { min-width: 0; overflow-wrap: anywhere; }
+.mf-row .mf-n { margin-inline-start: auto; padding-inline-start: 8px; color: var(--mut); font-size: 13px; }
+.mf-row.group { font-weight: 600; }
+.mf-row.mode, .mf-row.any { color: var(--warn); }
+.mf-row.missing { opacity: .55; }
+.mf-head { font-size: 13px; color: var(--mut); text-transform: uppercase; letter-spacing: .04em; padding: 12px 4px 4px; }
+.mf-actions { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 12px; }
+.mf-actions button { padding: 10px 12px; }
+.mf-actions .mf-done { margin-inline-start: auto; }
 input[type=search] { width: 100%; }
 .group { z-index: 5; }
 
