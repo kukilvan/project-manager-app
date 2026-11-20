@@ -2,6 +2,11 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-20 — Ticket 7.1: test drawing ("Тикет 7.1")
+
+- `src/domain/testplan.js` (pure): `testPlanPdf()` builds a one-page 600 × 400 PDF (Helvetica 9 pt captions, grey rooms, true xref offsets and /Length), `testPlanData()` gives the drawing entry, 16 points of spec 7 § 6.3, journal edit rows, one problem mark, the standard electromagnet door configuration, one unlinked caption «X-99» and one hidden «X-98». `src/app/testplan.js` `startTestPlan()` creates the project «Test drawing», caches the PDF in `pz-drawings`, writes everything and opens «Точки»; `src/main.js` imports it dynamically only with `?mem=1&memPlan=1` (own chunk, checked in the build). `tests/testplan.test.js` (10 tests); tests 273 → 283.
+- Decisions: FB/G-01 also carries `HIV_DEV` so the plan has an early (FA/C-04) and a later gradient shade; FA/C-02 with only a length shows blue (planColor), not gray; FB/C-10 and FB/C-11 share one mark, so the button «Одинаковые точки в разном виде: 1» is expected. Walked in the browser pane at 420 px: all looks, the type filter lines «Не размеченые (1)» and «Скрытые (1)»; `?mem=1` alone unchanged. Owner checked on the PC: works.
+
 ## 2026-11-20 — Tickets 7: field improvements 2 («Тикеты 7»)
 
 - Seven tickets in `.scratch/07-field-improvements-2/issues/`: 01 test drawing (medium), 02 filter control, rules and «Точки» (complex), 03 plan filters (complex), 04 «Что осталось» filters and «Протяжки» (medium), 05 pickers (simple), 06 several works and pull by ticked cables (complex), 07 English names (medium). Order 01 → 02 → 03 → 04 → 05 → 06 → 07; 07 has no dependency.
