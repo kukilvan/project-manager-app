@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-21 — Review 7: stage 7 closed («Ревью 7»)
+
+- Reviewed commits `9b30097..77e7f13` (seven tickets) against spec 7, coding-standards rules 1–13 and the running app (`?mem=1&memPlan=1`, 420 px, Russian, English, Hebrew); 326/326 tests, build, code map and comment check pass. The owner checked the stage on the phone (spec 7 § 10, nine steps) and accepted it.
+- Two findings, both fixed now, no fix round: F1 KI-7 marked fixed for the catalog names (test in `tests/catalog-en.test.js`), still open for sentences built from parts; F2 the stage 4 data line in `docs/project-spec.md` names `nameEn` on project and pool items of the five kinds.
+- Checked and left: the missing-rack line reads «FC — нет на этом чертеже» without «Шкаф» (spec § 8 string); «Точки» follows the plan through the in-place listener instead of `ui.render()` on close; `remainingPreset` takes `ctx`; «Несколько работ» from a day screen also saves in one `repo.save`. Wishes: if a very large project feels slow, mark the «Точки» tab stale instead of refilling it while the plan filters change; stage 4 carries `nameEn`.
+
 ## 2026-11-21 — Ticket 7.7: English names of catalog items («Тикет 7.7»)
 
 - New optional `nameEn` («Название (English)», right after the Hebrew name) on works, point types, devices, cables (`settings.js`) and shared problems (`problems.js`); pure `nameEnPatch(value, existing)` and `ownNameMap(ctx)` in the new `src/domain/ownnames.js`: written only when not empty, `''` clears, no key for an item that never had one, so the pool fingerprint is unchanged. Door configurations get no field (D5). `pool.js` labels it «English» in the change list, `poolview.js` shows it.
