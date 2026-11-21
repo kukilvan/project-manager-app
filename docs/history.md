@@ -2,6 +2,13 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-21 — Ticket 7.6: «Что осталось» records several works («Тикет 7.6»)
+
+- Record button of `remainingModal` by spec 7 § 4.1: one recordable key — the one-work form, two or more — «✅ Записать выбранные работы (n)» opens «Несколько работ» (`addWorksForPoints` in `doh.js`) with the ticked points and works; only `s:` keys — disabled; `s:` keys besides others — a toast «Не записываются отсюда (старые точки): …»; `todayBlocked()` before the window closes. `batchForm(day, preset)`: the picker and works start from the preset, the pull line reads «<work> — только cat7, 6005», «Сохранить всё» writes the new day and all entries in one `repo.save`; nothing to write → «Записей добавлено: 0», no day.
+- D3 fixed: `pullGroups(..., onlyCables)` in `compose.js` keeps only the ticked cables (old points by their main cable); the one-work form gets `onlyCables` from «Что осталось», shows «Протяжка записывается только для кабеля {}», and drops the limit for good when the work type leaves «Протяжка».
+- `remainingPreset(tickedKeys, pointIds, ctx)` and `pullWorkOf(ctx)` in `src/domain/remaining.js` (takes `ctx`, not the catalog, because the pull work must apply to points through `workUsesPoints`); `p:` keys without a pull work by points count as not recordable. `singleWorkKey` removed. `tests/remaining-record.test.js` (presets, the pull limit on the test drawing's FB/K-01, entries of «Несколько работ» and of the one-work form read the same); tests 312 → 317.
+- Found and fixed: in English the pull line came out «Cable pull по точкам — only …» (the pattern «Протяжка {}» won over «{} — только {}»): the work name is translated with `tr()` on its own. Guide line 4 of § 8 and strings in three languages. Walked at 420 px in Russian, English and Hebrew (the pane's delayed taps land on sliding windows: buttons pressed through JS there); owner checked on the phone: works.
+
 ## 2026-11-21 — Ticket 7.5: pickers («Тикет 7.5»)
 
 - Points picker (`doh.js`): racks (when more than one value), types with group lines and door configurations are `multiFilter` buttons with counts; own sets, empty when the picker opens; search and sets cleared by the reset button under the row. Point chooser (`pointchooser.js`): types and racks («Без шкафа» included) as buttons; `choosePoint({ typeId })` opens with that type ticked (a full set counts as off); the reset also ticks «Только точки без места на чертеже» again. Panel dialog (`racks.js` `placeModal`): types as one button, plain types, opens with nothing ticked (was: a single type preselected); «Отметить все» ticks the shown points.
