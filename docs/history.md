@@ -2,6 +2,13 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-21 — Ticket 7.7: English names of catalog items («Тикет 7.7»)
+
+- New optional `nameEn` («Название (English)», right after the Hebrew name) on works, point types, devices, cables (`settings.js`) and shared problems (`problems.js`); pure `nameEnPatch(value, existing)` and `ownNameMap(ctx)` in the new `src/domain/ownnames.js`: written only when not empty, `''` clears, no key for an item that never had one, so the pool fingerprint is unchanged. Door configurations get no field (D5). `pool.js` labels it «English» in the change list, `poolview.js` shows it.
+- Display: `ctxNames` in `shell.js` now runs in English and gives `ownNameMap` to `addOwnNames` in `src/i18n/index.js`; `tr()` order in English is own names → dictionary → `extra` → patterns, so sentences with a name show them too; an own name keyed by a Latin id (cable «cat7») also works. Hebrew and Russian never read `nameEn`.
+- The seven example-problem texts left `not-ui.json` and got English and Hebrew; «по умолчанию (…)» in `shilutsettings.js` is two literals. Seed and starter pool unchanged (D4). Guide line 5 in «Справочники». `CONTEXT.md` and `docs/project-spec.md` updated.
+- Tests 317 → 326: `tests/catalog-en.test.js` (every built-in name in English with no Cyrillic, own names win in English, Hebrew order unchanged, patch and map rules, fingerprint); the `tr()` loader moved to `tests/i18n-loader.js`. Walked at 420 px in `?mem=1&memPlan=1` in English and Hebrew. KI-7 stays open until «Ревью 7».
+
 ## 2026-11-21 — Ticket 7.6: «Что осталось» records several works («Тикет 7.6»)
 
 - Record button of `remainingModal` by spec 7 § 4.1: one recordable key — the one-work form, two or more — «✅ Записать выбранные работы (n)» opens «Несколько работ» (`addWorksForPoints` in `doh.js`) with the ticked points and works; only `s:` keys — disabled; `s:` keys besides others — a toast «Не записываются отсюда (старые точки): …»; `todayBlocked()` before the window closes. `batchForm(day, preset)`: the picker and works start from the preset, the pull line reads «<work> — только cat7, 6005», «Сохранить всё» writes the new day and all entries in one `repo.save`; nothing to write → «Записей добавлено: 0», no day.
