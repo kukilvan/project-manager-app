@@ -19,7 +19,7 @@ Bugs decided not to fix now, and rare cases where the app can go wrong (source d
 | KI-4 | an editor's sort of the points sheet scatters section and empty rows | management sheet (Google Sheets), `src/domain/report.js` | open | — |
 | KI-5 | a working day and a day off on one date after offline edits on two devices | `src/app/views/doh.js` (day form checks), `src/domain/month.js` | open | — |
 | KI-6 | a conflicting Hebrew name merged into a shared list on two devices at once keeps the last write | `src/app/shared.js` (merge), `src/domain/shared.js` (`mergePlan`) | open | — |
-| KI-7 | the translation coverage test sees string literals, not sentences built from parts; catalog names show Russian in English | `tests/i18n-coverage.test.js`, catalogs (`src/domain/seed.js`, `src/domain/problems.js`, colours in `src/domain/rack.js`) | open | — |
+| KI-7 | the translation coverage test sees string literals, not sentences built from parts (the half «catalog names show Russian in English» is fixed) | `tests/i18n-coverage.test.js` | open (catalog names fixed) | stage 7, ticket 7.7 (catalog names) |
 | KI-8 | a database with rules older than stage 6 cannot read the shared lists: no merge, no seeding, no «rules out of date» toast, empty lists in a new project | `src/app/shared.js`, `listenPool` in `src/app/repo.js`, `firestore.rules` | open | — |
 
 ## Entries
@@ -90,10 +90,10 @@ Entry format:
 ## KI-7. The translation coverage test sees string literals, not sentences built from parts
 
 - Where: `tests/i18n-coverage.test.js` (through `scripts/i18n-extract.mjs`); the catalogs `src/domain/seed.js`, `src/domain/problems.js`, the colour names in `src/domain/rack.js`.
-- What's wrong: the test checks every Russian literal, so a sentence assembled at run time from pieces (`` `${label} ×${n}` ``, `` `${action}: ${name}` ``) passes while the screen can show a mix of Russian and the other language. Found on screen at ticket 6.7: a trailing « ×3» (fixed in `tr()`), the history rows «создал: Точка …» in Hebrew (fixed with `tr()` per part). Names that are data of a catalog (the example problems, the colour names) have a Hebrew name of their own but no English one, so the English UI shows them in Russian («default (зелёный)», the groups «Замок», «Доступ»).
-- How to reproduce: English UI → a point type, work or colour added to a catalog with a Russian name only; or any new sentence built with `+` or a template of translated parts without `tr()` on each part.
+- What's wrong: the test checks every Russian literal, so a sentence assembled at run time from pieces (`` `${label} ×${n}` ``, `` `${action}: ${name}` ``) passes while the screen can show a mix of Russian and the other language. Found on screen at ticket 6.7: a trailing « ×3» (fixed in `tr()`), the history rows «создал: Точка …» in Hebrew (fixed with `tr()` per part). Names that are data of a catalog (the example problems, the colour names) had a Hebrew name of their own but no English one, so the English UI showed them in Russian («default (зелёный)», the groups «Замок», «Доступ») — fixed, see Status.
+- How to reproduce: any new sentence built with `+` or a template of translated parts without `tr()` on each part. (An own catalog item without `nameEn` shows its Russian name in English by design, spec 7 § 5.2.)
 - Likelihood / impact: every new UI line built from parts; a few Russian words in a translated screen, nothing breaks.
-- Status: open
+- Status: open (catalog names fixed — test: «every built-in name reads in English with no Cyrillic letters» in `tests/catalog-en.test.js`; 2026-11-21, stage 7 ticket 7.7: example problems and colour names translated, own English names `nameEn`, review 7). The sentences-built-from-parts half stays open.
 - Found: 2026-11-19, screen check of ticket 6.7.
 
 ## KI-8. A database with rules older than stage 6 cannot read the shared lists
