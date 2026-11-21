@@ -23,6 +23,7 @@ function describe(kind, x, maps) {
   const nm = (k, id) => { const y = maps[k].get(id); return y ? nameOf(k, y) : id; };
   const rows = [];
   if (x.nameHe) rows.push(['Иврит', x.nameHe]);
+  if (x.nameEn) rows.push(['English', x.nameEn]);
   if (kind === 'types') {
     if (x.group) rows.push(['Группа', x.group]);
     rows.push(['Состав', (x.devices || []).map((d) => `${nm('devices', d.deviceId)}${d.count > 1 ? ` ×${d.count}` : ''}`).join(' + ') || '—']);

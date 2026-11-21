@@ -7,7 +7,7 @@ import { projectWizard } from './views/wizard.js';
 import { startPool } from './pool.js';
 import { seedStarterPool } from './starter.js';
 import { APP_NAME, connection, isLocal, setAdminEmail } from '../edition.js';
-import { LANGS, lang, setLang, addTranslations } from '../i18n/index.js';
+import { LANGS, lang, setLang, addTranslations, addOwnNames } from '../i18n/index.js';
 import { startManuals } from './manuals.js';
 import { startDoorPool } from './doorpool.js';
 import { startShared } from './shared.js';
@@ -22,7 +22,7 @@ import { membersView } from './views/members.js';
 import { PENDING } from './google.js';
 import { onPendingChange, onReadChange, readStatus, readsResetAt, setSnapProvider, rejectedList, onRejectedChange, dropRejected, onWriteWarn, DAILY_WRITE_LIMIT } from './repo.js';
 import { asText } from '../log.js';
-import { entryLine, rejectReason } from '../domain/index.js';
+import { entryLine, rejectReason, ownNameMap } from '../domain/index.js';
 import { makeWorker } from './views/tohnitview.js';
 import { assignOnPlan } from './views/planassign.js';
 // for browser checks (like window.__pz)
@@ -235,10 +235,12 @@ export function createShell({ user, onLogout, diag }) {
 
   window.addEventListener('online', () => { state.online = true; render(); });
   window.addEventListener('offline', () => { state.online = false; render(); });
-  // Hebrew: names from the project's catalogs (including those added by hand) are taken from their Hebrew fields
+  // Hebrew: names from the project's catalogs (including those added by hand) are taken from their Hebrew fields;
+  // English: the owner's own English names (`nameEn`) go first, the dictionary stays the fallback
   let lastCtx = null;
   const ctxNames = () => {
-    const c = state.ctx; if (!c || c === lastCtx || lang() !== 'he') return; lastCtx = c;
+    const c = state.ctx; if (!c || c === lastCtx || lang() === 'ru') return; lastCtx = c;
+    if (lang() === 'en') { addOwnNames(ownNameMap(c)); return; }
     const m = {};
     c.catalog?.forEach((x) => { if (x.name && x.nameHe) m[x.name] = x.nameHe; });
     c.types?.forEach((x) => { if (x.nameHe) m[x.id] = x.nameHe; });

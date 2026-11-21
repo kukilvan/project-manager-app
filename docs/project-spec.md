@@ -123,5 +123,5 @@ Runs now, before stage 4, while the NAS is being checked; the owner finishes the
 
 - Goal: the owner's next wishes from field work, starting with idea 007 (filed 2026-11-20); the description takes it in and asks the owner for more.
 - The owner sees at the end: several values in every point filter (for example two racks and three point types), a window with checkboxes behind each filter button, «✖ Сбросить фильтры» under the filters, the rack, type and door-configuration filters shared by «Точки» and «План» while the app is open, and «Что осталось» recording several ticked works at once through «Несколько работ» (idea 007); the English UI showing English names of catalog items (KI-7, catalog part); a test drawing in test mode (`?mem=1&memPlan=1`) for checking the plan (review-6 wish). Description: `.scratch/07-field-improvements-2/description.md`.
-- Data: filters live in memory. One new optional field, `nameEn`, on catalog items of the shared pool (types, works, devices, cables, door configurations, problems).
+- Data: filters live in memory. One new optional field, `nameEn`, on works, point types, devices, cables (project and shared pool) and on shared problems.
 - Sessions (est.): ≈ 8.

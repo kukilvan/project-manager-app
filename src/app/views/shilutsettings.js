@@ -66,7 +66,7 @@ export function shilutSettings(ui) {
       return h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', margin: '6px 0' } },
         colorChip(eff, ' '), h('span', { style: { flex: 1, minWidth: 0 } }, t),
         h('select', { style: { width: 'auto', maxWidth: '55%' }, onchange: (e) => { sh.typeColors[t] = e.target.value; draw(); } },
-          h('option', { value: '' }, `по умолчанию${def ? ` (${allColors().find((c) => c.id === def)?.ru})` : ' — без цвета'}`),
+          h('option', { value: '' }, def ? `по умолчанию (${allColors().find((c) => c.id === def)?.ru})` : 'по умолчанию — без цвета'),
           ...allColors().map((c) => h('option', { value: c.id, selected: c.id === cur }, `${c.ru} · ${c.he}`))));
     }) : [h('div', { class: 'mut' }, 'Нет точек с кабелями cat7')]),
     h('div', { class: 'btns' }, h('button', { class: 'sec', onclick: addColor }, '➕ Свой цвет…')));

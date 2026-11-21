@@ -144,6 +144,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/domain/merge.js` — Point merge: the same point recorded in two ways — a double «FC/B05-06» and singles «FC/B05» + «FC/B06» (the old drawing parsing split doubles into singles, the new one keeps them double).
 - `src/domain/month.js` — Month report: the sum of all daily reports of a month (RU) and «דוח חודשי» in Hebrew (section 5.2 of the technical specification).
 - `src/domain/openrules.js` — Derives the open-version Firestore rules from firestore.rules, so the two files never diverge.
+- `src/domain/ownnames.js` — Own English names of catalog items (`nameEn`, stage 7): what a form writes and the name → English map the translation layer lays over the English screen.
 - `src/domain/ownworks.js` — The own set of works on selected points (the point's or a group's «Изменить» window): what is required now and what to write into the point.
 - `src/domain/plan.js` — Drawing plan, the part shared by the app and the server: the color of a point (planColor), the plan legend, the drawing's points for the «PDF с номерами» and its fingerprint.
 - `src/domain/planfilters.js` — Pure rules of the plan's filters: the stage options of one drawing, several-value stage matching and the focus-point rule (spec 7 § 2.3).

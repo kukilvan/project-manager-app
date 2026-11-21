@@ -94,7 +94,7 @@ The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. 
 
 **Admin** (code: `meta/admin`) — the first user signed in to a database; runs the shared pool and the allowed e-mails. Members are otherwise equal. **Member** (code: `memberUids`, `invitedEmails`).
 
-**Shared pool** (code: `pool_*` collections; UI: «Общий пул») — reference lists (types, devices, cables, works, captions, manuals, door configs) shared by a database. **Starter pool** (code: `src/data/starter-pool.json`) — the pool a new database starts with.
+**Shared pool** (code: `pool_*` collections; UI: «Общий пул») — reference lists (types, devices, cables, works, captions, manuals, door configs) shared by a database; items carry `nameEn`, an optional English name. **Starter pool** (code: `src/data/starter-pool.json`) — the pool a new database starts with.
 
 **Management sheets** (code: `src/domain/report.js`, `src/app/managers.js`; UI: «Таблицы для руководства») — Google Sheets for management by **profile** (racks, types, statuses, columns), values only.
 

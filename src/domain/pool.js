@@ -66,7 +66,7 @@ export function changedFields(a = {}, b = {}) {
 // ---- a readable list of changes against the pool ----
 const KIND_ONE = { types: 'Тип', devices: 'Устройство', cables: 'Кабель', catalog: 'Работа' };
 const NEW_ONE = { types: 'Новый тип', devices: 'Новое устройство', cables: 'Новый кабель', catalog: 'Новая работа' };
-const FIELD = { name: 'Название', nameHe: 'Иврит', group: 'Группа', workType: 'Тип работы', unit: 'Единица', accounting: 'Учёт протяжки', scanId: 'Серийник/MAC',
+const FIELD = { name: 'Название', nameHe: 'Иврит', nameEn: 'English', group: 'Группа', workType: 'Тип работы', unit: 'Единица', accounting: 'Учёт протяжки', scanId: 'Серийник/MAC',
   active: 'Активна', defaultCable: 'Кабель по умолчанию', defaultCables: 'Кабелей на точку', stages: 'Этапы' };
 const show = (v) => (v === undefined || v === null || v === '' ? '—' : Array.isArray(v) ? (v.length ? v.join(', ') : '—') : v === true ? 'да' : v === false ? 'нет' : String(v));
 

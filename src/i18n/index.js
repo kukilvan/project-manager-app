@@ -2,6 +2,7 @@
 // The app code writes its texts in Russian; the translation is laid over the screen: each text is looked up in the dictionary
 // (an exact match or a pattern with «{}» in place of numbers and names). Data (points, works, types) is not changed.
 // Dictionaries are en.json and he.json (built from src/i18n/src/*.json); the language is kept in localStorage `pm.lang`.
+// In English the owner's own names (`nameEn`, addOwnNames) are looked up before the dictionary; Hebrew takes names from `extra` (addTranslations).
 import en from './en.json';
 import he from './he.json';
 
@@ -30,7 +31,7 @@ export const isRtl = () => lang() === 'he';
 // ---------- dictionary ----------
 const CYR = /[А-Яа-яЁё]/;
 const ICON = /^((?:\p{Extended_Pictographic}|[\d#*]️?⃣|[️‍]|[^\p{L}\p{N}\s«"(])+\s+)([\s\S]+)$/u;
-let exact = null; let patterns = null; let extra = new Map();
+let exact = null; let patterns = null; let extra = new Map(); let own = new Map();
 const esc = (s) => s.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/[{}]/g, (c) => `\\${c}`);
 function build() {
   const d = DICTS[lang()] || {};
@@ -51,18 +52,21 @@ function build() {
 /** Add translations on the fly (names from the catalogs: nameHe etc.) */
 export function addTranslations(map) { if (lang() === 'ru') return; extra = new Map([...extra, ...Object.entries(map)]); }
 
+/** The owner's own English names (`nameEn`: name → English), English screen only; they win over the dictionary. Replaces the previous map, so a cleared name goes away. */
+export function addOwnNames(map) { own = lang() === 'en' ? new Map(Object.entries(map || {})) : new Map(); }
+
 /** Translate a string (if there is no translation — return it as it is) */
 export function tr(s, depth = 0) {
-  if (lang() === 'ru' || typeof s !== 'string' || !CYR.test(s)) return s;
+  if (lang() === 'ru' || typeof s !== 'string' || !(CYR.test(s) || own.has(s.trim()))) return s;
   if (!exact) build();
   const lead = s.match(/^\s*/)[0]; const trail = s.match(/\s*$/)[0]; const core = s.trim();
   if (!core) return s;
-  const hit = exact.get(core) ?? extra.get(core);
+  const hit = own.get(core) ?? exact.get(core) ?? extra.get(core);
   if (hit !== undefined) return lead + hit + trail;
   if (depth > 8) return s;
   // an icon before the text («👋 Знакомство», «1️⃣ Шаг 1…»): translate the text without the icon
   const icon = core.match(ICON);
-  if (icon) { const hit2 = exact.get(icon[2]) ?? extra.get(icon[2]); if (hit2 !== undefined) return lead + icon[1] + hit2 + trail; }
+  if (icon) { const hit2 = own.get(icon[2]) ?? exact.get(icon[2]) ?? extra.get(icon[2]); if (hit2 !== undefined) return lead + icon[1] + hit2 + trail; }
   for (const p of patterns) {
     if (p.head && !core.startsWith(p.head)) continue;
     let m = core.match(p.re); if (!m) continue;
@@ -92,7 +96,7 @@ function doText(node) {
   if (o && o.out === cur) return;      // already translated
   // the «←» (back) button points the other way in right-to-left
   if (isRtl() && (cur === '←' || cur === '→')) { const out = cur === '←' ? '→' : '←'; orig.set(node, { src: cur, out }); node.nodeValue = out; return; }
-  if (!CYR.test(cur)) return;
+  if (!CYR.test(cur) && !own.has(cur.trim())) return;
   const out = tr(cur);
   if (out !== cur) { orig.set(node, { src: cur, out }); node.nodeValue = out; }
 }

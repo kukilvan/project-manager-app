@@ -11,7 +11,7 @@
 // - groupModal() — a shared group for several point types at once (for example all doors)
 // - refView() — the screen of one reference list; refreshApp() — reset the service worker and cache and reload
 // - settingsView() — the tab itself
-import { POOL_KINDS, usesOf, usesText, DOOR_PARTS, doorPartOf, DOOR_PART_NAMES, doorColorOf, choiceList, liveProblems } from '../../domain/index.js';
+import { POOL_KINDS, usesOf, usesText, DOOR_PARTS, doorPartOf, DOOR_PART_NAMES, doorColorOf, choiceList, liveProblems, nameEnPatch } from '../../domain/index.js';
 import { poolButton } from './poolview.js';
 import { isPoolAdmin } from '../pool.js';
 import { allGroups } from '../typegroups.js';
@@ -94,6 +94,7 @@ export const REFS = {
     fields: () => [
       { key: 'name', label: 'Название (русский)', required: true },
       { key: 'nameHe', label: 'Название (иврит)', required: true },
+      { key: 'nameEn', label: 'Название (English)', hint: 'Необязательно. Если указано, в английском интерфейсе показывается оно.' },
       { key: 'workType', label: 'Тип работы', type: 'select', required: true, options: WORK_TYPES.map((t) => ({ value: t, label: t })), emptyLabel: 'Выберите',
         hint: 'Установка — влияет на статус «Установлено»; Протяжка, Хивут, Проверка, Шилют — на этапы точки; Время и Доп. работа — только в отчёт.' },
       { key: 'unit', label: 'Единица измерения', type: 'select', required: true, options: opts(ctx().units, (u) => u.id), emptyLabel: 'Выберите' },
@@ -103,7 +104,7 @@ export const REFS = {
       { key: 'active', label: 'Показывать в списках', type: 'checkbox' },
     ],
     defaults: { multiplier: 1, active: true },
-    prepare: (v) => ({ name: v.name, nameHe: v.nameHe, workType: v.workType, unit: v.unit, multiplier: v.multiplier ?? 1, forTypes: v.forTypes || [],
+    prepare: (v, { existing } = {}) => ({ name: v.name, nameHe: v.nameHe, ...nameEnPatch(v.nameEn, existing), workType: v.workType, unit: v.unit, multiplier: v.multiplier ?? 1, forTypes: v.forTypes || [],
       isDoorComponent: !!v.isDoorComponent && v.workType === 'Установка', active: v.active !== false }),
     usage: (x) => usesOf(ctx(), 'catalog', x.id).reduce((n, u) => n + u.n, 0), uses: (x) => usesOf(ctx(), 'catalog', x.id),
   },
@@ -117,6 +118,7 @@ export const REFS = {
     fields: ({ existing, created } = {}) => {
       return [
         { key: 'nameHe', label: 'Название (иврит)', required: true },
+        { key: 'nameEn', label: 'Название (English)', hint: 'Необязательно. Если указано, в английском интерфейсе показывается оно.' },
         { key: 'group', label: 'Общая группа (для фильтров)', placeholder: 'например: Дверь', hint: `Типы с одной группой можно выбрать в фильтрах точек все вместе («▸ Все: Дверь»), каждый тип тоже остаётся в фильтре отдельно.${allGroups().length ? ` Уже есть: ${allGroups().join(', ')}.` : ''}` },
         qtyField('devices', 'Состав точки (устройства)', opts(ctx().devices, (d) => d.name), 'deviceId',
           { addLabel: '➕ Добавить устройство', empty: 'Пусто — состав можно дописать потом', ...creator('devices', '🆕 Новое устройство'),
@@ -132,7 +134,7 @@ export const REFS = {
     },
     defaults: {},
     toForm: (x) => ({ ...x, scanId: hasDeviceId(x), pointWorks: x.workIds || [], devices: Array.isArray(x.devices) ? x.devices : [], cables: Array.isArray(x.cables) ? x.cables : [] }),
-    prepare: (v) => ({ scanId: !!v.scanId, nameHe: v.nameHe, group: String(v.group || '').trim(), devices: v.devices || [], cables: v.cables || [], workIds: v.pointWorks || [] }),
+    prepare: (v, { existing } = {}) => ({ scanId: !!v.scanId, nameHe: v.nameHe, ...nameEnPatch(v.nameEn, existing), group: String(v.group || '').trim(), devices: v.devices || [], cables: v.cables || [], workIds: v.pointWorks || [] }),
     usage: (x) => [...ctx().points.values()].filter((p) => p.typeId === x.id).length,
   },
   cables: {
@@ -142,11 +144,12 @@ export const REFS = {
     line: (x) => [x.id, `${x.nameHe || '—'} · считается: ${x.accounting || '—'}${x.workIds?.length ? ` · работы: ${x.workIds.map((w) => nameOf('catalog', w)).join(', ')}` : ''}`],
     fields: () => [
       { key: 'nameHe', label: 'Название в отчёте (иврит)', required: true, hint: 'Например: כבל CAT7' },
+      { key: 'nameEn', label: 'Название (English)', hint: 'Необязательно. Если указано, в английском интерфейсе показывается оно.' },
       { key: 'accounting', label: 'Как считать протяжку', type: 'select', required: true, options: [{ value: 'Точки', label: 'По точкам' }, { value: 'Метры', label: 'По кабелям и метрам' }], emptyLabel: 'Выберите' },
       custom('workIds', 'Какие работы нужны каждому такому кабелю', taskWorks(), { hint: 'Например, cat7: хивут кистона, хивут в шкафу, проверка, шилют; 6005: хивут в шкафу. Протяжка учитывается всегда.', empty: 'Нет работ', ...creator('catalog', '🆕 Новая работа') }),
     ],
     defaults: {},
-    prepare: (v) => ({ nameHe: v.nameHe, accounting: v.accounting, workIds: v.workIds || [] }),
+    prepare: (v, { existing } = {}) => ({ nameHe: v.nameHe, ...nameEnPatch(v.nameEn, existing), accounting: v.accounting, workIds: v.workIds || [] }),
     usage: (x) => usesOf(ctx(), 'cables', x.id).reduce((n, u) => n + u.n, 0), uses: (x) => usesOf(ctx(), 'cables', x.id),
   },
   devices: {
@@ -157,6 +160,7 @@ export const REFS = {
     fields: () => [
       { key: 'name', label: 'Название (русский)', required: true },
       { key: 'nameHe', label: 'Название (иврит)', required: true },
+      { key: 'nameEn', label: 'Название (English)', hint: 'Необязательно. Если указано, в английском интерфейсе показывается оно.' },
       qtyField('cables', 'Кабели', opts(ctx().cables, (c) => c.id), 'cable', { addLabel: '➕ Добавить кабель', empty: 'Без кабеля', ...creator('cables', '🆕 Новый кабель'), hint: 'Работы самого кабеля (хивут, проверка, шилют) добавятся сами — они заданы в «Кабели».' }),
       custom('workIds', 'Работы устройства', taskWorks(), { hint: 'Обычно установка авизара; можно и другие (кивун, доп. работа). Серые галочки — работы его кабелей (уже есть, второй раз не нужны).', empty: 'Нет работ', locked: (v) => inheritedFromCables(ctx(), v.cables), ...creator('catalog', '🆕 Новая работа') }),
       { key: 'doorPart', label: 'Часть двери', type: 'select', emptyLabel: 'Авто (по названию)', options: [...DOOR_PARTS.map((p) => ({ value: p.key, label: p.name })), { value: 'none', label: 'Не для двери' }],
@@ -166,7 +170,7 @@ export const REFS = {
       { key: 'short', label: 'Коротко (в названии двери)', placeholder: 'например: ЭМ, коре, цофар', hint: 'Пусто — как обычно: ЭМ, МХ, коре, птиха, нипуц, магнит…' },
     ],
     defaults: {},
-    prepare: (v) => ({ name: v.name, nameHe: v.nameHe, cables: v.cables || [], workIds: v.workIds || [], doorPart: v.doorPart || null, short: String(v.short || '').trim() || null, color: v.color || null }),
+    prepare: (v, { existing } = {}) => ({ name: v.name, nameHe: v.nameHe, ...nameEnPatch(v.nameEn, existing), cables: v.cables || [], workIds: v.workIds || [], doorPart: v.doorPart || null, short: String(v.short || '').trim() || null, color: v.color || null }),
     usage: (x) => usesOf(ctx(), 'devices', x.id).reduce((n, u) => n + u.n, 0), uses: (x) => usesOf(ctx(), 'devices', x.id),
   },
   // entry to the «Конфигурации дверей» tab (the tab itself is drawn in doorcfgview.js)

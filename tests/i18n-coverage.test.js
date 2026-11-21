@@ -5,23 +5,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { pathToFileURL, fileURLToPath } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { collectStrings } from '../scripts/i18n-extract.mjs';
+import { loadTr } from './i18n-loader.js';
 
 const CYR = /[А-Яа-яЁё]/;
 const I18N = new URL('../src/i18n/', import.meta.url);
 const read = (f) => fs.readFileSync(new URL(f, I18N), 'utf8');
-
-/** tr() of src/i18n/index.js over the given dictionaries (the module imports JSON, so it is rewritten and loaded from a temp file) */
-async function loadTr(lang, en, he) {
-  globalThis.localStorage = { getItem: () => lang, setItem() {} };
-  const src = read('index.js')
-    .replace("import en from './en.json';", `const en = ${JSON.stringify(en)};`)
-    .replace("import he from './he.json';", `const he = ${JSON.stringify(he)};`);
-  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'i18n-cov-')), `i18n-${lang}.mjs`);
-  fs.writeFileSync(file, src);
-  return (await import(pathToFileURL(file).href)).tr;
-}
 
 /**
  * Strings of `list` that `tr` leaves in Russian. The guide strips a leading «• » / «# » of a line before showing it

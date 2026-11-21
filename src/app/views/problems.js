@@ -14,7 +14,7 @@ import { isPoolAdmin } from '../pool.js';
 import { lang } from '../../i18n/index.js';
 import {
   liveProblems, problemsForPoints, openProblemsOf, marksOf, markOps, solveOps, problemName, descText, markName, markDesc,
-  problemCounts, hasCyrillic, isOpenMark, isSystemType,
+  problemCounts, hasCyrillic, isOpenMark, isSystemType, nameEnPatch,
 } from '../../domain/index.js';
 
 // Names and descriptions in the UI language (Hebrew UI — Hebrew, otherwise Russian)
@@ -90,6 +90,7 @@ export function problemForm(existing) {
     fields: [
       { key: 'name', label: 'Название' },
       { key: 'nameHe', label: 'Название на иврите' },
+      { key: 'nameEn', label: 'Название (English)', hint: 'Необязательно. Если указано, в английском интерфейсе показывается оно.' },
       { key: 'types', label: 'Для типов точек (пусто — для всех)', type: 'custom', build: () => { ticks = typeTicks(existing?.types); return ticks; } },
       { key: 'descs', label: 'Готовые описания', type: 'custom', build: () => { descs = descRows(existing?.descs); return descs; } },
     ],
@@ -103,7 +104,7 @@ export function problemForm(existing) {
       const list = descs.get();
       if (!list) { toast('У описания нужны оба текста: русский и иврит'); return false; }
       const id = existing?.id || `pr_${newId(8)}`;
-      repo.savePool([{ coll: 'problems', id, data: { name, nameHe, types: ticks.get(), descs: list, deleted: false } }]);
+      repo.savePool([{ coll: 'problems', id, data: { name, nameHe, ...nameEnPatch(v.nameEn, existing), types: ticks.get(), descs: list, deleted: false } }]);
       toast('Сохранено в общем списке');
     },
   });
