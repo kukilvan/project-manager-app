@@ -6,13 +6,13 @@
 // - dayForm() — create and edit a day (one day per date, «🌴 Выходной» with a reason, a warning for a suspicious date)
 // - todayBlocked() — the check of the recording paths: today is a day off (here or in another project) — a message and nothing is written
 // - pointsPicker() — choose points with several-value filters by rack, type and door configuration
-// - entryForm() — one entry (one work): works that fit the chosen points, devices, quantities, delay, saving as several entries
-// - addWorkForPoints(), addWorkForPoint() — «add work to this point» as an entry of today
+// - entryForm() — one entry (one work): works that fit the chosen points, devices, quantities, delay, saving as several entries; a pull limited to some cables
+// - addWorkForPoints(), addWorkForPoint(), addWorksForPoints() — «add work to this point» as an entry of today; several works through «Несколько работ»
 // - markShilutForPoints(), releasePorts() — «Шилют поклеен» in one tap and the release of ports when such an entry is deleted
 // - syncJournal() — bring the journal rows of an entry in line with its points
-// - batchForm() — several works at once for the same points
+// - batchForm() — several works at once for the same points (with a preset from «Что осталось»: points, works, pull cables), written in one save
 // - dayScreen(), dohView() — the screen of one day and the tab itself
-import { lang as uiLang } from '../../i18n/index.js';
+import { lang as uiLang, tr } from '../../i18n/index.js';
 import { typeOptions as typeFilterItems } from '../typegroups.js';
 import { latinKey, choiceList } from '../../domain/index.js';
 import { rackPortsOf, stuckPortsOf } from '../../domain/rack.js';
@@ -219,6 +219,11 @@ function entryForm(day, entry, preset) {
   const catalog = [...ctx.catalog.values()].filter((w) => w.active !== false);
   const workOf = (v) => ctx.catalog.get(v.workId);
   const lock = !entry && !!preset?.lockPull;   // «Завершить протяжку»: the type and the work are not chosen — only pulling
+  // a pull from «Что осталось» records only the ticked cables (spec 7 § 4.2); changing the work type away from «Протяжка» drops the limit for good
+  let onlyCables = !entry && preset?.onlyCables?.length ? [...preset.onlyCables] : null;
+  const limitOn = (v) => !!onlyCables && v.workType === 'Протяжка';
+  // the cable of a point for the pull groups: with the limit, an old point is kept by its own main cable
+  const mainCableFor = (v) => (p) => (limitOn(v) ? infoOf(p).cable : (v.cableId || infoOf(p).cable));
   // what a point is waiting for: the work fits it and is not done yet (when editing an entry, its own work and points stay)
   const appl = (pt, w) => workApplicable(pt, ctx, w, infoOf);
   const ownPts = new Set(entry?.pointIds || []);
@@ -303,6 +308,11 @@ function entryForm(day, entry, preset) {
         optionsFn: (v) => catalog.filter((w) => w.workType === v.workType && workOk(w, v)).map((w) => ({ value: w.id, label: w.name })) },
       { key: 'pointIds', label: 'Точки', type: 'custom', visible: (v) => !isText(v) && hasPointsWork(v),
         build: (api) => { picker.bind(api.values, api.changed); return picker; } },
+      // the line under «Точки» while the pull limit is on; it drops the limit when the work type changes away from «Протяжка»
+      { key: 'pullOnly', label: '', type: 'custom', visible: (v) => limitOn(v) && effPts(v).length > 0, build: () => {
+        const el = h('div', { class: 'mut' }, onlyCables ? `Протяжка записывается только для кабеля ${onlyCables.join(', ')}` : '');
+        return { el, get: () => undefined, update: (v) => { if (onlyCables && v.workType && v.workType !== 'Протяжка') onlyCables = null; } };
+      } },
       { key: 'deviceIds', label: 'Устройства', type: 'custom', hint: 'Снимите галочку, если работа сделана не на всех устройствах точки.',
         visible: (v) => !isText(v) && devOpts(v).length > 1, build: () => devBox },
       { key: 'quantity', label: 'Количество', type: 'number', visible: (v) => !isText(v) && !!v.workId && !isTime(v) && !effPts(v).length && v.workType !== 'Протяжка' },
@@ -356,7 +366,7 @@ function entryForm(day, entry, preset) {
         if (entry && pointIds.length) {
           const added = pointIds.filter((id) => !(entry.pointIds || []).includes(id)).map((id) => ctx.points.get(id)).filter(Boolean);
           if (added.length) {
-            const done = v.workType === 'Протяжка' ? pullGroups(added, ctx, v.deviceIds, (p) => v.cableId || infoOf(p).cable).done
+            const done = v.workType === 'Протяжка' ? pullGroups(added, ctx, v.deviceIds, mainCableFor(v)).done
               : added.filter((p) => isDoneFor(p, v)).map((p) => p.label);
             if (done.length) { toast(`Уже отмечено другой записью: ${done.slice(0, 5).join(', ')}${done.length > 5 ? '…' : ''}`); return false; }
           }
@@ -372,7 +382,7 @@ function entryForm(day, entry, preset) {
       if (!entry && !isText(v) && pointIds.length) {
         const pts = pointIds.map((x) => ctx.points.get(x)).filter(Boolean);
         if (v.workType === 'Протяжка') {
-          const r = pullGroups(pts, ctx, v.deviceIds, (p) => v.cableId || infoOf(p).cable);
+          const r = pullGroups(pts, ctx, v.deviceIds, mainCableFor(v), limitOn(v) ? onlyCables : null);
           if (!r.groups.length) { toast(`Уже протянуто: ${r.done.join(', ')}`); return false; }
           if (r.done.length) toast(`Пропущено (уже протянуто): ${r.done.join(', ')}`);
           groups = r.groups;
@@ -421,6 +431,15 @@ export function addWorkForPoints(pointIds, preset = {}) {
   const day = daysSorted().find((d) => d.date === today)
     || { id: newId(), date: today, helper: p.helper, helperHe: p.helperHe, _new: true };
   entryForm(day, null, { ...preset, pointIds: [...pointIds] });
+}
+// several works on several points at once («Что осталось» with two or more ticked works): «Несколько работ» in today's day
+// (the day is created in the same save as the entries). preset: { workIds, pullCables } — spec 7 § 4.3
+export function addWorksForPoints(pointIds, preset = {}) {
+  if (todayBlocked()) return;
+  const p = currentProject(); const today = todayIso();
+  const day = daysSorted().find((d) => d.date === today)
+    || { id: newId(), date: today, helper: p.helper, helperHe: p.helperHe, _new: true };
+  batchForm(day, { ...preset, pointIds: [...pointIds] });
 }
 // «Шилют поклеен» in one tap (from the rack panel): records the work «Шилют» into today's day, without a form.
 // The work is chosen as in «Несколько работ»: for a point made of devices — the open task «Шилют», for old points — the work of the type «Шилют» for its type.
@@ -502,18 +521,25 @@ export function syncJournal(entryId, pointIds) {
 }
 
 // ---------- several works at once for the same points ----------
-function batchForm(day) {
+// preset (from «Что осталось», spec 7 § 4.3): { pointIds, workIds, pullCables } — the points in the picker, the works ticked,
+// a pull limited to these cables. Without a preset (the day screen's button) the form starts empty. Everything goes in one save.
+function batchForm(day, preset = null) {
   const repo = getRepo(); const pid = currentProject().id; const ctx = state.ctx;
+  const pullCables = preset?.pullCables?.length ? [...preset.pullCables] : null;
   // only points that still have something to do
   const anyOpen = (pt) => [...ctx.catalog.values()].some((w) => w.active !== false && w.workType !== 'Время' && workApplicable(pt, ctx, w, infoOf));
   const picker = pointsPicker({ fits: (pt) => anyOpen(pt) });
-  let selected = new Set();
+  if (preset?.pointIds) picker.set(preset.pointIds);
+  let selected = new Set(preset?.workIds || []);
   let box = null; let lastKey = '';
   const applicable = (ptIds) => {
     const pts = ptIds.map((id) => ctx.points.get(id)).filter(Boolean);
     if (!pts.length) return [];
     return [...ctx.catalog.values()].filter((w) => w.active !== false && w.workType !== 'Время' && pts.some((pt) => workApplicable(pt, ctx, w, infoOf)));
   };
+  // the pull work's line names the cables it is limited to: «Протяжка по точкам — только cat7, 6005»; the name is translated on its own,
+  // otherwise the screen translation takes the pattern «Протяжка {}» for the whole line and leaves «по точкам» Russian
+  const workText = (w) => (pullCables && w.workType === 'Протяжка' ? `${tr(w.name)} — только ${pullCables.join(', ')}` : w.name);
   const works = {
     el: (box = h('div', { class: 'picklist' }, h('div', { class: 'mut' }, 'Сначала выберите точки'))),
     get: () => [...selected],
@@ -526,7 +552,7 @@ function batchForm(day) {
       if (!list.length) { box.append(h('div', { class: 'mut' }, (v.pointIds || []).length ? 'Для этих точек нет доступных работ' : 'Сначала выберите точки')); return; }
       list.forEach((w) => {
         const cb = h('input', { type: 'checkbox', checked: selected.has(w.id), onchange: () => { cb.checked ? selected.add(w.id) : selected.delete(w.id); } });
-        box.append(h('label', { class: 'pickrow' }, cb, h('span', {}, w.name), h('small', {}, w.workType)));
+        box.append(h('label', { class: 'pickrow' }, cb, h('span', {}, workText(w)), h('small', {}, w.workType)));
       });
     },
   };
@@ -536,24 +562,33 @@ function batchForm(day) {
       { key: 'pointIds', label: 'Точки', type: 'custom', required: true, build: (api) => { picker.bind(api.values, api.changed); return picker; } },
       { key: 'workIds', label: 'Работы', type: 'custom', required: true, build: () => works },
     ],
+    values: { pointIds: preset?.pointIds },
     onSubmit: (v) => {
       const pts = v.pointIds.map((id) => ctx.points.get(id)).filter(Boolean);
-      let made = 0;
+      const ops = []; const made = [];
       v.workIds.forEach((wid) => {
         const w = ctx.catalog.get(wid); if (!w) return;
-        // pulling: a separate entry for each cable kind, only what is not pulled; other works — only where not done
+        // pulling: a separate entry for each cable kind, only what is not pulled (and only the preset's cables); other works — only where not done
         const groups = w.workType === 'Протяжка'
-          ? pullGroups(pts, ctx, null, (pt) => infoOf(pt).cable).groups
+          ? pullGroups(pts, ctx, null, (pt) => infoOf(pt).cable, pullCables).groups
           : [[undefined, pts.filter((pt) => workApplicable(pt, ctx, w, infoOf)).map((pt) => pt.id)]];
         groups.forEach(([cableId, ids]) => {
           if (!ids.length) return;
           const id = newId();
-          repo.save(pid, [{ coll: 'entries', id, data: { dayId: day.id, workType: w.workType, workId: w.id, pointIds: ids, cableId, result: w.workType === 'Проверка' ? 'Работает' : undefined } }]);
-          syncJournal(id, ids); made += 1;
+          ops.push({ coll: 'entries', id, data: { dayId: day.id, workType: w.workType, workId: w.id, pointIds: ids, cableId, result: w.workType === 'Проверка' ? 'Работает' : undefined } });
+          made.push([id, ids]);
         });
       });
+      if (!made.length) { toast('Записей добавлено: 0'); return undefined; }   // nothing waits any more: no entry and no new day
+      if (day._new) { // the day for today is created in the same save, exactly as the one-work form writes it
+        ops.unshift({ coll: 'days', id: day.id, data: { date: day.date, helper: day.helper || 'сам', helperHe: day.helperHe || 'сам' } });
+        day._new = false;
+      }
+      repo.save(pid, ops);
+      made.forEach(([id, ids]) => syncJournal(id, ids));
       bumpLastWork(day.date);
-      toast(`Записей добавлено: ${made}`);
+      toast(`Записей добавлено: ${made.length}`);
+      return undefined;
     },
   });
 }

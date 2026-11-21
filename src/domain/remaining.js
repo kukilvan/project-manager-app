@@ -1,7 +1,8 @@
-// «What is left»: the stages and works a point still lacks (taking the point type's stages into account), readiness by rack.
-// Built on pointInfo from status.js; pure. leftTasks feeds «Что осталось», the point card and the plan filter «Работа».
+// «What is left»: the stages and works a point still lacks (taking the point type's stages into account), readiness by rack, and what the record button records.
+// Built on pointInfo from status.js; pure. leftTasks feeds «Что осталось», the point card and the plan filter «Работа»; remainingPreset feeds the record button of «Что осталось».
 import { pointInfo } from './status.js';
 import { comparePoints } from './points.js';
+import { workUsesPoints } from './compose.js';
 
 export const REMAIN_STAGES = ['Дотянуть', 'Хивут', 'Установка', 'Проверка'];
 
@@ -84,4 +85,32 @@ export function readinessByCabinet(ctx) {
     r.total += 1; if (isFinished(p, ctx)) r.done += 1; by.set(k, r);
   });
   return [...by.values()].sort((a, b) => a.cabinet.localeCompare(b.cabinet, 'ru', { numeric: true }));
+}
+
+// The work a pull from «Что осталось» is recorded with: the first active catalog work of type «Протяжка» that applies to points
+// (`workUsesPoints`), so «Протяжка без точек» is never taken; null when the catalog has none.
+export function pullWorkOf(ctx) {
+  return [...ctx.catalog.values()].find((w) => w.workType === 'Протяжка' && w.active !== false && workUsesPoints(w, ctx)) || null;
+}
+
+// What the record button of «Что осталось» records for the ticked work keys (spec 7 § 4.1): `p:<cable>` and `w:<workId>` keys can be recorded,
+// `s:<stage>` keys of old points cannot (and `p:` keys neither when the catalog has no pull work by points).
+// → { mode: 'none' | 'one' | 'many', workIds, pullCables, left: [labels of the keys that cannot be recorded], pointIds, key, one }
+// mode follows the recordable keys only (the button text); with no ticked point the view keeps the button disabled.
+// workIds — every `w:` work plus the pull work once when a `p:` key is ticked; pullCables — the cables of the `p:` keys (null when none).
+// key and one — for mode 'one': the key and the preset of the one-work form (a pull gets `onlyCables` with its cable, § 4.2).
+export function remainingPreset(tickedKeys, pointIds, ctx) {
+  const keys = [...(tickedKeys || [])];
+  const pull = keys.some((k) => k.startsWith('p:')) ? pullWorkOf(ctx) : null;
+  const rec = keys.filter((k) => k.startsWith('w:') || (k.startsWith('p:') && pull));
+  const left = keys.filter((k) => !rec.includes(k)).map((k) => (k.startsWith('p:') ? `Протяжка ${k.slice(2)}` : k.slice(2)));
+  const cables = rec.filter((k) => k.startsWith('p:')).map((k) => k.slice(2));
+  const workIds = [...new Set([...rec.filter((k) => k.startsWith('w:')).map((k) => k.slice(2)), ...(cables.length ? [pull.id] : [])])];
+  const out = { mode: !rec.length ? 'none' : rec.length === 1 ? 'one' : 'many', workIds, pullCables: cables.length ? cables : null, left, pointIds: [...(pointIds || [])], key: null, one: null };
+  if (out.mode === 'one') {
+    const k = rec[0]; out.key = k;
+    out.one = k.startsWith('p:') ? { workType: 'Протяжка', workId: pull.id, cableId: k.slice(2), onlyCables: [k.slice(2)] }
+      : { workId: k.slice(2), workType: ctx.catalog.get(k.slice(2))?.workType };
+  }
+  return out;
 }

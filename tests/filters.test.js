@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   toggleValue, tickAll, clearAll, isOff, normalize, prune, buttonText, anyOf, groupState,
-  rackMatch, typeSetMatch, problemMatch, worksMatch, singleWorkKey, rackOptions,
+  rackMatch, typeSetMatch, problemMatch, worksMatch, rackOptions,
 } from '../src/domain/filters.js';
 import { nearestPoint } from '../src/domain/pull.js';
 
@@ -136,15 +136,6 @@ test('works matching («Что осталось»): any ticked key, empty passes
   assert.equal(worksMatch(S('w:INS', 'p:6005'), left), false);
   assert.equal(worksMatch(S('w:HIV'), []), false);
   assert.equal(worksMatch(S(), []), true);
-});
-
-test('record button key: exactly one w: / p: key ticked, else none (ticket 7.6 replaces it)', () => {
-  assert.equal(singleWorkKey(S()), null);
-  assert.equal(singleWorkKey(S('w:HIV')), 'w:HIV');
-  assert.equal(singleWorkKey(S('p:cat7')), 'p:cat7');
-  assert.equal(singleWorkKey(S('w:HIV', 'p:cat7')), null);
-  assert.equal(singleWorkKey(S('s:Хивут')), null, 'a stage of an old point cannot be recorded');
-  assert.equal(singleWorkKey(S('s:Хивут', 'w:HIV')), 'w:HIV');
 });
 
 test('racks of a pull: «Без шкафа» is an option and matches points with no rack', () => {

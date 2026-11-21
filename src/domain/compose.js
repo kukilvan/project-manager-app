@@ -253,8 +253,9 @@ export function openTasksFor(point, ctx, work, deviceIds) {
     && (!deviceIds?.length || t.deviceId === null || deviceIds.includes(t.deviceId)));
 }
 // Pull by points: one entry per cable kind, only what is not pulled yet.
-// mainCable(point) — the cable of an old-scheme point. → { groups: [[cableId, pointIds]], done: [labels of those already pulled] }
-export function pullGroups(points, ctx, deviceIds, mainCable) {
+// mainCable(point) — the cable of an old-scheme point. onlyCables — keep only the groups of these cables (spec 7 D3: a pull from «Что осталось»
+// records only the ticked cables); a point left in no group is listed in `done`. → { groups: [[cableId, pointIds]], done: [labels of those already pulled] }
+export function pullGroups(points, ctx, deviceIds, mainCable, onlyCables = null) {
   const m = new Map(); const done = [];
   const add = (cable, id) => { const k = cable || ''; if (!m.has(k)) m.set(k, []); if (!m.get(k).includes(id)) m.get(k).push(id); };
   points.forEach((p) => {
@@ -263,7 +264,13 @@ export function pullGroups(points, ctx, deviceIds, mainCable) {
     if (!open.length) { done.push(p.label); return; }
     open.forEach((t) => add(t.cable, p.id));
   });
-  return { groups: [...m.entries()].map(([c, ids]) => [c || undefined, ids]), done };
+  let groups = [...m.entries()].map(([c, ids]) => [c || undefined, ids]);
+  if (onlyCables) {
+    const keep = new Set(onlyCables); groups = groups.filter(([c]) => keep.has(c));
+    const inGroups = new Set(groups.flatMap(([, ids]) => ids));
+    points.forEach((p) => { if (!inGroups.has(p.id) && !done.includes(p.label)) done.push(p.label); });
+  }
+  return { groups, done };
 }
 
 // ---------- check of the reference lists for contradictions ----------

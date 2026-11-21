@@ -153,7 +153,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/domain/problems.js` — Problems on points (ADR 0017): which shared problems fit a point, the open and solved marks of a point, the write operations for marking and solving, labels and counts.
 - `src/domain/pull.js` — Cable pulls («Протяжки»): choose points on the plan → «до шкафа» (to the rack) → meters per point → checklist → finish (written into the daily report).
 - `src/domain/rack.js` — Racks and port labels: panel ports of cat7 points, the rack plan, automatic port assignment, label colors and caption texts.
-- `src/domain/remaining.js` — «What is left»: the stages and works a point still lacks (taking the point type's stages into account), readiness by rack.
+- `src/domain/remaining.js` — «What is left»: the stages and works a point still lacks (taking the point type's stages into account), readiness by rack, and what the record button records.
 - `src/domain/report.js` — Management sheets: profiles (what to show) and building the sheets (colour legend, update stamp, point rows, the last rack sheet «Итоги по шкафам») with values only, no formulas.
 - `src/domain/seed.js` — Starting reference lists for a new project: work catalog, point types, cables, devices, units, culprits and delay reasons (section 4 of the functional description).
 - `src/domain/shared.js` — Shared lists (delay reasons, culprits, problems — one list per database in the pool): the lookup view over the pool and a project's old list, what pickers offer, and the one-time merge plan.

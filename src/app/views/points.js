@@ -9,19 +9,19 @@
 // - generatorForm() — create points in a batch by a label pattern
 // - meterForm() — enter lengths point after point
 // - pointCard() — one point: details, problems, work history and actions (bindToPoint turns a plan mark into an existing point)
-// - remainingModal() — «Что осталось»: works still waiting for points, several-value filters; pick points and record a work
+// - remainingModal() — «Что осталось»: works still waiting for points, several-value filters; pick points and record one or several works
 // - renameForm(), bulkEditForm() — mass rename and mass change of the selected points
 // - meterView() — the «Точки» tab: the list with search, several-value filters (racks, types and door configurations shared with the plan, problems) and selection;
 //   showProblemPoints() opens it filtered to points with open problems
 import { h, formModal, openModal, confirmDialog, toast, qtyList, attachShortcuts } from '../ui.js';
 import { nav, state, getRepo, pointsSorted, infoOf, currentProject, subscribe } from '../store.js';
-import { generateLabels, generatedTotal, MAX_GENERATED, parseSuffixes, comparePoints, renameLabel, renameIssue, sameLabelClash, labelKey, inheritedFromCables, usesConfig, leftTasks, hasDeviceId, normalizeMac, findDuplicate , findSameGroups, cablesMismatch } from '../../domain/index.js';
+import { generateLabels, generatedTotal, MAX_GENERATED, parseSuffixes, comparePoints, renameLabel, renameIssue, sameLabelClash, labelKey, inheritedFromCables, usesConfig, leftTasks, remainingPreset, hasDeviceId, normalizeMac, findDuplicate , findSameGroups, cablesMismatch } from '../../domain/index.js';
 import { scanDevice } from '../scan.js';
 import { statusClass } from './project.js';
 import { hint } from './guide.js';
 import { doorCfgOf, doorCfgShort, isDoorCfg } from '../../domain/index.js';
 import { dateText, cablesText, missingDetails, isComposedType, isSystemType, UNSORTED_TYPE, cableOverrideFor } from '../../domain/index.js';
-import { addWorkForPoint, addWorkForPoints } from './doh.js';
+import { addWorkForPoint, addWorkForPoints, addWorksForPoints, todayBlocked } from './doh.js';
 import { whoIs } from './journal.js';
 import { unsortedModal } from './tohnitview.js';
 import { cablesField, cablesPicker } from './cablespick.js';
@@ -34,7 +34,7 @@ import { latinKey, choiceList, openProblemsOf, problemCounts, markName } from '.
 import { problemsBlock, problemButtons } from './problems.js';
 import { lang } from '../../i18n/index.js';
 import { cfgOptions, cfgSetMatch } from '../cfgfilter.js';
-import { rackMatch, typeSetMatch, problemMatch, prune, normalize, isOff, rackOptions, worksMatch, singleWorkKey } from '../../domain/filters.js';
+import { rackMatch, typeSetMatch, problemMatch, prune, normalize, isOff, rackOptions, worksMatch } from '../../domain/filters.js';
 import { sharedFilters, setShared, clearShared, onSharedChange } from '../sharedfilters.js';
 import { multiFilter, resetButton } from './multifilter.js';
 import { planModal } from './planmodal.js';
@@ -407,7 +407,7 @@ export function pointCard(startPoint, { fromPlan = false } = {}) {
 // the works still waiting on a point (src/domain/remaining.js), with the cached status
 const leftTasksOf = (point) => leftTasks(point, state.ctx, infoOf(point));
 // «Что осталось»: all works still waiting for the project's points (by each point's composition), with several-value filters by work, rack, type and door configuration, and a pull drop-down.
-// Tick points → «✅ Записать работу» (the report entry form with the chosen work and points; one ticked work at a time until ticket 7.6).
+// Tick points → record: one ticked work opens the report entry form, several open «Несколько работ» with those points and works (spec 7 § 4.1).
 export function remainingModal() {
   const ctx = state.ctx;
   // own filter sets, empty when the window opens (spec 7 § 2.2); the pull choice stays a two-value drop-down
@@ -450,18 +450,20 @@ export function remainingModal() {
     const rows = shown(); const ids = new Set(rows.map((r) => r.point.id));
     [...chosen].forEach((id) => { if (!ids.has(id)) chosen.delete(id); });
     const groups = new Map(); rows.forEach((r) => { const k = r.point.cabinet || ''; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); });
-    // the record button follows the works filter: exactly one `w:` / `p:` key ticked behaves as before; none or several — disabled.
-    // Ticket 7.6 replaces this by the several-works table of spec 7 § 4.1.
-    const wKey = singleWorkKey(fWork); const w = wKey ? counts.get(wKey) : null;
+    // the record button follows the works filter (spec 7 § 4.1): one recordable key — the one-work form, two or more — «Несколько работ»;
+    // `s:` keys of old points cannot be recorded from here (a toast names them when the form opens)
+    const ids2 = rows.map((r) => r.point.id).filter((id) => chosen.has(id));   // the ticked points in list order
+    const pre = remainingPreset(fWork, ids2, ctx);
+    const one = pre.mode === 'one' ? counts.get(pre.key) : null;
     bar.replaceChildren(h('b', { style: { alignSelf: 'center' } }, `Выбрано: ${chosen.size}`),
       h('button', { class: 'sec', onclick: () => { rows.forEach((r) => chosen.add(r.point.id)); fill(); } }, 'Все показанные'),
       h('button', { class: 'sec', onclick: () => { chosen.clear(); fill(); } }, 'Снять'),
-      h('button', { disabled: !chosen.size || !w, title: !w ? 'Сначала выберите работу в фильтре' : '', onclick: () => {
-        const preset = w.key.startsWith('p:') ? { workType: 'Протяжка', cableId: w.key.slice(2), workId: [...ctx.catalog.values()].find((x) => x.workType === 'Протяжка' && x.active !== false)?.id }
-          : { workId: w.key.slice(2), workType: ctx.catalog.get(w.key.slice(2))?.workType };
-        const ids2 = rows.map((r) => r.point.id).filter((id) => chosen.has(id));
-        close(); setTimeout(() => addWorkForPoints(ids2, preset), 60);
-      } }, w ? `✅ Записать «${w.label}» (${chosen.size})` : '✅ Записать работу'));
+      h('button', { disabled: !chosen.size || pre.mode === 'none', title: pre.mode === 'none' ? 'Сначала выберите работу в фильтре' : '', onclick: () => {
+        if (todayBlocked()) return;
+        if (pre.left.length) toast(`Не записываются отсюда (старые точки): ${pre.left.join(', ')} — запишите их в «Отчёты» → «Добавить работу»`);
+        close();
+        setTimeout(() => (pre.mode === 'one' ? addWorkForPoints(ids2, pre.one) : addWorksForPoints(ids2, { workIds: pre.workIds, pullCables: pre.pullCables })), 60);
+      } }, pre.mode === 'one' ? `✅ Записать «${one?.label ?? pre.key.slice(2)}» (${chosen.size})` : pre.mode === 'many' ? `✅ Записать выбранные работы (${chosen.size})` : '✅ Записать работу'));
     listBox.replaceChildren(h('div', { class: 'rem-total' }, rows.length ? h('span', {}, 'Точек: ', h('b', {}, rows.length), fWork.size ? ' — фильтр по работе' : '') : (all.length ? 'Ничего не найдено' : 'Всё сделано 🎉')),
       rows.length ? h('div', { class: 'rem-list' }, ...[...groups.entries()].flatMap(([cab, items]) => [
         h('div', { class: 'rem-group' }, h('span', {}, cab ? `Шкаф ${cab}` : 'Без шкафа'), h('span', { class: 'rem-count' }, items.length)),
