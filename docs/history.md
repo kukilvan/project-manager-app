@@ -4,7 +4,7 @@ Dated details of every accepted step, newest first. Read only when a session nee
 
 ## 2026-11-23 — Quick fix: «Только не протянутые» on by default («Правка: pull-meters»)
 
-- Step 1 of a pull (`src/app/views/pullview.js`) opens with «Только не протянутые» ticked, so pulled points are hidden from the plan, «Все видимые» and the frame; untick it to see all. «✖ Сбросить фильтры» returns it to ticked and shows up when it is unticked. Search still finds a pulled point. Guide line updated in three languages.
+- Checked by the owner on the phone. Step 1 of a pull (`src/app/views/pullview.js`) opens with «Только не протянутые» ticked, so pulled points are hidden from the plan, «Все видимые» and the frame; untick it to see all. «✖ Сбросить фильтры» returns it to ticked and shows up when it is unticked. Search still finds a pulled point. Guide line updated in three languages.
 
 ## 2026-11-23 — Quick fix: a pull takes the card length by itself («Правка: pull-meters»)
 
