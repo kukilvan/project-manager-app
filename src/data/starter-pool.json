@@ -1,7 +1,7 @@
 {
  "format": "polevoy-starter-pool-1",
- "createdAt": "2026-11-16T19:18:56.662Z",
- "from": "2026-11-15_1546",
+ "createdAt": "2026-11-23T20:54:39.223Z",
+ "from": "2026-11-23_2027",
  "pool": {
   "types": [
    {
@@ -1342,6 +1342,30 @@
     ]
    },
    {
+    "id": "W_kh6lr8",
+    "multiplier": 1,
+    "active": true,
+    "unit": "мин",
+    "deleted": false,
+    "isDoorComponent": false,
+    "nameHe": "‏משיכת כבל עד המקום",
+    "name": "Затяжка кабеля",
+    "workType": "Время",
+    "forTypes": []
+   },
+   {
+    "id": "W_lawvm2",
+    "multiplier": 1,
+    "active": true,
+    "unit": "шт",
+    "deleted": false,
+    "isDoorComponent": false,
+    "nameHe": "‏התקנת קופסת תקשורת",
+    "name": "Установка тикшоретной коробки",
+    "workType": "Доп. работа",
+    "forTypes": []
+   },
+   {
     "id": "W_poa7cm",
     "multiplier": 1,
     "active": true,
@@ -1360,6 +1384,30 @@
      "Камера",
      "Коре биометри"
     ]
+   },
+   {
+    "id": "W_sbwydw",
+    "multiplier": 1,
+    "active": true,
+    "unit": "шт",
+    "deleted": false,
+    "isDoorComponent": false,
+    "nameHe": "‏התקנת פנל",
+    "name": "Установка панели",
+    "workType": "Установка",
+    "forTypes": []
+   },
+   {
+    "id": "W_tghoc9",
+    "multiplier": 1,
+    "active": true,
+    "unit": "шт",
+    "deleted": false,
+    "isDoorComponent": false,
+    "nameHe": "‏התקנת קופסת תקשורת",
+    "name": "Установка тикшоретной коробки",
+    "workType": "Доп. работа",
+    "forTypes": []
    }
   ],
   "doorcfg": [
@@ -1760,6 +1808,167 @@
     ],
     "kind": "door",
     "name": "МХ · биометри · магнит · 6005×3 + cat7×1"
+   }
+  ],
+  "delayReasons": [
+   {
+    "id": "Другое",
+    "deleted": false,
+    "he": "אחר"
+   },
+   {
+    "id": "Ждём другую бригаду",
+    "deleted": false,
+    "he": "ממתין לצוות"
+   },
+   {
+    "id": "Не работает замок",
+    "deleted": false,
+    "he": "‏מנעול לא עובד"
+   },
+   {
+    "id": "Нет замка",
+    "deleted": false,
+    "he": "‏אין מנעול"
+   },
+   {
+    "id": "Нет инфраструктуры",
+    "deleted": false,
+    "he": "אין תשתית"
+   },
+   {
+    "id": "Нет кабеля",
+    "deleted": false,
+    "he": "אין כבל"
+   },
+   {
+    "id": "Нет оборудования",
+    "deleted": false,
+    "he": "אין ציוד"
+   },
+   {
+    "id": "Нет таалы",
+    "deleted": false,
+    "he": "אין תעלה"
+   },
+   {
+    "id": "Нет трубы",
+    "deleted": false,
+    "he": "אין צינור"
+   },
+   {
+    "id": "Нет электричества",
+    "deleted": false,
+    "he": "אין חשמל"
+   },
+   {
+    "id": "Отменена",
+    "deleted": false,
+    "he": "‏בוטל"
+   },
+   {
+    "id": "Столы",
+    "deleted": false,
+    "he": "שולחנות"
+   }
+  ],
+  "culprits": [
+   {
+    "id": "Другие подрядчики",
+    "deleted": false,
+    "he": "קבלנים אחרים"
+   },
+   {
+    "id": "Заказчик",
+    "deleted": false,
+    "he": "המזמין"
+   },
+   {
+    "id": "Менахель проекта",
+    "deleted": false,
+    "he": "מנהל הפרויקט"
+   },
+   {
+    "id": "Мы",
+    "deleted": false,
+    "he": "הצוות שלנו"
+   },
+   {
+    "id": "Никто",
+    "deleted": false,
+    "he": "ללא"
+   },
+   {
+    "id": "Поставка / склад",
+    "deleted": false,
+    "he": "אספקה / מחסן"
+   },
+   {
+    "id": "Электрики",
+    "deleted": false,
+    "he": "חשמלאים"
+   }
+  ],
+  "problems": [
+   {
+    "id": "pr_access",
+    "descs": [
+     {
+      "id": "d_noaccess",
+      "ru": "Нет доступа в помещение",
+      "he": "אין גישה לחדר"
+     }
+    ],
+    "types": [],
+    "deleted": false,
+    "nameHe": "גישה",
+    "name": "Доступ"
+   },
+   {
+    "id": "pr_cable",
+    "types": [],
+    "deleted": false,
+    "nameHe": "כבל",
+    "name": "Кабель",
+    "descs": [
+     {
+      "id": "d_damaged",
+      "ru": "Кабель повреждён",
+      "he": "כבל פגום"
+     },
+     {
+      "id": "d_short",
+      "ru": "Кабель не дотянут",
+      "he": "הכבל לא הושחל עד הסוף",
+      "deleted": true
+     }
+    ]
+   },
+   {
+    "id": "pr_magnet",
+    "descs": [
+     {
+      "id": "d_notdrilled",
+      "ru": "Не просверлены двери",
+      "he": "הדלתות לא קדוחות"
+     }
+    ],
+    "types": [
+     "Дверь"
+    ],
+    "deleted": false,
+    "nameHe": "מגנט חיווי",
+    "name": "Магнит индикация"
+   },
+   {
+    "id": "pr_oa972hlr",
+    "descs": [],
+    "types": [
+     "Дверь"
+    ],
+    "deleted": false,
+    "nameHe": "‏מנעול לא עובד",
+    "name": "Замок не работает"
    }
   ]
  }
