@@ -2,6 +2,10 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-23 — Quick fix: a pull takes the card length by itself («Правка: pull-meters»)
+
+- The owner: chosen points that already had a length in their card showed «без метража» and «Метраж: 0 из N» in «Протяжки»; the card length was taken only after «✓ Оставить из карточки» on each point. Now `reconcilePull` (`src/domain/pull.js`) also gives every unmeasured, not pulled point with a card length «kept from the card» (total as in the card, «до шкафа» not added); it runs when a pull opens, in the pull list and whenever points are added or removed in step 1 (`toggle` in `src/app/views/pullview.js`). A different length can still be entered over it. Test in `tests/pull.test.js`, a guide line in «Шаг 3. Протяжка».
+
 ## 2026-11-21 — Review 7: stage 7 closed («Ревью 7»)
 
 - Reviewed commits `9b30097..77e7f13` (seven tickets) against spec 7, coding-standards rules 1–13 and the running app (`?mem=1&memPlan=1`, 420 px, Russian, English, Hebrew); 326/326 tests, build, code map and comment check pass. The owner checked the stage on the phone (spec 7 § 10, nine steps) and accepted it.

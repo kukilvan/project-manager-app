@@ -148,6 +148,24 @@ test('reconcilePull: длину в карточке стёрли или поме
   assert.equal(reconcilePull(r2, (id) => pts[id]), r2);   // a repeat changes nothing
 });
 
+test('reconcilePull: у выбранной точки уже есть длина в карточке — протяжка берёт её сама', async () => {
+  const { reconcilePull, pullTotal, isMeasured, pullStatus } = await import('../src/domain/pull.js');
+  const pull = { pointIds: ['a', 'b', 'c', 'd'], base: 10, meters: [], kept: [], finished: ['d'] };
+  const pts = { a: { id: 'a', length: 35 }, b: { id: 'b', length: '42' }, c: { id: 'c' }, d: { id: 'd', length: 50 } };
+  assert.equal(pullStatus(pull), 'Завершена частично');
+  const fresh = { ...pull, finished: [] };
+  assert.equal(pullStatus(fresh), 'Точки выбраны');
+  const r = reconcilePull(fresh, (id) => pts[id]);
+  assert.equal(pullTotal(r, 'a'), 35);       // the card total as it is, «до шкафа» not added
+  assert.equal(pullTotal(r, 'b'), 42);       // a length stored as text
+  assert.equal(isMeasured(r, 'c'), false);   // no length in the card — still to be measured
+  assert.equal(pullStatus(r), 'Частично есть метраж');
+  assert.equal(reconcilePull(r, (id) => pts[id]), r);   // a repeat changes nothing
+  pts.c.length = 0;                          // 0 written in the card is a length too
+  assert.equal(pullTotal(reconcilePull(r, (id) => pts[id]), 'c'), 0);
+  assert.equal(isMeasured(reconcilePull(pull, (id) => pts[id]), 'd'), false);   // a pulled point is not touched
+});
+
 test('hasCablesOf: у точки без кабеля метраж не нужен', async () => {
   const { hasCablesOf } = await import('../src/domain/compose.js');
   const ctx = { types: new Map([['Камера', { id: 'Камера', defaultCable: 'cat7', defaultCables: 1 }]]), cabinetSettings: [], devices: new Map(), cables: new Map(), catalog: new Map(), doorcfgs: new Map() };

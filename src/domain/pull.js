@@ -22,17 +22,20 @@ export function pullTotal(pull, id) {
   const m = val(pull, 'meters', id); if (m == null) return null;
   return (Number(pull.base) || 0) + Number(m);
 }
-/** The metrage in the pull and the length in the point's card must match. If the length in the card was erased or changed after it was entered in the pull,
- *  the card is the truth: erased → the point is «without metrage» again; changed → the pull gets «kept from the card» with the new total.
+/** The metrage in the pull and the length in the point's card must match; the card is the truth. A point with no metrage in the pull whose card has a length
+ *  gets it as «kept from the card» (chosen points that already have meters need no input). If the length in the card was erased or changed after it was entered
+ *  in the pull: erased → the point is «without metrage» again; changed → the pull gets «kept from the card» with the new total.
  *  Pulled (finished) points are not touched. Returns the same pull if there is nothing to change. */
 export function reconcilePull(pull, pointOf) {
   if (!pull) return pull;
   const fin = new Set(pull.finished || []); const m = pairsToMap(pull.meters); const k = pairsToMap(pull.kept); let changed = false;
   for (const id of ids(pull)) {
-    if (fin.has(id) || (m[id] == null && k[id] == null)) continue;
+    if (fin.has(id)) continue;
     const pt = pointOf(id); if (!pt) continue;
-    const len = pt.length; const total = pullTotal(pull, id);
-    if (len === undefined || len === null || len === '' || Number.isNaN(Number(len))) { delete m[id]; delete k[id]; changed = true; }
+    const len = pt.length; const noLen = len === undefined || len === null || len === '' || Number.isNaN(Number(len));
+    if (m[id] == null && k[id] == null) { if (!noLen) { k[id] = Number(len); changed = true; } continue; }   // the card already has the metrage
+    const total = pullTotal(pull, id);
+    if (noLen) { delete m[id]; delete k[id]; changed = true; }
     else if (Number(len) !== total) { delete m[id]; k[id] = Number(len); changed = true; }
   }
   return changed ? { ...pull, meters: mapToPairs(m), kept: mapToPairs(k) } : pull;

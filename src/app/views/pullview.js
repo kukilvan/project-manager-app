@@ -152,7 +152,12 @@ export async function openPull(id) {
   let fType = new Set(); let fCab = new Set(); let fCfg = new Set(); let onlyOpen = false; let rectSel = false; let focusId = P.curId || null;
   const visible = () => sheetPts().filter((p) => typeSetMatch(fType, p) && cfgSetMatch(fCfg, p) && rackMatch(fCab, p) && (!onlyOpen || !infoOf(p).pulled));
   const selSet = () => new Set(P.pointIds || []);
-  const toggle = (list, on) => { const s = selSet(); list.forEach((p) => (on ? s.add(p.id) : s.delete(p.id))); set({ pointIds: [...s] }); };
+  // chosen points whose card already has a length get it as «kept from the card» (reconcilePull)
+  const toggle = (list, on) => {
+    const s = selSet(); list.forEach((p) => (on ? s.add(p.id) : s.delete(p.id)));
+    const r = reconcilePull({ ...P, pointIds: [...s] }, (x) => ctx().points.get(x));
+    set({ pointIds: r.pointIds, meters: r.meters, kept: r.kept });
+  };
 
   const viewer = createViewer({ wk, pages: o.pages, height: '60vh', dim: () => (P.screen === 'measure' ? 0.35 : 1), rectMode: () => P.screen === 'select' && rectSel,
     onRect: (b, page) => { toggle(visible().filter((p) => (p.pos.page || 0) === page && p.pos.x >= b[0] && p.pos.x <= b[2] && p.pos.y >= b[1] && p.pos.y <= b[3]), true); screen(); },
