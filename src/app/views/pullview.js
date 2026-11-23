@@ -149,7 +149,7 @@ export async function openPull(id) {
   catch (e) { body.replaceChildren(h('div', { class: 'empty' }, `Чертёж не открылся: ${e.message}`)); return; }
 
   // selection filters
-  let fType = new Set(); let fCab = new Set(); let fCfg = new Set(); let onlyOpen = false; let rectSel = false; let focusId = P.curId || null;
+  let fType = new Set(); let fCab = new Set(); let fCfg = new Set(); let onlyOpen = true; let rectSel = false; let focusId = P.curId || null;   // «Только не протянутые» is on by default
   const visible = () => sheetPts().filter((p) => typeSetMatch(fType, p) && cfgSetMatch(fCfg, p) && rackMatch(fCab, p) && (!onlyOpen || !infoOf(p).pulled));
   const selSet = () => new Set(P.pointIds || []);
   // chosen points whose card already has a length get it as «kept from the card» (reconcilePull)
@@ -210,7 +210,7 @@ export async function openPull(id) {
     const typeF = mf('Типы', 'Все типы', 'Типы', typeOpts, () => fType, (s) => { fType = s; }, true);
     const cfgF = cfgOpts.length ? mf('Конфигурации дверей', 'Все конфигурации дверей', 'Двери', cfgOpts, () => fCfg, (s) => { fCfg = s; }, false) : null;
     const cabF = cabOpts.some((o) => o.value !== '__none') ? mf('Шкафы', 'Все шкафы', 'Шкафы', cabOpts, () => fCab, (s) => { fCab = s; }, true) : null;
-    const reset = resetButton({ active: () => !!(fType.size || fCfg.size || fCab.size || onlyOpen), onReset: () => { fType = new Set(); fCfg = new Set(); fCab = new Set(); onlyOpen = false; screen(); } });
+    const reset = resetButton({ active: () => !!(fType.size || fCfg.size || fCab.size || !onlyOpen), onReset: () => { fType = new Set(); fCfg = new Set(); fCab = new Set(); onlyOpen = true; screen(); } });
     const search = h('input', { type: 'search', placeholder: 'Найти точку и добавить', style: { flex: 1, minWidth: '140px' }, onchange: (e) => {
       const q = e.target.value.trim().toLowerCase(); if (!q) return;
       const p = pts.find((x) => latinKey(x.label) === latinKey(q)) || pts.find((x) => latinKey(x.label).includes(latinKey(q)));
