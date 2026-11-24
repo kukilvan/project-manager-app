@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-24 — Description 8: stage 8 described («Описание 8»)
+
+- `.scratch/08-field-improvements-3/description.md` accepted, with the rough mockup `mockups/catalog-work.html` (catalog list mark « · не в цвете плана», the box in the work's edit window, plan colour before and after). Takes in ideas 008 and 009 as written; their status lines point to the description.
+- Owner's decisions: no work is unticked by default — the owner unticks the rack termination per project (replaces the idea's `HIV_DEV` default; its live pool name is «Хивут в шкафа бакары»); the box is a project setting, not stored or compared by the shared pool, and a pool update never changes it; no other wishes for the stage. Agent: test mode uses the same `pz.planView.<projectId>` key (test projects have their own ids).
+- No open KI fits the stage. `docs/project-spec.md`: stage 8 lines corrected, stage 4 data line for `planColour` on project works only; the stage 4 line of the Next step too. Next: «Спека 8».
+
 ## 2026-11-23 — Quick fix: «Только не протянутые» on by default («Правка: pull-meters»)
 
 - Checked by the owner on the phone. Step 1 of a pull (`src/app/views/pullview.js`) opens with «Только не протянутые» ticked, so pulled points are hidden from the plan, «Все видимые» and the frame; untick it to see all. «✖ Сбросить фильтры» returns it to ticked and shows up when it is unticked. Search still finds a pulled point. Guide line updated in three languages.
