@@ -738,6 +738,8 @@ test('общий пул типов: тип из пула переносится 
   const ops = addBundleOps(ctx, pool.get('Лахцан птиха'));
   assert.ok(ops.some((o) => o.coll === 'types' && o.id === 'Лахцан птиха'));
   assert.ok(ops.some((o) => o.coll === 'devices' && o.id === 'DV_LPTIHA'));
+  // an item the project deleted comes back: the write carries deleted: false (project writes merge; review 8 F4)
+  assert.ok(ops.every((o) => o.data.deleted === false));
   // my pool: a type from the project (with its composition) replaces the standard one
   const ctx2 = make({ devices: [{ id: 'DV_X', name: 'Прибор X', cables: [{ cable: 'cat7', count: 2 }], workIds: [] }],
     types: [...POINT_TYPES, { id: 'Камера', nameHe: 'מצלמה', devices: [{ deviceId: 'DV_X', count: 1 }], cables: [], workIds: [] }] });

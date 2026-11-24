@@ -184,6 +184,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
 
   async function show(d) {
     flushView(); current = d; wk?.stop(); wk = makeWorker(); sel.clear(); selMode = false; temp = null; doorCur = null;
+    let settled = false;  // false until the view is chosen below: the fit of start() and a page load on the way must not replace the remembered view
     const status = h('div', { class: 'mut', style: { margin: '6px 0' } }, 'Открываю чертёж…');
     const perf = h('div', { class: 'mut', style: { fontSize: '12px', margin: '0 0 4px' } });
     const holder = h('div', {}); body.replaceChildren(status, perf, holder);
@@ -212,7 +213,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
         return Math.max(0, Math.hypot(x - pos.x, y - pos.y) - Math.max(pos.w || 8, pos.h || 8) / 2 - pad); };
       const nearest = (list, getPos, x, y, page) => { let best = null; let bd = Infinity; for (const it of list) { const pos = getPos(it); if ((pos.page || 0) !== page) continue; const dd = hitDist(pos, x, y); if (dd < bd) { bd = dd; best = it; } } return bd === 0 ? best : null; };
       viewer = createViewer({ wk, pages: o.pages, height: '62vh', dim: () => (dimDrawing ? 0.35 : 1), rectMode: () => selMode && rectSel,
-        onView: () => { if (current !== d) return; const c = viewer?.centre(); if (c) queueView(d.id, c); },
+        onView: () => { if (current !== d || !settled) return; const c = viewer?.centre(); if (c) queueView(d.id, c); },
         onRect: (b, page) => { pts().filter((p) => lit(p) && (p.pos.page || 0) === page && p.pos.x >= b[0] && p.pos.x <= b[2] && p.pos.y >= b[1] && p.pos.y <= b[3]).forEach((p) => sel.add(p.id)); selBar(); viewer.draw(); },
         onTap: (x, y, page) => {
           if (tool === 'doors') { const p = nearest(doorPts(), (q) => q.pos, x, y, page); if (p) (doorMode === 'brush' ? brushTap(p) : goDoor(p)); else if (nearest(sheetPts(d), (q) => q.pos, x, y, page)) toast('Это не дверь'); return; }
@@ -461,10 +462,14 @@ export function planModal({ point = null, placeFor = null } = {}) {
       const line = `Открытие плана: ${sec(t0, t3)} · файл чертежа с ${from} ${sec(t0, t1)} (${(buf.byteLength / 1048576).toFixed(1)} МБ) · модуль PDF ${(tw / 1000).toFixed(1)} с · открытие ${sec(t1, t2)} · лист ${sec(t2, t3)}`;
       perf.textContent = line; info(line);
       // the view: the opening point (once), else fitted for a plan opened to place a point (once), else the one remembered for this drawing (spec 8 D10)
-      const f = openPoint && (state.ctx.points.get(openPoint.id) || openPoint);
+      // then `last` moves to this drawing; a plan opened for placing keeps the drawing's old view (it shows the sheet fitted only this once)
+      const f = openPoint && (state.ctx.points.get(openPoint.id) || openPoint); let keepOld = false;
       if (f?.pos && drawingFor(f)?.id === d.id) { openPoint = null; placeFresh = false; await viewer.focus(f.pos.x, f.pos.y, f.pos.page || 0); }
-      else if (placeFresh) placeFresh = false;
+      else if (placeFresh) { placeFresh = false; keepOld = true; }
       else { const v = viewFor(readMem(), d.id, o.pages); if (v) await viewer.restore(v); }
+      if (current !== d) return;
+      settled = true; const now = keepOld ? readMem().views[d.id] || null : viewer.centre();
+      if (keepOld || now) queueView(d.id, now);
     } catch (e) { status.textContent = e.message; }
   }
 

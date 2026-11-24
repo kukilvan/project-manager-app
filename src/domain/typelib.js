@@ -50,7 +50,8 @@ export function libWith(userLib, bundles) {
 // Operations: add a type from the pool to the project. What the project lacks (or has deleted) is added; what exists is left alone.
 export function addBundleOps(ctx, bundle, ops = []) {
   const has = (coll, id) => ctx[coll].has(id) || ops.some((o) => o.coll === coll && o.id === id);
-  const put = (coll, x) => { if (!has(coll, x.id)) ops.push({ coll, id: x.id, data: bare(x) }); };
+  // deleted: false brings back an item the project deleted (project writes merge, so without it the item stays deleted)
+  const put = (coll, x) => { if (!has(coll, x.id)) ops.push({ coll, id: x.id, data: { ...bare(x), deleted: false } }); };
   (bundle.catalog || []).forEach((w) => put('catalog', w));
   (bundle.cables || []).forEach((c) => put('cables', c));
   (bundle.devices || []).forEach((d) => put('devices', d));

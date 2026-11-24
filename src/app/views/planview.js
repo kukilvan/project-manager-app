@@ -56,7 +56,7 @@ export function createViewer({ wk, pages, height = '58vh', onTap, onRect, onView
     const r = wrap.getBoundingClientRect(); view.s = s; view.ox = x - r.width / 2 / s; view.oy = y - r.height / 2 / s; tile = null; draw(); schedTile(); onView?.();
   }
   // the page and the drawing point at the middle of the viewer, or null while there is no size or no page
-  const centre = () => (sz && base ? { page, ...centreOf(view, sz.w, sz.h) } : null);
+  const centre = () => (sz?.w && sz.h && base ? { page, ...centreOf(view, sz.w, sz.h) } : null);
   // show a remembered view { page, x, y, s }
   const restore = ({ page: p, x, y, s }) => focus(x, y, p, Math.min(20, Math.max(0.05, s)));
 
