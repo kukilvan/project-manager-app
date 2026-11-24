@@ -20,6 +20,7 @@ export * from './compose.js';
 export * from './pointsimport.js';
 export * from './typelib.js';
 export * from './plan.js';
+export * from './planmemory.js';
 export * from './pool.js';
 export * from './rack.js';
 export * from './doorcfg.js';

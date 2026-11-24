@@ -1,10 +1,12 @@
 // The test drawing: a generated one-page PDF and the points, journal rows, problem marks and door configuration that show every progress look of the plan.
+// A second entry, «Test drawing 2», is the same PDF under its own file name with no points, for switching drawings.
 // Pure, no DOM and no network; built on seed.js (types, devices) and doorcfg.js (the standard «ЭМ» door). The app side is src/app/testplan.js, started by `?mem=1&memPlan=1` (spec 7 § 6).
 // Positions are PDF points; `pos` is the caption's center from the top-left corner, as the plan reads it.
 import { POINT_TYPES, DEVICES, composedTypes } from './seed.js';
 import { standardDoorCfgs, doorLockOf } from './doorcfg.js';
 
 export const TEST_SHEET = 'test-plan.pdf';
+export const TEST_SHEET_2 = 'test-plan-2.pdf';
 export const TEST_PAGE = { w: 600, h: 400 };
 const FONT = 9;                  // caption size, Helvetica
 const BOX_H = 8;                 // height of a caption's frame
@@ -75,7 +77,7 @@ const POINTS = [
 ];
 
 /**
- * Everything the app writes for the test drawing: { drawing, points, journal, marks, unlinked, hidden, configs }.
+ * Everything the app writes for the test drawing: { drawing, drawing2, points, journal, marks, unlinked, hidden, configs }.
  * The drawing entry has no size, author or time (the app adds them); the problem mark points at the example problem `pr_cable` (the app re-points it at the pool's «Кабель»).
  */
 export function testPlanData() {
@@ -92,6 +94,7 @@ export function testPlanData() {
   });
   return {
     drawing: { id: 'DR_test', name: TEST_SHEET, title: 'Test drawing', pages: [{ ...TEST_PAGE }] },
+    drawing2: { id: 'DR_test2', name: TEST_SHEET_2, title: 'Test drawing 2', pages: [{ ...TEST_PAGE }] },   // the same PDF under its own file name, no points: to switch drawings (spec 8 D12)
     points, journal, marks, configs: [{ id: door.id, name: door.name, devices: door.devices, cables: door.cables, kind: 'door', deleted: false }],
     unlinked: [{ label: 'X-99', typeId: '', pos: posByText.get('X-99') }],
     hidden: [{ label: 'X-98', typeId: '', pos: posByText.get('X-98') }],

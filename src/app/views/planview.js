@@ -1,10 +1,12 @@
 // Viewer of one drawing sheet on a canvas: dragging, zooming by pinch, wheel or buttons, and a sharp tile re-rendered when zoomed in.
 // Renders sheet images through the tohnit worker (wk.call('crop')); draws the caller's marks on top (overlay) and reports taps (onTap) and a frame (onRect, while rectMode() is true).
+// Reports every change of the view (onView), gives the point at its centre (centre()), shows a remembered view (restore()) and keeps that centre and zoom when its size changes (the phone is turned).
 import { h } from '../ui.js';
+import { centreOf, cornerOf } from '../../domain/planmemory.js';
 
-export function createViewer({ wk, pages, height = '58vh', onTap, onRect, rectMode = () => false, overlay, dim = () => 1 }) {  // dim — brightness of the drawing (0..1)
+export function createViewer({ wk, pages, height = '58vh', onTap, onRect, onView, rectMode = () => false, overlay, dim = () => 1 }) {  // dim — brightness of the drawing (0..1); onView() — the page, place or zoom changed (not a redraw alone)
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  let page = 0; let base = null; let baseZ = 1; let tile = null; let tileTimer = null; let rectNow = null;
+  let page = 0; let base = null; let baseZ = 1; let tile = null; let tileTimer = null; let rectNow = null; let sz = null;  // sz — the measured size { w, h }
   const view = { s: 1, ox: 0, oy: 0 };
   const wrap = h('div', { style: { position: 'relative', height, overflow: 'hidden', background: '#fff', borderRadius: '8px', touchAction: 'none', userSelect: 'none' } });
   const cv = h('canvas', { style: { position: 'absolute', inset: 0, width: '100%', height: '100%' } }); wrap.append(cv);
@@ -13,7 +15,7 @@ export function createViewer({ wk, pages, height = '58vh', onTap, onRect, rectMo
 
   const toScr = (x, y) => [(x - view.ox) * view.s, (y - view.oy) * view.s];
   const toPt = (sx, sy) => [sx / view.s + view.ox, sy / view.s + view.oy];
-  function size() { const r = wrap.getBoundingClientRect(); cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); return r; }
+  function size() { const r = wrap.getBoundingClientRect(); cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); sz = { w: r.width, h: r.height }; return r; }
   function draw() {
     if (!cv.width) size();
     g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height);
@@ -25,7 +27,7 @@ export function createViewer({ wk, pages, height = '58vh', onTap, onRect, rectMo
     if (rectNow) { g.strokeStyle = '#ff453a'; g.setLineDash([6, 4]); g.lineWidth = 2; g.strokeRect(rectNow[0], rectNow[1], rectNow[2] - rectNow[0], rectNow[3] - rectNow[1]); g.setLineDash([]); }
   }
   async function render(p, clip, zoom) { const r = await wk.call('crop', { page: p, clip, zoom, raw: true }); return createImageBitmap(new ImageData(r.data, r.w, r.h)); }
-  function fit() { const r = wrap.getBoundingClientRect(); const pg = pages[page]; view.s = Math.min(r.width / pg.w, r.height / pg.h); view.ox = -(r.width / view.s - pg.w) / 2; view.oy = -(r.height / view.s - pg.h) / 2; draw(); schedTile(); }
+  function fit() { const r = wrap.getBoundingClientRect(); const pg = pages[page]; view.s = Math.min(r.width / pg.w, r.height / pg.h); view.ox = -(r.width / view.s - pg.w) / 2; view.oy = -(r.height / view.s - pg.h) / 2; draw(); schedTile(); onView?.(); }
   async function load(p = page) {
     page = p; tile = null; base = null; msg.style.display = ''; draw();
     const pg = pages[page]; baseZ = Math.min(1, 2400 / Math.max(pg.w, pg.h));
@@ -46,13 +48,17 @@ export function createViewer({ wk, pages, height = '58vh', onTap, onRect, rectMo
     try { const img = await render(page, clip, z); tile = { page, clip, img, z }; draw(); } catch { /* harmless: the base image stays */ }
     busy = false; if (again) { again = false; renderTile(); }
   }
-  function zoomAt(sx, sy, f) { const [px, py] = toPt(sx, sy); view.s = Math.min(20, Math.max(0.05, view.s * f)); view.ox = px - sx / view.s; view.oy = py - sy / view.s; draw(); schedTile(); }
+  function zoomAt(sx, sy, f) { const [px, py] = toPt(sx, sy); view.s = Math.min(20, Math.max(0.05, view.s * f)); view.ox = px - sx / view.s; view.oy = py - sy / view.s; draw(); schedTile(); onView?.(); }
   const zoomBy = (f) => { const r = wrap.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, f); };
   // show a place of the sheet enlarged (e.g. the point of an opened card)
   async function focus(x, y, p = page, s = 2.5) {
     if (p !== page || !base) await load(p);
-    const r = wrap.getBoundingClientRect(); view.s = s; view.ox = x - r.width / 2 / s; view.oy = y - r.height / 2 / s; tile = null; draw(); schedTile();
+    const r = wrap.getBoundingClientRect(); view.s = s; view.ox = x - r.width / 2 / s; view.oy = y - r.height / 2 / s; tile = null; draw(); schedTile(); onView?.();
   }
+  // the page and the drawing point at the middle of the viewer, or null while there is no size or no page
+  const centre = () => (sz && base ? { page, ...centreOf(view, sz.w, sz.h) } : null);
+  // show a remembered view { page, x, y, s }
+  const restore = ({ page: p, x, y, s }) => focus(x, y, p, Math.min(20, Math.max(0.05, s)));
 
   const ptrs = new Map(); let downAt = null; let moved = false; let pinch = null;
   const local = (e) => { const r = wrap.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
@@ -63,10 +69,10 @@ export function createViewer({ wk, pages, height = '58vh', onTap, onRect, rectMo
     if (Math.hypot(cur[0] - downAt[0], cur[1] - downAt[1]) > 6) moved = true;
     if (ptrs.size === 2 && pinch) {
       const [a, b] = [...ptrs.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); const mx = (a[0] + b[0]) / 2; const my = (a[1] + b[1]) / 2;
-      view.s = Math.min(20, Math.max(0.05, pinch.s * d / pinch.d)); view.ox = pinch.c[0] - mx / view.s; view.oy = pinch.c[1] - my / view.s; draw(); return;
+      view.s = Math.min(20, Math.max(0.05, pinch.s * d / pinch.d)); view.ox = pinch.c[0] - mx / view.s; view.oy = pinch.c[1] - my / view.s; draw(); onView?.(); return;
     }
     if (rectMode()) { rectNow = [Math.min(downAt[0], cur[0]), Math.min(downAt[1], cur[1]), Math.max(downAt[0], cur[0]), Math.max(downAt[1], cur[1])]; draw(); return; }
-    view.ox -= (cur[0] - prev[0]) / view.s; view.oy -= (cur[1] - prev[1]) / view.s; draw(); schedTile();
+    view.ox -= (cur[0] - prev[0]) / view.s; view.oy -= (cur[1] - prev[1]) / view.s; draw(); schedTile(); onView?.();
   });
   const up = (e) => {
     if (!ptrs.has(e.pointerId)) return; ptrs.delete(e.pointerId);
@@ -77,7 +83,13 @@ export function createViewer({ wk, pages, height = '58vh', onTap, onRect, rectMo
   };
   wrap.addEventListener('pointerup', up); wrap.addEventListener('pointercancel', up);
   wrap.addEventListener('wheel', (e) => { e.preventDefault(); const [x, y] = local(e); zoomAt(x, y, e.deltaY < 0 ? 1.25 : 0.8); }, { passive: false });
-  const onResize = () => { if (wrap.isConnected) { size(); draw(); } else window.removeEventListener('resize', onResize); };
+  // a new size keeps the middle of the view and the zoom (the centre is taken with the old size)
+  const onResize = () => {
+    if (!wrap.isConnected) { window.removeEventListener('resize', onResize); return; }
+    const c = centre(); const r = size();
+    if (c && r.width && r.height) { const k = cornerOf(c, r.width, r.height); view.ox = k.ox; view.oy = k.oy; }
+    draw(); if (c) schedTile();
+  };
   window.addEventListener('resize', onResize);
 
   const zoomBtns = () => [
@@ -86,7 +98,7 @@ export function createViewer({ wk, pages, height = '58vh', onTap, onRect, rectMo
     h('button', { type: 'button', class: 'sec', style: { padding: '6px 10px' }, onclick: () => fit() }, '⤢ Весь лист')];
   // re-render the sheet image keeping the view (e.g. after drawing layers are switched on or off)
   async function refreshImage() { const pg = pages[page]; base = await render(page, [0, 0, pg.w, pg.h], baseZ); tile = null; draw(); schedTile(); }
-  const api = { el: wrap, view, toScr, toPt, draw, fit, load, focus, zoomBy, zoomBtns, refreshImage, get page() { return page; }, start: () => new Promise((res) => requestAnimationFrame(() => { size(); res(load(page)); })) };
+  const api = { el: wrap, view, toScr, toPt, draw, fit, load, focus, centre, restore, zoomBy, zoomBtns, refreshImage, get page() { return page; }, start: () => new Promise((res) => requestAnimationFrame(() => { size(); res(load(page)); })) };
   return api;
 }
 

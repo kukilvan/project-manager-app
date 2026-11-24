@@ -1,4 +1,5 @@
 // Creates the test drawing project in test mode: «Test drawing» with the generated PDF, points at every progress stage, journal rows, a problem mark and an unlinked and a hidden caption.
+// It also adds «Test drawing 2» (the same PDF, no points) for switching drawings.
 // Started only by `?mem=1&memPlan=1` from src/main.js, which imports this module dynamically (its own chunk, so the live bundle never loads it). Data comes from src/domain/testplan.js (spec 7 § 6).
 // Writes through the repo (createProject, save, savePool) and `patchDrawings`; the PDF goes to the device copy `pz-drawings` through `cachePut`; opens «Точки» when done.
 import { getRepo, setCurrentProject, nav } from './store.js';
@@ -26,8 +27,9 @@ export async function startTestPlan() {
   const problem = await cableProblem(repo);
   const pid = repo.createProject({ name: 'Test drawing' });
   setCurrentProject(pid);
-  await cachePut(t.drawing.id, bytes.buffer);
-  patchDrawings(pid, () => [{ ...t.drawing, size: bytes.byteLength, addedAt: new Date().toISOString(), addedBy: repo.user?.email || '', fileId: null, unlinked: t.unlinked, hidden: t.hidden }]);
+  await cachePut(t.drawing.id, bytes.buffer); await cachePut(t.drawing2.id, bytes.buffer.slice(0));
+  const own = { size: bytes.byteLength, addedAt: new Date().toISOString(), addedBy: repo.user?.email || '', fileId: null };
+  patchDrawings(pid, () => [{ ...t.drawing, ...own, unlinked: t.unlinked, hidden: t.hidden }, { ...t.drawing2, ...own }]);
   repo.save(pid, [
     ...t.configs.map((c) => ({ coll: 'configs', id: c.id, data: c })),
     ...t.points.map(({ id, ...data }) => ({ coll: 'points', id, data })),

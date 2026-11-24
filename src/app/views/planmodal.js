@@ -1,6 +1,7 @@
 // «🗺 План»: the project's drawing with points colored by progress (pink — pulled, then yellow → green); tapping a point opens its card, and «📍 На чертеже» on a card opens the plan there.
 // Draws the sheets with the planview.js viewer through the tohnit worker (MuPDF), reads and writes drawings with drawings.js, and saves points through repo.save;
 // the tools on the plan call planversion.js (new drawing version), planlink.js (link points), plannumbers.js (PDF with numbers), tohnitview.js (parse, icons) and pointmerge.js.
+// It remembers on this device the last drawing and each drawing's place and zoom (`pz.planView.<projectId>`, planmemory.js), so the plan opens where the owner left it.
 //
 // Contents:
 // - shOf(), tagOf(), outline(), placeTags(), iconImg() — drawing helpers: door short labels, frames, non-overlapping tags, type icons
@@ -26,6 +27,7 @@ import { makeWorker, pointsFromDrawing } from './tohnitview.js';
 import { newVersion, reviewOf, reviewModal } from './planversion.js';
 import { sameGroups, mergeModal } from './pointmerge.js';
 import { createViewer } from './planview.js';
+import { parsePlanMemory, viewFor, rememberView, drawingToOpen } from '../../domain/planmemory.js';
 import { exportNumberedPdf, publishNumbered } from './plannumbers.js';
 import { linkPoints } from './planlink.js';
 import { choosePoint } from './pointchooser.js';
@@ -137,7 +139,17 @@ export function planModal({ point = null, placeFor = null } = {}) {
   const doorSkip = new Set(); let doorCur = null; let doorMode = 'wizard'; let brushId = ''; let pipette = false;  // «Кисть»: a configuration applied by a tap; the pipette takes it from a door  // the «🚪 Двери» wizard: skipped doors and the current door
   let tool = placeFor ? 'place' : null; let iconType = ''; let temp = null; let toolBar = () => {};  // tool: add — «➕ Точка на плане», icon — «📌 Значки типов», place — «📍 Отметить на плане»
   let updateInfo = () => {}; const unsub = subscribe(() => { viewer?.draw(); updateInfo(); if (tool === 'doors') toolBar(); });  // statuses and numbers change — the plan follows
-  const close = openModal('🗺 План', box, { sticky: true, wide: true, onClose: () => { unsub(); wk?.stop(); } });
+  // the view memory of this device (spec 8 § 2): the place and zoom are kept 0.5 s after the view stops changing, when the plan closes and when the page is hidden
+  const memKey = `pz.planView.${currentProject()?.id}`; let pendingView = null; let viewTimer = null; let openPoint = point; let placeFresh = !!placeFor;
+  const readMem = () => { try { return parsePlanMemory(localStorage.getItem(memKey)); } catch { return parsePlanMemory(null); } };
+  function flushView() {
+    clearTimeout(viewTimer); viewTimer = null; const p = pendingView; pendingView = null; if (!p) return;
+    try { localStorage.setItem(memKey, JSON.stringify(rememberView(readMem(), p.id, p.view, drawingsOf().map((x) => x.id)))); } catch { /* storage blocked or full: the plan works without it */ }
+  }
+  const queueView = (id, view) => { pendingView = { id, view }; clearTimeout(viewTimer); viewTimer = setTimeout(flushView, 500); };
+  function onHide() { if (document.visibilityState === 'hidden') flushView(); }
+  document.addEventListener('visibilitychange', onHide);
+  const close = openModal('🗺 План', box, { sticky: true, wide: true, onClose: () => { unsub(); wk?.stop(); flushView(); document.removeEventListener('visibilitychange', onHide); } });
   const sheetPts = (d) => [...state.ctx.points.values()].filter((p) => p.pos && drawingFor(p)?.id === d.id);
 
   function addPdf() {
@@ -171,7 +183,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
   }
 
   async function show(d) {
-    current = d; wk?.stop(); wk = makeWorker(); sel.clear(); selMode = false; temp = null; doorCur = null;
+    flushView(); current = d; wk?.stop(); wk = makeWorker(); sel.clear(); selMode = false; temp = null; doorCur = null;
     const status = h('div', { class: 'mut', style: { margin: '6px 0' } }, 'Открываю чертёж…');
     const perf = h('div', { class: 'mut', style: { fontSize: '12px', margin: '0 0 4px' } });
     const holder = h('div', {}); body.replaceChildren(status, perf, holder);
@@ -200,6 +212,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
         return Math.max(0, Math.hypot(x - pos.x, y - pos.y) - Math.max(pos.w || 8, pos.h || 8) / 2 - pad); };
       const nearest = (list, getPos, x, y, page) => { let best = null; let bd = Infinity; for (const it of list) { const pos = getPos(it); if ((pos.page || 0) !== page) continue; const dd = hitDist(pos, x, y); if (dd < bd) { bd = dd; best = it; } } return bd === 0 ? best : null; };
       viewer = createViewer({ wk, pages: o.pages, height: '62vh', dim: () => (dimDrawing ? 0.35 : 1), rectMode: () => selMode && rectSel,
+        onView: () => { if (current !== d) return; const c = viewer?.centre(); if (c) queueView(d.id, c); },
         onRect: (b, page) => { pts().filter((p) => lit(p) && (p.pos.page || 0) === page && p.pos.x >= b[0] && p.pos.x <= b[2] && p.pos.y >= b[1] && p.pos.y <= b[3]).forEach((p) => sel.add(p.id)); selBar(); viewer.draw(); },
         onTap: (x, y, page) => {
           if (tool === 'doors') { const p = nearest(doorPts(), (q) => q.pos, x, y, page); if (p) (doorMode === 'brush' ? brushTap(p) : goDoor(p)); else if (nearest(sheetPts(d), (q) => q.pos, x, y, page)) toast('Это не дверь'); return; }
@@ -447,8 +460,11 @@ export function planModal({ point = null, placeFor = null } = {}) {
       const sec = (a, b) => `${((b - a) / 1000).toFixed(1)} с`;
       const line = `Открытие плана: ${sec(t0, t3)} · файл чертежа с ${from} ${sec(t0, t1)} (${(buf.byteLength / 1048576).toFixed(1)} МБ) · модуль PDF ${(tw / 1000).toFixed(1)} с · открытие ${sec(t1, t2)} · лист ${sec(t2, t3)}`;
       perf.textContent = line; info(line);
-      const f = focusId && state.ctx.points.get(focusId);
-      if (f?.pos && drawingFor(f)?.id === d.id) await viewer.focus(f.pos.x, f.pos.y, f.pos.page || 0);
+      // the view: the opening point (once), else fitted for a plan opened to place a point (once), else the one remembered for this drawing (spec 8 D10)
+      const f = openPoint && (state.ctx.points.get(openPoint.id) || openPoint);
+      if (f?.pos && drawingFor(f)?.id === d.id) { openPoint = null; placeFresh = false; await viewer.focus(f.pos.x, f.pos.y, f.pos.page || 0); }
+      else if (placeFresh) placeFresh = false;
+      else { const v = viewFor(readMem(), d.id, o.pages); if (v) await viewer.restore(v); }
     } catch (e) { status.textContent = e.message; }
   }
 
@@ -669,8 +685,8 @@ export function planModal({ point = null, placeFor = null } = {}) {
   const body = h('div', {});
   function draw(selectId) {
     const list = drawingsOf();
-    const want = selectId || (point && drawingFor(point)?.id) || (placeFor && list.find((x) => x.floor && x.floor === placeFor.floor)?.id) || current?.id || list[0]?.id;
-    const d = list.find((x) => x.id === want) || list[0];
+    const want = drawingToOpen({ ids: list.map((x) => x.id), selectId, pointId: point && drawingFor(point)?.id, placeId: placeFor && list.find((x) => x.floor && x.floor === placeFor.floor)?.id, currentId: current?.id, last: readMem().last });
+    const d = list.find((x) => x.id === want);
     const sel = list.length > 1 ? h('select', { onchange: (e) => show(list.find((x) => x.id === e.target.value)) }, list.map((x) => h('option', { value: x.id, selected: x.id === d?.id }, `${drawingTitle(x)}${x.floor ? ` (этаж ${x.floor})` : ''}`))) : null;
     box.replaceChildren(
       h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' } }, sel, h('button', { class: list.length ? 'sec' : '', onclick: addPdf }, '➕ Чертёж (PDF)'),

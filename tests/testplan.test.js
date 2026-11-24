@@ -6,7 +6,7 @@ import {
   CATALOG, POINT_TYPES, CABLES, DEVICES, UNITS, EXAMPLE_PROBLEMS, composedTypes,
   buildContext, planColor, markColor, PLAN_PALETTE, gradientColor, pointInfo, doorCfgOf, comparePoints,
 } from '../src/domain/index.js';
-import { testPlanPdf, testPlanData, captionWidth, TEST_PAGE, TEST_SHEET } from '../src/domain/testplan.js';
+import { testPlanPdf, testPlanData, captionWidth, TEST_PAGE, TEST_SHEET, TEST_SHEET_2 } from '../src/domain/testplan.js';
 
 const text = Buffer.from(testPlanPdf()).toString('latin1');
 const data = testPlanData();
@@ -128,4 +128,13 @@ test('test plan look: FA/C-06 — everything done but the rack termination: a sh
   // FA/C-05 stays dark green, FA/C-04 keeps its shade
   assert.equal(planColor(ctx2.points.get(point('FA/C-05').id), ctx2).color, PLAN_PALETTE.full);
   assert.equal(planColor(ctx2.points.get(point('FA/C-04').id), ctx2).color, look('FA/C-04').color);
+});
+
+test('test plan data: «Test drawing 2» — the same sheet under its own file name, its own id, no points on it (idea 009)', () => {
+  const d2 = data.drawing2;
+  assert.equal(d2.name, TEST_SHEET_2); assert.notEqual(d2.name, data.drawing.name);
+  assert.notEqual(d2.id, data.drawing.id);
+  assert.equal(d2.title, 'Test drawing 2');
+  assert.deepEqual(d2.pages, data.drawing.pages);
+  assert.ok(![...data.points.filter((p) => p.pos).map((p) => p.pos.sheet), ...data.unlinked.map((u) => u.pos.sheet), ...data.hidden.map((u) => u.pos.sheet)].includes(d2.name), 'no point, unlinked or hidden caption points at it');
 });
