@@ -1218,3 +1218,42 @@ test('лист шкафов: порядок шкафов не зависит о�
   const sh = (await rackOf(project, ctx, {})).sheets.at(-1);
   assert.deepEqual(sh.rows.slice(5, -1).map((r) => r[0]), ['2', '10', 'Щ1', 'A1']); // the Russian collation, as the profile form sorts racks
 });
+
+test('общий пул: «не в цвете плана» (planColour) остаётся в проекте — не в хеше, кандидатах, правках, частях и «взять в проект» (ADR 0018)', async () => {
+  const { buildContext, inboxCandidates, takeFromPoolOps, addBundleOps, poolMaps, poolHash, deepHash, bare, changedFields, candidateChanges, changedParts, depsOf, bundleFrom } = await import('../src/domain/index.js');
+  const W = { id: 'W_HD', name: 'Подключение в шкафу', nameHe: 'חיווט בארון', workType: 'Хивут', unit: 'шт', multiplier: 1, forTypes: ['Камера'], active: true };
+  const lists = (work) => ({ types: [{ id: 'Камера', devices: [{ deviceId: 'DV_C', count: 1 }], workIds: [] }], devices: [{ id: 'DV_C', name: 'Камера', cables: [{ cable: 'cat7', count: 1 }], workIds: ['W_HD'] }], cables: [{ id: 'cat7', workIds: ['W_HD'] }], catalog: [work] });
+  const pool = poolMaps(lists(W));
+  const off = { ...W, planColour: false, updatedAt: 7 };
+  // bare and the fingerprints
+  assert.equal('planColour' in bare(off), false); assert.equal(bare(off).name, W.name);
+  assert.equal(poolHash(off), poolHash(W)); assert.equal(poolHash({ ...W, planColour: true }), poolHash(W));
+  // the project differs from the pool only by the box: nothing to show the administrator, not even through its type
+  const ctx = buildContext(lists(off));
+  assert.deepEqual(inboxCandidates(ctx, pool), []);
+  const maps = { types: ctx.types, devices: ctx.devices, cables: ctx.cables, catalog: ctx.catalog };
+  assert.equal(deepHash(maps, 'types', 'Камера'), deepHash(pool, 'types', 'Камера'));
+  assert.deepEqual(changedFields(W, off), []);
+  // a candidate that differs by the box and by something real shows only the real line
+  const real = buildContext(lists({ ...off, unit: 'мин' }));
+  const cand = inboxCandidates(real, pool).find((x) => x.kind === 'catalog');
+  assert.ok(cand); assert.equal('planColour' in cand.item, false);
+  assert.deepEqual(candidateChanges(cand, pool), ['Единица: шт → мин']);
+  assert.deepEqual(changedParts({ ...cand, deps: depsOf({ ...maps, catalog: real.catalog }, 'types', 'Камера') }, pool).map((p) => p.item.id), ['W_HD']);
+  assert.ok(changedParts({ ...cand, deps: depsOf({ ...maps, catalog: real.catalog }, 'types', 'Камера') }, pool).every((p) => !('planColour' in p.item)));
+  // parts and bundles carry no box
+  assert.ok(depsOf(maps, 'types', 'Камера').catalog.every((x) => !('planColour' in x)));
+  assert.ok(depsOf(maps, 'devices', 'DV_C').catalog.every((x) => !('planColour' in x)));
+  assert.ok(bundleFrom(maps, 'Камера').catalog.every((x) => !('planColour' in x)));
+  // taking from the pool (even a pool holding the field by an old entry) writes none, and a work the project has stays untouched
+  const dirty = poolMaps(lists({ ...W, planColour: false }));
+  const empty = buildContext({ types: [], devices: [], cables: [], catalog: [] });
+  const ops = takeFromPoolOps(empty, dirty, 'types', 'Камера');
+  assert.ok(ops.some((o) => o.coll === 'catalog' && o.id === 'W_HD'));
+  assert.ok(ops.every((o) => !('planColour' in o.data)));
+  assert.deepEqual(takeFromPoolOps(ctx, pool, 'catalog', 'W_HD'), []);   // the project work is not touched, its box stays
+  assert.equal(ctx.catalog.get('W_HD').planColour, false);
+  const bundleOps = addBundleOps(empty, { type: { id: 'Камера' }, devices: [], cables: [], catalog: [{ ...W, planColour: false }] });
+  assert.ok(bundleOps.every((o) => !('planColour' in o.data)));
+  assert.deepEqual(addBundleOps(ctx, { type: { id: 'Новый' }, catalog: [{ ...W }] }).map((o) => o.coll), ['types']);   // the work exists in the project: untouched
+});

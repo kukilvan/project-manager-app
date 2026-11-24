@@ -22,7 +22,7 @@ test('test plan PDF: header, trailer and a page of the right size', () => {
   assert.ok(text.trimEnd().endsWith('%%EOF'));
   assert.match(text, /\/MediaBox \[0 0 600 400\]/);
   assert.match(text, /\/BaseFont \/Helvetica/);
-  assert.equal((text.match(/BT \/F1 9 Tf/g) || []).length, 15, 'one caption per label, 9 pt');
+  assert.equal((text.match(/BT \/F1 9 Tf/g) || []).length, 16, 'one caption per label, 9 pt');
 });
 
 test('test plan PDF: every xref offset points at «N 0 obj», startxref at the table', () => {
@@ -110,4 +110,22 @@ test('test plan data: no rack, off the drawing, unlinked and hidden', () => {
   assert.deepEqual(data.unlinked.map((u) => u.label), ['X-99']);
   assert.deepEqual(data.hidden.map((u) => u.label), ['X-98']);
   assert.ok(!data.points.some((p) => ['X-99', 'X-98'].includes(p.label)), 'they are not points');
+});
+
+test('test plan look: FA/C-06 — everything done but the rack termination: a shade with every work ticked, dark green without it (idea 008)', () => {
+  const pt = point('FA/C-06');
+  assert.ok(pt.pos, 'FA/C-06 has a caption on the page');
+  assert.ok(text.includes('(FA/C-06) Tj'));
+  const shade = look('FA/C-06');
+  assert.equal(shade.j, 4); assert.equal(shade.M, 5); assert.equal(shade.color, gradientColor(3 / 4)); assert.equal(shade.full, false);
+  assert.ok(!data.journal.some((r) => r.pointId === pt.id && r.editWorkId === 'HIV_DEV'), 'HIV_DEV is the open work');
+  const ctx2 = buildContext({
+    projects: [{ id: 'P' }], points: data.points.map((p) => ({ projectId: 'P', ...p })), journal: data.journal, problemMarks: data.marks, configs: data.configs,
+    catalog: CATALOG.map((w) => (w.id === 'HIV_DEV' ? { ...w, planColour: false } : w)), types: composedTypes(POINT_TYPES), cables: CABLES, devices: DEVICES, units: UNITS, cabinetSettings: [], shared: { problems: EXAMPLE_PROBLEMS },
+  });
+  const dark = planColor(ctx2.points.get(pt.id), ctx2);
+  assert.equal(dark.color, PLAN_PALETTE.full); assert.equal(dark.full, true); assert.ok(dark.width > 1);
+  // FA/C-05 stays dark green, FA/C-04 keeps its shade
+  assert.equal(planColor(ctx2.points.get(point('FA/C-05').id), ctx2).color, PLAN_PALETTE.full);
+  assert.equal(planColor(ctx2.points.get(point('FA/C-04').id), ctx2).color, look('FA/C-04').color);
 });

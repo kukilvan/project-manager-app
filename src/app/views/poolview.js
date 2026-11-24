@@ -87,16 +87,17 @@ export function poolModal(kind) {
   };
   // editing a candidate before adding: the same forms, saved to the pool (nothing changes for its owner)
   // accept a candidate: the item itself + all its new and changed parts; also close the separate notices of those parts
-  const partOps = (cand) => changedParts(cand, poolMaps(pool)).map((p) => ({ coll: p.kind, id: p.item.id, data: p.item }));
+  // written through bare(): an entry sent by a phone with an older build cannot carry a project-only field (`planColour`, ADR 0018) into the pool
+  const partOps = (cand) => changedParts(cand, poolMaps(pool)).map((p) => ({ coll: p.kind, id: p.item.id, data: bare(p.item) }));
   const markWithParts = (cand) => {
     const parts = changedParts(cand, poolMaps(pool));
     const rel = inbox.filter((x) => x !== cand && x.owner?.uid === cand.owner?.uid && parts.some((p) => p.kind === x.kind && p.item.id === x.itemId && poolHash(p.item) === poolHash(x.item)));
     mark([cand, ...rel], 'added');
   };
-  const accept = (cand) => { const ops = [...partOps(cand), { coll: kind, id: cand.itemId, data: cand.item }]; markWithParts(cand); savePool(ops); };
+  const accept = (cand) => { const ops = [...partOps(cand), { coll: kind, id: cand.itemId, data: bare(cand.item) }]; markWithParts(cand); savePool(ops); };
   const editCandidate = (cand) => {
     setFormTarget({ ctx: poolCtx(cand), save: (ops) => { const po = partOps(cand); markWithParts(cand); savePool([...po.filter((o) => !ops.some((x) => x.coll === o.coll && x.id === o.id)), ...ops]); } });
-    itemForm(kind, cand.item);
+    itemForm(kind, bare(cand.item));
   };
   const row = (x, { candidate = null } = {}) => {
     const it = candidate ? candidate.item : x;

@@ -18,7 +18,7 @@ export const captionWidth = (text) => [...String(text)].reduce((n, ch) => n + (W
 // [text, left x, baseline y] in PDF coordinates (origin bottom-left); rooms are grey rectangles [x, y, w, h]
 const ROOMS = [[30, 200, 270, 180], [320, 200, 250, 180], [30, 30, 540, 140]];
 const CAPTIONS = [
-  ['FA/C-01', 50, 340], ['FA/C-02', 150, 340], ['FA/C-03', 50, 300], ['FA/C-04', 150, 300], ['FA/C-05', 50, 260], ['FA/W-01', 150, 260], ['FA/B-01-02', 210, 225],
+  ['FA/C-01', 50, 340], ['FA/C-02', 150, 340], ['FA/C-03', 50, 300], ['FA/C-04', 150, 300], ['FA/C-05', 50, 260], ['FA/W-01', 150, 260], ['FA/B-01-02', 210, 225], ['FA/C-06', 50, 225],
   ['FB/K-01', 340, 340], ['FB/D-01', 440, 340], ['FB/D-02', 340, 300], ['FB/G-01', 440, 300], ['FB/C-10 FB/C-11', 340, 260], ['G-02', 500, 260],
   ['X-99', 60, 120], ['X-98', 160, 120],
 ];
@@ -59,6 +59,8 @@ const POINTS = [
   ['FA/C-03', 'Камера', 'FA', { works: [['PR_PTS']] }],
   ['FA/C-04', 'Камера', 'FA', { works: [['PR_PTS'], ['HIV_KEY']] }],
   ['FA/C-05', 'Камера', 'FA', { works: [['PR_PTS'], ['HIV_KEY'], ['HIV_DEV'], ['INS_CAM'], ['CHK_FLUKE'], ['SHL']] }],
+  // everything done except the rack termination «Подключение в шкафу» (HIV_DEV): the point of idea 008 (spec 8 D12)
+  ['FA/C-06', 'Камера', 'FA', { works: [['PR_PTS'], ['HIV_KEY'], ['INS_CAM'], ['CHK_FLUKE'], ['SHL']] }],
   ['FA/W-01', 'Вайфай', 'FA', { works: [['PR_PTS']], problem: true }],
   ['FA/B-01-02', 'Бакар', 'FA'],
   ['FB/K-01', 'Коре биометри', 'FB', { works: [['PR_PTS', '6005']] }],

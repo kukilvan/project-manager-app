@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {
   CATALOG, POINT_TYPES, CABLES, UNITS, CULPRITS, DELAY_REASONS, EXAMPLE_PROBLEMS,
   buildContext, pointInfo, missingStages, leftTasks,
-  planColor, markColor, pointStages, gradientColor, PLAN_PALETTE, PLAN_LEGEND, FULL_WIDTH, numberedInput, numberedHash, planFilterMatch, planFilterGroups, LEFT_FILTERS,
+  planColor, markColor, pointStages, gradientColor, inPlanColour, planColourPatch, PLAN_PALETTE, PLAN_LEGEND, FULL_WIDTH, numberedInput, numberedHash, planFilterMatch, planFilterGroups, LEFT_FILTERS,
 } from '../src/domain/index.js';
 
 const project = { id: 'P1', name: 'Mega Or' };
@@ -20,7 +20,7 @@ const TYPES = [
   { id: 'Без протяжки', stages: ['Хивут', 'Проверка'] },  // no pull stage: never pink
 ];
 const DEVICES = [{ id: 'DV', name: 'Прибор', cables: [{ cable: 'cat7', count: 1 }], workIds: ['INS_CAM'] }];
-const ACTION = { PR_PTS: 'Протяжка', HIV_KEY: 'Хивут', INS_CAM: 'Установка', CHK_FLUKE: 'Проверка', SHL: 'Шилют' };
+const ACTION = { PR_PTS: 'Протяжка', HIV_KEY: 'Хивут', HIV_DEV: 'Хивут', INS_CAM: 'Установка', CHK_FLUKE: 'Проверка', SHL: 'Шилют' };
 // works done on points: [pointId, workId, extra?] → entries and journal rows of one day
 function make(points, works = [], extra = {}) {
   const entries = works.map(([pid, w, x], i) => ({ id: `e${i + 1}`, dayId: 'D1', workType: ACTION[w] || 'Протяжка', workId: w, pointIds: [pid], result: 'Работает', createdAt: i + 1, ...(x || {}) }));
@@ -283,4 +283,121 @@ test('leftTasks: тот же результат, что у старой функ
   const ctx = make(pts, works);
   for (const p of ctx.points.values()) assert.deepEqual(leftTasks(p, ctx), oldLeftTasksOf(p, ctx), p.label);
   assert.ok(leftTasks(ctx.points.get('k'), ctx).some((t) => t.key.startsWith('w:')));
+});
+
+// ---- works kept out of the plan colour (idea 008, spec 8 § 1): `planColour: false` on a catalog work ----
+const without = (...ids) => CATALOG.map((w) => (ids.includes(w.id) ? { ...w, planColour: false } : w));
+// the colour of point «a» when the works `ids` are not in the colour; «Комп» is a composite type: pull, HIV_KEY, HIV_DEV, INS_CAM, CHK_FLUKE, SHL
+const look = (ids, works, pt = {}, typeId = 'Комп') => { const ctx = make([{ id: 'a', label: 'A-01', typeId, ...pt }], works, { catalog: without(...ids) }); return planColor(ctx.points.get('a'), ctx); };
+const FIVE_NO_DEV = ['PR_PTS', 'HIV_KEY', 'INS_CAM', 'CHK_FLUKE', 'SHL'];
+
+test('inPlanColour: a missing work, absent / true / false, a «Протяжка» work always counts', () => {
+  assert.equal(inPlanColour(undefined), true);
+  assert.equal(inPlanColour({ workType: 'Хивут' }), true);
+  assert.equal(inPlanColour({ workType: 'Хивут', planColour: true }), true);
+  assert.equal(inPlanColour({ workType: 'Хивут', planColour: false }), false);
+  assert.equal(inPlanColour({ workType: 'Протяжка', planColour: false }), true);
+});
+
+test('planColourPatch: the four cases of the box', () => {
+  assert.deepEqual(planColourPatch(false, undefined, 'Хивут'), { planColour: false });
+  assert.deepEqual(planColourPatch(true, { planColour: false }, 'Хивут'), { planColour: true });
+  assert.deepEqual(planColourPatch(true, { planColour: true }, 'Хивут'), {});
+  assert.deepEqual(planColourPatch(true, undefined, 'Хивут'), {});
+  assert.deepEqual(planColourPatch(false, { planColour: false }, 'Протяжка'), {});   // a pull work: the field is ignored, nothing written
+  assert.deepEqual(planColourPatch(false, undefined, 'Протяжка'), {});
+});
+
+test('план без работ вне цвета: всё сделано, кроме работы вне цвета, — тёмно-зелёная; с галочкой та же точка не до конца', () => {
+  const c = look(['HIV_DEV'], FIVE_NO_DEV.map((w) => ['a', w]));
+  assert.equal(c.color, PLAN_PALETTE.full); assert.equal(c.full, true); assert.equal(c.width, FULL_WIDTH); assert.equal(c.pull, null);
+  assert.deepEqual(c.stages, ['Протяжка', 'Хивут', 'Установка', 'Проверка', 'Шилют']);   // «Хивут» still has HIV_KEY
+  const counted = look([], FIVE_NO_DEV.map((w) => ['a', w]));
+  assert.equal(counted.full, false); assert.equal(counted.j, 4); assert.equal(counted.M, 5); assert.equal(counted.color, gradientColor(3 / 4));
+});
+
+test('план без работ вне цвета: j / M считается без них', () => {
+  const ids = ['HIV_DEV', 'SHL'];   // 3 counted works after the pull: HIV_KEY, INS_CAM, CHK_FLUKE
+  const one = look(ids, [['a', 'PR_PTS'], ['a', 'HIV_KEY']]);
+  assert.equal(one.M, 3); assert.equal(one.j, 1); assert.equal(one.color, gradientColor(0));
+  const two = look(ids, [['a', 'PR_PTS'], ['a', 'HIV_KEY'], ['a', 'INS_CAM']]);
+  assert.equal(two.j, 2); assert.equal(two.color, gradientColor(0.5));
+  // an unticked work done does not move the colour
+  assert.equal(look(ids, [['a', 'PR_PTS'], ['a', 'HIV_KEY'], ['a', 'HIV_DEV'], ['a', 'SHL']]).color, gradientColor(0));
+});
+
+test('план без работ вне цвета: после протяжки всё вне цвета — тёмно-зелёная у протянутой, розовая с кружочками у непротянутой до конца', () => {
+  const all = ['HIV_KEY', 'HIV_DEV', 'INS_CAM', 'CHK_FLUKE', 'SHL'];
+  const pulled = look(all, [['a', 'PR_PTS']]);
+  assert.equal(pulled.color, PLAN_PALETTE.full); assert.equal(pulled.full, true); assert.deepEqual(pulled.stages, ['Протяжка']); assert.equal(pulled.M, 0);
+  const pt = { cableOverride: [{ cable: '6005', count: 3 }, { cable: 'cat7', count: 2 }] };
+  const part = look(all, [['a', 'PR_PTS', { cableId: '6005' }]], pt);
+  assert.equal(part.color, PLAN_PALETTE.pink); assert.deepEqual(part.pull, { done: 3, total: 5 }); assert.equal(part.full, false);
+  // an unticked work done with the pull unfinished: still pink with circles, not a gradient
+  const withDone = look(all, [['a', 'PR_PTS', { cableId: '6005' }], ['a', 'SHL']], pt);
+  assert.equal(withDone.color, PLAN_PALETTE.pink); assert.deepEqual(withDone.pull, { done: 3, total: 5 });
+});
+
+test('план без работ вне цвета: одна такая работа сделана сама — не начата (серая, с длиной синяя)', () => {
+  assert.equal(look(['HIV_DEV'], [['a', 'HIV_DEV']]).color, PLAN_PALETTE.gray);
+  const blue = look(['HIV_DEV'], [['a', 'HIV_DEV']], { length: 12 });
+  assert.equal(blue.color, PLAN_PALETTE.blue); assert.equal(blue.started, false);
+  assert.equal(look([], [['a', 'HIV_DEV']]).started, true);   // counted: the point is started
+});
+
+test('план без работ вне цвета: этап, где все работы вне цвета, уходит из списка; нечего считать — серая (D7)', () => {
+  const c = look(['HIV_KEY', 'HIV_DEV'], [['a', 'PR_PTS']]);
+  assert.ok(!c.stages.includes('Хивут')); assert.equal(c.n, c.stages.length); assert.equal(c.done.length, c.n);
+  // a type with no pull and every work unticked: nothing is counted — grey
+  const ctx = make([{ id: 'a', label: 'A-01', typeId: 'Пусто' }], [], { catalog: without('HIV_KEY', 'HIV_DEV', 'INS_CAM', 'CHK_FLUKE', 'SHL'),
+    devices: [{ id: 'DV', name: 'Прибор', cables: [], workIds: ['INS_CAM', 'HIV_DEV'] }], types: [...TYPES, { id: 'Пусто', devices: [{ deviceId: 'DV', count: 1 }] }] });
+  const d = planColor(ctx.points.get('a'), ctx);
+  assert.equal(d.color, PLAN_PALETTE.gray); assert.equal(d.n, 0);
+});
+
+test('план без работ вне цвета: красная первой; старая точка и «Протяжка» с false не меняются', () => {
+  const rows = FIVE_NO_DEV.map((w) => (w === 'CHK_FLUKE' ? ['a', w, { result: 'Не работает' }] : ['a', w]));
+  const red = look(['HIV_DEV'], rows);
+  assert.equal(red.color, PLAN_PALETTE.red); assert.equal(red.red, true);
+  // a legacy point: the status by the type's stages, whatever the box says
+  const works = first('a', 3);
+  assert.deepEqual(look(['HIV_KEY'], works, {}, 'Камера'), look([], works, {}, 'Камера'));
+  // a «Протяжка» work with false counts: the colour does not change
+  const pull = CATALOG.map((w) => (w.id === 'PR_PTS' ? { ...w, planColour: false } : w));
+  const some = FIVE_NO_DEV.slice(0, 2).map((w) => ['a', w]);
+  const ctx = make([{ id: 'a', label: 'A-01', typeId: 'Комп' }], some, { catalog: pull });
+  assert.deepEqual(planColor(ctx.points.get('a'), ctx), look([], some));
+});
+
+test('план без работ вне цвета: ни одной такой работы — тот же результат, кэшированный info не меняется', () => {
+  const works = FIVE_NO_DEV.slice(0, 3).map((w) => ['a', w]);
+  assert.deepEqual(look([], works), colorOf('Комп', works));
+  const ctx = make([{ id: 'a', label: 'A-01', typeId: 'Комп' }], FIVE_NO_DEV.map((w) => ['a', w]), { catalog: without('HIV_DEV') });
+  const info = pointInfo(ctx.points.get('a'), ctx); const before = JSON.stringify(info);
+  const c = planColor(ctx.points.get('a'), ctx, () => info);
+  assert.equal(c.full, true);
+  assert.equal(JSON.stringify(info), before, 'the cached info is only read');
+  assert.ok(info.tasks.some((t) => t.workId === 'HIV_DEV'), 'the card still has the work');
+});
+
+test('общая отметка: точка с открытой работой вне цвета и розовая — розовая (наименее законченная)', () => {
+  const pos = { sheet: 'a.pdf', page: 0, x: 10, y: 10, w: 8, h: 8 };
+  const ctx = make([{ id: 'a', label: 'TV-13', typeId: 'Комп', pos }, { id: 'b', label: 'TV-14', typeId: 'Комп', pos }],
+    [...FIVE_NO_DEV.map((w) => ['a', w]), ['b', 'PR_PTS']], { catalog: without('HIV_DEV') });
+  const a = ctx.points.get('a'); const b = ctx.points.get('b');
+  assert.equal(planColor(a, ctx).full, true);
+  assert.equal(markColor([a, b], ctx).color, PLAN_PALETTE.pink);
+  assert.equal(markColor([a], ctx).color, PLAN_PALETTE.full);
+});
+
+test('PDF с номерами: цвета и отпечаток меняются у чертежа с такой точкой, у другого чертежа — нет', () => {
+  const at = (sheet, x) => ({ sheet, page: 0, x, y: 10, w: 8, h: 8 });
+  const pts = [{ id: 'a', label: 'C-01', typeId: 'Комп', pos: at('a.pdf', 10) }, { id: 'b', label: 'C-02', typeId: 'Комп', pos: at('b.pdf', 10) }];
+  const works = [...FIVE_NO_DEV.map((w) => ['a', w]), ['b', 'PR_PTS']];
+  const A = { name: 'a.pdf' }; const B = { name: 'b.pdf' };
+  const run = (cat, d) => { const ctx = make(pts, works, { catalog: cat }); const input = numberedInput(ctx.points.values(), ctx, d); return { h: numberedHash(input, d), input }; };
+  const on = run(CATALOG, A); const off = run(without('HIV_DEV'), A);
+  assert.notEqual(on.input[0].color, off.input[0].color); assert.equal(off.input[0].color, PLAN_PALETTE.full); assert.equal(off.input[0].full, true);
+  assert.notEqual(on.h, off.h);
+  assert.equal(run(CATALOG, B).h, run(without('HIV_DEV'), B).h, 'the other drawing: its point has no such work done');
 });

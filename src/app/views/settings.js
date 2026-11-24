@@ -11,7 +11,7 @@
 // - groupModal() — a shared group for several point types at once (for example all doors)
 // - refView() — the screen of one reference list; refreshApp() — reset the service worker and cache and reload
 // - settingsView() — the tab itself
-import { POOL_KINDS, usesOf, usesText, DOOR_PARTS, doorPartOf, DOOR_PART_NAMES, doorColorOf, choiceList, liveProblems, nameEnPatch } from '../../domain/index.js';
+import { POOL_KINDS, usesOf, usesText, DOOR_PARTS, doorPartOf, DOOR_PART_NAMES, doorColorOf, choiceList, liveProblems, nameEnPatch, planColourPatch } from '../../domain/index.js';
 import { poolButton } from './poolview.js';
 import { isPoolAdmin } from '../pool.js';
 import { allGroups } from '../typegroups.js';
@@ -90,22 +90,26 @@ export const REFS = {
     idMode: 'generated', prefix: 'W_', nameKey: 'name',
     items: () => [...ctx().catalog.values()],
     group: (x) => x.workType, groupOrder: WORK_TYPES,
-    line: (x) => [x.name, `${x.nameHe || '—'} · ${(x.forTypes || []).join(', ') || 'без точек'}${x.active === false ? ' · скрыта' : ''}`],
-    fields: () => [
+    line: (x) => [x.name, `${x.nameHe || '—'} · ${(x.forTypes || []).join(', ') || 'без точек'}${x.active === false ? ' · скрыта' : ''}${x.planColour === false && x.workType !== 'Протяжка' ? ' · не в цвете плана' : ''}`],
+    fields: ({ pool } = {}) => [
       { key: 'name', label: 'Название (русский)', required: true },
       { key: 'nameHe', label: 'Название (иврит)', required: true },
       { key: 'nameEn', label: 'Название (English)', hint: 'Необязательно. Если указано, в английском интерфейсе показывается оно.' },
       { key: 'workType', label: 'Тип работы', type: 'select', required: true, options: WORK_TYPES.map((t) => ({ value: t, label: t })), emptyLabel: 'Выберите',
         hint: 'Установка — влияет на статус «Установлено»; Протяжка, Хивут, Проверка, Шилют — на этапы точки; Время и Доп. работа — только в отчёт.' },
+      // a project setting (ADR 0018): hidden for «Протяжка» (it always counts) and in the pool administrator's forms
+      { key: 'inPlanColour', label: 'Учитывать в цвете точки на плане', type: 'checkbox', visible: (v) => !pool && v.workType !== 'Протяжка',
+        hint: 'Снимите для работ, которые делаются отдельным этапом (например, подключение в шкафу): точка станет зелёной без них. В отчёте и таблицах работа остаётся.' },
       { key: 'unit', label: 'Единица измерения', type: 'select', required: true, options: opts(ctx().units, (u) => u.id), emptyLabel: 'Выберите' },
       { key: 'multiplier', label: 'Множитель', type: 'number', hint: 'Обычно 1' },
       custom('forTypes', 'Для каких типов точек', opts(ctx().types, (t) => t.id), { hint: 'Ничего не выбрано — работа без точек (доп. работа, время).' }),
       { key: 'isDoorComponent', label: 'Может входить в набор двери (конфигурацию)', type: 'checkbox', visible: (v) => v.workType === 'Установка' },
       { key: 'active', label: 'Показывать в списках', type: 'checkbox' },
     ],
-    defaults: { multiplier: 1, active: true },
-    prepare: (v, { existing } = {}) => ({ name: v.name, nameHe: v.nameHe, ...nameEnPatch(v.nameEn, existing), workType: v.workType, unit: v.unit, multiplier: v.multiplier ?? 1, forTypes: v.forTypes || [],
-      isDoorComponent: !!v.isDoorComponent && v.workType === 'Установка', active: v.active !== false }),
+    defaults: { multiplier: 1, active: true, inPlanColour: true },
+    toForm: (x) => ({ ...x, inPlanColour: x.planColour !== false }),
+    prepare: (v, { existing, pool } = {}) => ({ name: v.name, nameHe: v.nameHe, ...nameEnPatch(v.nameEn, existing), workType: v.workType, unit: v.unit, multiplier: v.multiplier ?? 1, forTypes: v.forTypes || [],
+      isDoorComponent: !!v.isDoorComponent && v.workType === 'Установка', active: v.active !== false, ...(pool ? {} : planColourPatch(v.inPlanColour !== false, existing, v.workType)) }),
     usage: (x) => usesOf(ctx(), 'catalog', x.id).reduce((n, u) => n + u.n, 0), uses: (x) => usesOf(ctx(), 'catalog', x.id),
   },
   types: {
@@ -197,7 +201,7 @@ export function itemForm(key, existing, { onSaved } = {}) {  // onSaved(id) — 
   const def = REFS[key]; const repo = getRepo(); const pid = currentProject().id; const tgt = formTarget;
   const fields = []; const created = new Map(); // works created from this form (id → their «for which types»)
   if (!existing && def.idMode === 'name') fields.push({ key: '_name', label: def.nameLabel, required: true, hint: 'Название потом изменить нельзя — только удалить и создать заново.' });
-  fields.push(...def.fields({ existing, created }));
+  fields.push(...def.fields({ existing, created, pool: !!tgt }));
   const live = tgt ? [...tgt.ctx[def.coll].values()] : def.items();
   formModal({
     title: existing ? (existing.name || existing.id) : `Новый пункт — ${def.title}`,
@@ -221,7 +225,7 @@ export function itemForm(key, existing, { onSaved } = {}) {  // onSaved(id) — 
         } else id = `${def.prefix}${newId(6)}`;
       }
       const err = def.check?.(v); if (err) { toast(err); return false; }
-      const data = def.prepare ? def.prepare(v, { existing }) : {};
+      const data = def.prepare ? def.prepare(v, { existing, pool: !!tgt }) : {};
       const ops = [{ coll: def.coll, id, data: { ...data, deleted: false } }];
       // new works created from a type form — tick this type in «Для каких типов точек»
       if (key === 'types') created.forEach((ft, wid) => { if (!ft.includes(id)) ops.push({ coll: 'catalog', id: wid, data: { forTypes: [...ft, id] } }); });

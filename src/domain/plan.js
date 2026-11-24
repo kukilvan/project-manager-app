@@ -1,4 +1,5 @@
 // Drawing plan, the part shared by the app and the server: the color of a point (planColor), the plan legend, the drawing's points for the «PDF с номерами» and its fingerprint.
+// Works marked «not in the plan colour» (planColour false, idea 008) are left out of the color only; the card, reports and sheets keep them.
 // Statuses come from status.js, stages from compose.js, open problems from problems.js, what is left from remaining.js (the plan filter); the server side is src/tohnit/numbered.js. statusColor stays for the pull screen.
 import { pointInfo } from './status.js';
 import { STAGES } from './compose.js';
@@ -84,6 +85,24 @@ function worksAfterPull(info, list) {
   return { M: w.length, j: w.filter((x) => x.done).length };
 }
 
+// ---- works kept out of the plan colour (idea 008): a project setting `planColour: false` on a catalog work ----
+/** Does the work count in the plan colour? A missing work and a «Протяжка» work always count; otherwise unless `planColour` is exactly false */
+export const inPlanColour = (work) => !work || work.workType === 'Протяжка' || work.planColour !== false;
+// The point status for the colour: a composite point without the tasks of the works kept out of the colour (stage counts recounted, empty stages gone).
+// Returns `info` itself when nothing is dropped and never changes it (the app passes its cached infoOf); a legacy point has no such works.
+function colourInfo(info, ctx) {
+  if (!info.composed) return info;
+  const tasks = info.tasks.filter((t) => t.stage === 'Протяжка' || inPlanColour(ctx.catalog.get(t.workId)));
+  if (tasks.length === info.tasks.length) return info;
+  const stageStats = Object.fromEntries(STAGES.map((s) => { const l = tasks.filter((t) => t.stage === s); return [s, { total: l.length, done: l.filter((t) => t.done).length }]; }));
+  return { ...info, tasks, stageStats, stages: STAGES.filter((s) => stageStats[s].total > 0) };
+}
+/**
+ * What the work form of the project writes for the box «Учитывать в цвете точки на плане» (merged into the work's data): nothing for a «Протяжка» work (the field is ignored),
+ * `{ planColour: false }` when unticked, `{ planColour: true }` when ticked again on a work that had false, else nothing (a never-unticked work keeps no field).
+ */
+export const planColourPatch = (ticked, existing, workType) => (workType === 'Протяжка' ? {} : !ticked ? { planColour: false } : existing?.planColour === false ? { planColour: true } : {});
+
 /**
  * The color of a point on the plan → { color, done: bool[] (one per stage of S), stages, k, n, full, width, red, started, j, M, pull }.
  * First rule that fires: an open problem or «Неисправна» → red; nothing started (or no stages) → blue with a length, else gray;
@@ -91,9 +110,10 @@ function worksAfterPull(info, list) {
  * (t = 1 when M = 1: the only work is done, the pull is not); otherwise (the pull started or done, nothing after it) → pink. A type without a pull stage never gets pink.
  * pull: { done, total } in cables while the pull of a started point is unfinished (the plan draws a circle per cable), else null.
  * The plan shows no stage dots: the owner found them more in the way than helpful at the check of ticket 6.5. infoFn — the status function (the app passes its cached infoOf).
+ * Works with `planColour: false` (not «Протяжка») are left out of the status the colour is built from (colourInfo); markColor, the numbered PDF and its fingerprint follow, the card and reports do not.
  */
 export function planColor(point, ctx, infoFn = pointInfo) {
-  const info = infoFn(point, ctx);
+  const info = colourInfo(infoFn(point, ctx), ctx);
   const { list, started } = pointStages(point, ctx, info);
   const done = list.map((x) => x.done); const n = list.length; const k = done.filter(Boolean).length;
   const { M, j } = worksAfterPull(info, list);
