@@ -4,7 +4,7 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 ## Next step
 
-«Спека 8» — stage 8, field improvements 3: the spec from `.scratch/08-field-improvements-3/description.md` (ideas 008 and 009; open questions at its end). Model: Opus 5.5, effort high (`docs/models.md`, spec). The owner finishes the whole stage 8 first, while the NAS is being checked.
+«Тикеты 8» — stage 8, field improvements 3: slice `.scratch/08-field-improvements-3/spec.md` into ticket files (the spec proposes 2 tickets, § 8: 01 works not in the plan colour, idea 008; 02 the plan remembers the drawing, place and zoom, idea 009). Model: Sonnet 5.5, effort high (`docs/models.md`, slicing). The owner finishes the whole stage 8 first, while the NAS is being checked.
 
 After «Ревью 8»: «Описание 4» — stage 4, PocketBase storage (`docs/project-spec.md`, stage 4). It starts only when the NAS acceptance checks A1–A7 and A10–A13 pass (`docs/nas-requirements.md`) and the owner says the NAS is reliable; until then only «Правка: …», «Вопрос: …» and «Идея: …» sessions. Model: Opus 5.5, effort high. The description pulls in KI-8, the review-6 wish for the shared-list rules (`.scratch/06-field-improvements/review.md`) and the carrying of `nameEn` on project and pool items (`.scratch/07-field-improvements-2/review.md`) and of `planColour` on project catalog works, never in the pool (idea 008, stage 8 description).
 
@@ -19,6 +19,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 - 2026-11-10: project moved onto this workflow (`docs/history.md`); `HANDOFF.md` split into these docs and removed (original at commit `44ac16d`).
 - Stage 7 done 2026-11-21: «Ревью 7» accepted (2 findings, both fixed now; no fix round). Field improvements 2, idea 007 in 7 tickets, each checked by the owner on the phone: the test drawing `?mem=1&memPlan=1` (`src/domain/testplan.js`); several-value point filters with «✖ Сбросить фильтры» on every screen (`src/domain/filters.js`, `src/app/views/multifilter.js`, coding-standards rule 13); rack, type and door-configuration filters shared by «Точки» and «План» (`src/app/sharedfilters.js`), plan stages, modes, missing values and focus point (`src/domain/planfilters.js`); «Что осталось» recording several works through «Несколько работ» in one save, a pull only for the ticked cables (`remainingPreset`); English names of catalog items (`nameEn`, own names first, KI-7 catalog half fixed, KI-7 stays open for sentences built from parts). Details: `docs/history.md`.
 - Stage 8 description accepted 2026-11-24 (`.scratch/08-field-improvements-3/description.md`, mockup `mockups/catalog-work.html`): ideas 008 and 009 as written, except no work unticked by default (no `HIV_DEV` rule) and the box «Учитывать в цвете точки на плане» is a project setting kept out of the shared pool; no other owner wishes. ≈ 3 tickets.
+- Stage 8 spec accepted 2026-11-24 (`.scratch/08-field-improvements-3/spec.md`): 2 tickets. Idea 008: a work counts in the plan colour unless `planColour === false` (a «Протяжка» work always counts), dropped in one place inside `planColor`; `bare()` drops project-only fields (`PROJECT_ONLY`), so the box never reaches the pool; ADR 0018 comes with ticket 01. Idea 009: `src/domain/planmemory.js`, the viewer keeps the centre on resize; the test drawing gets FA/C-06 and «Test drawing 2».
 - Tests: 326, all pass on the owner's Windows PC and on the Linux deploy.
 - Stage 1: baseline 1,751 Russian comments in 144 files, 0 left; every one of the 127 modules in `docs/code-map.md` has an English header; the map has its architecture section; `PENDING` is gone, so `tools/code-map.mjs` and `tools/ru-comments.mjs` (and `tests/code-docs.test.js`) are strict; `tools/tohnit/__pycache__` is no longer tracked.
 - The owner's NAS arrives 2026-11-11 without disks; its setup is a separate project, which builds from `docs/nas-requirements.md` (the owner gives it the GitHub link and says when the version line changes).
@@ -36,7 +37,7 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 | 5 | Move to the NAS | not started | 10 | — |
 | 6 | Field improvements (now, before stage 4) | done | 15 | 001, 002, 003, 004, 005, 006 |
 | 7 | Field improvements 2 (now, before stage 4) | done | 11 | 007 |
-| 8 | Field improvements 3 (now, before stage 4) | spec | 7 | 008, 009 |
+| 8 | Field improvements 3 (now, before stage 4) | tickets 0/2 | 6 | 008, 009 |
 
 Status values: not started · description · spec · tickets k/n · review · fix round k · done. Ideas: numbers of `docs/ideas/` files filed for the stage.
 

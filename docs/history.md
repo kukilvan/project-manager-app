@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-24 — Spec 8: stage 8 specified («Спека 8»)
+
+- `.scratch/08-field-improvements-3/spec.md` accepted by the owner. Idea 008: `inPlanColour` (absent or `true` = counted, a «Протяжка» work always counts) and `colourInfo` inside `planColor`, so the plan, shared marks and «PDF с номерами» agree while the card, «Что осталось», filters and sheets keep the full task list; `NUMBERED_V` stays (the fingerprint already holds the colours). The box is kept out of the pool by `bare()` (`PROJECT_ONLY = ['planColour']`), the administrator's accept writes through `bare()`; the form writes `false` / `true` / nothing because project writes merge; hidden for «Протяжка» works and in the pool forms.
+- Idea 009: `src/domain/planmemory.js` (record validation, `viewFor`, `rememberView`, `drawingToOpen`, `centreOf` / `cornerOf`); the viewer gets `onView`, `centre()`, `restore()` and keeps the centre on resize; the plan saves 0.5 s after a move, on close and when the page is hidden; the opening point and placing keep today's view, internal redraws return to the remembered place.
+- Test drawing: FA/C-06 (all done but `HIV_DEV`) and «Test drawing 2». Two tickets instead of three: the box and the pool rule must go live together. Next: «Тикеты 8».
+
 ## 2026-11-24 — Description 8: stage 8 described («Описание 8»)
 
 - `.scratch/08-field-improvements-3/description.md` accepted, with the rough mockup `mockups/catalog-work.html` (catalog list mark « · не в цвете плана», the box in the work's edit window, plan colour before and after). Takes in ideas 008 and 009 as written; their status lines point to the description.
