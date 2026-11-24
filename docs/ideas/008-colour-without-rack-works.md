@@ -1,7 +1,9 @@
 # Idea 008: Works that do not count in the plan colour (rack termination)
 
-Status: planned — stage 8, taken in by its description
+Status: taken in — `.scratch/08-field-improvements-3/description.md`
 Added: 2026-11-24
+
+The description changed two things (owner, 2026-11-24): no work is unticked by default (no `HIV_DEV` rule), and the box is a project setting kept out of the shared pool.
 
 ## Why
 

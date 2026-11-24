@@ -1,6 +1,6 @@
 # Idea 009: The plan remembers the drawing, place and zoom
 
-Status: planned — stage 8, taken in by its description
+Status: taken in — `.scratch/08-field-improvements-3/description.md`
 Added: 2026-11-24
 
 ## Why

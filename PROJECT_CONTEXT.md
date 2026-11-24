@@ -6,7 +6,7 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 «Описание 8» — stage 8, field improvements 3 (`docs/project-spec.md`, stage 8; ideas 008 and 009 in `docs/ideas/`). Model: Opus 5.5, effort high (`docs/models.md`, description). The owner finishes the whole stage 8 first, while the NAS is being checked.
 
-After «Ревью 8»: «Описание 4» — stage 4, PocketBase storage (`docs/project-spec.md`, stage 4). It starts only when the NAS acceptance checks A1–A7 and A10–A13 pass (`docs/nas-requirements.md`) and the owner says the NAS is reliable; until then only «Правка: …», «Вопрос: …» and «Идея: …» sessions. Model: Opus 5.5, effort high. The description pulls in KI-8, the review-6 wish for the shared-list rules (`.scratch/06-field-improvements/review.md`) and the carrying of `nameEn` on project and pool items (`.scratch/07-field-improvements-2/review.md`) and of `planColour` on catalog works (idea 008).
+After «Ревью 8»: «Описание 4» — stage 4, PocketBase storage (`docs/project-spec.md`, stage 4). It starts only when the NAS acceptance checks A1–A7 and A10–A13 pass (`docs/nas-requirements.md`) and the owner says the NAS is reliable; until then only «Правка: …», «Вопрос: …» and «Идея: …» sessions. Model: Opus 5.5, effort high. The description pulls in KI-8, the review-6 wish for the shared-list rules (`.scratch/06-field-improvements/review.md`) and the carrying of `nameEn` on project and pool items (`.scratch/07-field-improvements-2/review.md`) and of `planColour` on project catalog works, never in the pool (idea 008, stage 8 description).
 
 Quick fixes «Правка: …» may come at any time; they do not change this step.
 
