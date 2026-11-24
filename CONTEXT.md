@@ -57,6 +57,8 @@ Point × work; closes a point task with one row (`done` boolean). Ids: `${entryI
 
 **Progress colour** (code: `planColor` in `src/domain/plan.js`) — the plan colour of a point by its pull and the works after it: pink for a pulled point (whatever its type), then an even OKLab gradient from yellow to green with every work done after the pull (works = the lines of the point's work list), a thick dark-green frame when all are done; red for an open problem or «Неисправна». An unfinished pull shows a circle per cable (filled for a pulled one) when zoomed in. Idea 006, ticket 6.8; before it the colour was the share of stages done (ticket 6.5).
 
+**Not in the plan colour** (code: `planColour: false` on a catalog work; UI: box «Учитывать в цвете точки на плане» unticked) — a work recorded as usual but ignored by the progress colour, for phases done apart from the points, such as termination in the rack. Idea 008, stage 8.
+
 **Daily report** «дох» (Hebrew דו"ח; code: `src/domain/doh.js`; UI: «Отчёты»)
 The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. _Avoid_: log, journal.
 
@@ -73,6 +75,8 @@ The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. 
 **Drawing** «тохнит» (Hebrew תוכנית; code: `drawings`, `tohnit`) — the customer's PDF plan. _Avoid_: blueprint, map.
 
 **Plan** (UI: «План») — the drawing in the app with points colored by status.
+
+**Plan view memory** (code: device key `pz.planView.<projectId>`) — the last drawing opened on «План» and, for each drawing, its page, centre and zoom, kept on the device across app restarts. Idea 009, stage 8.
 
 **Caption catalog** (code: `pool_catalog`, `src/tohnit/`; UI: «Каталог подписей») — rules by which parsing recognises point captions in the PDF text layer.
 

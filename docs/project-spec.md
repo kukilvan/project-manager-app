@@ -58,7 +58,7 @@ PWA, phone first (420 px), also the browser on Windows. UI in Russian (source), 
 
 ## Stages
 
-Adoption (2026-11-10) moved the project onto this workflow; numbering starts here. Quick fixes («Правка: …») run between any steps. Stage numbers are names, not the order of work: stages 6 and 7 run before stage 4 (the NAS document already names stages 4 and 5, so they keep their numbers).
+Adoption (2026-11-10) moved the project onto this workflow; numbering starts here. Quick fixes («Правка: …») run between any steps. Stage numbers are names, not the order of work: stages 6, 7 and 8 run before stage 4 (the NAS document already names stages 4 and 5, so they keep their numbers).
 
 ### Stage 1. Code documentation
 
@@ -125,3 +125,12 @@ Runs now, before stage 4, while the NAS is being checked; the owner finishes the
 - The owner sees at the end: several values in every point filter (for example two racks and three point types), a window with checkboxes behind each filter button, «✖ Сбросить фильтры» under the filters, the rack, type and door-configuration filters shared by «Точки» and «План» while the app is open, and «Что осталось» recording several ticked works at once through «Несколько работ» (idea 007); the English UI showing English names of catalog items (KI-7, catalog part); a test drawing in test mode (`?mem=1&memPlan=1`) for checking the plan (review-6 wish). Description: `.scratch/07-field-improvements-2/description.md`.
 - Data: filters live in memory. One new optional field, `nameEn`, on works, point types, devices, cables (project and shared pool) and on shared problems.
 - Sessions (est.): ≈ 8.
+
+### Stage 8. Field improvements 3
+
+Runs now, before stage 4, while the NAS is being checked; the owner finishes the whole stage, then «Описание 4» follows (when the NAS checks pass).
+
+- Goal: the owner's next wishes from field work, starting with ideas 008 and 009 (filed 2026-11-24); the description takes them in and asks the owner for more.
+- The owner sees at the end: a box «Учитывать в цвете точки на плане» on each work of «Каталог работ», unticked for «Подключение в шкафу», so a point with everything but the rack termination done is dark green on the plan and in «PDF с номерами» (idea 008); «🗺 План» opening on the last drawing at the same place and zoom, each drawing keeping its own place, also after the app was closed (idea 009).
+- Data: one new optional field `planColour` on catalog works (project and shared pool) — stage 4's storage must carry it; one new device key `pz.planView.<projectId>` (not synced).
+- Sessions (est.): ≈ 7.
