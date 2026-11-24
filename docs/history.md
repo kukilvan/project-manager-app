@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-24 — Ticket 8.1: works not in the plan colour («Тикет 8.1»)
+
+- Idea 008 live and checked by the owner on the phone. `inPlanColour`, `colourInfo` (inside `planColor`) and `planColourPatch` in `src/domain/plan.js`: a work with `planColour: false` (not «Протяжка») is dropped from the status the colour is built from, so the plan, shared marks and «PDF с номерами» agree; the card, «Что осталось», reports and sheets keep it. `NUMBERED_V` stays 4.
+- `PROJECT_ONLY = ['planColour']` in `bare()` (ADR 0018) keeps the box out of the pool, inbox and type library; `addBundleOps` and the administrator's accept and edit now write through `bare()`. The box, its hint and the list mark « · не в цвете плана» in `REFS.catalog` (hidden for «Протяжка» and in pool forms; `itemForm` passes `pool` to `fields` and `prepare`). FA/C-06 in the test drawing (16 captions). English and Hebrew, guide line, 14 new tests (340 in all).
+- Also fixed: five starter-pool names added by the pool bot on 2026-11-23 had no English (`catalog-en` test red, every deploy since failed); translated in `src/i18n/src/04-data.json`.
+
 ## 2026-11-24 — Tickets 8: stage 8 sliced («Тикеты 8»)
 
 - Two tickets accepted in `.scratch/08-field-improvements-3/issues/`: 01 works not in the plan colour (idea 008; `inPlanColour`, `colourInfo`, `planColourPatch`, `PROJECT_ONLY` in `bare()`, the box and list mark in the catalog, FA/C-06 in the test drawing, ADR 0018), 02 the plan remembers the drawing, place and zoom (idea 009; `planmemory.js`, viewer `onView` / `centre()` / `restore()`, «Test drawing 2»). Both medium, independent, 01 first. Next: «Тикет 8.1».
