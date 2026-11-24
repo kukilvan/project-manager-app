@@ -2,6 +2,10 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-24 — Tickets 8: stage 8 sliced («Тикеты 8»)
+
+- Two tickets accepted in `.scratch/08-field-improvements-3/issues/`: 01 works not in the plan colour (idea 008; `inPlanColour`, `colourInfo`, `planColourPatch`, `PROJECT_ONLY` in `bare()`, the box and list mark in the catalog, FA/C-06 in the test drawing, ADR 0018), 02 the plan remembers the drawing, place and zoom (idea 009; `planmemory.js`, viewer `onView` / `centre()` / `restore()`, «Test drawing 2»). Both medium, independent, 01 first. Next: «Тикет 8.1».
+
 ## 2026-11-24 — Spec 8: stage 8 specified («Спека 8»)
 
 - `.scratch/08-field-improvements-3/spec.md` accepted by the owner. Idea 008: `inPlanColour` (absent or `true` = counted, a «Протяжка» work always counts) and `colourInfo` inside `planColor`, so the plan, shared marks and «PDF с номерами» agree while the card, «Что осталось», filters and sheets keep the full task list; `NUMBERED_V` stays (the fingerprint already holds the colours). The box is kept out of the pool by `bare()` (`PROJECT_ONLY = ['planColour']`), the administrator's accept writes through `bare()`; the form writes `false` / `true` / nothing because project writes merge; hidden for «Протяжка» works and in the pool forms.
