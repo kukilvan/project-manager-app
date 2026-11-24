@@ -2,6 +2,11 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-24 — Ticket 8.2: the plan remembers the drawing, place and zoom («Тикет 8.2»)
+
+- Idea 009 live and checked by the owner on the phone. `src/domain/planmemory.js` (pure): `parsePlanMemory`, `viewFor`, `rememberView`, `drawingToOpen`, `centreOf` / `cornerOf`. `createViewer` gets `onView()`, `centre()`, `restore()` and keeps the centre and zoom on resize for every caller. `planModal` reads and writes `pz.planView.<projectId>` (0.5 s after the view stops, on close, on `visibilitychange` to hidden); internal redraws now return to the same place instead of fitting (D10).
+- Decisions: `rememberView` drops the written drawing too when it is not in `liveIds` (a drawing removed meanwhile keeps nothing); a pending view carries its drawing id and is flushed before switching drawings. «Test drawing 2» (`DR_test2`, `test-plan-2.pdf`) added to `?mem=1&memPlan=1`. Tests 340 → 357. Next: «Ревью 8».
+
 ## 2026-11-24 — Ticket 8.1: works not in the plan colour («Тикет 8.1»)
 
 - Idea 008 live and checked by the owner on the phone. `inPlanColour`, `colourInfo` (inside `planColor`) and `planColourPatch` in `src/domain/plan.js`: a work with `planColour: false` (not «Протяжка») is dropped from the status the colour is built from, so the plan, shared marks and «PDF с номерами» agree; the card, «Что осталось», reports and sheets keep it. `NUMBERED_V` stays 4.
