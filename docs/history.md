@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-24 — Review 8: stage 8 closed («Ревью 8»)
+
+- Tickets 8.1 and 8.2 (`06e4960..47997ab`) against spec 8 and the coding standards, plus the code-review skill at effort high; walked in `?mem=1&memPlan=1` at 420 px (two drawings, pan, resize, «📍 Отметить на плане»). Output `.scratch/08-field-improvements-3/review.md`.
+- 4 findings, all fixed now and live (commit `0067d11`): F1 a plan opened for placing replaced the drawing's remembered view with the fitted one, F2 a slow page load during `restore()` could store page 1 fitted — `planModal.show()` now saves nothing until it has chosen the view (`settled`), then queues it once, and a placing open queues the drawing's old entry; F3 `centre()` is `null` for a 0×0 viewer; F4 (older than stage 8) `addBundleOps` writes `deleted: false`, so an item the project deleted comes back with a pool type (test extended). No fix round, no deferral. Tests 357.
+- Wish: move the view choice of `planModal.show()` into `planmemory.js` if it grows. Next: «Описание 4» once the NAS passes its checks.
+
 ## 2026-11-24 — Ticket 8.2: the plan remembers the drawing, place and zoom («Тикет 8.2»)
 
 - Idea 009 live and checked by the owner on the phone. `src/domain/planmemory.js` (pure): `parsePlanMemory`, `viewFor`, `rememberView`, `drawingToOpen`, `centreOf` / `cornerOf`. `createViewer` gets `onView()`, `centre()`, `restore()` and keeps the centre and zoom on resize for every caller. `planModal` reads and writes `pz.planView.<projectId>` (0.5 s after the view stops, on close, on `visibilitychange` to hidden); internal redraws now return to the same place instead of fitting (D10).
