@@ -285,17 +285,15 @@ None open. Relied on: `pb_data` on the Btrfs mirror; the domain and DNS at Cloud
 
 ## 12. What changes in later stages, and the move
 
-Why: this document will move; the NAS project should know which parts.
-
-- **Stage 4** (PocketBase storage in the app, now): the release `nas-build` with the site, the migrations and hooks and the job scripts; the names in R-PB-8, R-SITE-2 and § 6; the PocketBase version confirmed or moved; the rate limits re-checked; A14.
+- **Stage 4** (now): the release `nas-build`; the names in R-PB-8, R-SITE-2 and § 6; the PocketBase version and rate limits re-checked; A14.
 - **Stage 5** (the move, by the NAS project): the requirements below; this repo changes the document only if the NAS project's work shows something missing.
 
 Each stage of this repo that changes the NAS side updates this document in the same session, with a new version line on top.
 
 The move is the NAS project's (ADR 0019); this repo gives it the tools and needs to hear back.
 
-- **R-MOVE-1 (stage 5)** The data move: the NAS project loads the owner's newest full server backup (Firebase, from `polevoy-backups`) into PocketBase with this repo's restore tool, which checks the counts. Users are matched by e-mail, so every member signs in once with Google on the NAS copy. The tool's name and use are fixed by stage 4's spec.
-- **R-MOVE-2 (stage 5)** A parallel test of several days with the owner, then the switch-over: the NAS copy becomes the main one, the phones move to `https://<host>`, and Firebase stays readable as the way back (`server-restore.mjs` loads a NAS export into Firebase). The NAS project writes the steps and does them with the owner. R-BAK-2, A10 and A11 must hold before the switch-over.
+- **R-MOVE-1 (stage 5)** The data move: the NAS project loads the owner's newest full server backup (Firebase, from `polevoy-backups`) into PocketBase with this repo's restore tool, which checks the counts. Users are matched by e-mail. This repo rehearses the move first on a copy and hands over its steps, times and checks; names come in stage 4's spec.
+- **R-MOVE-2 (stage 5)** A parallel test of several days with the owner, then the switch-over: the NAS copy becomes the main one, the phones move to `https://<host>`, and Firebase stays readable as the way back (`server-restore.mjs` loads a NAS export into Firebase). The NAS project does its steps with the owner; the phone steps and the app check after the move come from this repo. R-BAK-2, A10 and A11 must hold before the switch-over.
 - **R-MOVE-3 (stage 5)** When the move is done, the NAS project sends this repo, through the owner, a report: what runs where (stacks, containers, folders, versions); how a new build and new migrations reach the NAS and how long it takes; where and when the owner checks a change after a push to `main`; how to restore and where the copies are; what the Firebase jobs should do now; how to tell the NAS side when this repo changes something it needs.
 
   This repo's last NAS step takes the report in: ADR 0011, `docs/workflow.md`, `CLAUDE.md` and `ВОССТАНОВЛЕНИЕ.md`.

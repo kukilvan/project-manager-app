@@ -18,6 +18,6 @@ Considered: the NAS project also writing the app's PocketBase code. That would p
 ## Consequences
 
 - The NAS build moves from stage 5 into stage 4, so the owner can check stage 4 on the iPhone on the real NAS. R-SITE-1 and R-SITE-2 become stage 4. ADR 0014's consequence "stage 5 builds the NAS variant" now happens in stage 4.
-- Stage 4 also delivers the job scripts and the restore tool. This repo's stage 5 shrinks to taking in the NAS project's report and updating its own docs: where the owner checks after a push (ADR 0011, `docs/workflow.md`), the run commands and `ВОССТАНОВЛЕНИЕ.md`.
+- Stage 4 also delivers the job scripts and the restore tool, rehearses the move on the PC with a copy of the owner's backup, and writes the phone instructions and the app check for the switch-over day (owner, 2026-11-25): the data's correctness is app knowledge, while running the move needs the NAS's access and secrets. This repo's stage 5 shrinks to taking in the NAS project's report and updating its own docs: where the owner checks after a push (ADR 0011, `docs/workflow.md`), the run commands and `ВОССТАНОВЛЕНИЕ.md`.
 - Every change that needs the NAS side updates `docs/nas-requirements.md` with a new version line. The owner carries it to the NAS project.
 - The database description has a version number. The NAS project installs new migrations before it switches to a site build that needs them.

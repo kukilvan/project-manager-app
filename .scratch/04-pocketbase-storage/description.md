@@ -23,7 +23,14 @@ Mockup (rough): `mockups/nas-copy.html`. On the NAS copy only three screens diff
 5. **«Подключение к базе»** on the NAS copy shows the server, its address, the administrator, the connection state, the number of changes waiting, and how to invite a colleague: invite them to the project, then they open the address and sign in. There is no Client ID field and no «Скопировать правила», because the server gets its rules with each update.
 6. **A newer app on an older server.** If a new version of the app needs a newer database description than the server has, a notice says so and changes wait on the phone until the NAS project installs it. Reading and working go on as usual.
 7. **Test data only during this stage.** The NAS copy holds test data. If the owner wants to try it at real size, it can also hold a copy of a backup, loaded through «Импорт данных» or the restore tool. Real work stays in Firebase until the NAS project switches over.
-8. **For the NAS project:** a release with the site, the database description (migrations and hooks) and the server-job scripts, plus the updated NAS document. The scripts cover backup export to `polevoy-backups`, a copy to Google Drive, cleanup, the nightly sheets, and the restore tool, which loads a full server backup into PocketBase. The NAS project uses that tool to move the data, and it is also the way back from the copies kept outside the home.
+8. **A rehearsal of the move, done here.** The owner's newest full server backup is loaded with the restore tool into a PocketBase on the PC. The counts of every collection are compared with the backup, and the app is checked on that copy: points, reports, history, members, shared lists, problems. A written result of the rehearsal goes with the release: the steps, the times, what to compare. So the NAS project repeats proven steps on the NAS and meets no surprise in the data. The copy of the data stays in the scratchpad and never enters the repo (ADR 0005).
+9. **Switch-over instructions from here**, in plain Russian, step by step:
+   - for the owner and each helper: open the new address, install the icon again, sign in with Google, and what to do with the old icon;
+   - a check after the move in the app: what to open and compare, what "wrong" looks like;
+   - what to do if something is wrong: the way back to the Firebase copy, from the phone's side.
+
+   The NAS project does its own part of that day: stopping, moving the data, switching over.
+10. **For the NAS project:** a release with the site, the database description (migrations and hooks) and the server-job scripts, plus the updated NAS document. The scripts cover backup export to `polevoy-backups`, a copy to Google Drive, cleanup, the nightly sheets, and the restore tool, which loads a full server backup into PocketBase. The NAS project uses that tool to move the data, and it is also the way back from the copies kept outside the home.
 
 ## In scope
 
@@ -35,6 +42,8 @@ Mockup (rough): `mockups/nas-copy.html`. On the NAS copy only three screens diff
 - A version number of the database description, so the app knows when the server is older and the NAS project knows when to install new migrations.
 - The server-job scripts able to work with PocketBase: backup export in the `polevoy-import-1` format to `polevoy-backups`, a zip of it to the owner's Google Drive, cleanup, and the nightly sheets and «PDF с номерами». The NAS project runs them; it does not write them.
 - The restore tool: a full server backup (Firebase today, PocketBase later) → PocketBase, with a dry run and a count check. Firebase user ids are mapped to PocketBase users by e-mail: members, administrator, history authors.
+- The rehearsal of the move on the PC with a copy of the owner's backup, and its written result for the NAS project.
+- The switch-over instructions for the phones and the check in the app after the move (Russian, for the owner and the helpers).
 - KI-8: a listener refused by the server (`permission-denied`) shows the «rules out of date» toast. The PocketBase listeners get the same error path.
 - `docs/nas-requirements.md` updated in this session (who does what, the NAS build in stage 4, the off-site copy, the answers to the NAS project) and again in the spec and the tickets that change it.
 
@@ -66,6 +75,7 @@ Mockup (rough): `mockups/nas-copy.html`. On the NAS copy only three screens diff
 5. **After the move, the NAS project reports back** what is where and how to work from then on (owner, 2026-11-24). The answers file asks for it.
 6. **Answers to the NAS project's questions of 2026-11-24:** `.scratch/04-pocketbase-storage/nas-answers.md`, sent by the owner together with the updated NAS document after «Коммит». The technical answers are agent decisions within the NAS document's limits: port 8090 on `0.0.0.0`; the tailnet among the superuser addresses; a home-only HTTPS name for the dashboard, under conditions; settings set by script; `cloudflared` updates; A12.
 7. **The stage starts now.** Code is self-checked against a local PocketBase on the PC (Docker, as in stage 2), which does not wait for the NAS. The owner's phone checks need the NAS side: A1–A7, A13 and the site updater. A10 and A11 are needed before the switch-over, not before this stage.
+8. **The move is rehearsed here, and the phone side of the switch-over is written here** (owner, 2026-11-25, «Да, добавь», after asking which way round is better). Reason: the riskiest part of the move is the correctness of the data and the app's behaviour, which only this repo knows. Running the move on the NAS needs the NAS's access and secrets, which only the NAS project has, so it stays there.
 
 ## Open questions for the spec
 
@@ -81,4 +91,6 @@ Mockup (rough): `mockups/nas-copy.html`. On the NAS copy only three screens diff
 - **The job scripts.** A PocketBase reader beside the Firestore one, with the same output, so `server-tables-lib.mjs`, the backup format and the starter-pool job stay as they are. Decide how secrets come in (files, R-JOB-1).
 - **PocketBase version.** 0.40.6 is still the latest release (checked 2026-11-24). Confirm or move it, and re-check the rate limits of R-PB-6 against real batches.
 - **Tests.** Which parts are automated against a real PocketBase (a local binary with its checksum, also in CI?) and which are walked by hand.
-- **Ticket split.** About 18–20 sessions in all (was 16), because the NAS build, the job scripts and the restore tool are now in this stage.
+- **The rehearsal.** Where the copy of the backup lives (scratchpad), what is compared (counts per collection, a sample of records, the app's screens), and what the written result for the NAS project holds.
+- **The switch-over instructions.** Where they live (a Russian file for the owner and the helpers, and a line in the in-app guide), and how the old Firebase icon is retired without losing changes still waiting on a phone.
+- **Ticket split.** About 20–22 sessions in all (was 16), because the NAS build, the job scripts, the restore tool, the rehearsal and the switch-over instructions are now in this stage.

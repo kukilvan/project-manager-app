@@ -6,7 +6,7 @@ From the Project Manager app project (`kukilvan/project-manager-app`), 2026-11-2
 
 ## 1. Who does what (new)
 
-- **This repo:** the app with its PocketBase storage (stage 4, started 2026-11-24); the NAS build of the site; migrations and hooks with a version number; the server-job scripts for PocketBase (JSON export to `polevoy-backups`, the zip to Google Drive, cleanup, nightly sheets); the restore tool (a full server backup → PocketBase); `nas-requirements.md`.
+- **This repo:** the app with its PocketBase storage (stage 4, started 2026-11-24); the NAS build of the site; migrations and hooks with a version number; the server-job scripts for PocketBase (JSON export to `polevoy-backups`, the zip to Google Drive, cleanup, nightly sheets); the restore tool (a full server backup → PocketBase), **rehearsed here first** on a copy of the owner's backup, with its steps, times and checks handed to you; the phone instructions and the app check for the switch-over day; `nas-requirements.md`.
 - **You:** setup and settings, Cloudflare and the Google Console steps with the owner, the site updater, installing migrations, the agent container that runs our scripts, backups and drills, the data move, the parallel test, the switch-over, the way back to Firebase, then the report back.
 
 ## 2. Answers to your questions (§ 6)
@@ -24,7 +24,7 @@ From the Project Manager app project (`kukilvan/project-manager-app`), 2026-11-2
      - R-SITE-2: the updater is your own tool and respects `schema`;
      - R-JOB-1: the agent runs our scripts;
      - R-BAK-2: the off-site copy (question 2);
-     - new R-MOVE-1…3: the move and the report back (§ 12).
+     - new R-MOVE-1…3: the move (rehearsed by us first), the switch-over and the report back (§ 12).
    - **Phases that moved:**
      - R-SITE-1, R-SITE-2, A8 and A9: from stage 5 to **stage 4**;
      - R-BAK-2: from now to **stage 5, before the switch-over**;
