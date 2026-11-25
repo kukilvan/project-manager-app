@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-25 — Spec 4: PocketBase storage («Спека 4»)
+
+- `.scratch/04-pocketbase-storage/spec.md`, checked on a local PocketBase 0.42.3 in Docker with a prototype migration and hook (scratchpad): route writes in one transaction with rollback and the refused op's index, exact invitations through an `invites` collection (`:lower` in rules), realtime only to members and from route saves, keep-alive cron, delta by `updated`, 401 on a bad token (0.42), `users` create only through OAuth2, Google Client ID in the public `auth-methods`, OAuth2 linking a pre-created user by e-mail (fake OIDC provider), superuser batches not rate limited (6,400 creates in 2.6 s). The owner's backup of 2026-11-23 read for counts only.
+- Found: PocketBase left GitHub on 2026-10-26; the latest release is 0.42.3 on `ganigeorgiev.com`, not 0.40.6. Decisions: ADR 0020 (one write route that merges like Firestore and checks the rules; general collections `projects`, `records`, `history`, `pool`, `inbox`, `allowed`, `admin`, `prefs`, `invites`), ADR 0021 (full local copy and write queue on the phone); NAS build by a flag; Drive access stays a separate consent (not at sign-in); release, job runner, restore tool and rehearsal names fixed; KI-8 fixed in stage 4; 14 tickets.
+- `docs/nas-requirements.md` version 2026-11-25 (2) (commit `626a548`): PocketBase 0.42.3 and its new download host, R-PB-8, R-SITE-2, R-JOB-1/2, R-MOVE-1/2 names, the jobs table and data-volume bullets condensed; its guard test allows `ganigeorgiev.com` and 34,000 bytes. Message for the NAS project: `.scratch/04-pocketbase-storage/nas-message-2.md` (the NAS project confirmed `ae41367` the same day; its updater installs migrations itself; it keeps no off-site copy of its own). `CONTEXT.md` terms: NAS build, write route, local copy, write queue, schema version, restore tool, job runner, rehearsal of the move. Next: «Тикеты 4».
+
 ## 2026-11-25 — Description 4: PocketBase storage («Описание 4»)
 
 - `.scratch/04-pocketbase-storage/description.md` and mockup `mockups/nas-copy.html` (sign-in, «Подключение к базе», the «server older than the app» notice on the NAS copy). The owner started the stage before the NAS checks: code is self-checked on a local PocketBase.

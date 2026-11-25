@@ -1,4 +1,4 @@
-Status: in review
+Status: accepted
 
 # Stage 4. PocketBase storage — spec
 
@@ -367,7 +367,7 @@ On the owner's PC, nothing of the data in the repo:
 
 ## 9. Changes to the NAS document (this session)
 
-`docs/nas-requirements.md` gets version **2026-11-25 (2)** (the commit is filled in when the owner accepts this spec). Changes: R-PB-1 and the Dockerfile and compose (0.42.3, new host, checksum, why); R-PB-5 (batch serves the restore tool); R-PB-6 (unchanged numbers; the app writes through its route; the agent needs no exclusion); R-PB-8 (asset `nas-pb.zip`, folder layout, replace both folders' contents, `GET /api/pm/info`); R-SITE-2 (`nas-site.json` fields, upload order); § 6 table condensed and R-JOB-1/2 (the runner, commands, times, configuration, secrets); R-BAK-3; § 8 bullets condensed; R-MOVE-1/2 (tool names, the rehearsal file, the way back); § 12. A15 is not in the table yet: ticket 02 adds it together with the tool (the guard test counts A1–A14). The guard test in `tests/nas-check.test.js` allows the host `ganigeorgiev.com` and its budget goes from 30,000 to 34,000 bytes (31,472 now; stage 4 still adds A15 and the rehearsal pointer). A short message for the NAS project goes with it: `.scratch/04-pocketbase-storage/nas-message-2.md` (the owner forwards both after «Коммит»).
+`docs/nas-requirements.md` gets version **2026-11-25 (2)**, commit `626a548`. Changes: R-PB-1 and the Dockerfile and compose (0.42.3, new host, checksum, why); R-PB-5 (batch serves the restore tool); R-PB-6 (unchanged numbers; the app writes through its route; the agent needs no exclusion); R-PB-8 (asset `nas-pb.zip`, folder layout, replace both folders' contents, `GET /api/pm/info`); R-SITE-2 (`nas-site.json` fields, upload order); § 6 table condensed and R-JOB-1/2 (the runner, commands, times, configuration, secrets); R-BAK-3; § 8 bullets condensed; R-MOVE-1/2 (tool names, the rehearsal file, the way back); § 12. A15 is not in the table yet: ticket 02 adds it together with the tool (the guard test counts A1–A14). The guard test in `tests/nas-check.test.js` allows the host `ganigeorgiev.com` and its budget goes from 30,000 to 34,000 bytes (31,472 now; stage 4 still adds A15 and the rehearsal pointer). A short message for the NAS project goes with it: `.scratch/04-pocketbase-storage/nas-message-2.md` (the owner forwards both after «Коммит»).
 
 ## 10. Edge cases
 

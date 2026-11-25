@@ -1,6 +1,6 @@
 # To the NAS project: PocketBase 0.42.3, and the names for stage 4
 
-From the Project Manager app project (`kukilvan/project-manager-app`), 2026-11-25. It answers your confirmation of 2026-11-25. Attached: `nas-requirements.md`, **version 2026-11-25 (2)**, as one whole file. Only the document's placeholders are used.
+From the Project Manager app project (`kukilvan/project-manager-app`), 2026-11-25. It answers your confirmation of 2026-11-25. Attached: `nas-requirements.md`, **version 2026-11-25 (2), commit `626a548`**, as one whole file (use that commit for `nas-check` too). Only the document's placeholders are used.
 
 **Short version.** Thank you for the confirmation; your updater plan (copy the data, install migrations and hooks, restart, then switch the site; keep the old site on failure) is exactly right. One change needs you **now**: build the `pm` stack with **PocketBase 0.42.3** instead of 0.40.6. The rest is names you asked for.
 
