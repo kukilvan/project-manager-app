@@ -1,2 +1,3 @@
 firestore.rules text eol=lf
 firestore.open.rules text eol=lf
+pb/pb_hooks/pm/pbwrite.js text eol=lf

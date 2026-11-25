@@ -105,3 +105,11 @@ One rule per item: the rule, why, how it is checked. Reviews check against this 
 **Why.** Stage 7 (idea 007): the owner picks several racks or types at once; one control for every screen keeps the behaviour the same and the rules tested.
 
 **Checked.** `tests/filter-control.test.js` (rule 13): no file of `src/app/views/` outside `multifilter.js` builds such a drop-down, apart from `wizard.js`, whose «Все типы» filters catalog types, not points.
+
+## 15. The generated hook module is never edited by hand
+
+**Rule.** `pb/pb_hooks/pm/pbwrite.js` is generated from `src/domain/pbwrite.js` by `npm run pb:hooks` (`scripts/pb-hooks-build.mjs`) and committed with it; nobody edits it by hand. `src/domain/pbwrite.js` keeps to syntax PocketBase's JS engine runs: ES2019, no optional chaining, no `??`, no object spread, no imports, `export` only on top-level functions and constants.
+
+**Why.** The phone and the write route must merge and check writes the same way (spec 4 § 2.3, ADR 0020); two hand-kept copies drift, and a syntax the engine refuses breaks every write on the NAS copy.
+
+**Checked.** `tests/pbwrite.test.js`: the committed copy equals the built one (`node scripts/pb-hooks-build.mjs --check` too), and acorn with `ecmaVersion: 2019` parses the source with no import or object spread. Ticket 4.2 runs the copy in the real engine.

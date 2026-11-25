@@ -42,6 +42,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `scripts/export-pool.mjs` — Starter set for the open edition: a copy of the shared pool (types, devices, cables, works, door configurations, shared lists) without service fields.
 - `scripts/i18n-build.mjs` — Builds the translation dictionaries: src/i18n/src/*.json ({ "<Russian text>": ["English", "Hebrew"] }) → src/i18n/en.json and he.json.
 - `scripts/i18n-extract.mjs` — Collects every Russian UI string (strings and `…${x}…` templates in src) for the translation dictionaries and the coverage test.
+- `scripts/pb-hooks-build.mjs` — Generates PocketBase's copy of the write semantics: src/domain/pbwrite.js → pb/pb_hooks/pm/pbwrite.js (ESM `export` turned into `module.exports`).
 - `scripts/server-backup-lib.mjs` — Server backup logic: reading projects from Firestore, writing the backup folders and planning a restore.
 - `scripts/server-backup.mjs` — Server backup run by GitHub Actions every 2 days: copies all projects from Firestore into a folder that the workflow then commits to the private backup repo.
 - `scripts/server-cleanup.mjs` — Server cleanup: permanently deletes what has been marked deleted for over a year (records, whole projects) and change-history entries older than a year.
@@ -146,6 +147,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/domain/openrules.js` — Derives the open-version Firestore rules from firestore.rules, so the two files never diverge.
 - `src/domain/ownnames.js` — Own English names of catalog items (`nameEn`, stage 7): what a form writes and the name → English map the translation layer lays over the English screen.
 - `src/domain/ownworks.js` — The own set of works on selected points (the point's or a group's «Изменить» window): what is required now and what to write into the point.
+- `src/domain/pbwrite.js` — Write semantics and rules of the NAS copy's write route: app writes → ops, Firestore-like merges, a copy of the Firestore rules, and the whole route logic over a small store.
 - `src/domain/plan.js` — Drawing plan, the part shared by the app and the server: the color of a point (planColor), the plan legend, the drawing's points for the «PDF с номерами» and its fingerprint.
 - `src/domain/planfilters.js` — Pure rules of the plan's filters: the stage options of one drawing, several-value stage matching and the focus-point rule (spec 7 § 2.3).
 - `src/domain/planmemory.js` — The plan's view memory: the record kept on this device (last drawing, and per drawing the page, centre and zoom), its validation, the choice of the drawing to open and centre ↔ corner of a view.
