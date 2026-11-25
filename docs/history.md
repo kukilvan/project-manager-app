@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-25 — Ticket 4.1: write semantics and rules («Тикет 4.1»)
+
+- `src/domain/pbwrite.js`: `PB_SCHEMA = 1`, `MIN_CLIENT_SCHEMA = 1`, `POOL_KINDS`, limits; `toOps` for every repo write (commit, commitPool, setInbox, allowEmails, saveUserPrefs; `updatedAtServer` and array-op field values dropped; keys are the app's ids, not `docKey`); `mergeDeep`, `mergeFields`, `applyArrayOps`, `applyItemPatches`, `mergeDoc`; `validateOp`, `checkOp`, `changedKeys`, `invitesOf`, `membersOf`; `runSave(store, env, request)` computes every op against a request-local overlay and writes only when all passed (a store error → rollback, 422 `invalid` with the op index; request-level errors use index -1). Store interface: `find`, `put(target, data, derived)`, `setInvites`, optional `begin/commit/rollback`.
+- `scripts/pb-hooks-build.mjs` (`npm run pb:hooks`, `--check`) writes the CommonJS copy `pb/pb_hooks/pm/pbwrite.js` (LF in `.gitattributes`); the test loads it as CommonJS through `new Function`, since the repo's `package.json` is ESM. `tests/pbwrite.test.js`: 30 tests, the repo write shapes taken from the real `createRepo` with a recording backend. Rule 15; `CONTEXT.md` «Schema version» refined.
+- Decided in the session: shared pool lists accept a non-administrator's write only when `deleted` is absent or `false` (Firestore's `get('deleted', false) == false`); a resent history entry or allowed e-mail is skipped but still checked; a superuser names the user of a `prefs` op (`op.user`), a user cannot. Built site byte-identical to `3b9760f` (`tools/same-code.mjs`). The owner accepted («Работает»). Next: «Тикет 4.2».
+
 ## 2026-11-25 — Slicing 4: PocketBase storage («Тикеты 4»)
 
 - 15 ticket files in `.scratch/04-pocketbase-storage/issues/` (01 write semantics, 02 server, 03 NAS build and release, 04 sign-in, 05 local copy and queue, 06 reading, 07 rest of the backend, 08 NAS screens, 09 Google Drive and Sheets, 10 KI-8, 11 job sources and export, 12 job runner, 13 restore tool, 14 rehearsal, 15 switch-over). Branch `claude/s04-tickets`.
