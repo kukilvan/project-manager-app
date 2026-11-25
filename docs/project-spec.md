@@ -89,7 +89,7 @@ Description approved: `.scratch/03-management-sheets/description.md` (it overrid
 
 ### Stage 4. PocketBase storage
 
-Description approved: `.scratch/04-pocketbase-storage/description.md` (it overrides this section). The NAS project does the move; all code stays here (ADR 0019).
+Description approved: `.scratch/04-pocketbase-storage/description.md` (it overrides this section). The NAS project does the move; all code stays here (ADR 0019). Spec: `.scratch/04-pocketbase-storage/spec.md` — writes through one server route into general collections (ADR 0020), a full local copy and write queue on the phone (ADR 0021), PocketBase **0.42.3** (PocketBase left GitHub on 2026-10-26; releases are on `ganigeorgiev.com`), 14 tickets.
 
 - Goal: the app can work with PocketBase on the owner's NAS as a fourth storage implementation behind the same repo interface; Firebase and on-device mode keep working for everyone else (ADR 0012).
 - The owner sees at the end: the app connected to a PocketBase instance works like with Firebase, including fully offline with later sync, history and rollback, members.
@@ -98,9 +98,9 @@ Description approved: `.scratch/04-pocketbase-storage/description.md` (it overri
 - Data added by stage 6 that the storage must carry (`.scratch/06-field-improvements/spec.md`): `days.off`, `offReason`, `offText`; top-level shared lists `pool_delayReasons`, `pool_culprits`, `pool_problems` (problems with nested `descs`, soft delete by a `deleted` mark, any member writes, only the administrator deletes — ADR 0016); the project subcollection `problemMarks` (ADR 0017); `projects.sharedLists`. The old per-project `delayReasons` and `culprits` stay read-only.
 - Data added by stage 7 (`.scratch/07-field-improvements-2/spec.md` § 9): the optional English name `nameEn` on works, point types, devices and cables (project items and shared pool items) and on shared problems (`pool_problems`); no migration.
 - Data added by stage 8 (`.scratch/08-field-improvements-3/description.md`): the optional `planColour: false` on **project** catalog works only (a project setting, never in the shared pool; absent = counted); no migration. The device key `pz.planView.<projectId>` is not synced.
-- Rate limits (NAS document R-PB-6) count every request inside a batch and limit batch calls per second: today `commit` sends all chunks at once, so a mass edit of ≈ 2,500 points would get 429 for some chunks. Chunks go one after another, with a retry on 429.
+- Rate limits (NAS document R-PB-6) count every request inside a batch and limit batch calls per second: today `commit` sends all chunks at once, so a mass edit of ≈ 2,500 points would get 429 for some chunks. Chunks go one after another, with a retry on 429. (Spec 4: the app writes through its own route, one request per chunk of ≤ 300 changes, so batch limits do not apply to it.)
 - Started 2026-11-24 (owner's decision): code is self-checked on a local PocketBase; the owner's phone checks need A1–A7, A13 and the NAS site updater (`docs/nas-requirements.md`, § 10).
-- Sessions (est.): ≈ 20–22.
+- Sessions (est.): ≈ 20–22 (spec: 14 tickets, 18 sessions without fix rounds).
 
 ### Stage 5. Move to the NAS
 

@@ -86,7 +86,7 @@ The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. 
 
 ## Data, access, sync
 
-**Repo** (code: `src/app/repo.js`) — the storage interface; implementations: Firestore, memory (`?mem=1`), IndexedDB (on-device). _Avoid_: repository when you mean git.
+**Repo** (code: `src/app/repo.js`) — the storage interface; implementations: Firestore, memory (`?mem=1`), IndexedDB (on-device), and from stage 4 PocketBase on the NAS copy. _Avoid_: repository when you mean git.
 
 **On-device mode** (code: `pm.mode = local`; UI: «на устройстве») — data only in the phone's IndexedDB, no Firebase.
 
@@ -108,15 +108,31 @@ The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. 
 
 **Update stamp** (code: `stamp`) — «עודכן: …» in E2, the time of the last refresh, written even when the data is unchanged.
 
-**Delta read** (code: `updatedAtServer`, `src/domain/sync.js`) — reading only changes since the last load; a full read on Saturdays.
+**Delta read** (code: `updatedAtServer`, `src/domain/sync.js`; on PocketBase the `updated` field) — reading only changes since the last load; a full read on Saturdays.
 
-**NAS copy** — the owner's copy of the app on the home NAS: the site and PocketBase behind a Cloudflare Tunnel (ADR 0013, 0014). _Avoid_: server, home server.
+**NAS copy** — the owner's copy of the app on the home NAS: the site and PocketBase behind a Cloudflare Tunnel (ADR 0013, 0014). _Avoid_: server, home server (the UI says «домашний сервер» to people; docs and code say NAS copy).
 
 **NAS project** — the owner's separate private project that sets up the home NAS and does the move of the NAS copy: setup, the data move, running jobs and backups, the switch-over. All code stays in this repo (ADR 0019).
 
 **NAS document** (code: `docs/nas-requirements.md`) — what the app requires from the NAS: requirements `R-…` and acceptance checks A1–A14.
 
 **NAS check** (code: `tools/nas-check.mjs`) — the automated acceptance checks of the NAS copy.
+
+**NAS build** (code: `npm run build:nas`, `VITE_BACKEND=pocketbase`, `isPocketBase()`) — the app built for the NAS copy: base `/`, PocketBase storage, no setup wizard or Firebase; published with the migrations, hooks and job scripts to the GitHub release `nas-build` on every push to `main` (stage 4).
+
+**Write route** (code: `POST /api/pm/save` in `pb/pb_hooks/pm.pb.js`, logic in `src/domain/pbwrite.js`) — the one way a user writes to PocketBase: ops merged like Firestore and checked against a copy of the Firestore rules in one transaction (ADR 0020).
+
+**Local copy** (code: IndexedDB `pm-pb`) — the NAS copy's data on the phone: every project the user is a member of, the pool, settings and invitations; screens read only it (ADR 0021). _Avoid_: cache (that is Firestore's).
+
+**Write queue** (code: the `queue` store of `pm-pb`) — changes waiting on the phone to be sent to PocketBase, counted by «⬆ N»; sent in chunks one after another, kept across restarts.
+
+**Schema version** (code: `PB_SCHEMA`, `schema` in `nas-site.json`, `GET /api/pm/info`) — the version of the PocketBase database description (migrations and hooks). A newer app on a server with a lower one shows «server older» and holds the write queue.
+
+**Restore tool** (code: `scripts/pb-restore.mjs`) — loads a full server backup (Firebase or PocketBase export) into PocketBase: users by e-mail, ids mapped, a count check and a full compare.
+
+**Job runner** (code: `scripts/nas-jobs.mjs`) — the NAS copy's server jobs (`backup`, `tables`, `catch-up`), run by the NAS project's agent.
+
+**Rehearsal of the move** (code: `docs/nas-move-rehearsal.md`) — the move done once on the PC with a copy of the owner's backup; its steps, times and checks go to the NAS project.
 
 ## Development
 

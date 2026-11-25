@@ -377,10 +377,11 @@ test('main: a failed check exits 1; an unreachable host exits 2 with "cannot rea
 // Resolved from this file, like the other tests: the suite may run from any folder
 const DOC = new URL('../docs/nas-requirements.md', import.meta.url);
 
-test('NAS document: exists, within 30,000 bytes, sections in order', () => {
+// Budget 34,000 bytes since spec 4 (was 30,000): stage 4 adds the names of the release, the job runner and the restore tool
+test('NAS document: exists, within 34,000 bytes, sections in order', () => {
   assert.ok(fs.existsSync(DOC), 'docs/nas-requirements.md is missing');
   const text = fs.readFileSync(DOC, 'utf8');
-  assert.ok(Buffer.byteLength(text) <= 30000, 'docs/nas-requirements.md is over 30,000 bytes');
+  assert.ok(Buffer.byteLength(text) <= 34000, 'docs/nas-requirements.md is over 34,000 bytes');
   const titles = [...text.matchAll(/^## (\d+)\. (.+)$/gm)].map((m) => [Number(m[1]), m[2]]);
   assert.deepEqual(titles.map((t) => t[0]), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   const expected = ['Summary', 'PocketBase', 'The site on the NAS', 'Access from outside', 'Sign-in', 'Server jobs', 'Backups', 'Data volume', 'Power and network', 'Acceptance checks', 'Open questions', 'What changes in later stages'];
@@ -410,8 +411,8 @@ test('NAS document: only placeholders — no real e-mail, IPv4 address or host',
   assert.deepEqual(emails.filter((e) => !/@example\.com$/.test(e)), []);
   const ips = text.match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g) || [];
   assert.deepEqual(ips.filter((ip) => !['127.0.0.1', '0.0.0.0'].includes(ip)), []);
-  // spec 6: github.com, example.com, <host>, and Cloudflare and Google documentation hosts
-  const allowed = [/^<host$/, /^github\.com$/, /^([a-z0-9-]+\.)?example\.com$/, /^developers\.cloudflare\.com$/, /^(developers|support|cloud)\.google\.com$/];
+  // spec 6: github.com, example.com, <host>, and Cloudflare and Google documentation hosts; spec 4: ganigeorgiev.com, PocketBase's release host since 2026-10-26
+  const allowed = [/^<host$/, /^github\.com$/, /^([a-z0-9-]+\.)?example\.com$/, /^developers\.cloudflare\.com$/, /^(developers|support|cloud)\.google\.com$/, /^ganigeorgiev\.com$/];
   const hosts = [...text.matchAll(/https:\/\/([^\s/)`'">,;]+)/g)].map((m) => m[1]);
   assert.deepEqual(hosts.filter((h) => !allowed.some((re) => re.test(h))), []);
 });
