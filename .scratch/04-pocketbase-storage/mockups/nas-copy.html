@@ -1,0 +1,81 @@
+<!doctype html>
+<!-- Rough mockup of stage 4: the screens that differ on the NAS copy (PocketBase) — sign-in, «Подключение к базе», and the notice when the server's database is older than the app. Phone width, labels close to the real ones; everything else looks as with Firebase. -->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Макет: NAS-копия на PocketBase</title>
+<style>
+  body { margin: 0; background: #111418; color: #e8eaed; font: 15px -apple-system, Arial, sans-serif; display: flex; justify-content: center; }
+  .phone { width: 420px; max-width: 100%; padding: 16px; box-sizing: border-box; }
+  .note { background: #3a3220; color: #f5e6b8; font-size: 13px; padding: 8px 10px; border-radius: 6px; margin-bottom: 12px; line-height: 1.4; }
+  h1 { font-size: 22px; margin: 6px 0 12px; }
+  h3 { font-size: 13px; color: #9aa0a6; font-weight: normal; margin: 34px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+  .card { background: #1c2026; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; line-height: 1.4; }
+  .mut { color: #9aa0a6; font-size: 13px; }
+  .btn { display: block; text-align: center; padding: 10px 14px; border-radius: 6px; background: #262b31; border: 1px solid #3c4043; margin-top: 8px; }
+  .btn.pri { background: #1a73e8; border-color: #1a73e8; }
+  .btn.inl { display: inline-block; margin-left: 8px; padding: 4px 10px; font-size: 13px; }
+  .new { outline: 2px dashed #8ab4f8; outline-offset: 3px; border-radius: 6px; }
+  .gone { text-decoration: line-through; color: #6b7076; }
+  .modal { background: #1c2026; border: 1px solid #3c4043; border-radius: 12px; padding: 12px 14px; }
+  .modal-head { font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; }
+  .bar { display: flex; gap: 8px; align-items: center; background: #1c2026; padding: 8px 10px; border-radius: 8px; margin-bottom: 8px; }
+  .pill { font-size: 13px; padding: 2px 8px; border-radius: 10px; background: #5a4a1a; color: #f5e6b8; }
+  .banner { background: #4a2a1a; color: #f8d3bd; border-radius: 8px; padding: 10px 12px; font-size: 14px; line-height: 1.4; }
+  .row { display: flex; justify-content: space-between; padding: 4px 0; }
+  .ok { color: #81c995; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="note">Макет этапа 4 (грубый). На NAS-копии отличаются только эти экраны; всё остальное выглядит как с Firebase. Пунктиром отмечено новое. Адрес <b>pm.example.com</b> — пример, настоящий адрес будет ваш.</div>
+
+  <h3>1. Вход (NAS-копия, первый запуск со значка)</h3>
+  <h1>Менеджер проектов</h1>
+  <div class="card">
+    <div>Войдите через Google, чтобы открыть свои проекты. Работает и без интернета: записи сохраняются на устройстве.</div>
+    <span class="btn pri">Войти через Google</span>
+    <div class="mut" style="margin:10px 0 6px">Если кнопка выше не сработала на iPhone («Домой»), попробуйте запасной способ:</div>
+    <span class="btn">Войти (запасной способ)</span>
+  </div>
+  <div class="mut new" style="padding:4px">База: домашний сервер · pm.example.com</div>
+  <div class="mut" style="margin-top:8px">Кнопки «⚙ Подключение» и мастера настройки нет: база — сам этот адрес.</div>
+
+  <h3>2. ☰ → Данные → «Подключение к базе» (NAS-копия)</h3>
+  <div class="modal">
+    <div class="modal-head"><span>Подключение к базе</span><span>✕</span></div>
+    <div class="new" style="padding:4px">
+      <div>База: <b>домашний сервер (PocketBase)</b></div>
+      <div class="mut">Адрес: https://pm.example.com</div>
+      <div class="mut" style="margin:4px 0 10px">Администратор базы: owner@example.com</div>
+    </div>
+    <div class="card new">
+      <b>Связь с сервером</b>
+      <div class="row"><span>Сейчас</span><span class="ok">на связи</span></div>
+      <div class="row"><span>Последнее обновление</span><span>сегодня 14:32</span></div>
+      <div class="row"><span>Ждут отправки</span><span>0</span></div>
+      <div class="mut">Без интернета всё работает: записи ждут на телефоне и уйдут сами.</div>
+    </div>
+    <div class="card new">
+      <b>Как подключить коллегу</b>
+      <div class="mut" style="margin:4px 0">Пригласите его в проект (☰ → Проект → Участники), пусть откроет этот адрес на телефоне, установит значок и войдёт через Google.</div>
+      <span class="btn">📋 Скопировать адрес</span>
+    </div>
+    <div class="card">
+      <span class="gone">Google Диск и Таблицы — Client ID</span>
+      <div class="mut">Не нужен: Google-клиент задан на сервере.</div>
+    </div>
+    <div class="card">
+      <span class="gone">Правила базы — 📋 Скопировать правила</span>
+      <div class="mut">Не нужно: правила приходят на сервер вместе с обновлением.</div>
+    </div>
+  </div>
+
+  <h3>3. Сервер ещё не обновлён под новую версию приложения</h3>
+  <div class="bar"><span>☰</span><b style="flex:1">Мегасон</b><span class="pill">⬆ 12</span></div>
+  <div class="banner new">⚠ База на домашнем сервере ещё не обновлена под эту версию приложения. Записи ждут на телефоне (⬆) и уйдут сами, как только сервер обновят.</div>
+  <div class="mut" style="margin-top:8px">Показывается всем, пока NAS-проект не установит новое описание базы. Читать и работать можно как обычно.</div>
+</div>
+</body>
+</html>

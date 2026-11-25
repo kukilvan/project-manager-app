@@ -112,6 +112,8 @@ The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. 
 
 **NAS copy** — the owner's copy of the app on the home NAS: the site and PocketBase behind a Cloudflare Tunnel (ADR 0013, 0014). _Avoid_: server, home server.
 
+**NAS project** — the owner's separate private project that sets up the home NAS and does the move of the NAS copy: setup, the data move, running jobs and backups, the switch-over. All code stays in this repo (ADR 0019).
+
 **NAS document** (code: `docs/nas-requirements.md`) — what the app requires from the NAS: requirements `R-…` and acceptance checks A1–A14.
 
 **NAS check** (code: `tools/nas-check.mjs`) — the automated acceptance checks of the NAS copy.

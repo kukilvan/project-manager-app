@@ -1,19 +1,29 @@
 # What the Project Manager app needs from the NAS
 
-Version: 2026-11-15, commit `11f01e9`. Owned by this repo (`kukilvan/project-manager-app`); the NAS project proposes changes through the owner.
+Version: 2026-11-24, draft in review (the commit is added when the owner accepts it). Previous version: 2026-11-15, commit `11f01e9`. Owned by this repo (`kukilvan/project-manager-app`); the NAS project proposes changes through the owner.
 
-This document tells the NAS project exactly what to set up so the owner's copy of the app (the **NAS copy**) can run on the home NAS, and how to check it. The decisions behind it are in ADR 0013 and ADR 0014 of this repo.
+This document tells the NAS project exactly what to set up so the owner's copy of the app (the **NAS copy**) can run on the home NAS, how to move the owner's data there, and how to check it. The decisions behind it are in ADR 0013, ADR 0014 and ADR 0019 of this repo.
 
 Conventions:
 
-- **Placeholders**, never real values: `<host>` — the public hostname of the app (for example `pm.example.com`); `<domain>` — the owner's domain; `<nas-lan-ip>` — the NAS address on the home network; `<lan-subnet>` — the home network in CIDR form; `<docker-subnet>` — the subnet of the Docker network of the containers below (`docker network inspect`). Real values, keys, tokens and passwords stay with the NAS project and never come into this repo (it is public).
-- Every requirement has an id `R-<AREA>-<n>` and a phase: **now** — can be done before any app change; **stage 4** — when the app gets PocketBase storage; **stage 5** — when the owner's copy moves to the NAS. "Must" and "must not" are checkable; a requirement written as a setting ("keep 7 days") is a must too; "should" is a recommendation with its reason.
+- **Placeholders**, never real values: `<host>` — the public hostname of the app (for example `pm.example.com`); `<domain>` — the owner's domain; `<nas-lan-ip>` — the NAS address on the home network; `<lan-subnet>` — the home network in CIDR form; `<docker-subnet>` — the subnet of the Docker network of the containers below (`docker network inspect`); `<tailnet>` — the owner's Tailscale range (`100.64/10`). Real values, keys, tokens and passwords stay with the NAS project and never come into this repo (it is public).
+- Every requirement has an id `R-<AREA>-<n>` and a phase: **now** — can be done before any app change; **stage 4** — when the app gets PocketBase storage (it is being built now); **stage 5** — the move of the owner's data and the switch-over, done by the NAS project. "Must" and "must not" are checkable; a requirement written as a setting ("keep 7 days") is a must too; "should" is a recommendation with its reason.
 
 ## 1. Summary
 
 Why: the NAS project needs the whole picture in one page before the details.
 
-**What runs on the NAS.** One `pocketbase` container (the data and the built site), one `cloudflared` container (the tunnel), and from stage 5 one `agent` container (site updater and server jobs). Users: the owner and 2–6 helpers, from phones, mostly outside home, without any VPN app.
+**Who does what** (ADR 0019).
+
+| This repo | The NAS project |
+|---|---|
+| The app with its PocketBase storage | Docker, containers, settings (§ 2), Cloudflare, Google steps with the owner |
+| The NAS build, in the release `nas-build` on every push to `main` (R-SITE-1) | The site updater (R-SITE-2), monitoring |
+| Migrations and hooks with a version number (R-PB-8) | Installing them before the site that needs them |
+| Job scripts and the restore tool, in the same release (§ 6, § 12) | The agent that runs them (R-JOB-1), backups, restore drills |
+| This document, a new version line for every change | The data move, the switch-over, the way back, the report back (§ 12) |
+
+**What runs on the NAS.** One `pocketbase` container (the data and the built site), one `cloudflared` container (the tunnel), from stage 4 the site updater, and from stage 5 one `agent` container (the server jobs). Users: the owner and 2–6 helpers, from phones, mostly outside home, without any VPN app.
 
 **What stays elsewhere.** Google: the sign-in identity, drawings and backups on Drive, management sheets. GitHub: the code, the build releases, the private backup repo `polevoy-backups`. Cloudflare: DNS of the domain, the tunnel, the firewall rules. GitHub Pages and Firebase keep serving everyone who is not on the NAS copy.
 
@@ -24,19 +34,8 @@ phone (installed app) --HTTPS--> Cloudflare edge (<host>, WAF, no cache)
                                         /       the site (pb_public)
                                         /api/   PocketBase API
                                         /_/     dashboard (blocked from the internet)
-home network --> http://<nas-lan-ip>:8090/_/  (the owner administers from home)
+home network or Tailscale --> http://<nas-lan-ip>:8090/_/  (the owner administers)
 ```
-
-**The owner's checklist, with costs:**
-
-| What | Cost | Notes |
-|---|---|---|
-| A domain | ≈ 40 ₪ a year | Cloudflare Registrar recommended: no nameserver move |
-| A Cloudflare account | free | Free plan is enough |
-| Docker on UGOS Pro | free | Two containers now, three from stage 5 |
-| A UPS with USB | ≈ 300–500 ₪ once (estimate) | Recommended (R-POW-1) |
-| Google Cloud OAuth client changes | free | R-GOOG-1, R-GOOG-2 |
-| Disks | already there | Data on the HDD mirror (R-PB-3) |
 
 ## 2. PocketBase
 
@@ -44,15 +43,15 @@ Why: PocketBase holds the data and serves the site; its version, flags and setti
 
 - **R-PB-1 (now)** PocketBase **0.40.6**, linux amd64 (the DXP2800 is x86-64), in Docker. There is no official image: build it with the Dockerfile below, which checks the release zip's SHA-256 (`0e1f609158ed945f809f8a02ae012aa0427129c66ebb63c1aee76f2c0309373f` for `pocketbase_0.40.6_linux_amd64.zip`, from the release's `checksums.txt`). The version must not change automatically: no Watchtower or similar on these containers. PocketBase is before 1.0 and minor versions break things; the version changes only when this document says so.
 - **R-PB-2 (now)** Start flags exactly: `serve --http=0.0.0.0:8090 --dir=/pb/pb_data --publicDir=/pb/pb_public --migrationsDir=/pb/pb_migrations --hooksDir=/pb/pb_hooks --origins=https://<host> --encryptionEnv=PB_ENCRYPTION_KEY --dev=false`. Environment: `PB_ENCRYPTION_KEY` (exactly 32 random characters, for example from `openssl rand -hex 16`; with any other length PocketBase does not start: `crypto/aes: invalid key size`, and the container restarts in a loop), `GOMEMLIMIT=512MiB`, `TZ=UTC`. Open-files limit ≥ 4096. Restart policy `unless-stopped`. Health check `GET /api/health`. `--dev=false` matters: otherwise every SQL statement is logged.
-- **R-PB-3 (now)** Storage on the HDD mirror (RAID 1): `pb_data` in a dedicated shared folder; `pb_data/backups` mounted from a **separate** folder (R-BAK-1, R-BAK-2). `pb_public`, `pb_migrations` and `pb_hooks` are folders the app fills (stages 4–5); until then `pb_public` holds a one-line placeholder `index.html`. Reason: the data is small (under 1 GB for years), SQLite on HDD is ample for 2–6 people, and the mirror survives one disk failure. If the NVMe becomes a storage pool with its own redundancy, the NAS project may move the data there.
-- **R-PB-4 (now)** Port 8090 is published on `<nas-lan-ip>` only (the owner's dashboard). It must never be forwarded on the router. The tunnel reaches PocketBase over the Docker network.
+- **R-PB-3 (now)** Storage on the HDD mirror (RAID 1): `pb_data` in a dedicated shared folder; `pb_data/backups` mounted from a **separate** folder (R-BAK-1, R-BAK-2). `pb_public`, `pb_migrations` and `pb_hooks` are folders the app fills (stage 4); until then `pb_public` holds a one-line placeholder `index.html`. Reason: the data is small, SQLite on HDD is ample for 2–6 people, the mirror survives a disk failure; the NVMe has no redundancy.
+- **R-PB-4 (now)** Port 8090 serves the owner's dashboard and must never be reachable from the internet: it must never be forwarded on the router. It may be published on `<nas-lan-ip>` only, or on `0.0.0.0` (IPv4) while IPv6 is off on the NAS and the router forwards nothing to it. The tunnel reaches PocketBase over the Docker network.
 - **R-PB-5 (now)** Dashboard → Settings → Application:
   - Application URL (`appURL`) = `https://<host>`.
   - Batch API **on**: max requests 500, timeout 10 s, max body size 0 (server default). Batch is off by default and the app needs it.
   - Trusted proxy (user IP) header: `CF-Connecting-IP`.
-  - Superuser IPs: `<lan-subnet>` and `<docker-subnet>`.
+  - Superuser IPs: `<lan-subnet>` and `<docker-subnet>`; `<tailnet>` may be added so the owner administers over Tailscale. Add the Docker subnet of a home-only reverse proxy only when that proxy cannot pass the real client address (§ 4).
 
-  The last two go together. Without the header, every request through the tunnel comes from `cloudflared`'s Docker address, so the internet would pass the superuser IP list, and logs and rate limits would see one client. With it, a superuser login, or even a valid superuser token, used from outside gets 403. A device on the home network can forge `CF-Connecting-IP`, but only to look like another address: accepted.
+  The header and the superuser IPs go together. Without the header, every request through the tunnel comes from `cloudflared`'s Docker address, so the internet would pass the IP list, and logs and rate limits would see one client. With it, a superuser login or token used from outside gets 403. Cloudflare sets the header itself, and no internet client has a `<tailnet>` address. A home device can forge it, but only to look like another address: accepted.
 - **R-PB-6 (now)** Rate limiting **on**, with exactly these rules (the defaults would break the app: PocketBase counts every request inside a batch against the rules, so a 100-record batch fails at its 21st record under the default `*:create` rule):
 
   | Label | Audience | Max requests | Per |
@@ -63,12 +62,14 @@ Why: PocketBase holds the data and serves the site; its version, flags and setti
   | `/api/` | `@guest` | 300 | 10 s |
   | `/api/` | `@auth` | 5,000 | 10 s |
 
-  From stage 5 the agent container's address goes in the excluded list.
-- **R-PB-7 (now)** Superusers: one personal account for the owner with a strong password; from stage 5 a separate `jobs` superuser for the agent. Create one from the NAS shell with `docker exec <pocketbase container> /pb/pocketbase superuser upsert <email> <password> --dir=/pb/pb_data --encryptionEnv=PB_ENCRYPTION_KEY`, or with the one-time installer link PocketBase prints in its log at the first start (with `<nas-lan-ip>` in place of `0.0.0.0`). Every PocketBase command run in the container needs the same `--dir` and `--encryptionEnv` as `serve`; without them it fails with «missing encryption key». MFA with e-mail OTP should be turned on once SMTP is set (the `superuser otp` command is the fallback); it is not required, because superuser access is LAN-only (R-PB-5, R-NET-4).
-- **R-PB-8 (stage 4)** Collections, API rules and indexes come as migration files from this repo into `pb_migrations`; the NAS project must not create collections by hand. A migration applies when PocketBase starts. How the files reach the NAS (by hand or by the agent) is decided in stage 4.
+  From stage 5 the agent container's address goes in the excluded list. Stage 4 re-checks these numbers against the app's real batches and changes this document if they move.
+- **R-PB-7 (now)** Superusers: one personal account for the owner with a strong password, made by the owner; from stage 5 a separate `jobs` superuser for the agent. Create one from the NAS shell with `docker exec <pocketbase container> /pb/pocketbase superuser upsert <email> <password> --dir=/pb/pb_data --encryptionEnv=PB_ENCRYPTION_KEY`, or with the one-time installer link PocketBase prints in its log at the first start (with `<nas-lan-ip>` in place of `0.0.0.0`). Every PocketBase command in the container needs the same `--dir` and `--encryptionEnv` as `serve` (else «missing encryption key»). E-mail OTP is not required: superuser access is home-only.
+- **R-PB-8 (stage 4)** Collections, API rules and indexes come as migration files (`pb_migrations`), and hooks as files (`pb_hooks`), from this repo. The NAS project must not create or change collections by hand. They come as one asset of the release `nas-build`, with its SHA-256 and the version of the database description (`schema`) in `nas-site.json`. The NAS project unpacks them into `pb_migrations` and `pb_hooks` and restarts PocketBase (migrations apply at start), by hand or automatically, always **before** switching to a site with a higher `schema` (R-SITE-2). Expected: a hook that merges record writes on the server, maybe a realtime keep-alive. Names are fixed by stage 4's spec; until then both folders stay empty.
 - **R-PB-9 (now)** Settings → Logs: keep 7 days; IP logging on.
 
-**`PB_ENCRYPTION_KEY`** encrypts the stored settings (the Google client secret, SMTP), not the data. Keep it with the NAS project's secrets. If it is lost, PocketBase still starts and the data is intact, but those settings must be entered again.
+**Who sets what.** The NAS project sets R-PB-5, R-PB-6, R-PB-9, R-AUTH-1 and R-AUTH-2: in the dashboard, or by a script that uses PocketBase's API from the home network with the owner's superuser session, holds no secret in any repo, and may re-check them later. This repo's migrations change only collections (fields, indexes, API rules, `users` rules and fields included), never Settings or the `users` auth options (password, OAuth2 providers, client secret, token durations). So they do not fight; a re-checking script must not "fix" collection rules.
+
+**`PB_ENCRYPTION_KEY`** encrypts the stored settings (the Google client secret, SMTP), not the data. Keep it with the NAS project's secrets, and a copy outside the NAS (the owner's password manager). If it is lost, the data is intact, but those settings must be entered again.
 
 Dockerfile (R-PB-1):
 
@@ -111,7 +112,7 @@ services:
     ulimits:
       nofile: { soft: 4096, hard: 4096 }
     ports:
-      - "<nas-lan-ip>:8090:8090"   # home network only
+      - "<nas-lan-ip>:8090:8090"   # or "0.0.0.0:8090:8090" under the conditions of R-PB-4
     volumes:
       - /volume1/pm/pb_data:/pb/pb_data
       - /volume1/pm-backups:/pb/pb_data/backups
@@ -126,7 +127,7 @@ services:
     restart: unless-stopped
 
   cloudflared:
-    image: cloudflare/cloudflared:2026.11.0
+    image: cloudflare/cloudflared:2026.11.0   # pinned by the NAS project (R-NET-1)
     command: tunnel --no-autoupdate run
     environment:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN}             # from .env, never in git
@@ -139,78 +140,86 @@ The `.env` file next to it holds `PB_ENCRYPTION_KEY` and `TUNNEL_TOKEN`, readabl
 
 ## 3. The site on the NAS
 
-Why: the owner wants the site at home too, on the same hostname as the data, and it must update itself when this repo changes.
+Why: the owner wants the site at home too, on the same hostname as the data, and it must update itself when this repo changes. From stage 4 the owner checks the app's PocketBase storage there.
 
-- **R-SITE-1 (stage 5)** The site is this app built with `VITE_BASE=/`, served by PocketBase from `pb_public` at `https://<host>/`. Unknown paths fall back to `index.html` (PocketBase default). One hostname for the site and the API: no CORS, one tunnel route, one Google origin, and the app finds PocketBase at its own origin, so the address never enters this repo.
-- **R-SITE-2 (stage 5)** Delivery by pull. The agent checks `https://github.com/kukilvan/project-manager-app/releases/download/nas-build/nas-site.json` (`commit`, `version`, `builtAt`, `sha256`) every 10 minutes. On a new `commit` it downloads `nas-site.zip` from the same release, checks `sha256`, unpacks into `site-<commit>/` and switches the folder PocketBase serves to it (a symlink swap or a rename; stage 5 checks which works on UGOS). PocketBase reads the folder on every request, so no restart is needed. The agent keeps the previous two builds. A failed download or checksum leaves the current site untouched and logs the error. Switching back to the previous build is a documented manual step. No secret is involved: the repo is public and nothing reaches into the NAS.
-- **R-SITE-3 (now, stage 5)** Cloudflare must not cache the app's files: a Cache Rule "Bypass cache" for hostname `<host>`. PocketBase sends no `Cache-Control`, and without it Cloudflare keeps `.js` files (including the service worker `sw.js`) at the edge for up to 2 hours after a deploy. The traffic is small, so bypassing costs nothing.
+- **R-SITE-1 (stage 4)** The site is this app built with `VITE_BASE=/`, served by PocketBase from `pb_public` at `https://<host>/`. Unknown paths fall back to `index.html`. One hostname for the site and the API: no CORS, one tunnel route, one Google origin; the app finds PocketBase at its own origin.
+- **R-SITE-2 (stage 4)** Delivery by pull, by the NAS project's own updater (it needs no app knowledge; a small script or container is enough). It checks `https://github.com/kukilvan/project-manager-app/releases/download/nas-build/nas-site.json` every 10 minutes. The file holds `commit`, `version`, `builtAt`, `sha256`, and from stage 4 also `schema` and the migrations asset's checksum (R-PB-8; names fixed by stage 4's spec).
+  - On a new `commit` it downloads `nas-site.zip`, checks `sha256`, unpacks into `site-<commit>/` and switches the folder PocketBase serves (a symlink swap or a rename); no restart is needed.
+  - If `schema` is higher than the installed one, the migrations go first (R-PB-8); an updater that does not install them must hold the old site and alert the owner.
+  - It keeps the previous two builds; a failed download or checksum leaves the site untouched and logs the error; switching back is a documented manual step. No secret is involved.
+- **R-SITE-3 (now)** Cloudflare must not cache the app's files: a Cache Rule "Bypass cache" for hostname `<host>`. PocketBase sends no `Cache-Control`, so Cloudflare would keep `.js` files (`sw.js` too) up to 2 hours after a deploy.
 
-Explanations (no action):
-
-- **Service worker and updates.** Installed apps update themselves within one start after the switch. The first start from the new address installs the app anew: a new origin has its own storage, so every phone installs the icon and connects again (ADR 0013).
-- **The NAS is off while a deploy goes out.** GitHub Pages gets the new build; the NAS catches up at its next check after it starts. The owner checks the NAS copy only once its build shows the new commit.
+Explanations (no action): installed apps update themselves within one start after the switch; the first start from the new address installs the app anew, so every phone installs the icon again (ADR 0013). A NAS that was off catches up at its next check. The `nas-build` release comes with stage 4's first tickets; the owner tells the NAS project when the first build is there.
 
 ## 4. Access from outside
 
 Why: phones must reach the NAS from anywhere over HTTPS, without a VPN app and without opening the home router.
 
-- **R-NET-1 (now)** A remotely managed Cloudflare Tunnel (Zero Trust → Networks → Tunnels). `cloudflared` runs in Docker with the tunnel token (kept by the NAS project), version pinned (2026.11.0 at the time of writing), with `--no-autoupdate`. Public hostname `<host>` → service `http://pocketbase:8090`. No port is opened on the home router; this works behind the provider's NAT.
+- **R-NET-1 (now)** A remotely managed Cloudflare Tunnel (Zero Trust → Networks → Tunnels). `cloudflared` runs in Docker with the tunnel token (kept by the NAS project), with `--no-autoupdate`, its version pinned by the NAS project. The NAS project may raise the version on its own, for example in its monthly update sessions, if `nas-check` (A1–A7, with the realtime hold) passes on the new version. Public hostname `<host>` → service `http://pocketbase:8090`. No port is opened on the home router; this works behind the provider's NAT.
 - **R-NET-2 (now)** SSL/TLS: "Always Use HTTPS" on, so `http://` redirects to `https://`.
-- **R-NET-3 (now)** Off for `<host>`: Cloudflare Access, Rocket Loader, Email Address Obfuscation, Bot Fight Mode. They rewrite pages or challenge the app's own requests; an expiring Access cookie breaks an installed iPhone app (offline start, background sync, the sign-in popup).
+- **R-NET-3 (now)** Off for `<host>`: Cloudflare Access, Rocket Loader, Email Address Obfuscation, Bot Fight Mode. They rewrite pages or challenge the app's requests; an expiring Access cookie breaks an installed iPhone app. A zone-wide switch on the Free plan is fine while the zone's other names stay DNS-only.
 - **R-NET-4 (now)** Two WAF custom rules on `<host>`, action **Block**:
   1. `starts_with(http.request.uri.path, "/_/")` — the dashboard;
   2. `starts_with(http.request.uri.path, "/api/collections/_superusers/") or starts_with(http.request.uri.path, "/api/collections/pbc_3142635823/")` — superuser sign-in and records, by the collection's name and by its id (PocketBase accepts both; the id is fixed in PocketBase's code).
 
-  These are the outer layer. What really holds is R-PB-5: a superuser login with the right password from outside gets 403 even without these rules. The id is in rule 2 because PocketBase answers a wrong password with 400 and a right one with 403, so a login attempt that reaches it tells an outsider whether a guessed password is right.
-- **R-NET-5 (now)** Limits that matter (explanation): request body up to 100 MB on the free plan (the app sends at most 1–2 MB per batch); Cloudflare waits at most **125 s** for data from the origin, so an idle realtime stream is cut after ≈ 125 s (PocketBase itself closes it after 300 s idle; the app reconnects and re-reads changes, stage 4); one hostname, so CORS is not involved.
-- **R-NET-6 (now, should)** A down-alert: Cloudflare's Tunnel health notification (an e-mail when the tunnel is down), or a free external monitor on `https://<host>/api/health` every 5 minutes. Reason: helpers notice an outage only as "changes do not arrive".
+  The outer layer; R-PB-5 is what really holds. The id is there because PocketBase answers a wrong password with 400 and a right one with 403, which would tell an outsider a guess is right.
+- **R-NET-5 (now)** Limits (explanation): request body up to 100 MB on the free plan (the app sends 1–2 MB per batch); an idle realtime stream is cut after ≈ **125 s** (PocketBase itself: 300 s); the app reconnects and re-reads changes (stage 4).
+- **R-NET-6 (now, should)** A down-alert on `https://<host>/api/health` through Cloudflare and the tunnel (the planned Gatus check every minute with a Telegram alert meets it). Reason: helpers notice an outage only as "changes do not arrive".
 
-**Remote administration.** The owner administers PocketBase only from home, by design. If administration from outside is ever needed, it gets a second hostname behind Cloudflare Access, decided then, never a hole in R-NET-4.
+**Administration** from home or over Tailscale only (`http://<nas-lan-ip>:8090/_/`), never from the internet.
+
+**A home-only HTTPS name for the dashboard (optional)**, through the NAS's own reverse proxy (home network and Tailscale only), if: it routes only `/_/` and `/api/` and redirects `/` to `/_/` (the app is never used from it: another origin, no Google sign-in there); it overwrites `CF-Connecting-IP` with the real client address (Caddy: `header_up CF-Connecting-IP {remote_host}`), so the proxy's Docker subnet stays out of Superuser IPs unless the proxy only sees a Docker gateway; and the name never goes through the tunnel or Cloudflare's proxy.
 
 ## 5. Sign-in and Google
 
 Why: users sign in with their Google accounts, and the app talks to Google Drive and Sheets from the new address.
 
-- **R-AUTH-1 (now)** PocketBase `users` collection: password sign-in **off** (by default it is on); OAuth2 **on** with the Google provider (Client ID and secret of R-GOOG-1); field mapping: name → `name`, avatar URL → `avatar`. Creating a user by Google sign-in stays allowed: who sees which project is decided by the collection rules (stage 4), as in Firestore today. Password sign-in off does not stop the records API from creating users (the default create rule lets anyone; such a user cannot sign in and sees nothing); stage 4's migrations set the `users` rules (R-PB-8) so that users come only from Google sign-in.
+- **R-AUTH-1 (now)** PocketBase `users` collection: password sign-in **off** (by default it is on); OAuth2 **on** with the Google provider (Client ID and secret of R-GOOG-1); field mapping: name → `name`, avatar URL → `avatar`. Google sign-in may create users; who sees which project is decided by the collection rules (stage 4). Password sign-in off does not stop the records API from creating users; stage 4's migrations set the `users` rules (R-PB-8) so users come only from Google sign-in.
 - **R-AUTH-2 (now)** Auth token duration for users: **30 days** (2,592,000 s; the default is 5 days). The app refreshes it at every online start (stage 4). Reason: a helper's phone may stay offline or unused for weeks, and 5 days would force a new Google sign-in.
-- **R-GOOG-1 (now)** The OAuth client is the owner's existing Google Cloud web client — the one whose Client ID the owner's connect link carries (it already has the Drive and Sheets scopes). Its client secret goes only into PocketBase settings (encrypted by `PB_ENCRYPTION_KEY`). If the client's consent screen is in "Testing" status, every helper's Google account should be on its test-user list, otherwise their sign-in is refused.
+- **R-GOOG-1 (now)** The OAuth client is the owner's existing Google Cloud web client — the one whose Client ID the owner's connect link carries (it already has the Drive and Sheets scopes). Its client secret is typed into PocketBase settings only by the owner (encrypted by `PB_ENCRYPTION_KEY`). If the client's consent screen is in "Testing" status, every helper's Google account should be on its test-user list, otherwise their sign-in is refused.
 - **R-GOOG-2 (now)** On that client (Google Cloud Console → APIs & Services → Credentials) add:
   - authorized JavaScript origin `https://<host>`;
   - authorized redirect URIs `https://<host>/api/oauth2-redirect` (PocketBase popup sign-in) and `https://<host>/` (the manual code flow, and the app's Drive sign-in on iPhone, which redirects back to the app's own address).
 
-What stays in Google (explanation): management sheets (ADR 0009), drawings on Drive (≈ 34 MB, not moved), backups on Drive, and the service account that writes the nightly sheets.
+Staying in Google: management sheets, drawings on Drive, Drive backups, the service account of the nightly sheets.
 
 ## 6. Server jobs
 
-Why: today GitHub Actions run the backups and the nightly sheets against Firebase; for the NAS copy they run on the NAS, so the superuser API is never reachable from outside.
+Why: today GitHub Actions run the backups and the nightly sheets against Firebase; for the NAS copy they run on the NAS, so the superuser API is never reachable from outside. This repo writes the job scripts; the NAS project runs them (ADR 0019).
 
-| Today (GitHub Actions) | NAS copy | Runs | Needs |
+| Today (GitHub Actions) | NAS copy (a script from this repo, run by the agent) | Runs | Needs |
 |---|---|---|---|
-| `server-backup.yml` → Firestore JSON into `polevoy-backups` | PocketBase built-in backup (R-BAK-1) + a JSON export in the `polevoy-import-1` backup format into `polevoy-backups` (R-BAK-3) | PocketBase cron; agent, daily | a GitHub fine-grained token, contents write on `polevoy-backups` only |
-| `server-cleanup.mjs` | the same rule (permanently delete what was marked deleted over a year ago, and history entries older than a year) on PocketBase | agent, after the export | `jobs` superuser |
-| `server-drive-backup.mjs` | the off-site copy of the backup zips (R-BAK-2) | UGOS Cloud Sync or agent | Drive access of the chosen method |
-| `server-tables.yml` (00:00 UTC, retry 07:20 UTC) | the same sheets, reading PocketBase | agent, same times | a **new key of the same service account** (same e-mail, so the sheets already shared with it keep working); `jobs` superuser; internet to Google |
+| `server-backup.yml` → Firestore JSON into `polevoy-backups` | PocketBase built-in backup (R-BAK-1) + a JSON export in the `polevoy-import-1` backup format into `polevoy-backups` (R-BAK-3) | PocketBase cron; agent, daily | a GitHub fine-grained token, contents write on `polevoy-backups` only; `jobs` superuser |
+| `server-cleanup.mjs` | the same rule on PocketBase (soft-deleted over a year ago, history over a year old) | agent, after the export | `jobs` superuser |
+| `server-drive-backup.mjs` | a zip of the newest export into the owner's Drive file, like today (R-BAK-2) | agent, after the export | the service-account key below; the owner shares the Drive file with it, as today |
+| `server-tables.yml` (00:00 UTC, retry 07:20 UTC) | the same sheets and «PDF с номерами», reading PocketBase | agent, same times | a **new key of the same service account** (same e-mail, so the sheets already shared with it keep working); `jobs` superuser; internet to Google |
 | `export-pool.yml` (Mondays) | unchanged, stays in GitHub Actions (it reads `polevoy-backups`) | GitHub | nothing new |
-| — | site updater (R-SITE-2) | agent, every 10 min | nothing |
+| — | the site updater (R-SITE-2) | NAS project's tool, every 10 min, from stage 4 | nothing |
 
-- **R-JOB-1 (stage 5)** The agent container: Node 22, its code from the same release as the site (an asset of `nas-build`), cron inside; secrets as files mounted read-only; it talks to PocketBase as `http://pocketbase:8090` over the Docker network.
+- **R-JOB-1 (stage 5)** The agent container: Node 22, cron inside, running the job scripts of the same `nas-build` release (with a checksum); secrets as files mounted read-only; PocketBase at `http://pocketbase:8090`. Script names, arguments and secrets are fixed by stage 4's spec.
 - **R-JOB-2 (stage 5)** A job missed while the NAS was off runs at the next start (backup, export) or the next night (sheets).
 
-Three secrets then live on the NAS: the service-account key, the GitHub token, the `jobs` superuser password. **If the service-account key leaks from the NAS**, revoke that key in Google Cloud (IAM → Service accounts → Keys); the GitHub Actions key is a different key of the same account and keeps working. Firebase jobs keep running in GitHub Actions while the Firebase copy lives.
+Three secrets then live on the NAS: the service-account key, the GitHub token, the `jobs` superuser password. A leaked service-account key is revoked alone in Google Cloud (IAM → Service accounts → Keys); the GitHub Actions key keeps working. Firebase jobs stay in GitHub Actions while the Firebase copy lives.
 
 ## 7. Backups
 
 Why: the disk mirror is not a backup — it copies a deletion or a corruption to both disks at once.
 
 - **R-BAK-1 (now)** PocketBase backups (Dashboard → Settings → Backups): cron `0 1 * * *` (01:00 UTC), keep **14**, into the separate backups folder (R-PB-3).
-- **R-BAK-2 (now)** Off-site: the backups folder is copied off the NAS daily — UGOS Cloud Sync (one-way upload) to a Google Drive folder, or an rclone container. Off-site holds at least the last **7** daily backups and is at most 26 hours behind.
-- **R-BAK-3 (stage 5)** A JSON export to the private repo `polevoy-backups` in today's format, so the existing restore path (`server-restore.mjs`, the app's «Импорт данных») and the starter-pool job keep working.
-- **R-BAK-4 (now)** A restore drill before the move, then every 3 months, written down step by step:
+- **R-BAK-2 (stage 5, before the switch-over)** Two copies outside the home, each at most 26 hours behind:
+  1. the daily JSON export in `polevoy-backups` (R-BAK-3), private on GitHub;
+  2. a zip of the newest export in the owner's Google Drive file, made by the agent like `server-drive-backup.mjs` today (Drive keeps earlier versions ≈ 30 days).
+
+  Both restore with the restore tool (§ 12). Until the switch-over Firebase is the main copy with its own off-site backups and the NAS holds test data, so it needs none. Copies inside the home do not replace these.
+- **R-BAK-3 (stage 5)** A JSON export to the private repo `polevoy-backups` in today's format, so the existing restore path (the restore tool, `server-restore.mjs`, the app's «Импорт данных») and the starter-pool job keep working.
+- **R-BAK-4 (now)** A restore drill before the switch-over, then every 3 months, written down step by step:
   1. copy the newest backup zip to an empty folder and unpack it there;
   2. start a second PocketBase container from the same image with that folder as `--dir`, on another LAN port, without the tunnel;
   3. sign in to its dashboard from the home network;
   4. compare the record counts of each collection with the live one;
   5. stop and remove the test container and its folder.
+
+  From stage 5 it also restores the newest JSON export with the restore tool.
 
 Restoring for real (explanation): Dashboard → Settings → Backups → Restore replaces all data and restarts PocketBase; the phones then catch up by their normal reads.
 
@@ -218,28 +227,21 @@ Restoring for real (explanation): Dashboard → Settings → Backups → Restore
 
 Why: the folder sizes and the disk choice follow from the real data.
 
-The owner's data (server backup of 2026-11-15):
+The owner's data (server backup of 2026-11-23; 2026-11-15 in brackets): 1,685 points (1,685), 11,858 history entries (11,023), full JSON of both projects 19.7 MB (18.4 MB), of it history ≈ 87 %; shared pool, allowed e-mails and settings 0.19 MB.
 
-| | Project 1 | Project 2 | Total |
-|---|---|---|---|
-| Documents | 7,319 | 8,508 | 15,827 (+ shared pool ≈ 0.2 MB) |
-| Points | 1,292 | 393 | 1,685 |
-| History entries | 5,472 | 5,551 | 11,023 |
-| Full JSON | 11.7 MB | 6.7 MB | 18.4 MB |
-| of it history | 10.6 MB | 5.4 MB | 16.0 MB (87 %) |
-
-- Largest single documents: a history entry 19 KB, a project document 45 KB, a cable pull 9 KB, a point under 1 KB — far below PocketBase's 1 MB limit per JSON value.
-- Growth: history spans 5½ weeks including bulk imports, so ≈ 13 MB a month is an upper bound; history older than a year is cleaned.
+- Largest documents: a project 45 KB, a history entry 19 KB — far below the 1 MB limit per JSON value.
+- Growth: +1.3 MB in 8 days (≈ 5 MB a month); the first 5½ weeks included bulk imports (≈ 13 MB a month, the upper bound used here); history older than a year is cleaned.
 - Estimate: at most 200 MB of JSON a year; SQLite with indexes ≈ 2× → at most 0.5 GB; 14 backup zips at most 1 GB. Drawings ≈ 34 MB, on Google Drive.
 - **R-DATA-1 (now)** A folder budget of **20 GB** on the mirror for `pb_data` and the backups together — more than ten times the estimate, so nobody needs to watch it.
+- **Project files** (the owner's spreadsheets and PDFs, downloaded only through the app) are not in this version: they become a separate idea after the move. Sizes and the backup choice come with it.
 
 ## 9. Power and network
 
 Why: the app is offline-first, so an outage must cost nothing but delay, and the NAS must come back by itself.
 
-What happens when the NAS, the home internet or Cloudflare is down (explanation): phones keep working offline from their own copy; writes wait and are sent later (stage 4 builds this); the site opens from the phone's cache; a cached sign-in works. Impossible meanwhile: a first install, a new sign-in, a new helper joining, seeing others' changes. Google Drive and Sheets actions keep working (they go to Google directly). Server jobs skip and catch up (R-JOB-2). At home the app also goes through the tunnel, so without internet it works offline at home too.
+When the NAS, the home internet or Cloudflare is down (explanation): phones work offline from their own copy, writes wait (stage 4), the site opens from the cache, a cached sign-in works; a first install, a new sign-in and others' changes wait; Drive and Sheets keep working; jobs catch up (R-JOB-2). At home the app also goes through the tunnel.
 
-- **R-POW-1 (now, should)** A UPS with a USB signal (≈ 600–700 VA covers the NAS and the router); the NAS shuts down cleanly on low battery. Reason: a power cut during a SQLite write is the one way to damage the data.
+- **R-POW-1 (now, should)** A UPS with a USB signal; the NAS shuts down cleanly on low battery. Reason: a power cut during a SQLite write is the one way to damage the data. (In place: § 11.)
 - **R-POW-2 (now)** The NAS powers on by itself when power returns (UGOS power-recovery setting); the containers start by themselves (R-PB-2).
 - **R-POW-3 (now)** The NAS time is synced by NTP: the app's delta reads compare against PocketBase's `updated` field, which is server time.
 
@@ -247,7 +249,7 @@ What happens when the NAS, the home internet or Cloudflare is down (explanation)
 
 Why: the NAS project and the owner need a clear "done", and most of it can be checked by a tool.
 
-The tool is `tools/nas-check.mjs` in this repo: Node 22, no dependencies, no credentials, changes nothing. Run it from a clone of the repo: `node tools/nas-check.mjs https://<host>` (`--quick` skips the realtime hold of A7; `--help` explains). Exit code 0 means no check failed.
+The tool is `tools/nas-check.mjs` in this repo: Node 22, no dependencies, no credentials, changes nothing. Run it from a clone at the commit of this document's version line (tool and document move together): `node tools/nas-check.mjs https://<host>` (`--quick` skips the realtime hold of A7; `--help` explains); a pinned `node:22` container on the NAS is fine. Exit code 0 means no check failed.
 
 | # | Check | How | Phase |
 |---|---|---|---|
@@ -258,32 +260,43 @@ The tool is `tools/nas-check.mjs` in this repo: Node 22, no dependencies, no cre
 | A5 | password sign-in off, Google provider on | `nas-check` | now |
 | A6 | no CORS for a foreign origin | `nas-check` | now |
 | A7 | realtime connects through the tunnel and reconnects after a cut; the cut time is reported | `nas-check` | now |
-| A8 | Cloudflare does not cache the app's files | `nas-check` | stage 5 (skipped before) |
-| A9 | the site is the app built for `/` | `nas-check` | stage 5 (skipped before) |
-| A10 | a backup appears daily; the off-site copy appears daily | by hand, a week after setup | now |
-| A11 | the restore drill (R-BAK-4) done once | by hand | now, before stage 4 starts |
-| A12 | power cut: unplug → clean shutdown on the UPS → power back → NAS, containers and A1 back without a hand | by hand | now |
+| A8 | Cloudflare does not cache the app's files | `nas-check` | stage 4 (skipped before the first NAS build) |
+| A9 | the site is the app built for `/` | `nas-check` | stage 4 (skipped before the first NAS build) |
+| A10 | a PocketBase backup appears daily (now); the two off-site copies appear daily (stage 5) | by hand, a week after setup | now / stage 5 |
+| A11 | the restore drill (R-BAK-4) done once | by hand | before the switch-over |
+| A12 | power cut: clean shutdown on the UPS, power back, NAS and containers back without a hand | done at the NAS level on 2026-11-18; plus a NAS restart showing the `pm` containers and A1 back | now |
 | A13 | the dashboard opens from the home network | by hand | now |
 | A14 | Google sign-in from the installed iPhone app | by hand | stage 4 |
 
-Everything marked "now" works on an empty PocketBase: A1–A7 pass with no app collections (`users` exists by default); A8 and A9 skip until the site is there. Stage 4 of the app starts when A1–A7 and A10–A13 pass and the owner says the NAS is reliable. If a check fails, the owner brings the tool's output to this repo's sessions.
+Everything marked "now" works on an empty PocketBase: A1–A7 pass with no app collections (`users` exists by default); A8 and A9 skip until the site is there.
+
+**When the app needs what.** Stage 4's code is self-checked on a local PocketBase, so it does not wait for the NAS; the owner's phone checks do:
+- **first** (when stage 4's first phone-checked ticket goes live): A1–A7, A13, R-AUTH-1/2, R-GOOG-1/2 and the site updater (R-SITE-2); most urgent are the tunnel with its rules and the Google settings, since the owner first checks the sign-in from the installed icon;
+- **then**, in stage 4: A8, A9, A14;
+- **before the switch-over**: A10 in full, A11, the agent (R-JOB-1).
+
+If a check fails, the owner brings the tool's output to this repo's sessions.
 
 ## 11. Open questions for the NAS project
 
-Why: the NAS project had decided nothing when this was written; these are its choices, and the rest of the document works with any answer.
+Why: the NAS project answered on 2026-11-24.
 
-1. NVMe: cache or a storage pool? (The data goes on the mirror either way, R-PB-3.)
-2. The domain and the app's hostname (a subdomain such as `pm.<domain>` keeps the bare domain free); the registrar (Cloudflare Registrar recommended).
-3. The UPS model, and whether UGOS Pro talks to it over USB.
-4. The off-site method (UGOS Cloud Sync or rclone) and which Google account holds the copy.
-5. SMTP for superuser MFA (optional, R-PB-7).
-6. Docker on UGOS Pro: the built-in Docker app with Compose projects, or something else; which shared folders.
+None open. Relied on: `pb_data` on the Btrfs mirror; the domain and DNS at Cloudflare, other names DNS-only; a UPS with NUT, power cut tested 2026-11-18; NTP; no SMTP; Compose stacks deployed over SSH; IPv6 off, only TCP 443 forwarded (not used by the app); Tailscale from `<tailnet>`; ≈ 5 GB of memory free.
 
-## 12. What changes in later stages
+## 12. What changes in later stages, and the move
 
 Why: this document will move; the NAS project should know which parts.
 
-- **Stage 4** (PocketBase storage in the app): migrations and possibly hooks (`pb_migrations`, `pb_hooks`), the PocketBase version confirmed or moved, A14.
-- **Stage 5** (the move): the release `nas-build`, the agent container with its secrets, the JSON export, the move of the owner's data, the switch-over of the server jobs.
+- **Stage 4** (PocketBase storage in the app, now): the release `nas-build` with the site, the migrations and hooks and the job scripts; the names in R-PB-8, R-SITE-2 and § 6; the PocketBase version confirmed or moved; the rate limits re-checked; A14.
+- **Stage 5** (the move, by the NAS project): the requirements below; this repo changes the document only if the NAS project's work shows something missing.
 
-Each of those stages updates this document in the same session, with a new version line on top.
+Each stage of this repo that changes the NAS side updates this document in the same session, with a new version line on top.
+
+The move is the NAS project's (ADR 0019); this repo gives it the tools and needs to hear back.
+
+- **R-MOVE-1 (stage 5)** The data move: the NAS project loads the owner's newest full server backup (Firebase, from `polevoy-backups`) into PocketBase with this repo's restore tool, which checks the counts. Users are matched by e-mail, so every member signs in once with Google on the NAS copy. The tool's name and use are fixed by stage 4's spec.
+- **R-MOVE-2 (stage 5)** A parallel test of several days with the owner, then the switch-over: the NAS copy becomes the main one, the phones move to `https://<host>`, and Firebase stays readable as the way back (`server-restore.mjs` loads a NAS export into Firebase). The NAS project writes the steps and does them with the owner. R-BAK-2, A10 and A11 must hold before the switch-over.
+- **R-MOVE-3 (stage 5)** When the move is done, the NAS project sends this repo, through the owner, a report: what runs where (stacks, containers, folders, versions); how a new build and new migrations reach the NAS and how long it takes; where and when the owner checks a change after a push to `main`; how to restore and where the copies are; what the Firebase jobs should do now; how to tell the NAS side when this repo changes something it needs.
+
+  This repo's last NAS step takes the report in: ADR 0011, `docs/workflow.md`, `CLAUDE.md` and `ВОССТАНОВЛЕНИЕ.md`.
+

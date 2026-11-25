@@ -34,7 +34,7 @@ Done (versions as `release-*` branches, `docs/rollback.md`):
 - **1.2** (2026-10-24): UI in Russian, English and Hebrew (ADR 0008).
 - **After 1.2** (version stays `1.2.0`; the build is shown in «Журнал событий»): pull «Предыдущая» and select-all; points without cable need no meters; new icon (`*-v2.png`), no double-tap zoom; equal works summed in the daily report; fast start without waiting for the network; offline changes visible at once (ADR 0010); «🔄 Новая версия чертежа»; «🔀 Одинаковые точки в разном виде»; cables by point label; own set of works on points (`ownWorks`).
 
-Later (no stage yet): growing the drawing caption catalog as new drawings come (quick fixes); photos on points — only if the owner brings a concrete scenario.
+Later (no stage yet): growing the drawing caption catalog as new drawings come (quick fixes); photos on points — only if the owner brings a concrete scenario; project files (spreadsheets, PDFs) kept on the NAS and downloaded by helpers only through the app — an idea after the move (owner, 2026-11-24; the NAS project proposed PocketBase protected file fields).
 
 Never (owner's decisions): copy yesterday's day, favourite work sets, «report not filled» reminder; routes and lengths on the plan, racks on the plan; Firebase Blaze, Firebase Hosting, a native app and an Apple developer account; own LiDAR apartment scanning (OpenPlan3D Capture exists); the manual «cat7×1» field; password sign-in. Technically failed: reading MAC from a photo (Hikvision labels print MAC as small text only) — MAC is typed.
 
@@ -89,24 +89,24 @@ Description approved: `.scratch/03-management-sheets/description.md` (it overrid
 
 ### Stage 4. PocketBase storage
 
+Description: `.scratch/04-pocketbase-storage/description.md` (it overrides this section once approved). The NAS project does the move; all code stays here (ADR 0019).
+
 - Goal: the app can work with PocketBase on the owner's NAS as a fourth storage implementation behind the same repo interface; Firebase and on-device mode keep working for everyone else (ADR 0012).
 - The owner sees at the end: the app connected to a PocketBase instance works like with Firebase, including fully offline with later sync, history and rollback, members.
-- Contains: storage implementation, sign-in, an offline cache and write queue (PocketBase has no Firestore-like offline persistence — the main risk), management sheets still in Google.
+- Contains: storage implementation, sign-in, an offline cache and write queue (PocketBase has no Firestore-like offline persistence — the main risk), management sheets still in Google; migrations and hooks with a version number; the NAS build and the release `nas-build` (moved here from stage 5); the server-job scripts for PocketBase and the restore tool (full backup → PocketBase), run by the NAS project; KI-8.
 - PocketBase facts checked in stage 2 (PocketBase 0.40.6, `.scratch/02-nas-requirements/spec.md` § 1): the app's ids live in their own field, not as PocketBase ids where they can be names (a catalog id is a name; PocketBase ids reject `/`, space and `.`); batch writes stay ≤ 500 requests and one batch is one transaction; list reads page by 1,000; a JSON value is limited to 1 MB per field (raise per field if needed); the server-set `updated` field is the delta-read mark; an idle realtime stream is cut (through the tunnel, NAS document R-NET-5), so the app reconnects and runs a delta read after every reconnect (a keep-alive hook is optional); the auth token is refreshed at every online start (lifetime: R-AUTH-2); both Google OAuth flows (popup with realtime, and the manual code flow with redirect) are tried on an installed iPhone PWA, and the redirect URIs of R-GOOG-2 cover both; the `users` create rule lets only Google sign-in create users — with password sign-in off the records API still creates users under the default rule (checked in «Ревью 2»).
 - Data added by stage 6 that the storage must carry (`.scratch/06-field-improvements/spec.md`): `days.off`, `offReason`, `offText`; top-level shared lists `pool_delayReasons`, `pool_culprits`, `pool_problems` (problems with nested `descs`, soft delete by a `deleted` mark, any member writes, only the administrator deletes — ADR 0016); the project subcollection `problemMarks` (ADR 0017); `projects.sharedLists`. The old per-project `delayReasons` and `culprits` stay read-only.
 - Data added by stage 7 (`.scratch/07-field-improvements-2/spec.md` § 9): the optional English name `nameEn` on works, point types, devices and cables (project items and shared pool items) and on shared problems (`pool_problems`); no migration.
 - Data added by stage 8 (`.scratch/08-field-improvements-3/description.md`): the optional `planColour: false` on **project** catalog works only (a project setting, never in the shared pool; absent = counted); no migration. The device key `pz.planView.<projectId>` is not synced.
 - Rate limits (NAS document R-PB-6) count every request inside a batch and limit batch calls per second: today `commit` sends all chunks at once, so a mass edit of ≈ 2,500 points would get 429 for some chunks. Chunks go one after another, with a retry on 429.
-- Starts when the NAS acceptance checks A1–A7 and A10–A13 pass (`docs/nas-requirements.md`) and the owner says the NAS is reliable.
-- Sessions (est.): ≈ 16.
+- Started 2026-11-24 (owner's decision): code is self-checked on a local PocketBase; the owner's phone checks need A1–A7, A13 and the NAS site updater (`docs/nas-requirements.md`, § 10).
+- Sessions (est.): ≈ 18–20.
 
 ### Stage 5. Move to the NAS
 
-- Goal: a full copy of the app and the owner's data runs on the NAS; the owner tests it in parallel for several days and, if all is well, makes it the main one.
-- The owner sees at the end: the site and PocketBase on the NAS with their data migrated from Firestore; server jobs (backup, sheets) working for it; a way back to Firebase.
-- Contains (ADR 0014): a workflow that builds the NAS variant with `VITE_BASE=/` on every push to `main` and publishes it to the release `nas-build`; `/api/` and `/_/` in the service worker's `navigateFallbackDenylist`; the agent container (site updater, backup export, cleanup, nightly sheets) with its secrets on the NAS; the NAS document updated in the same sessions.
-- After the move the owner checks on the NAS, once its build shows the new commit (ADR 0011 and `docs/workflow.md` updated then).
-- Sessions (est.): ≈ 10.
+- The move is done by the NAS project (ADR 0019, `docs/nas-requirements.md` § 12): the data move with this repo's restore tool, the agent running the job scripts, the off-site copies (R-BAK-2), the parallel test, the switch-over and the way back to Firebase.
+- This repo's part: take in the NAS project's report after the move (what is where, how to work from then on) and update ADR 0011, `docs/workflow.md`, `CLAUDE.md` and `ВОССТАНОВЛЕНИЕ.md`; after it the owner checks on the NAS once its build shows the new commit; fix what the NAS project's work shows missing.
+- Sessions (est.): ≈ 3.
 
 ### Stage 6. Field improvements
 
