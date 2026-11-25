@@ -83,6 +83,8 @@ Before the owner sees the change:
 
 **Test mode `?mem=1`.** Data in memory, a stub sign-in (`test@example.com`; another address: `&memEmail=…`), Google replaced by a stub (`window.__gcalls`). `window.__pzTest = { state, getRepo, currentProject, setCurrentProject }` gives access to data: create a project with `__pzTest.getRepo().createProject(...)` and load a copy of the owner's backup (format `polevoy-import-1`) into it. The tour pops up first: press «Не напоминать». Listeners are synchronous here, so races of real Firestore do not reproduce — think those through in the code. `&memPlan=1` adds a project with a ready drawing and points at every progress stage (spec 7 § 6): `http://localhost:4176/project-manager-app/?mem=1&memPlan=1`, then «Не напоминать»; «🗺 План» shows the drawing.
 
+**NAS tickets (stage 4 on).** Also `npm run build:nas`, then `node tools/pb-dev.mjs up --serve dist-nas`: a local PocketBase 0.42.3 at `http://127.0.0.1:8090/` with the repo's migrations and hooks, password sign-in and the test users `a@pm.test`, `b@pm.test`, `c@pm.test` (password in `tools/pb-dev.mjs`). The browser pane at 420 px; two users at once in two tabs, one at `http://127.0.0.1:8090/` and one at `http://localhost:8090/` (separate origins keep separate sign-ins); "offline" = `node tools/pb-dev.mjs down`, then `up` again. The server tests need `node tools/pb-dev.mjs fetch` once (skipped without it on the PC, always run in CI). The Pages build stays free of PocketBase: no file of `dist/` contains `PB_CONNECT`, and `?mem=1` behaves as before.
+
 ## End of a session
 
 1. The session title is set (Start of a session, step 1); if not, set it now. Status line of the step's file → `in review`. Commit and `git push -u origin <branch>` — allowed without asking.

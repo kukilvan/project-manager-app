@@ -24,7 +24,15 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # The server tests run against a real PocketBase (tests/pb-server.test.js); PB_TESTS_REQUIRED makes a missing binary fail them
+      - uses: actions/cache@v4
+        with:
+          path: .cache/pocketbase
+          key: pocketbase-0.42.3-linux_amd64
+      - run: node tools/pb-dev.mjs fetch
       - run: npm test
+        env:
+          PB_TESTS_REQUIRED: '1'
       - run: npm run build
         env:
           VITE_BASE: /${{ github.event.repository.name }}/

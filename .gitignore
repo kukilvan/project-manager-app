@@ -21,3 +21,6 @@ dist
 dev-dist
 *.log
 __pycache__/
+
+# Local PocketBase binary and data (tools/pb-dev.mjs)
+.cache/

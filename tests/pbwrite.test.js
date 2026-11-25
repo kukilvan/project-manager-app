@@ -442,7 +442,8 @@ test('runSave: repo writes of a whole session applied in order give the Firestor
 
 test('the generated hook module is fresh (rule 15) and exports what the source exports', () => {
   assert.ok(isFresh(), `${OUT} is stale: run npm run pb:hooks`);
-  const src = fs.readFileSync(SRC, 'utf8');
+  // LF first: a Windows checkout (core.autocrlf) has the source in CRLF, which the CRLF case below would double
+  const src = fs.readFileSync(SRC, 'utf8').replace(/\r\n/g, '\n');
   assert.notEqual(build(`${src}\nexport const EXTRA = 1;\n`), fs.readFileSync(OUT, 'utf8').replace(/\r\n/g, '\n'), 'a changed source makes the copy stale');
   assert.equal(build(src.replace(/\n/g, '\r\n')), build(src), 'a CRLF checkout builds the same copy');
   // load it as PocketBase's require() does: a CommonJS module (the repo's package.json says ESM, so not through node's require)

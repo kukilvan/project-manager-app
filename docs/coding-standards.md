@@ -106,6 +106,14 @@ One rule per item: the rule, why, how it is checked. Reviews check against this 
 
 **Checked.** `tests/filter-control.test.js` (rule 13): no file of `src/app/views/` outside `multifilter.js` builds such a drop-down, apart from `wizard.js`, whose «Все типы» filters catalog types, not points.
 
+## 14. Users write to PocketBase only through the write route
+
+**Rule.** On the NAS copy a user changes data only through `POST /api/pm/save` (`pb/pb_hooks/pm.pb.js`, CONTEXT.md «Write route»). Every app collection a migration in `pb/pb_migrations/` creates keeps its create, update and delete rules `null`; the only non-null write rule is `users.createRule` for OAuth2 sign-in. Superusers (jobs, the restore tool) may use the record API.
+
+**Why.** The route merges like Firestore and checks a copy of the Firestore rules in one transaction (ADR 0020); a collection writable through PocketBase's record API would skip both, and a phone could overwrite fields or another member's project.
+
+**Checked.** `tests/pb-server.test.js`: the migration source has no other non-null write rule, and against a real PocketBase every app collection's write rules are `null` and a direct create is refused.
+
 ## 15. The generated hook module is never edited by hand
 
 **Rule.** `pb/pb_hooks/pm/pbwrite.js` is generated from `src/domain/pbwrite.js` by `npm run pb:hooks` (`scripts/pb-hooks-build.mjs`) and committed with it; nobody edits it by hand. `src/domain/pbwrite.js` keeps to syntax PocketBase's JS engine runs: ES2019, no optional chaining, no `??`, no object spread, no imports, `export` only on top-level functions and constants.

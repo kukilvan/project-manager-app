@@ -28,6 +28,7 @@ Owner's shell: PowerShell, in the project folder. Node.js 22+.
 - Code map: `node tools/code-map.mjs` (check only: `--check`)
 - Only comments changed: `node tools/same-code.mjs`
 - NAS check: `node tools/nas-check.mjs https://<host>`
+- Local PocketBase (NAS tickets): `node tools/pb-dev.mjs fetch` once, then `node tools/pb-dev.mjs up [--empty] [--serve dist-nas]`; stop: `node tools/pb-dev.mjs down`
 - Deploy: push to `main`; watch it: `gh run list --workflow pages.yml --limit 1`
 
 ## Agent skills

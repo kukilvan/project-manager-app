@@ -120,7 +120,7 @@ The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. 
 
 **NAS build** (code: `npm run build:nas`, `VITE_BACKEND=pocketbase`, `isPocketBase()`) — the app built for the NAS copy: base `/`, PocketBase storage, no setup wizard or Firebase; published with the migrations, hooks and job scripts to the GitHub release `nas-build` on every push to `main` (stage 4).
 
-**Write route** (code: `POST /api/pm/save` in `pb/pb_hooks/pm.pb.js`, logic in `src/domain/pbwrite.js`) — the one way a user writes to PocketBase: ops merged like Firestore and checked against a copy of the Firestore rules in one transaction (ADR 0020).
+**Write route** (code: `POST /api/pm/save` in `pb/pb_hooks/pm.pb.js`, logic in `src/domain/pbwrite.js`, the PocketBase store in `pb/pb_hooks/pm/pbstore.js`) — the one way a user writes to PocketBase: ops merged like Firestore and checked against a copy of the Firestore rules in one transaction (ADR 0020).
 
 **Local copy** (code: IndexedDB `pm-pb`) — the NAS copy's data on the phone: every project the user is a member of, the pool, settings and invitations; screens read only it (ADR 0021). _Avoid_: cache (that is Firestore's).
 
