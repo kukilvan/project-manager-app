@@ -89,7 +89,7 @@ Description approved: `.scratch/03-management-sheets/description.md` (it overrid
 
 ### Stage 4. PocketBase storage
 
-Description: `.scratch/04-pocketbase-storage/description.md` (it overrides this section once approved). The NAS project does the move; all code stays here (ADR 0019).
+Description approved: `.scratch/04-pocketbase-storage/description.md` (it overrides this section). The NAS project does the move; all code stays here (ADR 0019).
 
 - Goal: the app can work with PocketBase on the owner's NAS as a fourth storage implementation behind the same repo interface; Firebase and on-device mode keep working for everyone else (ADR 0012).
 - The owner sees at the end: the app connected to a PocketBase instance works like with Firebase, including fully offline with later sync, history and rollback, members.

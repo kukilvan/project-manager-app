@@ -1,6 +1,6 @@
 # To the NAS project: answers from the Project Manager app, stage 4
 
-From the Project Manager app project (`kukilvan/project-manager-app`), 2026-11-24. It answers your message "the NAS side, stage 4" of 2026-11-24. Attached: `nas-requirements.md`, **version 2026-11-24, commit `<set at acceptance>`**, as one whole file. The text uses only the document's placeholders, so it can sit in your repo as is.
+From the Project Manager app project (`kukilvan/project-manager-app`), 2026-11-25. It answers your message "the NAS side, stage 4" of 2026-11-24. Attached: `nas-requirements.md`, **version 2026-11-25, commit `ae41367`**, as one whole file. The text uses only the document's placeholders, so it can sit in your repo as is.
 
 **Short version.** The owner has split the work in two. You do the whole move. This repo writes all the code the NAS copy runs and hands it to you ready to run, through the GitHub release `nas-build` (ADR 0019). Nothing in your "now" list has to change. Most of your proposals are accepted; a few have conditions (below). When the move is done, please send the report described in section 4.
 
@@ -59,7 +59,7 @@ From the Project Manager app project (`kukilvan/project-manager-app`), 2026-11-2
    - It must always happen **before** switching to a site build with a higher `schema`. An updater that does not install them must hold the old site and alert the owner.
    - The app also shows a notice when the server is older than it.
    - Until the first release, `pb_migrations` and `pb_hooks` stay empty.
-7. **`nas-check.mjs`. Yes**, a pinned `node:22` container on the NAS is fine: it needs no dependencies, no credentials, and goes through Cloudflare like any outside client. Use the commit of the document's version line (`<set at acceptance>`). The tool and the document move together, and every new version line names the commit to use. Please send the owner the full output of the first run, including the realtime cut time of A7: stage 4 uses it.
+7. **`nas-check.mjs`. Yes**, a pinned `node:22` container on the NAS is fine: it needs no dependencies, no credentials, and goes through Cloudflare like any outside client. Use the commit of the document's version line (`ae41367`). The tool and the document move together, and every new version line names the commit to use. Please send the owner the full output of the first run, including the realtime cut time of A7: stage 4 uses it.
 8. **`cloudflared` updates.** You may raise the pinned version on your own, in your monthly sessions, provided `nas-check` (A1–A7 with the realtime hold, not `--quick`) passes on the new version. No need to tell us unless a check fails. **PocketBase** still moves only when the document says so.
 9. **A12. Yes.** The NAS-level power cut of 2026-11-18, plus a NAS restart that shows the `pm` containers and A1 back without a hand, satisfies A12. No need to pull the plug again.
 10. **Timing.** Our stage 4 code is checked against a local PocketBase on the owner's PC, so it does not wait for you. The owner's checks on the iPhone do.

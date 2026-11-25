@@ -1,10 +1,10 @@
 # Project context
 
-Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live in `docs/history.md`. Updated: 2026-11-24.
+Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live in `docs/history.md`. Updated: 2026-11-25.
 
 ## Next step
 
-«Описание 4» — stage 4, PocketBase storage (`docs/project-spec.md`, stage 4). It starts only when the NAS acceptance checks A1–A7 and A10–A13 pass (`docs/nas-requirements.md`) and the owner says the NAS is reliable; until then only «Правка: …», «Вопрос: …» and «Идея: …» sessions. Model: Opus 5.5, effort high. The description pulls in KI-8, the review-6 wish for the shared-list rules (`.scratch/06-field-improvements/review.md`) and the carrying of `nameEn` on project and pool items (`.scratch/07-field-improvements-2/review.md`) and of `planColour` on project catalog works, never in the pool (idea 008, stage 8 description). Meanwhile the NAS is being checked.
+«Спека 4» — stage 4, PocketBase storage, from `.scratch/04-pocketbase-storage/description.md` (accepted 2026-11-25). Model: Opus 5.5, effort xhigh (data model, sync and offline, security rules). The spec checks PocketBase facts on a local PocketBase 0.40.6 in Docker on the PC; the NAS is not needed for it. The owner's phone checks later need the NAS side (A1–A7, A13, the site updater; `docs/nas-requirements.md` § 10). Meanwhile the owner sends the NAS project `docs/nas-requirements.md` (version 2026-11-25, commit `ae41367`) and `.scratch/04-pocketbase-storage/nas-answers.md`.
 
 Quick fixes «Правка: …» may come at any time; they do not change this step.
 
@@ -16,10 +16,11 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 - Stage 1: description, spec and slicing accepted 2026-11-10 — all Russian comments translated in this stage; 9 tickets in `.scratch/01-code-docs/issues/` (01 tools, 02 domain, 03 app core, 04–06 views, 07 drawings/scripts/config, 08 tests and Python, 09 architecture and strict checks); every ticket proves «only comments changed, built site byte-identical» with `tools/same-code.mjs` (ticket 01) and goes live without waiting for «Работает»; the owner checks once after the stage review.
 - 2026-11-10: project moved onto this workflow (`docs/history.md`); `HANDOFF.md` split into these docs and removed (original at commit `44ac16d`).
 - Stage 7 done 2026-11-21: «Ревью 7» accepted (2 findings, both fixed now; no fix round). Field improvements 2, idea 007 in 7 tickets, each checked by the owner on the phone: the test drawing `?mem=1&memPlan=1` (`src/domain/testplan.js`); several-value point filters with «✖ Сбросить фильтры» on every screen (`src/domain/filters.js`, `src/app/views/multifilter.js`, coding-standards rule 13); rack, type and door-configuration filters shared by «Точки» and «План» (`src/app/sharedfilters.js`), plan stages, modes, missing values and focus point (`src/domain/planfilters.js`); «Что осталось» recording several works through «Несколько работ» in one save, a pull only for the ticked cables (`remainingPreset`); English names of catalog items (`nameEn`, own names first, KI-7 catalog half fixed, KI-7 stays open for sentences built from parts). Details: `docs/history.md`.
+- Stage 4 description accepted 2026-11-25: the NAS project does the whole move and all code stays here (ADR 0019); the NAS build moves into stage 4; this repo also delivers the job scripts, the restore tool, a rehearsal of the move on the PC and the switch-over instructions for the phones; off-site copy before the switch-over = `polevoy-backups` + Drive; project files on the NAS — an idea after the move. NAS document version 2026-11-25 (commit `ae41367`) with answers to the NAS project's questions of 2026-11-24 (`.scratch/04-pocketbase-storage/nas-answers.md`).
 - Stage 8 done 2026-11-24: «Ревью 8» accepted (4 findings, all fixed now; no fix round). Field improvements 3, two tickets, each checked by the owner on the phone: works not in the plan colour (idea 008: `planColour: false` on a project catalog work, dropped in `colourInfo` inside `planColor`, kept out of the pool by `PROJECT_ONLY` in `bare()`, ADR 0018, FA/C-06 in the test drawing); the plan remembers the drawing, place and zoom (idea 009: `src/domain/planmemory.js`, `pz.planView.<projectId>`, the viewer keeps the centre on resize, «Test drawing 2»). Details: `docs/history.md`.
 - Tests: 357, all pass on the owner's Windows PC and on the Linux deploy.
 - Stage 1: baseline 1,751 Russian comments in 144 files, 0 left; every one of the 127 modules in `docs/code-map.md` has an English header; the map has its architecture section; `PENDING` is gone, so `tools/code-map.mjs` and `tools/ru-comments.mjs` (and `tests/code-docs.test.js`) are strict; `tools/tohnit/__pycache__` is no longer tracked.
-- The owner's NAS arrives 2026-11-11 without disks; its setup is a separate project, which builds from `docs/nas-requirements.md` (the owner gives it the GitHub link and says when the version line changes).
+- The owner's NAS is set up by the NAS project, which builds from `docs/nas-requirements.md` (the owner gives it the file and says when the version line changes) and reports back after the move (R-MOVE-3).
 - Stage 3 done 2026-11-16: «Ревью 3» accepted (6 findings, all fixed; no fix round). Management sheets: legend, update stamp «Обновлено» in E2 written on every refresh (date-only write when the data is unchanged), no pink, thin borders, sections by point type in the profile's `typeOrder`, the last tab «Итоги по шкафам» (percents rounded down, progress colours), profile ticks for sections and the rack sheet, KI-4; `STYLE_V` 7. Checked by the owner on the phone and the PC ticket by ticket; the Sheets requests were accepted by Google on the owner's file. Not checked against a real response: a profile with no points (review F1, guarded). Details: `docs/history.md`.
 - Stage 6 done 2026-11-19: «Ревью 6» accepted (5 findings: 4 fixed, KI-8 deferred; no fix round). Field improvements, ideas 001–006 in 8 tickets, each checked by the owner on the phone: day off with a reason (KI-5); shared delay reasons, culprits and problems in the pool (ADR 0016, KI-6; the owner published the rules 2026-11-18); problems on points in the subcollection `problemMarks` (ADR 0017), red on the plan and in the management sheet (column «Проблема», `STYLE_V` 8); plan colours by works after the pull (idea 006: pink, OKLab gradient, pull circles; `NUMBERED_V` 4 after the review); the English and Hebrew UI translated with a coverage test (rule 12, KI-7). Details: `docs/history.md`.
 
@@ -30,8 +31,8 @@ Quick fixes «Правка: …» may come at any time; they do not change this 
 | 1 | Code documentation | done | 14 | — |
 | 2 | What the app needs from the NAS | done | 6 | — |
 | 3 | Management sheets | done | 8 | — |
-| 4 | PocketBase storage (when the owner trusts the NAS) | not started | 16 | — |
-| 5 | Move to the NAS | not started | 10 | — |
+| 4 | PocketBase storage (code here; the move by the NAS project, ADR 0019) | spec | 21 | — |
+| 5 | Move to the NAS (done by the NAS project; here: its report taken in) | not started | 3 | — |
 | 6 | Field improvements (now, before stage 4) | done | 15 | 001, 002, 003, 004, 005, 006 |
 | 7 | Field improvements 2 (now, before stage 4) | done | 11 | 007 |
 | 8 | Field improvements 3 (now, before stage 4) | done | 6 | 008, 009 |

@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-25 — Description 4: PocketBase storage («Описание 4»)
+
+- `.scratch/04-pocketbase-storage/description.md` and mockup `mockups/nas-copy.html` (sign-in, «Подключение к базе», the «server older than the app» notice on the NAS copy). The owner started the stage before the NAS checks: code is self-checked on a local PocketBase.
+- Owner's decisions: the NAS project does the whole move, all code stays here (ADR 0019); the NAS build moves from stage 5 into stage 4; off-site copy once the NAS is main = daily JSON in `polevoy-backups` + a zip on Drive (R-BAK-2, before the switch-over); project files on the NAS — an idea after the move; the NAS project reports back after the move (R-MOVE-3); the move is rehearsed here on a copy of the owner's backup and the phone side of the switch-over is written here. KI-8 is fixed in this stage.
+- `docs/nas-requirements.md` version 2026-11-25 (commit `ae41367`): who does what, R-PB-4 `0.0.0.0`, tailnet in Superuser IPs, home-only HTTPS dashboard name, settings by script, R-PB-8 delivery with `schema`, R-SITE-1/2 stage 4, `cloudflared` pinned by the NAS project, R-BAK-2 stage 5, R-MOVE-1…3, A11 before the switch-over, A12 accepted, data volume of 2026-11-23. Answers to the NAS project: `.scratch/04-pocketbase-storage/nas-answers.md`. `docs/project-spec.md` stages 4 (≈ 21 sessions) and 5 (≈ 3) and «Later»; `CONTEXT.md` term «NAS project». Next: «Спека 4».
+
 ## 2026-11-24 — Review 8: stage 8 closed («Ревью 8»)
 
 - Tickets 8.1 and 8.2 (`06e4960..47997ab`) against spec 8 and the coding standards, plus the code-review skill at effort high; walked in `?mem=1&memPlan=1` at 420 px (two drawings, pan, resize, «📍 Отметить на плане»). Output `.scratch/08-field-improvements-3/review.md`.

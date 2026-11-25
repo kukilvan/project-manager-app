@@ -1,4 +1,4 @@
-Status: in review
+Status: accepted
 
 # Stage 4. PocketBase storage — description
 
