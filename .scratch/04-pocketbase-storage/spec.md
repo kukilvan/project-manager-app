@@ -311,7 +311,7 @@ Zips are made by `scripts/zip-lib.mjs` (Node's `zlib`, no `zip` program; the sam
 
 | Command | Does | Cron (agent, UTC) |
 |---|---|---|
-| `backup` | export (§ 5.2) into a clone of `polevoy-backups`, commit and push; then cleanup (§ 5.3); then the zip of the newest export to the owner's Drive file «Автокопия данных (обновляется каждые 2 дня).zip» (renamed text: «обновляется каждый день» comes with the switch-over, § 8) | daily 01:30 (after the PocketBase backup at 01:00) |
+| `backup` | export (§ 5.2) into a clone of `polevoy-backups`, commit and push; then cleanup (§ 5.3); then the zip of the newest export to the owner's Drive file «Автокопия данных (обновляется каждые 2 дня).zip» (the file keeps its name, § 8) | daily 01:30 (after the PocketBase backup at 01:00) |
 | `tables` | the nightly management sheets, rack tables and «PDF с номерами» (`server-tables-lib.mjs` unchanged) reading PocketBase | 00:00 and 07:20 |
 | `catch-up` | runs `backup` when its last success is older than 24 h or missing | at container start |
 
@@ -345,7 +345,7 @@ The same rule as `server-cleanup.mjs`: a project with `deleted: true` and `delet
 
 **The way back** (R-MOVE-2, run by the NAS project): `server-restore.mjs` recognises a PocketBase export (`"source": "pocketbase"`) and then maps PocketBase ids to Firebase uids by e-mail (the export's member pairs, then `admin.auth().getUserByEmail`), writes `updatedAtServer` as the server time (so the phones' delta reads see every document), and writes into a non-empty database only with `--force`.
 
-## 7. The rehearsal of the move (ticket 13)
+## 7. The rehearsal of the move (ticket 14)
 
 On the owner's PC, nothing of the data in the repo:
 1. Copy the newest folder of `polevoy-backups` into the scratchpad.
@@ -354,7 +354,7 @@ On the owner's PC, nothing of the data in the repo:
 4. In the browser pane at `http://localhost:8090/`: sign in as the owner's restored user (`pb-dev` sets a local password for that e-mail; local only) and check against the Firebase app with the same backup: the project list; points per project and per rack; a day's report text (Russian and Hebrew); the month report; «История изменений» (authors' names); «👥 Участники»; delay reasons, culprits, problems; problem marks on points; the management-sheet preview (no Google write).
 5. Write `docs/nas-move-rehearsal.md` (English, for the NAS project): the commands in order, the times, the counts to expect and how to compare them (per collection, per project), what `--verify` must show, what went wrong and how it was fixed, the go/no-go list for the move day. No names or e-mails; counts only.
 
-## 8. Switch-over instructions (ticket 14)
+## 8. Switch-over instructions (ticket 15)
 
 - `ПЕРЕЕЗД.md` in the repo root (Russian, plain words, `docs/workflow.md` "Instructions for the owner"):
   - **before the move day**, every phone: open the old icon with internet, wait until «⬆» is gone, record nothing more until the owner says;
@@ -367,7 +367,7 @@ On the owner's PC, nothing of the data in the repo:
 
 ## 9. Changes to the NAS document (this session)
 
-`docs/nas-requirements.md` gets version **2026-11-25 (2)**, commit `626a548`. Changes: R-PB-1 and the Dockerfile and compose (0.42.3, new host, checksum, why); R-PB-5 (batch serves the restore tool); R-PB-6 (unchanged numbers; the app writes through its route; the agent needs no exclusion); R-PB-8 (asset `nas-pb.zip`, folder layout, replace both folders' contents, `GET /api/pm/info`); R-SITE-2 (`nas-site.json` fields, upload order); § 6 table condensed and R-JOB-1/2 (the runner, commands, times, configuration, secrets); R-BAK-3; § 8 bullets condensed; R-MOVE-1/2 (tool names, the rehearsal file, the way back); § 12. A15 is not in the table yet: ticket 02 adds it together with the tool (the guard test counts A1–A14). The guard test in `tests/nas-check.test.js` allows the host `ganigeorgiev.com` and its budget goes from 30,000 to 34,000 bytes (31,472 now; stage 4 still adds A15 and the rehearsal pointer). A short message for the NAS project goes with it: `.scratch/04-pocketbase-storage/nas-message-2.md` (the owner forwards both after «Коммит»).
+`docs/nas-requirements.md` gets version **2026-11-25 (2)**, commit `626a548`. Changes: R-PB-1 and the Dockerfile and compose (0.42.3, new host, checksum, why); R-PB-5 (batch serves the restore tool); R-PB-6 (unchanged numbers; the app writes through its route; the agent needs no exclusion); R-PB-8 (asset `nas-pb.zip`, folder layout, replace both folders' contents, `GET /api/pm/info`); R-SITE-2 (`nas-site.json` fields, upload order); § 6 table condensed and R-JOB-1/2 (the runner, commands, times, configuration, secrets); R-BAK-3; § 8 bullets condensed; R-MOVE-1/2 (tool names, the rehearsal file, the way back); § 12. A15 is not in the table yet: ticket 03 adds it together with the tool (the guard test counts A1–A14). The guard test in `tests/nas-check.test.js` allows the host `ganigeorgiev.com` and its budget goes from 30,000 to 34,000 bytes (31,472 now; stage 4 still adds A15 and the rehearsal pointer). A short message for the NAS project goes with it: `.scratch/04-pocketbase-storage/nas-message-2.md` (the owner forwards both after «Коммит»).
 
 ## 10. Edge cases
 
@@ -407,7 +407,8 @@ On the owner's PC, nothing of the data in the repo:
 ## 11. Tests
 
 **Automated, pure, always run** (`npm test`, offline, rule 2):
-- `tests/pbwrite.test.js`: ops from repo writes (every `commit` shape of `repo.js`); `deep`, `fields`, `arrayOps`, `itemPatches`, the empty-object case, ADR 0018's older-build case (`planColour` kept); every rule row of § 2.4 with allowed and refused cases (member, non-creator member, invitee accept/decline/cheat, non-member, admin, allowed, unknown kind, inbox status fields); chunking (300 ops, 1.5 MB, a large item split); answer classification of § 3.4; the generated hook module is fresh and `PB_SCHEMA` equals `PM_SCHEMA`.
+- `tests/pbwrite.test.js`: ops from repo writes (every `commit` shape of `repo.js`); `deep`, `fields`, `arrayOps`, `itemPatches`, the empty-object case, ADR 0018's older-build case (`planColour` kept); every rule row of § 2.4 with allowed and refused cases (member, non-creator member, invitee accept/decline/cheat, non-member, admin, allowed, unknown kind, inbox status fields); the generated hook module is fresh and `PB_SCHEMA` equals `PM_SCHEMA`.
+- `tests/pbqueue.test.js`: chunking (300 ops, 1.5 MB, a large item split); answer classification and back-off of § 3.4.
 - `tests/pbread.test.js`: record → document, marks, the delta filter, the rollback check, full-read replacement keeping queued documents, the event-apply order, the export shape (`updatedAtServer` timestamps, `source`).
 - `tests/pb-restore.test.js` (plan part, no server): uid mapping (values, keys, inbox prefixes), users from member pairs and removed members, collisions, the administrator, counts — on a small synthetic backup in `tests/fixtures/`.
 - `tests/nas-pack.test.js`: deterministic zips (same input → same checksum; entries read back with `zlib`), `nas-site.json` fields.
@@ -427,30 +428,40 @@ On the owner's PC, nothing of the data in the repo:
 ## 12. Docs, terms, ADRs, known issues
 
 - **Written in this session:** ADR 0020, ADR 0021; `CONTEXT.md` (new terms below; «Repo», «Delta read» and «NAS copy» updated); `docs/project-spec.md` (stage 4: the version move, the ticket count); `docs/nas-requirements.md` (§ 9); `.scratch/04-pocketbase-storage/nas-message-2.md`.
-- **By tickets:** `docs/code-map.md` (rebuilt; the architecture part gets a PocketBase paragraph: storage, sync, start), `docs/coding-standards.md` (rule 14: users write to PocketBase only through the write route, collection write rules stay `null` — checked by a test; rule 15: `pb/pb_hooks/pm/pbwrite.js` is generated, never edited — checked by a test), `docs/workflow.md` (self-check of NAS tickets with `pb-dev`), `CLAUDE.md` Run (`npm run build:nas`, `node tools/pb-dev.mjs up|down`), `PROJECT_CONTEXT.md` (environment: the release, device keys `pocketbase_auth`, `pz.pbOauth`, `pm.pbGoogleClient`, `pm.admin.pb`, IndexedDB `pm-pb`; gotcha: PocketBase releases live at `ganigeorgiev.com` since 2026-10-26, GitHub is archived), `KNOWN_ISSUES.md` (KI-8 fixed), `ВОССТАНОВЛЕНИЕ.md` (the restore tool, ticket 12), `ПЕРЕЕЗД.md` (ticket 14), `docs/nas-move-rehearsal.md` (ticket 13), the in-app guide (tickets 07 and 14), `.gitignore` (`dist-nas/`, `.cache/`).
+- **By tickets:** `docs/code-map.md` (rebuilt; the architecture part gets a PocketBase paragraph: storage, sync, start), `docs/coding-standards.md` (rule 14: users write to PocketBase only through the write route, collection write rules stay `null` — checked by a test; rule 15: `pb/pb_hooks/pm/pbwrite.js` is generated, never edited — checked by a test), `docs/workflow.md` (self-check of NAS tickets with `pb-dev`), `CLAUDE.md` Run (`npm run build:nas`, `node tools/pb-dev.mjs up|down`), `PROJECT_CONTEXT.md` (environment: the release, device keys `pocketbase_auth`, `pz.pbOauth`, `pm.pbGoogleClient`, `pm.admin.pb`, IndexedDB `pm-pb`; gotcha: PocketBase releases live at `ganigeorgiev.com` since 2026-10-26, GitHub is archived), `KNOWN_ISSUES.md` (KI-8 fixed), `ВОССТАНОВЛЕНИЕ.md` (the restore tool, ticket 13), `ПЕРЕЕЗД.md` (ticket 15), `docs/nas-move-rehearsal.md` (ticket 14), the in-app guide (tickets 08 and 15), `.gitignore` (`dist-nas/`, `.cache/`).
 - **New `CONTEXT.md` terms:** NAS build; write route; local copy; write queue; schema version (with «server older»); restore tool; job runner; rehearsal of the move.
 - **New `KNOWN_ISSUES.md` entries:** none now. The old Firebase icon after the switch-over is a decided risk (edge case 31), not a bug.
 
-## 13. Proposed tickets
+## 13. Tickets
 
-| # | Ticket | Complexity | Blocked by | The owner checks |
+Proposed by this spec and refined by the slicing (2026-11-25): the first proposed ticket (server schema and write route) was too large for one session and became tickets 01 and 02, so every later ticket moved up by one. The ticket files are in `issues/`; all ticket numbers in this spec use this numbering.
+
+| # | Ticket (file) | Complexity | Blocked by | The owner checks |
 |---|---|---|---|---|
-| 01 | Server schema and write route: `tools/pb-dev.mjs` (fetch with checksum, start, settings, test users), migration 1, `pm.pb.js` (save, info, admin, keep-alive), `src/domain/pbwrite.js` and its generator, server tests in CI | complex | — | nothing on the site changes; the test run in the deploy log |
-| 02 | NAS build and release: `build:nas`, flag, service worker deny list, `nas-pack.mjs`, `zip-lib.mjs`, the `nas-build` job, A15; the NAS build shows a placeholder after start («Хранилище на домашнем сервере появится в следующих версиях»), so the NAS project can test its updater | complex | 01 | the release `nas-build` exists; the NAS project installs it (A9, A15) |
-| 03 | Sign-in on the NAS copy: screen, both flows, token refresh, expired banner, password form for local tests, administrator, sign-out question | complex | 02 | sign-in from the installed iPhone icon, both buttons (A14) |
-| 04 | Local copy and write queue: `pm-pb` stores, replay, listeners, the sender with every answer of § 3.4, «⬆» and «⚠» | complex | 03 | create a project and points on the NAS; close and reopen; offline «⬆ N» then 0 |
-| 05 | Reading: realtime with keep-alive, reads after every connect, full/delta/Saturday, rollback check, new and removed projects, «⬇» | complex | 04 | two phones see each other's changes; after a night offline the changes arrive |
-| 06 | The rest of the backend: members, invitations (`invites`), pool and shared lists, inbox, prefs, history screens, «Импорт данных»; `pendingCount` | complex | 05 | invite a helper; shared lists; «Откат записей»; the pool administrator's inbox |
-| 07 | NAS screens: «Подключение к базе», members card, server-older and app-older banners, PocketBase texts of «⚠», «⬆», «⬇», hidden read counter, diagnostics, guide section «Домашний сервер», English and Hebrew | medium | 06 | the screens as in the mockup |
-| 08 | Google Drive and Sheets on the NAS copy: Client ID from `auth-methods`, scopes, `login_hint` | medium | 03 | a drawing from Drive and a management sheet from the NAS address |
-| 09 | KI-8 | simple | — | in test mode `?mem=1&memPoolDenied=1` the toast shows |
-| 10 | Job sources and export: `pb-source.mjs`, `fs-source.mjs`, export format, cleanup on PocketBase, `itemPatches`; Firebase jobs unchanged | complex | 01 | the next Firebase backup and night sheets run as before (Actions log) |
-| 11 | Job runner `nas-jobs.mjs`: `backup` (git push, Drive zip), `tables`, `catch-up`, `state.json`, secrets from files; the `nas-jobs.zip` contents | medium | 10, 02 | nothing on the site; the NAS project runs it at its stage 13 |
-| 12 | Restore tool and the way back: `pb-restore.mjs` (plan, write, resume, counts, verify), user creation and linking test, `server-restore.mjs` from a PocketBase export; `ВОССТАНОВЛЕНИЕ.md` | complex | 10 | nothing on the site |
-| 13 | Rehearsal of the move on the PC with the owner's newest backup; `docs/nas-move-rehearsal.md`; small fixes it finds | medium | 06, 12 | reads the rehearsal result |
-| 14 | Switch-over instructions `ПЕРЕЕЗД.md`; the NAS document's final stage 4 version and a message to the NAS project | simple | 13 | reads the instructions |
+| 01 | Write semantics and rules, the pure module: `src/domain/pbwrite.js` (`toOps`, merges, rules, `runSave`, `PB_SCHEMA`), its generator `scripts/pb-hooks-build.mjs`, the generated hook module (`01-write-semantics.md`) | complex | — | nothing on the site changes |
+| 02 | The server: `tools/pb-dev.mjs` (fetch with checksum, start, test users), migration 1, `pm.pb.js` (save, info, admin, keep-alive), server tests in CI (`02-server.md`) | complex | 01 | nothing on the site; the test run in the deploy log |
+| 03 | NAS build and release: `build:nas`, flag, service worker deny list, `nas-pack.mjs`, `zip-lib.mjs`, the `nas-build` job, A15; the NAS build shows a placeholder so the NAS project can test its updater (`03-nas-build-release.md`) | complex | 02 | the release `nas-build` exists; the NAS project installs it (A9, A15) |
+| 04 | Sign-in on the NAS copy: screen, both flows, token refresh, expired banner, password form for local tests, administrator, sign-out question (`04-sign-in.md`) | complex | 03 | sign-in from the installed iPhone icon, both buttons (A14) |
+| 05 | Local copy and write queue: `pm-pb` stores, replay, listeners, the sender with every answer of § 3.4, «⬆» and «⚠» (`05-local-copy-queue.md`) | complex | 04 | create a project and points on the NAS; close and reopen; offline «⬆ N» then 0 |
+| 06 | Reading: realtime with keep-alive, reads after every connect, full / delta / Saturday, rollback check, new and removed projects, «⬇» (`06-reading-realtime.md`) | complex | 05 | two phones see each other's changes; after a night offline the changes arrive |
+| 07 | The rest of the backend: members, invitations (`invites`), pool and shared lists, inbox, prefs, history screens, «Импорт данных»; `pendingCount` (`07-rest-of-backend.md`) | complex | 06 | invite a helper; shared lists; «Откат записей»; the pool administrator's inbox |
+| 08 | NAS screens: «Подключение к базе», members card, server-older and app-older banners, PocketBase texts of «⚠», «⬆», «⬇», hidden read counter, diagnostics, guide section «Домашний сервер», English and Hebrew (`08-nas-screens.md`) | medium | 07 | the screens as in the mockup |
+| 09 | Google Drive and Sheets on the NAS copy: Client ID from `auth-methods`, scopes, `login_hint` (`09-google-drive-sheets.md`) | medium | 04 | a drawing from Drive and a management sheet from the NAS address |
+| 10 | KI-8 (`10-ki-8.md`) | simple | — | in test mode `?mem=1&memPoolDenied=1` the toast shows |
+| 11 | Job sources and export: `pb-source.mjs`, `fs-source.mjs`, export format, cleanup on PocketBase, `itemPatches`; Firebase jobs unchanged (`11-job-sources-export.md`) | complex | 02 | the next Firebase backup and night sheets run as before (Actions log) |
+| 12 | Job runner `nas-jobs.mjs`: `backup` (git push, Drive zip), `tables`, `catch-up`, `state.json`, secrets from files; the `nas-jobs.zip` contents (`12-job-runner.md`) | medium | 11, 03 | nothing on the site; the NAS project runs it at its stage 13 |
+| 13 | Restore tool and the way back: `pb-restore.mjs` (plan, write, resume, counts, verify), user creation and linking test, `server-restore.mjs` from a PocketBase export; `ВОССТАНОВЛЕНИЕ.md` (`13-restore-tool.md`) | complex | 11 | nothing on the site |
+| 14 | Rehearsal of the move on the PC with the owner's newest backup; `docs/nas-move-rehearsal.md`; small fixes it finds (`14-rehearsal.md`) | medium | 07, 13 | reads the rehearsal result |
+| 15 | Switch-over instructions `ПЕРЕЕЗД.md`; the NAS document's final stage 4 version and a message to the NAS project (`15-switch-over.md`) | simple | 14 | reads the instructions |
 
-Order: 01 → 02 → 03 → 04 → 05 → 06 → 07; 08 after 03; 09 any time (a warm-up for the sync code, on Firebase); 10 → 11, 10 → 12 → 13 → 14. Tickets 02 and 03 come early because the NAS project can use a release as soon as it exists and the owner's first check is the Google sign-in from the installed icon. With the description, spec, slicing and review: 18 sessions, plus fix rounds — inside the estimate of 21.
+Order: 01 → 02 → 03 → 04 → 05 → 06 → 07 → 08; 09 after 04 (its owner check needs 05–07, so it runs after 08 in practice); 10 any time (a warm-up for the sync code, on Firebase); 02 → 11 → 12 and 11 → 13 → 14 → 15. Tickets 03 and 04 come early because the NAS project can use a release as soon as it exists and the owner's first check is the Google sign-in from the installed icon. With the description, spec, slicing and review: 19 sessions, plus fix rounds — inside the estimate of 21.
+
+**Slicing notes (stage rules for every ticket)**
+- **Self-check of a NAS ticket**: tests; `npm run build`; `npm run build:nas`; `node tools/pb-dev.mjs up --serve dist-nas`; the browser pane at 420 px with the password sign-in of § 3.2 (two tabs as two test users where the ticket needs it; "offline" = `pb-dev down`); and the Pages build stays free of PocketBase: no file of `dist/` contains `PB_CONNECT`, and `?mem=1` behaves as before. Tickets 01–02 have no screen; 03 on has the NAS build.
+- **The owner's checks that need the NAS** (A1–A7, A13 and the site updater, § 11 "The owner checks live") cannot be done until it is ready. Each ticket lists them in its «Owner check» as «Needs the NAS»; the session reports them as not verified, the owner answers «Работает» for what can be checked now, and «Ревью 4» gathers every NAS-side line into one phone check list (as stage 1 did).
+- **Refinements of § 11**: the chunking, the answer classification and the back-off (§ 3.4) are a pure module `src/domain/pbqueue.js` tested in `tests/pbqueue.test.js` (not in `pbwrite.test.js`); the export shape test lives in `tests/pbread.test.js` and is added by ticket 11; the freshness of the generated module is tested by ticket 01 and `PB_SCHEMA = PM_SCHEMA` by ticket 02.
+- **Refinement of § 5.1**: the Drive zip keeps its name «Автокопия данных (обновляется каждые 2 дня).zip» (§ 8 decides it); only the schedule of the NAS runner is daily.
+- **Documents each ticket owns** (so none is forgotten at the review): 01 — rule 15, term «Schema version»; 02 — rule 14, `CLAUDE.md` Run (`pb-dev`), `docs/workflow.md` self-check paragraph, `.gitignore` `.cache/`, term «Write route»; 03 — `.gitignore` `dist-nas/`, `CLAUDE.md` Run (`build:nas`), `PROJECT_CONTEXT.md` (the release), term «NAS build», A15 in the NAS document; 04 — device keys `pocketbase_auth`, `pz.pbOauth`, `pm.admin.pb`; 05 — IndexedDB `pm-pb`, terms «Local copy», «Write queue»; 08 — guide section and all remaining texts; 09 — device key `pm.pbGoogleClient`; 10 — KI-8; 12 — term «Job runner»; 13 — `ВОССТАНОВЛЕНИЕ.md`, term «Restore tool»; 14 — `docs/nas-move-rehearsal.md`, term «Rehearsal of the move»; 15 — `ПЕРЕЕЗД.md`, the NAS document's final version.
 
 ## Texts
 
@@ -499,6 +510,6 @@ New UI strings (rule 12). `<…>` is a value filled in by the app.
 | Хранилище на домашнем сервере появится в следующих версиях. | Storage on the home server comes in the next versions. | האחסון בשרת הביתי יגיע בגרסאות הבאות. |
 | PocketBase (домашний сервер) | PocketBase (home server) | PocketBase (שרת ביתי) |
 | своя копия на телефоне (IndexedDB) | own copy on the phone (IndexedDB) | עותק משלו בטלפון (IndexedDB) |
-| Домашний сервер (guide section title) and its paragraph (§ 8) | Home server; the paragraph translated in ticket 14 | שרת ביתי; the paragraph translated in ticket 14 |
+| Домашний сервер (guide section title) and its paragraph (§ 8) | Home server; the paragraph translated in ticket 08 (ticket 15 may adjust it) | שרת ביתי; the paragraph translated in ticket 08 (ticket 15 may adjust it) |
 
 Labels in «» that point at existing menu items (`👥 Участники`, `🔌 Подключение к базе`, `📋 Скопировать правила`, `Повторить`) use the English and Hebrew of those items as the dictionaries already have them; the ticket aligns them.
