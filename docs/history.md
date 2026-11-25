@@ -2,6 +2,13 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-25 — Slicing 4: PocketBase storage («Тикеты 4»)
+
+- 15 ticket files in `.scratch/04-pocketbase-storage/issues/` (01 write semantics, 02 server, 03 NAS build and release, 04 sign-in, 05 local copy and queue, 06 reading, 07 rest of the backend, 08 NAS screens, 09 Google Drive and Sheets, 10 KI-8, 11 job sources and export, 12 job runner, 13 restore tool, 14 rehearsal, 15 switch-over). Branch `claude/s04-tickets`.
+- Decided: the spec's first ticket (server schema and write route) was too large for one session and became 01 (pure module `pbwrite.js` with `toOps`, merges, rules, `runSave`, the generator of the hook copy) and 02 (migration, hook routes, `tools/pb-dev.mjs`, server tests in CI); later tickets moved up by one and the spec's references were renumbered. 19 sessions with the review, inside the estimate of 21.
+- Decided: the owner's phone checks that need the NAS are listed in each ticket as «Needs the NAS»; the owner answers «Работает» for what can be checked now and «Ревью 4» gathers the rest into one phone list (as stage 1). Self-check of NAS tickets: `build:nas`, `pb-dev up --serve dist-nas`, browser pane at 420 px, and no PocketBase code in the Pages build (no `PB_CONNECT` in `dist/`).
+- Spec refinements (§ 13 slicing notes): chunking, answer classification and back-off live in `src/domain/pbqueue.js` with `tests/pbqueue.test.js`; the export shape test is added by ticket 11; the Drive zip keeps its name (§ 8 decides; § 5.1 had said it would be renamed).
+
 ## 2026-11-25 — Spec 4: PocketBase storage («Спека 4»)
 
 - `.scratch/04-pocketbase-storage/spec.md`, checked on a local PocketBase 0.42.3 in Docker with a prototype migration and hook (scratchpad): route writes in one transaction with rollback and the refused op's index, exact invitations through an `invites` collection (`:lower` in rules), realtime only to members and from route saves, keep-alive cron, delta by `updated`, 401 on a bad token (0.42), `users` create only through OAuth2, Google Client ID in the public `auth-methods`, OAuth2 linking a pre-created user by e-mail (fake OIDC provider), superuser batches not rate limited (6,400 creates in 2.6 s). The owner's backup of 2026-11-23 read for counts only.
