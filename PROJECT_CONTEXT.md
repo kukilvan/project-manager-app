@@ -45,7 +45,7 @@ Status values: not started · description · spec · tickets k/n · review · fi
 ## Environment
 
 - Owner's PC: Windows 11, PowerShell, Git 2.55, Node.js 24 (`C:\Program Files\nodejs`; not on the Git Bash PATH — use PowerShell or add it), Python 3.12, `gh` signed in as `kukilvan`. `core.autocrlf=true`. Project folder `E:\LocalAI\Bionic\project-manager-app`. CI uses Node 22.
-- Repo `kukilvan/project-manager-app` (public). Deploy: push to `main` → `pages.yml` → GitHub Pages.
+- Repo `kukilvan/project-manager-app` (public). Deploy: push to `main` → `pages.yml` → GitHub Pages, and its job `nas-build` refreshes the pre-release `nas-build` (tag of the same name) with `nas-site.zip`, `nas-pb.zip`, `nas-jobs.zip` and `nas-site.json`, the manifest last; the NAS project's updater reads it (`docs/nas-requirements.md` R-SITE-2).
 - Firebase (owner): project `polevoy-zhurnal`, Firestore `(default)`, Authentication → Google, Spark plan (ADR 0002). Web config is not in code: it lives on each device (`pm.connection`) and in the connect link.
 - Google OAuth: per-database Client ID in `pm.connection.clientId`; shared public client `DEFAULT_CLIENT_ID` in `src/edition.js`; allowed origins in Google Cloud Console and Firebase → Authorized domains.
 - GitHub Actions secrets (names only): `FIREBASE_SERVICE_ACCOUNT` (service account JSON for server jobs), `BACKUP_REPO_TOKEN` (private `kukilvan/polevoy-backups`). `GH_TOKEN` in jobs is the built-in `github.token`.
@@ -64,5 +64,6 @@ Status values: not started · description · spec · tickets k/n · review · fi
 - iPhone keyboard covers inputs: modals follow `visualViewport` (`src/app/keyboard.js`).
 - In Playwright the tour pops up first: press «Не напоминать».
 - Browser pane after a rebuild: the service worker may still serve the previous build (check the `index-*.js` name against `dist/assets/`); unregister it and clear caches (`navigator.serviceWorker.getRegistrations()`, `caches.keys()`), then reload.
+- Browser pane and the local PocketBase: a tab opened by plain URL cannot register the service worker («unknown error when fetching the script»); open `http://localhost:8090/` through a `.claude/launch.json` entry `{ "name": "pb-dev", "url": "http://localhost:8090", "port": 8090 }` and `preview_start {name: "pb-dev"}`. Not a PocketBase problem: `curl` gets `sw.js` normally.
 - PocketBase left GitHub on 2026-10-26 (the repo is archived, last release there 0.40.6): releases, the changelog and the JS SDK's home are at `ganigeorgiev.com` (downloads `https://ganigeorgiev.com/meta/pocketbase/pocketbase/download/<tag>/<file>`; the changelog is inside each release zip); the SDK is still on npm (`pocketbase`).
 - Owner's PDF edits (replacing captions in the same font and color) are one-off, outside the app, with pymupdf: strings replaced in the content stream (Type0 Identity-H fonts, codes from ToUnicode, Tm adjusted when length changes); results go to the owner as files.

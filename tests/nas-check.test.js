@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
-  parseArgs, judgeA1, judgeA2, judgeA3a, judgeA3b, judgeA4, judgeA5, judgeA6, judgeA8, judgeA9,
+  parseArgs, judgeA1, judgeA2, judgeA3a, judgeA3b, judgeA4, judgeA5, judgeA6, judgeA8, judgeA9, judgeA15,
   checkRealtime, runChecks, formatResult, summaryLine, exitCode, main, USAGE, USER_AGENT, DEFAULT_HOLD_S, SUPERUSERS_ID,
 } from '../tools/nas-check.mjs';
 
@@ -152,6 +152,25 @@ test('A9: the site is the app built for /', () => {
   assert.equal(judgeA9(page, res(200, 'not json', { 'content-type': 'text/plain' })).status, 'FAIL');
 });
 
+test('A15: the app\'s hooks answer /api/pm/info; skipped while no NAS build is installed', () => {
+  const site = json(200, { start_url: '/' }, { 'content-type': 'application/manifest+json' });
+  const noSite = res(404, 'nf');
+  const ok = judgeA15(json(200, { app: 'pm', schema: 1 }), site);
+  assert.equal(ok.status, 'PASS');
+  assert.match(ok.text, /schema 1/);
+  assert.equal(judgeA15(json(200, { app: 'pm', schema: 3, admin: '' }), noSite).status, 'PASS', 'hooks there before the site: still a pass');
+  // before the first NAS build: no hooks, no site
+  assert.equal(judgeA15(json(404, { message: "The requested resource wasn't found." }), noSite).status, 'SKIP');
+  assert.equal(judgeA15(json(404, {}), res(200, '<html></html>', { 'content-type': 'text/html' })).status, 'SKIP', 'PocketBase\'s index.html in place of the manifest = no site');
+  // the site is there, so the hooks must be too
+  const missing = judgeA15(json(404, { message: "The requested resource wasn't found." }), site);
+  assert.equal(missing.status, 'FAIL');
+  assert.match(missing.expected, /"app":"pm"/);
+  for (const bad of [json(200, { app: 'other', schema: 1 }), json(200, { app: 'pm', schema: 0 }), json(200, { app: 'pm', schema: '1' }), json(200, { app: 'pm' }), res(200, 'not json'), res(500, 'oops'), { error: 'timeout' }]) {
+    assert.equal(judgeA15(bad, site).status, 'FAIL', JSON.stringify(bad.text ?? bad.error));
+  }
+});
+
 // ---------- output ----------
 
 test('a FAIL line shows what was expected and the first 120 characters of the body', () => {
@@ -265,6 +284,7 @@ function nasFetch({ site = false, overrides = {} } = {}) {
     'GET https://pm.example.com/sw.js': () => (site ? new Response('//sw', { status: 200, headers: { 'content-type': 'text/javascript' } }) : new Response('nf', { status: 404 })),
     'GET https://pm.example.com/': () => (site ? new Response('<link rel="manifest" href="/manifest.webmanifest">', { status: 200, headers: { 'content-type': 'text/html' } }) : new Response('nf', { status: 404 })),
     'GET https://pm.example.com/manifest.webmanifest': () => (site ? jsonRes(200, { start_url: '/' }) : new Response('nf', { status: 404 })),
+    'GET https://pm.example.com/api/pm/info': () => (site ? jsonRes(200, { app: 'pm', schema: 1 }) : jsonRes(404, { message: "The requested resource wasn't found." })),
     ...overrides,
   };
   const rt = realtimeFetch([{}]);
@@ -279,17 +299,17 @@ function nasFetch({ site = false, overrides = {} } = {}) {
 
 const ids = (results) => results.map((r) => `${r.status}:${r.id}`);
 
-test('runChecks: a healthy NAS before the site is there — A1-A7 pass, A8 and A9 skip', async () => {
+test('runChecks: a healthy NAS before the site is there — A1-A7 pass, A8, A9 and A15 skip', async () => {
   const { results, unreachable } = await runChecks({ base: 'https://pm.example.com', local: false, quick: true, fetch: nasFetch() });
   assert.equal(unreachable, null);
-  assert.deepEqual(ids(results), ['PASS:A1', 'PASS:A2', 'PASS:A3a', 'PASS:A3b', 'PASS:A4', 'PASS:A5', 'PASS:A6', 'PASS:A7', 'SKIP:A8', 'SKIP:A9']);
+  assert.deepEqual(ids(results), ['PASS:A1', 'PASS:A2', 'PASS:A3a', 'PASS:A3b', 'PASS:A4', 'PASS:A5', 'PASS:A6', 'PASS:A7', 'SKIP:A8', 'SKIP:A9', 'SKIP:A15']);
   assert.equal(exitCode(results), 0);
-  assert.equal(summaryLine(results), 'Summary: 8 pass, 0 fail, 2 skip');
+  assert.equal(summaryLine(results), 'Summary: 8 pass, 0 fail, 3 skip');
 });
 
-test('runChecks: with the site there, A8 and A9 pass', async () => {
+test('runChecks: with the NAS build installed, A8, A9 and A15 pass', async () => {
   const { results } = await runChecks({ base: 'https://pm.example.com', local: false, quick: true, fetch: nasFetch({ site: true }) });
-  assert.deepEqual(ids(results).slice(-2), ['PASS:A8', 'PASS:A9']);
+  assert.deepEqual(ids(results).slice(-3), ['PASS:A8', 'PASS:A9', 'PASS:A15']);
 });
 
 test('runChecks: one broken setting fails only its line and sets exit code 1', async () => {
@@ -312,7 +332,7 @@ test('runChecks: a local address skips A2, A3, A8 and makes no Cloudflare reques
     return new Response('nf', { status: 404 });
   };
   const { results } = await runChecks({ base: 'http://127.0.0.1:8090', local: true, quick: true, fetch: fetchFn });
-  assert.deepEqual(ids(results), ['PASS:A1', 'SKIP:A2', 'SKIP:A3a', 'SKIP:A3b', 'PASS:A4', 'PASS:A5', 'PASS:A6', 'PASS:A7', 'SKIP:A8', 'SKIP:A9']);
+  assert.deepEqual(ids(results), ['PASS:A1', 'SKIP:A2', 'SKIP:A3a', 'SKIP:A3b', 'PASS:A4', 'PASS:A5', 'PASS:A6', 'PASS:A7', 'SKIP:A8', 'SKIP:A9', 'SKIP:A15']);
   assert.ok(!urls.some((u) => u.includes('http://127.0.0.1/') || u.includes('_superusers') || u.includes(SUPERUSERS_ID) || u.includes('/_/') || u.includes('sw.js')));
 });
 
@@ -355,7 +375,8 @@ test('main: a clean run prints one line per check, the summary and exits 0', asy
   assert.match(text, /^NAS check of https:\/\/pm\.example\.com$/m);
   assert.match(text, /^PASS A1 /m);
   assert.match(text, /^SKIP A9 /m);
-  assert.match(text, /^Summary: 8 pass, 0 fail, 2 skip$/m);
+  assert.match(text, /^SKIP A15 /m);
+  assert.match(text, /^Summary: 8 pass, 0 fail, 3 skip$/m);
   assert.equal(io.err.length, 0);
 });
 
@@ -364,7 +385,7 @@ test('main: a failed check exits 1; an unreachable host exits 2 with "cannot rea
   const failing = capture();
   assert.equal(await main(['https://pm.example.com', '--quick'], { ...failing.opts, fetch: nasFetch({ overrides }) }), 1);
   assert.match(failing.io.out.join('\n'), /^FAIL A3a /m);
-  assert.match(failing.io.out.join('\n'), /Summary: 7 pass, 1 fail, 2 skip/);
+  assert.match(failing.io.out.join('\n'), /Summary: 7 pass, 1 fail, 3 skip/);
 
   const down = capture();
   const code = await main(['https://pm.example.com'], { ...down.opts, fetch: async () => { throw new TypeError('fetch failed'); } });
@@ -388,14 +409,14 @@ test('NAS document: exists, within 34,000 bytes, sections in order', () => {
   expected.forEach((start, i) => assert.ok(titles[i][1].startsWith(start), `section ${i + 1} should start with "${start}", is "${titles[i][1]}"`));
 });
 
-test('NAS document: every requirement id is defined once; the acceptance table has A1-A14 once each', () => {
+test('NAS document: every requirement id is defined once; the acceptance table has A1-A15 once each', () => {
   const text = fs.readFileSync(DOC, 'utf8');
   const defined = [...text.matchAll(/\*\*(R-[A-Z]+-\d+)\b/g)].map((m) => m[1]);
   assert.ok(defined.length >= 20, `only ${defined.length} requirement ids found`);
   assert.equal(new Set(defined).size, defined.length, `duplicate id: ${defined.find((id, i) => defined.indexOf(id) !== i)}`);
   const section = text.slice(text.indexOf('## 10. Acceptance checks'), text.indexOf('## 11. '));
   const rows = [...section.matchAll(/^\| (A\d+[a-z]?) \|/gm)].map((m) => m[1]);
-  assert.deepEqual(rows, Array.from({ length: 14 }, (_, i) => `A${i + 1}`));
+  assert.deepEqual(rows, Array.from({ length: 15 }, (_, i) => `A${i + 1}`));
 });
 
 test('NAS document: the WAF rule blocks the superuser collection by name and by the id A3b probes', () => {

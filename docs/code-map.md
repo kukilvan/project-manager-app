@@ -41,9 +41,11 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 ## Modules (built)
 
 <!-- code-map:start (built by tools/code-map.mjs from the header comments; do not edit by hand) -->
+- `scripts/build-nas.mjs` — NAS build: runs Vite for the NAS copy with base `/` and `VITE_BACKEND=pocketbase` into dist-nas/ (`npm run build:nas`).
 - `scripts/export-pool.mjs` — Starter set for the open edition: a copy of the shared pool (types, devices, cables, works, door configurations, shared lists) without service fields.
 - `scripts/i18n-build.mjs` — Builds the translation dictionaries: src/i18n/src/*.json ({ "<Russian text>": ["English", "Hebrew"] }) → src/i18n/en.json and he.json.
 - `scripts/i18n-extract.mjs` — Collects every Russian UI string (strings and `…${x}…` templates in src) for the translation dictionaries and the coverage test.
+- `scripts/nas-pack.mjs` — NAS release packer: makes the four files of the GitHub release `nas-build` — nas-site.zip, nas-pb.zip, nas-jobs.zip and the manifest nas-site.json.
 - `scripts/pb-hooks-build.mjs` — Generates PocketBase's copy of the write semantics: src/domain/pbwrite.js → pb/pb_hooks/pm/pbwrite.js (ESM `export` turned into `module.exports`).
 - `scripts/server-backup-lib.mjs` — Server backup logic: reading projects from Firestore, writing the backup folders and planning a restore.
 - `scripts/server-backup.mjs` — Server backup run by GitHub Actions every 2 days: copies all projects from Firestore into a folder that the workflow then commits to the private backup repo.
@@ -54,6 +56,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `scripts/server-tables.mjs` — Nightly server run (GitHub Actions) that refreshes the management sheets, the rack table and the «PDF с номерами» drawings of every active project.
 - `scripts/starter-from-backup.mjs` — Starter set built from the latest server backup (the database is not read, so no Firestore daily quota is spent).
 - `scripts/tohnit-eval.mjs` — Checks the app's drawing parsing (JS) against reference data.
+- `scripts/zip-lib.mjs` — Zip writer and reader over Node's zlib: deterministic archives (entries sorted by name, fixed timestamps), no `zip` program needed.
 - `src/app/backup.js` — Backs a project up to Google Drive: one JSON file per project and day, in the format the «Импорт данных» screen reads (`polevoy-import-1`).
 - `src/app/cfgfilter.js` — Filter of points by door configuration for lists and the plan: «Без запирания», «Без конфигурации» and each configuration with its point count.
 - `src/app/doorpool.js` — The shared pool of door configurations (pool_doorcfg): a new kind of door gets there by itself (any member writes it), only the pool administrator deletes.
@@ -67,6 +70,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/app/manuals.js` — Manuals for the guide (diagrams, wiring photos, tables, PDFs), shared by all projects.
 - `src/app/migrate.js` — Moves projects from the «на устройстве» mode into the Firebase database (after setting up one's own database or joining by invitation).
 - `src/app/nodoubletap.js` — Stops a double tap from zooming the screen on iPhone (app opened from the home-screen icon).
+- `src/app/pbstart.js` — NAS build start: for now a placeholder screen saying the home server storage comes in later versions, so the NAS project can test its site updater.
 - `src/app/pool.js` — The shared pool inside the app: listens to the pool (all users) and to the inbox (pool administrator only), and sends the administrator what is new or changed in the current project.
 - `src/app/racksheet.js` — Formats and writes the rack sheets into a Google Sheet (values go straight into cells, no links between sheets).
 - `src/app/racktablecore.js` — The «תכנון ארונות ושילוט» management sheet (rack plans + labels): the part shared by the app and the night server job.

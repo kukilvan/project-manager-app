@@ -8,17 +8,17 @@
 // Contents:
 // - constants — PB_VERSION, SHA256 per platform, SUPERUSER, TEST_USERS, TEST_PASSWORD, folders
 // - platformKey(), binaryPath() — which build and where it lives
-// - fetchPocketBase() — download, SHA-256 check, unzip (a few lines over zlib)
+// - fetchPocketBase() — download, SHA-256 check, unzip (scripts/zip-lib.mjs)
 // - startPocketBase(), stopPocketBase() — an instance on a port with a data folder; superuser, settings, test users
 // - CLI: node tools/pb-dev.mjs fetch | up [--empty] [--port N] [--serve <dir>] | down
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import net from 'node:net';
-import zlib from 'node:zlib';
 import crypto from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { unzip } from '../scripts/zip-lib.mjs';
 
 export const PB_VERSION = '0.42.3';
 // From the release's checksums.txt (spec 4 § 1); a mismatch deletes the download and fails
@@ -54,29 +54,8 @@ export function binaryPath(root = ROOT, plat = platformKey()) {
   return path.join(root, '.cache', 'pocketbase', PB_VERSION, plat.startsWith('windows') ? 'pocketbase.exe' : 'pocketbase');
 }
 
-// The files of a zip archive as { name: Buffer } (stored and deflated entries; enough for PocketBase's release zip)
-export function unzip(buf) {
-  let end = -1;
-  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65557); i--) if (buf.readUInt32LE(i) === 0x06054b50) { end = i; break; }
-  if (end < 0) throw new Error('pb-dev: not a zip file');
-  const count = buf.readUInt16LE(end + 10);
-  let p = buf.readUInt32LE(end + 16);
-  const out = {};
-  for (let n = 0; n < count; n++) {
-    if (buf.readUInt32LE(p) !== 0x02014b50) throw new Error('pb-dev: broken zip directory');
-    const method = buf.readUInt16LE(p + 10);
-    const size = buf.readUInt32LE(p + 20);
-    const nameLen = buf.readUInt16LE(p + 28); const extraLen = buf.readUInt16LE(p + 30); const commentLen = buf.readUInt16LE(p + 32);
-    const local = buf.readUInt32LE(p + 42);
-    const name = buf.toString('utf8', p + 46, p + 46 + nameLen);
-    const start = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
-    const raw = buf.subarray(start, start + size);
-    if (!name.endsWith('/')) out[name] = method === 8 ? zlib.inflateRawSync(raw) : method === 0 ? Buffer.from(raw) : null;
-    if (out[name] === null) throw new Error(`pb-dev: unsupported zip method ${method} for ${name}`);
-    p += 46 + nameLen + extraLen + commentLen;
-  }
-  return out;
-}
+// unzip() lives in scripts/zip-lib.mjs (shared with the NAS release packer); re-exported for the callers of this module
+export { unzip };
 
 export function sha256(buf) { return crypto.createHash('sha256').update(buf).digest('hex'); }
 

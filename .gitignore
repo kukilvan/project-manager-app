@@ -19,6 +19,9 @@ Thumbs.db
 node_modules
 dist
 dev-dist
+# NAS build and the release files of scripts/nas-pack.mjs
+dist-nas/
+/out/
 *.log
 __pycache__/
 

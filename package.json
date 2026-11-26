@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:nas": "node scripts/build-nas.mjs",
     "preview": "vite preview --port 4173",
     "test": "node --test tests/*.test.js",
     "pb:hooks": "node scripts/pb-hooks-build.mjs"

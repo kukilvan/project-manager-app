@@ -1,6 +1,6 @@
 # What the Project Manager app needs from the NAS
 
-Version: 2026-11-25 (2), commit `626a548`. Previous version: 2026-11-25, commit `ae41367`. Owned by this repo (`kukilvan/project-manager-app`); the NAS project proposes changes through the owner.
+Version: 2026-11-26, commit — (set when the owner accepts ticket 4.3). Previous version: 2026-11-25 (2), commit `626a548`. Owned by this repo (`kukilvan/project-manager-app`); the NAS project proposes changes through the owner.
 
 This document tells the NAS project exactly what to set up so the owner's copy of the app (the **NAS copy**) can run on the home NAS, how to move the owner's data there, and how to check it. The decisions behind it are in ADR 0013, ADR 0014 and ADR 0019 of this repo.
 
@@ -262,12 +262,13 @@ The tool is `tools/nas-check.mjs` in this repo: Node 22, no dependencies, no cre
 | A12 | power cut: clean shutdown on the UPS, power back, NAS and containers back without a hand | done at the NAS level on 2026-11-18; plus a NAS restart showing the `pm` containers and A1 back | now |
 | A13 | the dashboard opens from the home network | by hand | now |
 | A14 | Google sign-in from the installed iPhone app | by hand | stage 4 |
+| A15 | the app's hooks answer `/api/pm/info` with `"app":"pm"` and a `schema` ≥ 1 (R-PB-8) | `nas-check` | stage 4 (skipped before the first NAS build) |
 
-Everything marked "now" works on an empty PocketBase: A1–A7 pass with no app collections (`users` exists by default); A8 and A9 skip until the site is there.
+Everything marked "now" works on an empty PocketBase: A1–A7 pass with no app collections (`users` exists by default); A8, A9 and A15 skip until the site is there.
 
 **When the app needs what.** Stage 4's code is self-checked on a local PocketBase, so it does not wait for the NAS; the owner's phone checks do:
 - **first** (when stage 4's first phone-checked ticket goes live): A1–A7, A13, R-AUTH-1/2, R-GOOG-1/2 and the site updater (R-SITE-2); most urgent are the tunnel with its rules and the Google settings, since the owner first checks the sign-in from the installed icon;
-- **then**, in stage 4: A8, A9, A14;
+- **then**, in stage 4: A8, A9, A15 (right after installing a release), A14;
 - **before the switch-over**: A10 in full, A11, the agent (R-JOB-1).
 
 If a check fails, the owner brings the tool's output to this repo's sessions.
@@ -280,7 +281,7 @@ None open. Relied on: `pb_data` on the Btrfs mirror; the domain and DNS at Cloud
 
 ## 12. What changes in later stages, and the move
 
-- **Stage 4** (now): this version fixes the names (R-PB-8, R-SITE-2, R-JOB-1, R-MOVE-1) and moves PocketBase to 0.42.3. Next: the first release `nas-build` with a `nas-check` of `/api/pm/info` (A15), and the rehearsal result.
+- **Stage 4** (now): version 2026-11-25 (2) fixed the names (R-PB-8, R-SITE-2, R-JOB-1, R-MOVE-1) and moved PocketBase to 0.42.3. Version 2026-11-26: the release `nas-build` exists (its site is a placeholder until the sign-in ticket) and `nas-check` has A15. Next: the rehearsal result.
 - **Stage 5** (the move, by the NAS project): the requirements below; this repo changes the document only if the NAS project's work shows something missing.
 
 Each stage of this repo that changes the NAS side updates this document in the same session, with a new version line on top.

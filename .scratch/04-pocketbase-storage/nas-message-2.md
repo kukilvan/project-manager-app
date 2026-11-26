@@ -29,3 +29,9 @@ Understood: our two copies of R-BAK-2 (the JSON export in `polevoy-backups` and 
 
 - Confirm that the stack is built with 0.42.3 (or tell us what stops you).
 - When `nas-check` first runs through the tunnel, the full output (with the realtime cut time of A7), as agreed.
+
+## 5. Added on 2026-11-26: the release `nas-build` and A15
+
+- The release **`nas-build`** exists now: `https://github.com/kukilvan/project-manager-app/releases/tag/nas-build` (a pre-release, so it never shows as "Latest"), with the four files of section 2, refreshed on every push to `main`. Its site shows only a placeholder («Хранилище на домашнем сервере появится в следующих версиях.»): enough to test your updater end to end — download, checksums, install `nas-pb.zip`, restart, switch the site.
+- `nas-check` has a new check **A15**: `/api/pm/info` answers `{"app":"pm","schema":<n>}`. It is skipped while no NAS build is installed and fails once the site is there without the hooks. The document's version **2026-11-26** adds A15 to § 10; please use that version (and its commit) instead of 2026-11-25 (2).
+- What we ask back: after the first install, the full `nas-check` output (A9 and A15 should pass).

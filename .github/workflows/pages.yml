@@ -49,3 +49,28 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # The NAS build for the owner's NAS copy (spec 4 § 4): after the tests passed, the release `nas-build` gets the new files.
+  # The NAS project's updater reads nas-site.json, so it goes up last; a newer push cancels this run (the workflow's concurrency).
+  nas-build:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:nas
+      - run: node scripts/nas-pack.mjs out/
+      - name: Publish the release nas-build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view nas-build >/dev/null 2>&1 || gh release create nas-build --prerelease --target main --title "NAS build" --notes "The app for the owner's NAS copy, rebuilt on every push to main: nas-site.zip, nas-pb.zip, nas-jobs.zip and the manifest nas-site.json (docs/nas-requirements.md, R-SITE-2)."
+          gh release upload nas-build out/nas-site.zip out/nas-pb.zip out/nas-jobs.zip --clobber
+          gh release upload nas-build out/nas-site.json --clobber

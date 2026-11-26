@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// NAS check: probes the address of the owner's NAS copy and reports PASS, FAIL or SKIP for each acceptance check A1-A9 of docs/nas-requirements.md, plus the realtime cut time.
+// NAS check: probes the address of the owner's NAS copy and reports PASS, FAIL or SKIP for each acceptance check A1-A9 and A15 of docs/nas-requirements.md, plus the realtime cut time.
 // Talks only to the given address over HTTP (built-in fetch); sends no credentials, creates nothing, reads and writes no file, needs no dependency.
-// Spec: .scratch/02-nas-requirements/spec.md, section 4.
+// Spec: .scratch/02-nas-requirements/spec.md, section 4; A15 (the app's hooks answer GET /api/pm/info): spec 4 § 4, ticket 4.3.
 //
 // Contents:
 // - parseArgs() — the command line: the address (https://, or http:// for 127.0.0.1 and localhost only), --quick, --hold, --help
-// - judgeA1() … judgeA9() — pure: one stubbed or real response (or two) in, one result line out
+// - judgeA1() … judgeA9(), judgeA15() — pure: one stubbed or real response (or two) in, one result line out
 // - checkRealtime() — A7 and A7i: connect to the realtime stream, hold it open, reconnect after a cut
-// - runChecks() — the network part: runs A1-A9 in order through a fetch function that tests can replace
+// - runChecks() — the network part: runs A1-A9 and A15 in order through a fetch function that tests can replace
 // - formatResult(), summaryLine(), exitCode() — the output lines and the exit code
 // - main() and the CLI: node tools/nas-check.mjs https://<host> [--quick] [--hold <seconds>]
 // Exit codes: 0 — no check failed; 1 — a check failed; 2 — bad usage or the address cannot be reached.
@@ -28,7 +28,7 @@ const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost']);
 export const USAGE = [
   'Usage: node tools/nas-check.mjs https://<host> [--quick] [--hold <seconds>]',
   '',
-  'Checks a NAS address against the acceptance checks A1-A9 of docs/nas-requirements.md.',
+  'Checks a NAS address against the acceptance checks A1-A9 and A15 of docs/nas-requirements.md.',
   'Sends no credentials and changes nothing.',
   '',
   '  https://<host>   the address of the NAS copy; plain http:// only for 127.0.0.1 and',
@@ -169,6 +169,16 @@ export function judgeA9(index, manifest) {
   return pass('A9', 'the site is the app built for / (manifest start_url "/")');
 }
 
+// The app's hooks are installed (R-PB-8): /api/pm/info names the app and its schema version. Skipped while the site is not there (no NAS build installed yet),
+// a FAIL once it is, since the release brings the hooks and the site together. manifest: the A9 response for /manifest.webmanifest.
+export function judgeA15(res, manifest) {
+  const expected = '200 and {"app":"pm","schema":<a whole number of at least 1>}';
+  const j = !res.error && res.status === 200 ? asJson(res) : null;
+  if (j && j.app === 'pm' && Number.isInteger(j.schema) && j.schema >= 1) return pass('A15', `the app's hooks answer: /api/pm/info has app "pm", schema ${j.schema}`);
+  if (missingFile(manifest)) return skip('A15', 'no NAS build installed yet: /api/pm/info comes with the first release nas-build');
+  return fail('A15', "the app's hooks do not answer /api/pm/info (install nas-pb.zip, R-PB-8)", expected, res);
+}
+
 // ---------- network ----------
 
 const TIMEOUT = Symbol('timeout');
@@ -261,7 +271,7 @@ export async function checkRealtime({ fetchFn, base, quick = false, hold = DEFAU
   return [pass('A7', 'realtime connects and reconnects after a cut'), cutLine];
 }
 
-// Runs A1-A9 in order → { results, unreachable }. onResult is called with each result as soon as it is known.
+// Runs A1-A9 and A15 in order → { results, unreachable }. onResult is called with each result as soon as it is known.
 // unreachable: A1 got no HTTP answer at all (the tool stops there). fetch can be replaced by a stub.
 export async function runChecks({ base, local, quick = false, hold = DEFAULT_HOLD_S, fetch: fetchFn = globalThis.fetch, onResult = () => {}, onProgress = () => {}, requestTimeoutMs = REQUEST_TIMEOUT_MS, connectTimeoutMs = CONNECT_TIMEOUT_MS }) {
   const results = [];
@@ -301,6 +311,7 @@ export async function runChecks({ base, local, quick = false, hold = DEFAULT_HOL
 
   const [index, manifest] = [await get('/'), await get('/manifest.webmanifest')];
   emit(judgeA9(index, manifest));
+  emit(judgeA15(await get('/api/pm/info'), manifest));
   return { results, unreachable: null };
 }
 

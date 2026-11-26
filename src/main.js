@@ -1,4 +1,5 @@
 // App entry point: starts the language, theme and device helpers, decides what to show (the first-launch screens, the on-device mode or the Firebase sign-in) and starts the shell.
+// The NAS build (isPocketBase()) starts through src/app/pbstart.js instead: no first-launch screen, wizard or Firebase; `?mem=1` works in both builds.
 // Builds the repo on the right backend (Firestore, on-device IndexedDB or memory for `?mem=1` test mode; `&memPlan=1` also creates the test drawing project), resolves the database administrator and offers the project migration.
 // Loads the heavy screens (start.js, setup.js, firebase.js, localdb.js, migrate.js) lazily; keeps `pz.deviceId` and `pm.admin.<projectId>` in localStorage.
 import './style.css';
@@ -18,7 +19,7 @@ import * as store from './app/store.js';
 import { createShell } from './app/shell.js';
 
 import { captureTokenFromUrl } from './app/google.js';
-import { APP_NAME, connection, saveConnection, parseConnect, setAdminEmail, adminEmail, mode, setLocalMode, localUser, isStandalone } from './edition.js';
+import { APP_NAME, connection, saveConnection, parseConnect, setAdminEmail, adminEmail, mode, setLocalMode, localUser, isStandalone, isPocketBase } from './edition.js';
 document.title = tr(APP_NAME);
 const popupReturn = captureTokenFromUrl() === 'popup';   // Google sign-in window: the token is saved, we do not start the app itself here
 const BUILD = typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev';
@@ -169,6 +170,11 @@ async function resolveAdmin(repo, user, quiet = false) {
 }
 
 async function boot() {
+  if (!memoryMode && isPocketBase()) {
+    const { startPocketBase } = await import('./app/pbstart.js');
+    startPocketBase(app);
+    return;
+  }
   if (!memoryMode) {
     const g = await gate();
     if (!g) return;

@@ -114,11 +114,11 @@ The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. 
 
 **NAS project** — the owner's separate private project that sets up the home NAS and does the move of the NAS copy: setup, the data move, running jobs and backups, the switch-over. All code stays in this repo (ADR 0019).
 
-**NAS document** (code: `docs/nas-requirements.md`) — what the app requires from the NAS: requirements `R-…` and acceptance checks A1–A14.
+**NAS document** (code: `docs/nas-requirements.md`) — what the app requires from the NAS: requirements `R-…` and acceptance checks A1–A15.
 
 **NAS check** (code: `tools/nas-check.mjs`) — the automated acceptance checks of the NAS copy.
 
-**NAS build** (code: `npm run build:nas`, `VITE_BACKEND=pocketbase`, `isPocketBase()`) — the app built for the NAS copy: base `/`, PocketBase storage, no setup wizard or Firebase; published with the migrations, hooks and job scripts to the GitHub release `nas-build` on every push to `main` (stage 4).
+**NAS build** (code: `npm run build:nas` → `dist-nas/`, `VITE_BACKEND=pocketbase`, `isPocketBase()`; release by `scripts/nas-pack.mjs`) — the app built for the NAS copy: base `/`, PocketBase storage, no setup wizard or Firebase; published with the migrations, hooks and job scripts to the GitHub release `nas-build` on every push to `main` (stage 4; until the sign-in ticket its start screen is a placeholder).
 
 **Write route** (code: `POST /api/pm/save` in `pb/pb_hooks/pm.pb.js`, logic in `src/domain/pbwrite.js`, the PocketBase store in `pb/pb_hooks/pm/pbstore.js`) — the one way a user writes to PocketBase: ops merged like Firestore and checked against a copy of the Firestore rules in one transaction (ADR 0020).
 

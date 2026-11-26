@@ -1,7 +1,12 @@
 // Connection to the database, the work mode (Firebase or on this device) and the pool administrator. One site for everyone: there is no Firebase config in the code —
 // each person connects their own Firebase project in the setup wizard at first launch, colleagues join by an invitation link (it carries the same settings).
 // Stores on the device in localStorage: `pm.connection`, `pm.mode`, `pm.localUser`; read by firebase.js, google.js, pool.js and most screens.
+// isPocketBase() tells the NAS build (`npm run build:nas`, PocketBase storage) from the GitHub Pages build.
 export const APP_NAME = 'Менеджер проектов';
+
+// The NAS build: vite.config.js defines import.meta.env.VITE_BACKEND as a string literal in every build, so Vite folds this to a constant
+// and drops the PocketBase branches from the GitHub Pages build. Plain Node (tests) has no import.meta.env: false.
+export const isPocketBase = () => (import.meta.env ? import.meta.env.VITE_BACKEND : '') === 'pocketbase';
 
 const KEY = 'pm.connection';
 /** The connection: { firebase: {...}, clientId?: '...' } */

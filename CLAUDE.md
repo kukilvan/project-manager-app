@@ -21,7 +21,7 @@ Owner's shell: PowerShell, in the project folder. Node.js 22+.
 
 - Install dependencies: `npm ci`
 - Tests: `npm test` (node:test)
-- Build: `npm run build` (output `dist/`)
+- Build: `npm run build` (output `dist/`); NAS build: `npm run build:nas` (output `dist-nas/`); release files: `node scripts/nas-pack.mjs out/`
 - Start locally: `npx vite preview --port 4176` after a build, open `http://localhost:4176/project-manager-app/?mem=1` (test mode, `docs/workflow.md`); stop: Ctrl+C in that window
 - Dev server with reload: `npm run dev`
 - Translations after adding UI strings: `node scripts/i18n-build.mjs`
