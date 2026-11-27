@@ -4,7 +4,7 @@ Dated details of every accepted step, newest first. Read only when a session nee
 
 ## 2026-11-27 — Quick fix: pulled points are brown («Правка: коричневый цвет протянутых»)
 
-- The owner: the pink of a pulled point (`#E0609F`, idea 006) looked too much like the problem red. `PLAN_PALETTE.pink` → `PLAN_PALETTE.pulled` = `#79443B` in `src/domain/plan.js`: the plan, its legend and «PDF с номерами»; the pull circles (`PULL_DOT` in `src/app/views/planmodal.js`) take the same brown instead of `#A8285F` — the owner's choice. `NUMBERED_V` 4 → 5, so the nightly job re-renders every numbered PDF once, also those with no pulled point (their legend changes). Guide line and its English and Hebrew updated; `CONTEXT.md` «Progress colour».
+- The owner: the pink of a pulled point (`#E0609F`, idea 006) looked too much like the problem red. `PLAN_PALETTE.pink` → `PLAN_PALETTE.pulled` = `#79443B` in `src/domain/plan.js`: the plan, its legend and «PDF с номерами»; the pull circles (`PULL_DOT` in `src/app/views/planmodal.js`) take the same brown instead of `#A8285F` — the owner's choice. `NUMBERED_V` 4 → 5, so the nightly job re-renders every numbered PDF once, also those with no pulled point (their legend changes). Guide line and its English and Hebrew updated; `CONTEXT.md` «Progress colour». Checked by the owner on the phone («Работает»).
 
 ## 2026-11-27 — Ticket 4.5: the local copy and the write queue («Тикет 4.5»)
 
