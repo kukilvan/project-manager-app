@@ -1,12 +1,13 @@
-// Sign-in screens of the NAS copy: the sign-in screen with «База: домашний сервер · <host>», the sign-in panel (two Google buttons, the password form for local tests) and the «Вход истёк» banner card.
+// Sign-in screens of the NAS copy: the sign-in screen with «База: домашний сервер · <host>», the sign-in panel (one Google button, the password form for local tests) and the «Вход истёк» banner card.
 // The panel is shared by the screen and the «Войти снова» window; actions and state come from src/app/pb/auth.js, error texts from src/domain/pbauth.js (spec 4 § 3.2).
 import { h, openModal } from '../ui.js';
 import { APP_NAME } from '../../edition.js';
 import { error } from '../../log.js';
-import { loadMethods, signInGoogle, startCodeFlow, signInPassword } from './auth.js';
+import { loadMethods, startCodeFlow, signInPassword } from './auth.js';
 import { googleProvider, passwordOn, signInMessage } from '../../domain/pbauth.js';
 
-// The two Google buttons, the password form when the server allows it, and the error line. onDone() runs after a sign-in.
+// The Google button (the manual code flow: the page leaves for Google and the start finishes the sign-in, src/app/pb/auth.js),
+// the password form when the server allows it, and the error line. onDone() runs after a password sign-in.
 export function signInPanel({ onDone, message = '' } = {}) {
   const msg = h('div', { style: { color: 'var(--err)', marginTop: '10px', display: message ? '' : 'none' } }, message);
   const say = (text) => { msg.textContent = text || ''; msg.style.display = text ? '' : 'none'; };
@@ -18,14 +19,9 @@ export function signInPanel({ onDone, message = '' } = {}) {
   const google = h('button', { class: 'grow', style: { width: '100%' }, onclick: () => {
     if (methods && !googleProvider(methods)) { say(signInMessage({ kind: 'no-google' })); return; }
     say(''); busy(true);
-    // signInGoogle opens its window synchronously, inside this tap
-    signInGoogle({ onClosed: () => busy(false) }).then(() => { busy(false); onDone?.(); }).catch((e) => { error('Вход через Google: ошибка', detail(e)); fail(e); });
+    startCodeFlow().catch((e) => { error('Вход через Google: ошибка', detail(e)); fail(e); });
   } }, 'Войти через Google');
-  const backup = h('button', { class: 'sec', onclick: () => {
-    say(''); busy(true);
-    startCodeFlow().catch((e) => { error('Вход (запасной способ): ошибка', detail(e)); fail(e); });
-  } }, 'Войти (запасной способ)');
-  buttons.push(google, backup);
+  buttons.push(google);
 
   const pwBox = h('div', { style: { display: 'none', marginTop: '14px', borderTop: '1px solid var(--line)', paddingTop: '10px' } });
   const showPassword = () => {
@@ -49,8 +45,6 @@ export function signInPanel({ onDone, message = '' } = {}) {
 
   return h('div', {},
     google,
-    h('div', { class: 'mut', style: { margin: '10px 0 6px' } }, 'Если кнопка выше не сработала на iPhone («Домой»), попробуйте запасной способ:'),
-    backup,
     pwBox,
     msg);
 }

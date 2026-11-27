@@ -70,7 +70,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/app/manuals.js` — Manuals for the guide (diagrams, wiring photos, tables, PDFs), shared by all projects.
 - `src/app/migrate.js` — Moves projects from the «на устройстве» mode into the Firebase database (after setting up one's own database or joining by invitation).
 - `src/app/nodoubletap.js` — Stops a double tap from zooming the screen on iPhone (app opened from the home-screen icon).
-- `src/app/pb/auth.js` — Sign-in on the NAS copy: the three-way start, both Google flows, the password sign-in for local tests, the token refresh, the administrator and sign-out.
+- `src/app/pb/auth.js` — Sign-in on the NAS copy: the three-way start, the Google sign-in (the manual code flow), the password sign-in for local tests, the token refresh, the administrator and sign-out.
 - `src/app/pb/backend.js` — The PocketBase backend of the repo on the NAS copy: every method of createFirestoreBackend (src/app/repo.js) over the local copy, the write queue and the server.
 - `src/app/pb/client.js` — The PocketBase clients of the NAS copy: the one signed-in client for the page's own origin (sign-in kept under the SDK's own key `pocketbase_auth`) and a guest client for sign-in requests.
 - `src/app/pb/drive.js` — Google Drive and Sheets on the NAS copy: the owner's Client ID from PocketBase's `auth-methods`, kept on the device, with the user's e-mail.
@@ -78,7 +78,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/app/pb/reader.js` — The reader of the NAS copy: one realtime connection with the keep-alive, the reads after every (re)connect (full, delta, Saturday, rollback check), new and removed projects, history and one-off reads.
 - `src/app/pb/screens.js` — Screens of the NAS copy that depend on the server: the one banner under the top bar, «Подключение к базе» with «Связь с сервером», and the «⬇» state for the shell.
 - `src/app/pb/sender.js` — The sender of the NAS copy's write queue: one request at a time to `POST /api/pm/save`, every answer of spec 4 § 3.4, back-off and the state behind the banners.
-- `src/app/pb/signin.js` — Sign-in screens of the NAS copy: the sign-in screen with «База: домашний сервер · <host>», the sign-in panel (two Google buttons, the password form for local tests) and the «Вход истёк» banner card.
+- `src/app/pb/signin.js` — Sign-in screens of the NAS copy: the sign-in screen with «База: домашний сервер · <host>», the sign-in panel (one Google button, the password form for local tests) and the «Вход истёк» banner card.
 - `src/app/pbstart.js` — NAS build start: the sign-in (src/app/pb/auth.js, src/app/pb/signin.js), then the real app on the PocketBase backend with the local copy, the write queue and the reader.
 - `src/app/pool.js` — The shared pool inside the app: listens to the pool (all users) and to the inbox (pool administrator only), and sends the administrator what is new or changed in the current project.
 - `src/app/racksheet.js` — Formats and writes the rack sheets into a Google Sheet (values go straight into cells, no links between sheets).

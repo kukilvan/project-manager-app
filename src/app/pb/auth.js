@@ -1,4 +1,4 @@
-// Sign-in on the NAS copy: the three-way start, both Google flows, the password sign-in for local tests, the token refresh, the administrator and sign-out.
+// Sign-in on the NAS copy: the three-way start, the Google sign-in (the manual code flow), the password sign-in for local tests, the token refresh, the administrator and sign-out.
 // Keeps a small state (`auth`: signedIn, expired, refreshed, user, lastSignIn) with onChange and onSignIn for the screens and the sync of later tickets.
 // Talks to PocketBase through src/app/pb/client.js (sign-in requests through a guest client without the saved token); the rules are pure in src/domain/pbauth.js. Device keys: `pocketbase_auth` (the SDK's), `pz.pbOauth`, `pm.admin.pb`.
 import { getPb, guestPb, adoptSignIn } from './client.js';
@@ -54,10 +54,10 @@ export async function startSession() {
       await g.collection('users').authWithOAuth2Code('google', d.code, d.codeVerifier, d.redirect);
       adoptSignIn(g); afterSignIn(previousId);
       return { kind: 'session', message: '' };
-    } catch (e) { error('Вход (запасной способ): ошибка', `${e.status || ''} ${e.message || e}`); message = signInMessage(e); }
+    } catch (e) { error('Вход через Google: ошибка', `${e.status || ''} ${e.message || e}`); message = signInMessage(e); }
   } else {
     message = `Не удалось войти: ${d.kind === 'bad-state' ? 'state' : d.error}`;
-    warn(`Вход (запасной способ): ${d.kind === 'bad-state' ? 'state не совпал' : d.error}`);
+    warn(`Вход через Google: ${d.kind === 'bad-state' ? 'state не совпал' : d.error}`);
   }
   if (d.then === 'saved') { beginSaved(); return { kind: 'session', message }; }
   return { kind: 'login', message };
@@ -100,27 +100,15 @@ export function markExpired() { if (!auth.expired) set({ expired: true }); }
 // The sign-in methods of the server (public, asked without the saved token): Google's address, state and code verifier; whether password sign-in is on
 export const loadMethods = () => guestPb().collection('users').listAuthMethods();
 
-// «Войти через Google»: the SDK's window flow. The window is opened here, synchronously inside the tap (a phone blocks windows opened later);
-// the SDK cannot see it closed, so onClosed tells the screen to free its buttons (a late success still signs in).
-export function signInGoogle({ onClosed } = {}) {
-  const previousId = store().record?.id || null;
-  const w = typeof window !== 'undefined' ? window.open('', 'popup_window', 'width=520,height=640,resizable,menubar=no') : null;
-  if (!w) return Promise.reject(Object.assign(new Error('popup'), { code: 'popup' }));
-  const timer = setInterval(() => { if (w.closed) { clearInterval(timer); setTimeout(() => onClosed?.(), 2000); } }, 500);
-  const g = guestPb();
-  return g.collection('users').authWithOAuth2({ provider: 'google', urlCallback: (url) => { w.location.href = url; } })
-    .then(() => { adoptSignIn(g); return afterSignIn(previousId); })
-    .catch((e) => { try { w.close(); } catch { /* ok */ } throw e; })
-    .finally(() => clearInterval(timer));
-}
-
-// «Войти (запасной способ)»: the manual code flow — fresh auth methods, `pz.pbOauth` kept, the page goes to Google and comes back to `/?code=…&state=…`
+// «Войти через Google»: the manual code flow — fresh auth methods, `pz.pbOauth` kept, the page goes to Google and comes back to `/?code=…&state=…`.
+// The only Google sign-in: PocketBase's window flow (the SDK's authWithOAuth2) ends its window on the dashboard page `/_/#/auth/oauth2-redirect-…`,
+// which the WAF rule R-NET-4 blocks, so the window showed Cloudflare's block page (NAS note of 2026-11-27, `.scratch/04-pocketbase-storage/nas-report-3.md`).
 export async function startCodeFlow() {
   const g = googleProvider(await loadMethods());
   if (!g) throw { kind: 'no-google' };
   const { url, saved } = codeFlow(g, location.origin);
   ls()?.setItem(OAUTH_KEY, JSON.stringify(saved));
-  info('Вход (запасной способ): переход к Google');
+  info('Вход через Google: переход к Google');
   location.assign(url);
 }
 

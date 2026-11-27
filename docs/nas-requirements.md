@@ -1,6 +1,6 @@
 # What the Project Manager app needs from the NAS
 
-Version: 2026-11-27, commit `8ae88cb`. Previous version: 2026-11-26, commit `b3dba35`. Owned by this repo (`kukilvan/project-manager-app`); the NAS project proposes changes through the owner.
+Version: 2026-11-27 (2), commit `HASH`. Previous version: 2026-11-27, commit `8ae88cb`. Owned by this repo (`kukilvan/project-manager-app`); the NAS project proposes changes through the owner.
 
 This document tells the NAS project exactly what to set up so the owner's copy of the app (the **NAS copy**) can run on the home NAS, how to move the owner's data there, and how to check it. The decisions behind it are in ADR 0013, ADR 0014 and ADR 0019 of this repo.
 
@@ -162,7 +162,7 @@ Why: phones must reach the NAS from anywhere over HTTPS, without a VPN app and w
   1. `starts_with(http.request.uri.path, "/_/")` — the dashboard;
   2. `starts_with(lower(http.request.uri.path), "/api/collections/_superusers/") or starts_with(lower(http.request.uri.path), "/api/collections/pbc_3142635823/")` — superuser sign-in and records, by the collection's name and by its id (PocketBase accepts both; the id is fixed in PocketBase's code). `lower()` because PocketBase finds a collection by name in any letter case (`_SuperUsers` reaches the login; the NAS project found it, 2026-11-27).
 
-  The outer layer; R-PB-5 is what really holds. The id is there because PocketBase answers a wrong password with 400 and a right one with 403, which would tell an outsider a guess is right.
+  The outer layer; R-PB-5 is what really holds. Rule 1 also stops PocketBase's window (popup) sign-in from finishing: after Google, `/api/oauth2-redirect` answers `307` to the dashboard's own page `/_/#/auth/oauth2-redirect-success` (or `…-failure`), which closes the window, and rule 1 blocks it. So the app signs in with Google only by the manual code flow, which returns to `https://<host>/` and never touches `/_/` (R-GOOG-2; the NAS project found it, 2026-11-27). Letting `/_/` through would show the dashboard to the internet; rule 1 stays. The id is there because PocketBase answers a wrong password with 400 and a right one with 403, which would tell an outsider a guess is right.
 - **R-NET-5 (now)** Limits (explanation): request body up to 100 MB on the free plan (the app sends 1–2 MB per batch); an idle realtime stream is cut after ≈ **125 s** (PocketBase itself: 300 s); the app reconnects and re-reads changes (stage 4).
 - **R-NET-6 (now, should)** A down-alert on `https://<host>/api/health` through Cloudflare and the tunnel (the planned Gatus check every minute with a Telegram alert meets it). Reason: helpers notice an outage only as "changes do not arrive".
 
@@ -179,7 +179,8 @@ Why: users sign in with their Google accounts, and the app talks to Google Drive
 - **R-GOOG-1 (now)** The OAuth client is the owner's existing Google Cloud web client — the one whose Client ID the owner's connect link carries (it already has the Drive and Sheets scopes). Its client secret is typed into PocketBase settings only by the owner (encrypted by `PB_ENCRYPTION_KEY`). Google shows an existing secret only masked, so the owner may add a second one for PocketBase; the previous secret must stay enabled while the Firebase copy lives (Firebase Authentication's Google sign-in may use the same client and its secret); this repo's code and jobs use no client secret. If the client's consent screen is in "Testing" status, every helper's Google account should be on its test-user list, otherwise their sign-in is refused.
 - **R-GOOG-2 (now)** On that client (Google Cloud Console → APIs & Services → Credentials) add:
   - authorized JavaScript origin `https://<host>`;
-  - authorized redirect URIs `https://<host>/api/oauth2-redirect` (PocketBase popup sign-in) and `https://<host>/` (the manual code flow, and the app's Drive sign-in on iPhone, which redirects back to the app's own address).
+  - authorized redirect URI `https://<host>/` (the app's Google sign-in — PocketBase's manual code flow — and the app's Drive sign-in on iPhone, both redirecting back to the app's own address);
+  - `https://<host>/api/oauth2-redirect` is not used since version 2026-11-27 (2): PocketBase's window sign-in that needs it cannot finish behind R-NET-4, rule 1. Leaving it in the list does no harm; removing it is optional.
 
 Staying in Google: management sheets, drawings on Drive, Drive backups, the service account of the nightly sheets.
 
@@ -281,7 +282,7 @@ None open. Relied on: `pb_data` on the Btrfs mirror; the domain and DNS at Cloud
 
 ## 12. What changes in later stages, and the move
 
-- **Stage 4** (now): version 2026-11-25 (2) fixed the names (R-PB-8, R-SITE-2, R-JOB-1, R-MOVE-1) and moved PocketBase to 0.42.3. Version 2026-11-26: the release `nas-build` exists (its site is a placeholder until the sign-in ticket) and `nas-check` has A15. The first full `nas-check` through the tunnel passed on 2026-11-27 (8 pass, 3 skip; idle realtime cut after 125 s). Version 2026-11-27: the NAS project's two suggestions — `lower()` in R-NET-4 with a mixed-case probe in A3b, Web Analytics in R-NET-3. Next: the rehearsal result.
+- **Stage 4** (now): version 2026-11-25 (2) fixed the names (R-PB-8, R-SITE-2, R-JOB-1, R-MOVE-1) and moved PocketBase to 0.42.3. Version 2026-11-26: the release `nas-build` exists (its site is a placeholder until the sign-in ticket) and `nas-check` has A15. The first full `nas-check` through the tunnel passed on 2026-11-27 (8 pass, 3 skip; idle realtime cut after 125 s). Version 2026-11-27: the NAS project's two suggestions — `lower()` in R-NET-4 with a mixed-case probe in A3b, Web Analytics in R-NET-3. Version 2026-11-27 (2): the window sign-in ends on the blocked dashboard page (the NAS project's note), so the app keeps only the manual code flow (R-NET-4, R-GOOG-2). Next: the rehearsal result.
 - **Stage 5** (the move, by the NAS project): the requirements below; this repo changes the document only if the NAS project's work shows something missing.
 
 Each stage of this repo that changes the NAS side updates this document in the same session, with a new version line on top.
