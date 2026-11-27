@@ -8,7 +8,7 @@ export function logView(ui, diag) {
   const rows = getLines().map((r) => h('div', { class: `l-${r.level}` }, `${r.t} ${r.text}`));
   const lines = [
     `Сборка: ${diag.build}`, `Устройство: ${diag.device}`, `Экран «Домой» (standalone): ${diag.standalone ? 'да' : 'нет'}`,
-    `Сеть: ${state.online ? 'онлайн' : 'офлайн'}`, `Хранилище: ${diag.backend}`, `Кэш Firestore: ${diag.cacheMode}`,
+    `Сеть: ${state.online ? 'онлайн' : 'офлайн'}`, `Хранилище: ${diag.backend}`, diag.cacheLine || `Кэш Firestore: ${diag.cacheMode}`,
     `Пользователь: ${diag.userEmail}`, `Проект: ${currentProject()?.name || '—'}`, `User-Agent: ${navigator.userAgent}`,
   ];
   const box = h('pre', { class: 'log', id: 'logBox' }, rows.length ? rows : 'Пусто');

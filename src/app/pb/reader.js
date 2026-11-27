@@ -309,7 +309,8 @@ export function createReader(opts) {
     if (unknown) request('light');   // a record of a project the phone does not know: the project list first
     else if (fresh.size) pump();
   }
-  function onPing() { lastMsgAt = now(); heard(); emit(); }
+  // the keep-alive also saves «Последнее обновление» for the next start
+  function onPing() { lastMsgAt = now(); heard(); copy.setMeta('server|at', st.lastServerAt); emit(); }
   function onConnect() {
     st.realtime = 'connected'; lastMsgAt = now(); heard();
     readFails = 0; timers.clearTimeout(retryTimer); retryTimer = null;
@@ -390,6 +391,14 @@ export function createReader(opts) {
     // tests and browser checks: idle() resolves when no read run is going or wanted; readNow(kind) asks for a run first
     async idle() { await new Promise((r) => setTimeout(r, 0)); while (running || want || groupTimer) await new Promise((r) => setTimeout(r, 20)); },
     async readNow(kind = 'full') { request(kind); return this.idle(); },
+    // «🔄 Перечитать всё с сервера»: every scope is read in full (invites, prefs and projects always are); queued items stay.
+    // The stamps of the last full reads are removed, so the full read still happens later when there is no connection now or the app closes.
+    rereadAll() {
+      copy.entries(PREFIX.projects).forEach(([id]) => copy.setMeta(`full|r|${id.slice(PREFIX.projects.length + 1)}`, undefined));
+      copy.setMeta('full|pool', undefined); copy.setMeta('full|inbox', undefined);
+      info('Чтение (PocketBase): перечитываю всё с сервера');
+      return this.readNow('full');
+    },
 
     // ---------- one-off reads (spec 4 § 3.5) ----------
     // A project collection straight from the server, all pages; rejects offline, as Firestore's getDocsFromServer

@@ -100,7 +100,7 @@ export function createPocketBaseBackend({ copy, user, onQueued = () => {}, serve
       const err = Object.assign(new Error(message || code), { code });
       const p = live.get(seq); live.delete(seq);
       if (p) p.reject(err);
-      else if (it && (it.kind === 'commit' || it.kind === 'commitPool')) noteRejected(it.kind === 'commitPool' ? 'pool' : 'project', it.pid, it.writes, err);
+      else if (it && (it.kind === 'commit' || it.kind === 'commitPool')) noteRejected(it.kind === 'commitPool' ? 'pool' : 'project', it.pid, it.writes, err, it.uid);
       else error('Запись отклонена', `${code} ${message || ''} (${it?.kind || '?'})`);
       notifyPending();
     },

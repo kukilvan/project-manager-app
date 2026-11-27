@@ -24,9 +24,16 @@ export const isExpiredDeleted = (doc, now = Date.now()) => !!doc && doc.deleted 
 export const historyCutoff = (now = Date.now()) => now - RETENTION_DAYS * DAY;
 
 // ---------- writes rejected by the server ----------
-// Firestore error code → what happened and what to do (in Russian)
-export function rejectReason(code) {
-  const c = String(code || '').replace(/^firestore\//, '');
+// The refused writes one account sees and may retry: its own, and old items saved without an owner (KI-9)
+export const ownRejected = (list, uid) => (list || []).filter((x) => !x.uid || x.uid === uid);
+// Error code of the server → what happened and what to do (in Russian). `backend` is the repo backend's kind: 'pocketbase' for the NAS copy
+// (codes 'forbidden', 'not-found', 'invalid' of the write route), else Firestore codes
+export function rejectReason(code, backend = '') {
+  let c = String(code || '').replace(/^firestore\//, '');
+  if (backend === 'pocketbase') {
+    if (c === 'forbidden') return { title: 'Нет прав на запись', fix: 'Возможно, вас убрали из проекта (попросите создателя пригласить снова) или это может делать только администратор базы. Потом нажмите «Повторить».' };
+    if (c === 'invalid') c = 'invalid-argument';
+  }
   if (c === 'permission-denied') return { title: 'Нет прав на запись', fix: 'Возможно, вас убрали из проекта (попросите создателя пригласить снова), не опубликованы правила базы для этого раздела (создатель публикует firestore.rules в консоли Firebase) или истёк вход — выйдите из аккаунта и войдите снова. Потом нажмите «Повторить».' };
   if (c === 'resource-exhausted') return { title: 'Исчерпан суточный лимит записей', fix: 'Подождите сброса лимита (10:00 по Израилю) и нажмите «Повторить».' };
   if (c === 'unauthenticated') return { title: 'Нет входа в аккаунт', fix: 'Выйдите из аккаунта и войдите снова, затем нажмите «Повторить».' };

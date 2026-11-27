@@ -262,6 +262,34 @@ test('reader: realtime events are grouped, applied by `updated`, a delete remove
   reader.stop();
 });
 
+test('reader: «Перечитать всё с сервера» reads every scope in full; queued changes stay; offline it happens at the next connect', async () => {
+  const db = { projects: [proj('P1', 'pb1', T('00:01'))], records: [rec('pb1', 'points', 'a', T('00:02'), { label: 'C1' }), rec('pb1', 'points', 'b', T('30:00'))], pool: [{ id: 'q1', kind: 'culprits', key: 'x', updated: T('00:03'), data: { name: 'x' } }], invites: [], prefs: [] };
+  const { copy, pb, reader } = await setup(db);
+  pb.connect(); await reader.idle();
+  copy.accept({ uid: 'u1', kind: 'commit', pid: 'P1', writes: [], ops: toOps('commit', 'P1', [{ coll: 'points', id: 'new', data: { label: 'queued' } }]) });
+  // the phone's copy lost a record that is older than the mark: a delta would never bring it back
+  copy.setDocs([['r|P1|points|a', null]], { grouped: false });
+  const queries = () => pb.calls.filter((c) => (c[0] === 'records' && c[1].includes('project')) || (c[0] === 'pool'));
+  pb.calls.length = 0;
+  await reader.rereadAll();
+  assert.equal(queries().length, 2);
+  queries().forEach((q) => assert.doesNotMatch(q[1], /updated >/, `a full read of ${q[0]}`));
+  assert.equal(copy.get('r|P1|points|a').label, 'C1');
+  assert.equal(copy.get('r|P1|points|new').label, 'queued');
+  assert.equal(copy.queueItems().length, 1);
+  // without an answer the full read waits: the next connect does it
+  db.fail = { projects: { status: 0 } };
+  await reader.rereadAll();
+  delete db.fail;
+  pb.calls.length = 0;
+  pb.connect(); await reader.idle();
+  queries().forEach((q) => assert.doesNotMatch(q[1], /updated >/));
+  pb.calls.length = 0;
+  pb.connect(); await reader.idle();
+  queries().forEach((q) => assert.match(q[1], /updated >/, 'and then deltas again'));
+  reader.stop();
+});
+
 test('reader: a project that appears by realtime is read in full at once; a removed one leaves with its records at the next read', async () => {
   const db = { projects: [proj('P1', 'pb1', T('00:01'))], records: [rec('pb1', 'points', 'a', T('00:02'))], pool: [], invites: [], prefs: [] };
   const { copy, pb, reader } = await setup(db);

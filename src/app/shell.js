@@ -23,6 +23,7 @@ import { PENDING } from './google.js';
 import { onPendingChange, onReadChange, readStatus, readsResetAt, setSnapProvider, rejectedList, onRejectedChange, dropRejected, onWriteWarn, DAILY_WRITE_LIMIT } from './repo.js';
 import { asText } from '../log.js';
 import { entryLine, rejectReason, ownNameMap } from '../domain/index.js';
+import { ownRejected } from '../domain/sync.js';
 import { makeWorker } from './views/tohnitview.js';
 import { assignOnPlan } from './views/planassign.js';
 // for browser checks (like window.__pz)
@@ -50,8 +51,9 @@ const TABS = [
 ];
 const SCREEN_TITLES = { projects: 'Все проекты', month: 'Отчёт за месяц', journal: 'История', history: 'Откат записей', import: 'Импорт', ref: 'Справочник', members: 'Участники', tables: 'Для руководства', racks: 'Шкафы и шильют', sheets: 'Таблицы', guide: 'Как пользоваться', log: 'Журнал событий' };
 
-// banner (optional): an element shown under the top bar on every screen (the NAS copy's «Вход истёк»)
-export function createShell({ user, onLogout, diag, banner = null }) {
+// server (the NAS copy only, src/app/pb/screens.js): { banner — an element shown under the top bar on every screen, openConnection(),
+// readStatus(), onReadChange(fn) }; without it the Firestore texts, counters and read state are used
+export function createShell({ user, onLogout, diag, server = null }) {
   const root = document.getElementById('app');
   const ui = { tab: 'project', screen: null, go, open, back: () => { ui.screen = null; render(); }, render };
   nav.ui = ui;
@@ -89,7 +91,7 @@ export function createShell({ user, onLogout, diag, banner = null }) {
       item(`🔄 Обновить приложение (версия ${typeof __VERSION__ !== 'undefined' ? __VERSION__ : 'dev'}, сборка ${typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev'})`, refreshApp)]),
       section('Данные', [
       isLocal() ? item('☁️ Своя база: работа с коллегами', () => import('./setup.js').then((m) => m.openWizardScreen())) : null,
-      connection() ? item('🔌 Подключение к базе', () => import('./setup.js').then((m) => m.connectionModal(onLogout))) : null,
+      server ? item('🔌 Подключение к базе', server.openConnection) : connection() ? item('🔌 Подключение к базе', () => import('./setup.js').then((m) => m.connectionModal(onLogout))) : null,
       item('🧾 Журнал событий', () => open('log')),
       p ? item('🔄 Обновить таблицу для руководства', updateManagerTable) : null,
       p && mainTable(p).link ? item('📊 Открыть таблицу руководства', () => window.open(mainTable(p).link, '_blank')) : null,
@@ -158,17 +160,19 @@ export function createShell({ user, onLogout, diag, banner = null }) {
   function pendingBadge() {
     badge = h('span', { class: 'pill warn', style: { display: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }, onclick: () => {
       const n = pendingCount();
-      toast(!n ? 'Всё отправлено на сервер' : state.online ? `Ждут отправки: ${n}. Если число не уменьшается — проверьте связь или лимит базы (Проект → «Чтений базы»)` : `Ждут отправки: ${n}. Они уйдут на сервер сами, когда появится интернет`);
+      const stuck = server ? `Ждут отправки: ${n}. Если число не уменьшается — откройте ☰ → «🔌 Подключение к базе».` : `Ждут отправки: ${n}. Если число не уменьшается — проверьте связь или лимит базы (Проект → «Чтений базы»)`;
+      toast(!n ? 'Всё отправлено на сервер' : state.online ? stuck : `Ждут отправки: ${n}. Они уйдут на сервер сами, когда появится интернет`);
     } });
     paintBadge();
     return badge;
   }
   // «⬇ N»: how many sections still wait for the server's answer (reading). Red — an error (e.g. the limit) or waiting more than 30 seconds online
   let rbadge = null;
-  const LIMIT_CODES = ['resource-exhausted'];
+  const LIMIT_CODES = ['resource-exhausted'];   // Firestore only: the NAS copy has no daily limit and never shows «⬇ лимит»
+  const reading = () => (server ? server.readStatus() : readStatus());
   const paintRead = () => {
     if (!rbadge) return;
-    const r = readStatus(); const n = r.waiting + r.failed.length;
+    const r = reading(); const n = r.waiting + r.failed.length;
     if (!n) { rbadge.style.display = 'none'; return; }
     const slow = state.online && r.waiting && Date.now() - r.since > 30000;
     const limit = r.failed.some((x) => LIMIT_CODES.includes(x.code));
@@ -177,28 +181,30 @@ export function createShell({ user, onLogout, diag, banner = null }) {
   };
   function readBadge() {
     rbadge = h('span', { class: 'pill warn', style: { display: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }, onclick: () => {
-      const r = readStatus(); const hhmm = readsResetAt().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      const r = reading(); const hhmm = readsResetAt().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
       if (r.failed.some((x) => LIMIT_CODES.includes(x.code))) { toast(`Исчерпан суточный лимит чтения базы. Новые данные с сервера не приходят до ${hhmm}; приложение работает на том, что уже есть на устройстве, записи копятся и уйдут позже`); return; }
       if (r.failed.length) { toast(`Не удалось прочитать с сервера: ${r.failed.map((x) => `${x.label} (${x.code})`).join(', ')}`); return; }
       if (!r.waiting) { toast('Всё получено с сервера'); return; }
-      toast(state.online ? `Ждём данные с сервера: ${r.waiting} разд. Пока показано то, что есть на устройстве. Если долго не уходит — слабая связь или лимит базы (сбросится в ${hhmm})` : `Ждём данные с сервера: ${r.waiting} разд. Придут, когда появится интернет`);
+      const wait = server ? `Ждём данные с сервера: ${r.waiting} разд. Пока показано то, что есть на устройстве.` : `Ждём данные с сервера: ${r.waiting} разд. Пока показано то, что есть на устройстве. Если долго не уходит — слабая связь или лимит базы (сбросится в ${hhmm})`;
+      toast(state.online ? wait : `Ждём данные с сервера: ${r.waiting} разд. Придут, когда появится интернет`);
     } });
     paintRead();
     return rbadge;
   }
   // «⚠ N»: records the server did not accept. They are kept on the phone — you can find the cause and retry
   let xbadge = null;
-  const paintRej = () => { if (!xbadge) return; const n = rejectedList().length; xbadge.style.display = n ? '' : 'none'; xbadge.textContent = `⚠ ${n}`; xbadge.title = `Сервер не принял записей: ${n}`; };
+  const refusedList = () => ownRejected(rejectedList(), user.uid);   // another account's refused writes wait for it (KI-9)
+  const paintRej = () => { if (!xbadge) return; const n = refusedList().length; xbadge.style.display = n ? '' : 'none'; xbadge.textContent = `⚠ ${n}`; xbadge.title = `Сервер не принял записей: ${n}`; };
   function rejectedModal() {
     const box = h('div', {}); const repo = getRepo();
     const when = (t) => new Date(t).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
     const colls = (it) => [...new Set(it.writes.map((w) => w.coll).filter((c) => c !== 'history'))].join(', ');
     const draw = () => {
-      const list = rejectedList();
+      const list = refusedList();
       if (!list.length) { box.replaceChildren(h('div', { class: 'empty' }, 'Всё принято сервером.')); return; }
       box.replaceChildren(
         h('div', { class: 'mut' }, 'Эти записи сервер не принял: на телефоне они сохранены, но другие их не видят. Устраните причину и нажмите «Повторить».'),
-        ...list.map((it) => { const r = rejectReason(it.code); return h('div', { class: 'card', style: { margin: '8px 0' } },
+        ...list.map((it) => { const r = rejectReason(it.code, repo.backend.kind); return h('div', { class: 'card', style: { margin: '8px 0' } },
           h('b', {}, r.title), h('div', { class: 'mut', style: { fontSize: '13px' } }, `${when(it.at)} · разделы: ${colls(it) || '—'} · код: ${it.code || '—'}`),
           h('div', { style: { margin: '6px 0' } }, r.fix),
           h('button', { class: 'sec', onclick: async () => { if (await confirmDialog('Удалить эту запись из списка? Она не попадёт на сервер никогда.', { yes: 'Удалить', danger: true })) { dropRejected(it.id); draw(); } } }, 'Не нужна — удалить')); }),
@@ -214,9 +220,9 @@ export function createShell({ user, onLogout, diag, banner = null }) {
     paintRej(); return xbadge;
   }
   onRejectedChange(paintRej);
-  onWriteWarn((lvl, n) => toast(lvl >= 0.95 ? `⚠ Записей за сутки: ${n.toLocaleString('ru-RU')} из ${DAILY_WRITE_LIMIT.toLocaleString('ru-RU')} — лимит почти исчерпан. Дальше записи могут не приниматься до 10:00.` : `Записей за сутки: ${n.toLocaleString('ru-RU')} из ${DAILY_WRITE_LIMIT.toLocaleString('ru-RU')} (80% лимита). Большие операции лучше отложить до 10:00.`));
+  if (!server) onWriteWarn((lvl, n) => toast(lvl >= 0.95 ? `⚠ Записей за сутки: ${n.toLocaleString('ru-RU')} из ${DAILY_WRITE_LIMIT.toLocaleString('ru-RU')} — лимит почти исчерпан. Дальше записи могут не приниматься до 10:00.` : `Записей за сутки: ${n.toLocaleString('ru-RU')} из ${DAILY_WRITE_LIMIT.toLocaleString('ru-RU')} (80% лимита). Большие операции лучше отложить до 10:00.`));
   setInterval(() => { paintBadge(); paintRead(); }, 5000);
-  onPendingChange(paintBadge); onReadChange(paintRead);
+  onPendingChange(paintBadge); if (server) server.onReadChange(paintRead); else onReadChange(paintRead);
 
   function render() {
     const p = currentProject();
@@ -230,7 +236,7 @@ export function createShell({ user, onLogout, diag, banner = null }) {
         pendingBadge(),
         h('span', { class: `pill ${state.online ? 'ok' : 'warn'}` }, state.online ? 'онлайн' : 'офлайн'),
         ui.screen ? null : h('button', { class: 'sec', onclick: menu }, '⋯')),
-      h('div', { class: ui.screen === 'racks' ? 'wrap wide' : 'wrap' }, banner, invitesBanner(), content()),
+      h('div', { class: ui.screen === 'racks' ? 'wrap wide' : 'wrap' }, server?.banner, invitesBanner(), content()),
       h('nav', {}, TABS.map(([id, label, icon]) => h('button', { class: !ui.screen && ui.tab === id ? 'on' : '', onclick: () => go(id) }, icon, h('br'), h('small', {}, label)))));
   }
 

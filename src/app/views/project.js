@@ -20,6 +20,7 @@ import { memberLabel, memberNameByUid } from './members.js';
 import { hint } from './guide.js';
 import { exportExcel } from '../excel.js';
 import { tr } from '../../i18n/index.js';
+import { isPocketBase } from '../../edition.js';
 
 // Test mode (?mem=1): a stub instead of Google; calls are recorded in window.__gcalls
 function testApi() {
@@ -196,5 +197,6 @@ export function projectView(ui) {
     h('div', { class: 'card' }, h('b', {}, 'Точки'), readiness(), problemsLine(ui), h('div', { style: { marginTop: '8px' } }, summary(ui))),
     h('div', { class: 'btns' },
       autoBackupLine(p),
-      h('div', { class: 'mut', style: { width: '100%' } }, readsLine())));
+      // the NAS copy has no daily limits to count
+      isPocketBase() ? null : h('div', { class: 'mut', style: { width: '100%' } }, readsLine())));
 }

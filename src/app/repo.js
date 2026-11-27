@@ -18,7 +18,7 @@ import {
 } from 'firebase/firestore';
 import { info, error } from '../log.js';
 import { isAdminEmail } from '../edition.js';
-import { DELTA_MARGIN, decideMode, maxMillis, DAILY_WRITE_LIMIT, writeWarnLevel } from '../domain/sync.js';
+import { DELTA_MARGIN, decideMode, maxMillis, DAILY_WRITE_LIMIT, writeWarnLevel, ownRejected } from '../domain/sync.js';
 import {
   CATALOG, POINT_TYPES, CABLES, UNITS, DEVICES, composedTypes, fixLatin, fixCabinet,
 } from '../domain/index.js';
@@ -164,10 +164,11 @@ export const rejectedList = () => rejected.slice();
 export const onRejectedChange = (fn) => { rejSubs.add(fn); return () => rejSubs.delete(fn); };
 export const dropRejected = (id) => { rejected = rejected.filter((x) => x.id !== id); rejEmit(); };
 const addRejected = (item) => { rejected = [...rejected, item].slice(-50); rejEmit(); };
-// A refused write with no live promise (the PocketBase queue item was queued before a restart): straight to «⚠», as createRepo's onReject does
-export const noteRejected = (kind, pid, writes, e) => {
+// A refused write with no live promise (the PocketBase queue item was queued before a restart): straight to «⚠», as createRepo's onReject does.
+// `uid` — whose write it is: «⚠» shows and retries it for that account only
+export const noteRejected = (kind, pid, writes, e, uid) => {
   error('Запись отклонена', `${e?.code || ''} ${e?.message || e}`);
-  addRejected({ id: newId(), kind, pid, writes, code: e?.code || '', msg: String(e?.message || e), at: Date.now() });
+  addRejected({ id: newId(), uid, kind, pid, writes, code: e?.code || '', msg: String(e?.message || e), at: Date.now() });
 };
 
 // ---------- the state of reading from the server (the «⬇» badge at the top) ----------
@@ -372,15 +373,15 @@ export function createRepo(backend, user) {
   // the server did not accept the write: keep it on the phone (with the error code) so it can be retried once the cause is removed
   const onReject = (kind, pid, writes) => (e) => {
     error('Запись отклонена', `${e.code || ''} ${e.message || e}`);
-    addRejected({ id: newId(), kind, pid, writes, code: e?.code || '', msg: String(e?.message || e), at: Date.now() });
+    addRejected({ id: newId(), uid: user.uid, kind, pid, writes, code: e?.code || '', msg: String(e?.message || e), at: Date.now() });
   };
   const send = (item) => (item.kind === 'pool' ? backend.commitPool(item.writes) : backend.commit(item.pid, item.writes));
 
   const api = {
     backend, user, by,
-    /** Retry the writes that were not accepted (after the cause is removed); those sent successfully leave the list */
+    /** Retry this account's writes that were not accepted (after the cause is removed); those sent successfully leave the list */
     retryRejected(ids = null) {
-      const list = rejected.filter((x) => !ids || ids.includes(x.id));
+      const list = ownRejected(rejected, user.uid).filter((x) => !ids || ids.includes(x.id));
       list.forEach((it) => { dropRejected(it.id); track(send(it), it.writes.length)?.catch?.(onReject(it.kind, it.pid, it.writes)); });
       return list.length;
     },

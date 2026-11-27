@@ -1,8 +1,9 @@
-// Project members: names, invitations and removal (offering to undo the removed member's edits), plus the connect-link card.
+// Project members: names, invitations and removal (offering to undo the removed member's edits), plus the connect-link card (on the NAS copy «Как подключить коллегу» with the address).
 // Reads the project's member fields from store.js and writes through repo (invite, removeMember, renameMember, cancelInvite); the link comes from edition.js.
 import { h, formModal, confirmDialog, toast } from '../ui.js';
 import { state, getRepo, currentProject } from '../store.js';
-import { connection, connectLink, APP_NAME, isLocal } from '../../edition.js';
+import { connection, connectLink, APP_NAME, isLocal, isPocketBase } from '../../edition.js';
+import { tr } from '../../i18n/index.js';
 
 export const memberKey = (email) => String(email).toLowerCase().replace(/\./g, '_');
 export const memberName = (p, email) => p.memberNames?.[memberKey(email)] || '';
@@ -73,7 +74,18 @@ export function membersView(ui) {
           if (await confirmDialog(`Отозвать приглашение для ${e}?`, { yes: 'Отозвать', danger: true })) repo.cancelInvite(p, e);
         } }, '✕')))) : null,
     canManage ? h('div', { class: 'btns' }, h('button', { onclick: () => inviteForm(p) }, '➕ Пригласить коллегу')) : h('div', { class: 'mut', style: { margin: '10px 2px' } }, 'Приглашать и убирать участников может только создатель проекта.'),
-    connection() ? linkCard() : null);
+    isPocketBase() ? colleagueCard() : connection() ? linkCard() : null);
+}
+
+// The NAS copy: the database is the address itself, so a colleague needs only the address (spec 4 § 3.7)
+function colleagueCard() {
+  const text = `Приложение «${APP_NAME}». Откройте адрес на телефоне, установите значок на экран «Домой» и войдите своим Google-аккаунтом: ${location.origin}/`;
+  return h('div', { class: 'card' },
+    h('b', {}, 'Как подключить коллегу'),
+    h('div', { class: 'mut', style: { margin: '4px 0 8px' } }, 'Пригласите его в проект (☰ → «👥 Участники»), пусть откроет этот адрес на телефоне, установит значок на экран «Домой» и войдёт через Google.'),
+    h('div', { class: 'btns' },
+      h('button', { class: 'sec', onclick: async () => { try { await navigator.clipboard.writeText(tr(text)); toast('Адрес скопирован'); } catch { toast('Не удалось скопировать'); } } }, '📋 Скопировать'),
+      h('button', { class: 'sec', onclick: () => window.open(`https://wa.me/?text=${encodeURIComponent(tr(text))}`, '_blank') }, '💬 WhatsApp')));
 }
 
 // Connect link: a colleague opens it and the app connects to this same database (no setup wizard needed)

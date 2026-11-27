@@ -3,7 +3,7 @@
 // Reads the user prefs through the repo (the personal glossary words) and shows the manuals card of manualsview.js and the tour of src/app/tour.
 //
 // Contents:
-// - SECTIONS — the guide sections: id, icon, title, a short text and the full steps
+// - SECTIONS — the guide sections: id, icon, title, a short text and the full steps; sections() leaves out «Домашний сервер» off the NAS copy
 // - DICT — the built-in glossary: term, Hebrew spelling, meaning
 // - sectionCard(), body() — one section card and its text lines
 // - allWords(), wordForm(), dictCard() — the glossary with the user's own words and edits
@@ -18,6 +18,7 @@ import { newId } from '../repo.js';
 import { state, currentProject } from '../store.js';
 import { memberName } from './members.js';
 import { manualsCard } from './manualsview.js';
+import { isPocketBase } from '../../edition.js';
 
 // A line that starts with «• » is a list item; «# » is a subheading; anything else is a paragraph.
 const SECTIONS = [
@@ -309,6 +310,10 @@ const SECTIONS = [
     ],
   },
   {
+    id: 'nas', icon: '🏠', title: 'Домашний сервер', nas: true,   // shown on the NAS copy only
+    short: 'На домашнем сервере приложение работает так же, как с Firebase. Без интернета записи ждут на телефоне (значок ⬆) и уходят сами. Если вверху написано, что база на домашнем сервере ещё не обновлена, ничего делать не нужно: записи уйдут после обновления сервера. Если написано «Вход истёк» — нажмите «Войти снова».',
+  },
+  {
     id: 'data', icon: '💾', title: 'Копии и выгрузка данных',
     short: 'В меню ☰ → Данные: резервная копия на Диск, выгрузка в Excel, таблицы для руководства.',
     more: [
@@ -469,10 +474,13 @@ export function openGuide(ui, id, part = null) {
   ui.open('guide');
 }
 
+// The sections of this build: the NAS copy has its own «Домашний сервер»
+const sections = () => SECTIONS.filter((s) => !s.nas || isPocketBase());
+
 // Search over the guide: section titles, button names in «…» and text lines
 function searchIndex() {
   const out = [];
-  for (const sec of SECTIONS) {
+  for (const sec of sections()) {
     const seen = new Set();
     const add = (term, snippet) => { const k = term.toLowerCase(); if (seen.has(k)) return; seen.add(k); out.push({ term, snippet, sec }); };
     add(sec.title);
@@ -494,7 +502,7 @@ function searchBox(ui) {
     const idx = searchIndex();
     const hits = idx.filter((e) => norm(e.term).includes(q));
     const seenLine = new Set(hits.map((e) => e.sec.id + e.snippet));
-    for (const sec of SECTIONS) for (const line of [sec.short, ...(sec.more || [])]) {
+    for (const sec of sections()) for (const line of [sec.short, ...(sec.more || [])]) {
       const t = line.replace(/^[•#]\s*/, '');
       if (hits.length >= 12) break;
       if (norm(t).includes(q) && !seenLine.has(sec.id + t) && !hits.some((e) => e.sec === sec && norm(e.term).includes(q))) { seenLine.add(sec.id + t); hits.push({ term: t.length > 70 ? t.slice(0, 70) + '…' : t, sec, line: true }); }
@@ -524,7 +532,7 @@ export function guideView(ui) {
     tourCard(ui),
     searchBox(ui),
     h('div', { class: 'mut', style: { margin: '0 2px 10px' } }, 'Коротко о том, как работать в приложении. Нажмите «Подробнее», чтобы увидеть детали.'),
-    ...SECTIONS.map((s) => sectionCard(s, ui)));
+    ...sections().map((s) => sectionCard(s, ui)));
   if (focusId) {
     const id = focusId; focusId = null;
     setTimeout(() => { document.getElementById(`guide-${id}`)?.scrollIntoView({ block: 'start' }); }, 30);

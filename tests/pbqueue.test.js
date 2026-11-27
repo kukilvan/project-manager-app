@@ -432,6 +432,52 @@ test('sender: server older (404 without code, 409 schema_old) holds with a probe
   assert.equal(u.copy.queueItems().length, 0);
 });
 
+test('sender: a probe of an updated server answered with a refusal ends «server older», and the rest of the queue goes', async () => {
+  for (const x of rejectedList()) dropRejected(x.id);
+  let older = true;
+  const s = await setup({ answer: (b) => (older ? { status: 409, body: { code: 'schema_old', schema: 1 } } : b.ops.some((o) => o.key === 'no') ? { status: 422, body: { code: 'forbidden', index: 0 } } : OK(b)) });
+  s.backend.commit('p1', [{ coll: 'days', id: 'no', data: { a: 1 } }]).catch(() => {});
+  s.backend.commit('p1', [{ coll: 'days', id: 'yes', data: { a: 1 } }]);
+  await s.timers.run();
+  assert.equal(s.sender.syncState().serverOlder, true);
+  older = false;
+  s.sender.wake();
+  for (let i = 0; i < 2; i++) await s.timers.run();
+  assert.equal(s.sender.syncState().serverOlder, false);
+  assert.equal(s.copy.queueItems().length, 0, 'the item after the refused one went out');
+  for (const x of rejectedList()) dropRejected(x.id);
+});
+
+test('sender: a 5xx (the tunnel while the server is down) is not «Последнее обновление»', async () => {
+  const s = await setup({ answer: () => ({ status: 502, body: null }) });
+  s.backend.commit('p1', [{ coll: 'days', id: 'd', data: { a: 1 } }]);
+  await s.timers.run();
+  assert.equal(s.sender.syncState().lastAnswerAt, 0);
+});
+
+test('«⚠» per account (KI-9): another account neither sees nor retries a refused write; its owner does', async () => {
+  for (const x of rejectedList()) dropRejected(x.id);
+  const idb = fakeIdb();
+  const refuse = () => ({ status: 422, body: { code: 'forbidden', index: 0 } });
+  const a = await setup({ idb, uid: 'u1', answer: refuse });
+  a.repo.save('p1', [{ coll: 'points', id: 'a', data: { label: 'A' } }]);
+  await a.timers.run();
+  await new Promise((r) => setImmediate(r));   // the refusal reaches createRepo's handler
+  assert.equal(rejectedList()[0].uid, 'u1');
+  const b = await setup({ idb, uid: 'u2' });
+  assert.equal(b.repo.retryRejected(), 0);
+  assert.equal(b.copy.queueItems().length, 0);
+  assert.equal(rejectedList().length, 1, 'it waits for its owner');
+  // a refused write queued before a restart keeps its owner too
+  const c = await setup({ idb, uid: 'u1', answer: () => 'network' });
+  assert.equal(c.repo.retryRejected(), 1);
+  c.copy.flush();
+  const d = await setup({ idb, uid: 'u1', answer: refuse });
+  d.sender.start(null, null); await d.timers.run();
+  assert.deepEqual(rejectedList().map((x) => x.uid), ['u1']);
+  for (const x of rejectedList()) dropRejected(x.id);
+});
+
 test('sender: 413 of several items sends one item per request; 413 of a single item → «⚠» invalid', async () => {
   for (const x of rejectedList()) dropRejected(x.id);
   const s = await setup({ answer: (b) => (b.ops.length > 2 ? { status: 413, body: null } : b.ops.some((o) => o.key === 'big') ? { status: 413, body: null } : OK(b)) });

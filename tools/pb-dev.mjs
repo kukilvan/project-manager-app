@@ -4,10 +4,12 @@
 // Node only, no dependency. Spec 4 § 1 and § 11; ticket 4.2. Everything here is local: bound to 127.0.0.1, data under .cache/.
 // The superuser and the test users have fixed passwords written below on purpose: they exist only on this local instance,
 // which also switches password sign-in on and the batch API on; the NAS sets its own Settings (docs/nas-requirements.md, "Who sets what").
+// The environment variable PM_DEV_SCHEMA (a number, `up` only) serves a copy of the hooks with that schema version, to see «server older» in the app.
 //
 // Contents:
 // - constants — PB_VERSION, SHA256 per platform, SUPERUSER, TEST_USERS, TEST_PASSWORD, folders
 // - platformKey(), binaryPath() — which build and where it lives
+// - hooksWithSchema() — the test-only copy of the hooks with another schema version
 // - fetchPocketBase() — download, SHA-256 check, unzip (scripts/zip-lib.mjs)
 // - startPocketBase(), stopPocketBase() — an instance on a port with a data folder; superuser, settings, test users
 // - CLI: node tools/pb-dev.mjs fetch | up [--empty] [--port N] [--serve <dir>] | down
@@ -119,9 +121,21 @@ async function waitHealthy(url, child, ms = 30000) {
   throw new Error(`pb-dev: PocketBase did not answer ${url}/api/health in ${ms / 1000} s`);
 }
 
+// A copy of the repo's hooks (into `dir`) whose write route and /api/pm/info answer with schema `schema`: a server that is older than the app
+export function hooksWithSchema(root, dir, schema) {
+  if (!Number.isInteger(schema) || schema < 0) throw new Error('pb-dev: PM_DEV_SCHEMA needs a whole number');
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.cpSync(path.join(root, 'pb', 'pb_hooks'), dir, { recursive: true });
+  const file = path.join(dir, 'pm', 'pbwrite.js');
+  const src = fs.readFileSync(file, 'utf8');
+  if (!/const PB_SCHEMA = \d+;/.test(src)) throw new Error('pb-dev: PB_SCHEMA not found in the hook module');
+  fs.writeFileSync(file, src.replace(/const PB_SCHEMA = \d+;/, () => `const PB_SCHEMA = ${schema};`));
+  return dir;
+}
+
 // Starts PocketBase and prepares it. Options: dataDir (a new temp folder when omitted), port (a free one when omitted),
 // serve (folder served as pb_public), hooks / migrations (false = start without the repo's folder), users (create TEST_USERS),
-// detached (keep running after this process exits; output into <dataDir>/../pocketbase.log), root.
+// detached (keep running after this process exits; output into <dataDir>/../pocketbase.log), root, schema (hooksWithSchema).
 // Returns { url, port, dataDir, child, superToken, users: [{id, email, name, token}] } — tokens only when users is on.
 export async function startPocketBase(opts = {}) {
   const root = opts.root || ROOT;
@@ -131,7 +145,9 @@ export async function startPocketBase(opts = {}) {
   const port = opts.port || await freePort();
   const url = `http://127.0.0.1:${port}`;
   const empty = path.join(dataDir, '..', `.pm-empty-${path.basename(dataDir)}`);
-  const hooksDir = opts.hooks === false ? empty : path.join(root, 'pb', 'pb_hooks');
+  const hooksDir = opts.hooks === false ? empty
+    : opts.schema !== undefined ? hooksWithSchema(root, path.join(dataDir, '..', `.pm-hooks-${path.basename(dataDir)}`), opts.schema)
+      : path.join(root, 'pb', 'pb_hooks');
   const migrationsDir = opts.migrations === false ? empty : path.join(root, 'pb', 'pb_migrations');
   fs.mkdirSync(dataDir, { recursive: true });
   if (opts.hooks === false || opts.migrations === false) fs.mkdirSync(empty, { recursive: true });
@@ -201,6 +217,7 @@ export async function stopPocketBase(pb, { removeData = false } = {}) {
       try { fs.rmSync(pb.dataDir, { recursive: true, force: true }); break; } catch { await new Promise((r) => setTimeout(r, 200)); }
     }
     fs.rmSync(path.join(pb.dataDir, '..', `.pm-empty-${path.basename(pb.dataDir)}`), { recursive: true, force: true });
+    fs.rmSync(path.join(pb.dataDir, '..', `.pm-hooks-${path.basename(pb.dataDir)}`), { recursive: true, force: true });
   }
 }
 
@@ -222,7 +239,9 @@ async function cmdUp(argv, root) {
   }
   const dataDir = path.join(root, DEV_DIR, 'data');
   if (argv.includes('--empty')) fs.rmSync(dataDir, { recursive: true, force: true });
-  const pb = await startPocketBase({ root, dataDir, port, serve, detached: true });
+  const schema = process.env.PM_DEV_SCHEMA ? Number(process.env.PM_DEV_SCHEMA) : undefined;
+  const pb = await startPocketBase({ root, dataDir, port, serve, detached: true, schema });
+  if (schema !== undefined) console.log(`Test only: the hooks answer with schema ${schema} (PM_DEV_SCHEMA)`);
   fs.writeFileSync(st, JSON.stringify({ pid: pb.child.pid, port, url: pb.url, serve }, null, 2));
   console.log(`PocketBase ${PB_VERSION} is running at ${pb.url} (pid ${pb.child.pid})${serve ? `, serving ${serve}` : ''}`);
   console.log(`Dashboard: ${pb.url}/_/  superuser ${SUPERUSER.email} / ${SUPERUSER.password} (local only)`);

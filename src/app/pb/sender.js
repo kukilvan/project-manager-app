@@ -61,7 +61,7 @@ export function createSender(opts) {
     busy = true; emit();
     const res = await post(plan.ops);
     busy = false;
-    if (res.status) st.lastAnswerAt = now();
+    if (res.status && res.status < 500) st.lastAnswerAt = now();   // a 5xx may come from the tunnel while the server is down
     const ans = classify(res);
     const r = settle(plan, ans, { badTries });
     badTries = r.badTries;
@@ -70,6 +70,8 @@ export function createSender(opts) {
     const leave = (seq) => { single.delete(seq); };
     r.done.forEach((seq) => { leave(seq); onDone(seq); });
     r.rejected.forEach(({ seq, code }) => { leave(seq); warn(`Очередь записи: сервер отклонил запись (${code})`); onRejected(seq, code, String(res.body?.message || code)); });
+    // the route judged the ops, so the server is not older: otherwise a probe answered with a refusal would leave the queue held
+    if (ans.kind === 'reject' || ans.kind === 'too-large') st.serverOlder = false;
     if (ans.kind === 'ok') {
       failures = 0; st.serverOlder = false; st.appOlder = false;
       info(`Очередь записи: отправлено ${plan.ops.length}, осталось ${queueCount(copy.queueItems(), uid())}`);

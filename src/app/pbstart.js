@@ -1,8 +1,8 @@
 // NAS build start: the sign-in (src/app/pb/auth.js, src/app/pb/signin.js), then the real app on the PocketBase backend with the local copy, the write queue and the reader.
 // Loaded lazily by src/main.js only when isPocketBase() (the NAS build); absent from the GitHub Pages build (tests/pb-import.test.js). Spec 4 § 3.1–3.4.
 // Opens the local copy (src/app/pb/localcopy.js) for the signed-in user, builds the reader (src/app/pb/reader.js), the backend (src/app/pb/backend.js) and the sender
-// (src/app/pb/sender.js), then starts store.js and the shell as main.js does for Firestore. `window.__pmPb` gives browser checks the sign-in state, the copy, the sender,
-// the reader and the backend.
+// (src/app/pb/sender.js), then starts store.js and the shell as main.js does for Firestore, with the server screens of src/app/pb/screens.js.
+// `window.__pmPb` gives browser checks the sign-in state, the copy, the sender, the reader and the backend.
 import { h, toast, confirmDialog, openModal } from './ui.js';
 import { info, error } from '../log.js';
 import { createRepo } from './repo.js';
@@ -10,7 +10,8 @@ import * as store from './store.js';
 import { createShell } from './shell.js';
 import { auth, onChange, onSignIn, startSession, resolveAdmin, signOut, setUnsentCounter, authRefresh, markExpired } from './pb/auth.js';
 import { getPb } from './pb/client.js';
-import { signInScreen, expiredBanner } from './pb/signin.js';
+import { signInScreen } from './pb/signin.js';
+import { createNasScreens } from './pb/screens.js';
 import { openLocalCopy } from './pb/localcopy.js';
 import { createPocketBaseBackend } from './pb/backend.js';
 import { createSender } from './pb/sender.js';
@@ -60,14 +61,21 @@ async function enter(app, diag, message = '') {
   let wasExpired = auth.expired;
   onChange(() => { if (wasExpired && !auth.expired) sender.kick(0); wasExpired = auth.expired; });
 
+  // the reader saw that the server was updated: the held queue goes at once, not at the next probe
+  let wasOlder = reader.readState().serverOlder;
+  reader.onReadState((s) => { if (wasOlder && !s.serverOlder) sender.wake(); wasOlder = s.serverOlder; });
+
   const repo = createRepo(backend, user);
   window.__pmPb = { ...window.__pmPb, copy, sender, reader, backend, repo };
   store.start(repo);
   createShell({
     user,
-    banner: expiredBanner(),
+    server: createNasScreens({ sender, reader }),
     onLogout: async () => { if (await signOut({ confirm: (q) => confirmDialog(q) })) location.reload(); },
-    diag: { build: diag.build || 'dev', device: diag.device || '', standalone: !!diag.standalone, backend: 'PocketBase', cacheMode: '—', userEmail: user.email },
+    diag: {
+      build: diag.build || 'dev', device: diag.device || '', standalone: !!diag.standalone, userEmail: user.email,
+      backend: 'PocketBase (домашний сервер)', cacheLine: 'своя копия на телефоне (IndexedDB)',
+    },
   });
   sender.start();
   reader.start();

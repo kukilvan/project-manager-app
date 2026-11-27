@@ -1,9 +1,9 @@
-// Sign-in screens of the NAS copy: the sign-in screen with «База: домашний сервер · <host>», the sign-in panel (two Google buttons, the password form for local tests) and the «Вход истёк» banner.
+// Sign-in screens of the NAS copy: the sign-in screen with «База: домашний сервер · <host>», the sign-in panel (two Google buttons, the password form for local tests) and the «Вход истёк» banner card.
 // The panel is shared by the screen and the «Войти снова» window; actions and state come from src/app/pb/auth.js, error texts from src/domain/pbauth.js (spec 4 § 3.2).
 import { h, openModal } from '../ui.js';
 import { APP_NAME } from '../../edition.js';
 import { error } from '../../log.js';
-import { auth, onChange, loadMethods, signInGoogle, startCodeFlow, signInPassword } from './auth.js';
+import { loadMethods, signInGoogle, startCodeFlow, signInPassword } from './auth.js';
 import { googleProvider, passwordOn, signInMessage } from '../../domain/pbauth.js';
 
 // The two Google buttons, the password form when the server allows it, and the error line. onDone() runs after a sign-in.
@@ -65,15 +65,11 @@ export function signInScreen({ onDone, message = '' } = {}) {
     h('div', { class: 'mut', style: { margin: '10px 2px' } }, `База: домашний сервер · ${location.host}`));
 }
 
-// «Вход истёк» under the top bar: shown while auth.expired; «Войти снова» opens the sign-in panel in a window
-export function expiredBanner() {
-  const el = h('div', { class: 'card', style: { borderColor: 'var(--warn)', display: 'none' } },
+// The «Вход истёк» banner (src/app/pb/screens.js shows it while the sign-in is expired); «Войти снова» opens the sign-in panel in a window
+export function expiredCard() {
+  return h('div', { class: 'card', style: { borderColor: 'var(--warn)' } },
     h('div', { style: { marginBottom: '8px' } }, 'Вход истёк. Записи ждут на телефоне и уйдут после входа.'),
     h('button', { onclick: () => {
       const close = openModal('Войти снова', signInPanel({ onDone: () => close() }));
     } }, 'Войти снова'));
-  const paint = () => { el.style.display = auth.expired ? '' : 'none'; };
-  paint();
-  onChange(paint);
-  return el;
 }
