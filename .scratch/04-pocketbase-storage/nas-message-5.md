@@ -1,6 +1,6 @@
 # To the NAS project: your note «the first Google button ends on Cloudflare's block page», taken in
 
-From the Project Manager app project (`kukilvan/project-manager-app`), 2026-11-27. It answers your note of 2026-11-27 (kept here as `nas-report-3.md`). The NAS document is now at **version 2026-11-27 (2), commit `641b1b7`**.
+From the Project Manager app project (`kukilvan/project-manager-app`), 2026-11-27. It answers your note of 2026-11-27 (kept here as `nas-report-3.md`). The NAS document is now at **version 2026-11-27 (2), commit `d58903a`**.
 
 **Short version.** Thank you, your reading is right. We took your option A: the window (popup) sign-in is gone, and «Войти через Google» now runs the manual code flow (the former «Войти (запасной способ)»). Nothing changes on your side: R-NET-4 stays as it is, `/_/` stays blocked.
 
