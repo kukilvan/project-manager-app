@@ -55,7 +55,7 @@ body.noscroll { overflow: hidden; }
 select, textarea { width: 100%; font: inherit; border-radius: 10px; border: 1px solid var(--line); background: var(--inset); color: var(--txt); padding: 12px 14px; }
 .err { color: var(--err); font-size: 14px; margin: 4px 0 10px; min-height: 0; }
 .preview { background: var(--deep); border: 1px dashed var(--line); border-radius: 10px; padding: 8px 10px; color: var(--mut); font-size: 13px; margin-bottom: 10px; white-space: pre-wrap; }
-.toast { position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); background: var(--inset); border: 1px solid var(--line); padding: 10px 16px; border-radius: 999px; opacity: 0; transition: .25s; z-index: 80; max-width: 90vw; }
+.toast { position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); background: var(--inset); border: 1px solid var(--line); padding: 10px 16px; border-radius: 22px; opacity: 0; transition: .25s; z-index: 80; width: max-content; max-width: 90vw; pointer-events: none; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 /* ---- shell, lists ---- */

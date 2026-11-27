@@ -184,11 +184,11 @@ export function messageDialog(title, message, { ok = 'Понятно' } = {}) {
   });
 }
 
-export function toast(message) {
+export function toast(message, ms = 2400) {
   const t = h('div', { class: 'toast' }, message);
   document.body.appendChild(t);
   setTimeout(() => t.classList.add('show'), 10);
-  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 2400);
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, ms);
 }
 
 // ---- a list of «option × quantity» (a device's cables, the devices in a point type) ----

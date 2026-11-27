@@ -1,5 +1,5 @@
 // Checks the shared lists (ADR 0016): the lookup view, the pickers' list, the merge plan, the memory backend's pool,
-// the backup and import of shared items, the Firestore rules and the nightly job with the `shared` argument.
+// the backup and import of shared items, startShared with a refused pool (KI-8), the Firestore rules and the nightly job with the `shared` argument.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -93,6 +93,96 @@ test('memory backend: pool remove marks deleted, listenPool passes it, readColl 
   assert.deepEqual(await repo.readColl(pid, 'culprits'), []);
   assert.ok((await repo.readColl(pid, 'units')).length > 0);
   assert.equal(backend.dump().projects.find((p) => p.id === pid).sharedLists, 1);
+});
+
+// startShared in Node: a fresh copy of shared.js per case (it starts once per run of the app), a stub page that collects the toasts and mocked timers.
+// The store holds one old project with its own delay reason, so a start that is not stopped merges it and seeds the empty lists.
+async function startedShared(t, tag, makeBackend) {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  Object.defineProperty(globalThis.navigator, 'onLine', { value: true, configurable: true });
+  const toasts = [];
+  globalThis.Node ??= class {};
+  const element = () => ({ kids: [], classList: { add() {}, remove() {} }, appendChild(k) { this.kids.push(k); }, remove() { this.gone = true; } });
+  globalThis.document = { createElement: element, createTextNode: (s) => s, body: { appendChild: (el) => toasts.push(el) } };
+  const { createMemoryBackend, createRepo } = await import('../src/app/repo.js');
+  const { backend, base } = await makeBackend(createMemoryBackend);
+  await base.commit(null, [{ coll: 'projects', id: 'old', data: { id: 'old', name: 'Old', memberUids: ['u'] } }]);
+  await base.commit('old', [{ coll: 'delayReasons', id: 'Старая', data: { id: 'Старая', he: 'ישנה' } }]);
+  const writes = [];
+  const watched = { ...backend, commitPool: (w) => { writes.push(...w); return backend.commitPool(w); } };
+  const store = await import('../src/app/store.js');
+  const repo = createRepo(watched, { uid: 'u', displayName: 'U', email: 'u@x.y' });
+  store.start(repo);
+  t.after(() => store.stop());
+  const { startShared } = await import(`../src/app/shared.js?case=${tag}`);
+  startShared();
+  const settle = async () => { for (let i = 0; i < 10; i++) { t.mock.timers.tick(1); await new Promise((r) => setImmediate(r)); } };
+  await settle();
+  const mark = () => base.dump().projects.find((p) => p.id === 'old').sharedLists;
+  return { toasts, writes, repo, settle, mark };
+}
+const NOT_READ = /^Общие списки не читаются: правила базы устарели/;
+const refusal = (code) => Object.assign(new Error('refused'), { code });
+// a backend whose pool listeners end with `code`; with `answers` the lists arrive as well (from the phone's cache)
+const failingPool = (code, { answers = false } = {}) => (createMemoryBackend) => {
+  const base = createMemoryBackend();
+  return { base, backend: { ...base, listenPool(kind, cb, { onError } = {}) { onError?.(refusal(code)); if (answers) cb([]); return () => {}; } } };
+};
+
+test('startShared, memory backend with a denied pool (?memPoolDenied=1): one long toast, no merge, no seeding (KI-8)', async (t) => {
+  const s = await startedShared(t, 'memory', (createMemoryBackend) => { const base = createMemoryBackend({ poolDenied: true }); return { base, backend: base }; });
+  assert.equal(s.toasts.length, 1, 'three lists refused, one toast');
+  assert.match(s.toasts[0].kids[0], NOT_READ);
+  // a new project: empty shared lists, still nothing written
+  const pid = s.repo.createProject({ name: 'Новый' });
+  await s.settle();
+  assert.deepEqual(await s.repo.readColl(pid, 'delayReasons'), []);
+  assert.deepEqual(s.writes.filter((w) => ['delayReasons', 'culprits', 'problems'].includes(w.coll)), []);
+  assert.equal(s.mark(), undefined, 'the old project is not marked merged');
+  assert.equal(s.toasts.length, 1);
+  t.mock.timers.tick(3000);
+  assert.ok(!s.toasts[0].gone, 'long enough to read');
+  t.mock.timers.tick(10000);
+  t.mock.timers.tick(300);   // the fade-out
+  assert.ok(s.toasts[0].gone);
+});
+
+test('startShared: after a refusal the lists that still arrive are not merged or seeded', async (t) => {
+  const s = await startedShared(t, 'cached', failingPool('permission-denied', { answers: true }));
+  assert.equal(s.toasts.length, 1);
+  assert.deepEqual(s.writes, []);
+  assert.equal(s.mark(), undefined);
+});
+
+test('startShared: another listener error shows no toast', async (t) => {
+  const s = await startedShared(t, 'other', failingPool('resource-exhausted'));
+  assert.equal(s.toasts.length, 0);
+  assert.deepEqual(s.writes, []);
+});
+
+test('startShared: without an error the old project is merged and the empty lists are seeded', async (t) => {
+  const s = await startedShared(t, 'ok', (createMemoryBackend) => { const base = createMemoryBackend(); return { base, backend: base }; });
+  assert.equal(s.toasts.length, 0);
+  assert.equal(s.mark(), 1);
+  assert.ok(s.writes.some((w) => w.coll === 'delayReasons' && w.id === 'Старая'));
+  assert.ok(s.writes.some((w) => w.coll === 'problems'));
+});
+
+test('startShared with the PocketBase backend\'s onError: the reader\'s refusal of the pool shows the toast once', async (t) => {
+  const { openLocalCopy } = await import('../src/app/pb/localcopy.js');
+  const { createPocketBaseBackend } = await import('../src/app/pb/backend.js');
+  const { copy } = await openLocalCopy({ uid: 'u', idb: null, win: null, doc: null });
+  let pb;
+  const s = await startedShared(t, 'pb', (createMemoryBackend) => {
+    pb = createPocketBaseBackend({ copy, user: { uid: 'u', email: 'u@x.y' }, isAdmin: () => false });
+    const base = createMemoryBackend();   // projects and the old list; the pool listeners are PocketBase's
+    return { base, backend: { ...base, listenPool: pb.listenPool.bind(pb) } };
+  });
+  assert.equal(s.toasts.length, 0, 'no refusal yet');
+  pb.poolRefused({ status: 403, message: 'Forbidden' });
+  pb.poolRefused({ status: 403 });
+  assert.equal(s.toasts.length, 1);
+  assert.match(s.toasts[0].kids[0], NOT_READ);
 });
 
 test('savePool strict: a rejected write rejects the promise; without strict it does not', async () => {

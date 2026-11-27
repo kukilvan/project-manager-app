@@ -20,9 +20,9 @@ Bugs decided not to fix now, and rare cases where the app can go wrong (source d
 | KI-5 | a working day and a day off on one date after offline edits on two devices | `src/app/views/doh.js` (day form checks), `src/domain/month.js` | open | — |
 | KI-6 | a conflicting Hebrew name merged into a shared list on two devices at once keeps the last write | `src/app/shared.js` (merge), `src/domain/shared.js` (`mergePlan`) | open | — |
 | KI-7 | the translation coverage test sees string literals, not sentences built from parts (the half «catalog names show Russian in English» is fixed) | `tests/i18n-coverage.test.js` | open (catalog names fixed) | stage 7, ticket 7.7 (catalog names) |
-| KI-8 | a database with rules older than stage 6 cannot read the shared lists: no merge, no seeding, no «rules out of date» toast, empty lists in a new project | `src/app/shared.js`, `listenPool` in `src/app/repo.js`, `firestore.rules` | open | — |
+| KI-8 | a database with rules older than stage 6 cannot read the shared lists: no merge, no seeding, no «rules out of date» toast, empty lists in a new project | `src/app/shared.js`, `listenPool` in `src/app/repo.js`, `firestore.rules` | fixed | stage 4, ticket 4.10 |
 | KI-9 | the «⚠» list is one per phone, not per user: after another sign-in the previous account's refused writes show and «Повторить» sends them as the new user | `pz.rejected` in `src/app/repo.js` | fixed | stage 4, ticket 4.8 |
-| KI-10 | on the NAS copy some texts still speak of Firebase: guide lines (connect link, «Где хранятся данные», publishing rules, Drive «only its own files») and the toast after a refused shared-list write | `src/app/views/guide.js`, `rejected` in `src/app/shared.js` | open | stage 4, ticket 15 (proposed) |
+| KI-10 | on the NAS copy some texts still speak of Firebase: guide lines (connect link, «Где хранятся данные», publishing rules, Drive «only its own files») and the toasts after a refused shared-list write or read | `src/app/views/guide.js`, `rejected` and `unreadable` in `src/app/shared.js` | open | stage 4, ticket 15 (proposed) |
 | KI-11 | after an abandoned Google redirect on iPhone, a later start runs the waiting Drive action with an expired token and goes to Google unasked | `createShell` in `src/app/shell.js` (`pz_gsync_pending`) | open | — |
 | KI-12 | on the NAS copy without a Client ID from the server, the shared client is used, and Google likely refuses the NAS address (`redirect_uri_mismatch`) | `getToken` in `src/app/google.js`, `src/app/pb/drive.js` | open | — |
 | KI-13 | on the Firebase and on-device copies the Google token stays after sign-out: another account within the hour uses the previous account's Drive | `logout` in `src/firebase.js`, `pz_gtoken` | open | — |
@@ -107,8 +107,8 @@ Entry format:
 - What's wrong: the rules have no catch-all read rule, so in a database whose rules were pasted before ticket 6.2 the listeners of `pool_delayReasons`, `pool_culprits` and `pool_problems` fail with `permission-denied`. `startShared` then never sees the three lists loaded, so it neither merges the old project lists nor seeds the defaults, and the «rules out of date» toast of spec § 2.4 never shows (it is tied to a rejected write, and nothing is written). A project created there gets no delay reasons and culprits (`createProject` no longer copies them); old projects keep offering their own lists. What the person sees is the red «⬇ ошибка» badge; tapping it names the three pool collections with `permission-denied`.
 - How to reproduce: a colleague's own database with the rules of 2026-11-17 or older; open the app after ticket 6.2; create a project; open «Причины задержки точек».
 - Likelihood / impact: only a colleague with their own database who has not pasted the new rules; the owner's database has them since 2026-11-18. Empty pickers in new projects until «Подключение к базе» → «📋 Скопировать правила» is done in that database's Firebase console.
-- Why not fixed now: the fix (an error callback from `listenPool` that shows the same toast on `permission-denied`) changes the sync core and cannot be checked in `?mem=1`; it is rare and has a plain remedy.
-- Status: open
+- Why not fixed at once: the fix changes the sync core, `?mem=1` could not show it then, it is rare and has a plain remedy.
+- Status: fixed (test: «startShared, memory backend with a denied pool (?memPoolDenied=1): one long toast, no merge, no seeding (KI-8)» in `tests/shared.test.js`; 2026-11-27, stage 4 ticket 4.10: `listenPool` takes `onError`, `startShared` stops the merge and seeding and shows «Общие списки не читаются: правила базы устарели…» once). The empty pickers stay until the fresh rules are published. Test mode `?mem=1&memPoolDenied=1`.
 - Found: 2026-11-19, review 6.
 
 ## KI-9. The «⚠» list is one per phone, not per user
@@ -122,7 +122,7 @@ Entry format:
 
 ## KI-10. Firebase texts on the NAS copy
 
-- Where: `SECTIONS` in `src/app/views/guide.js` (sections `project`, `base`); `rejected` in `src/app/shared.js`.
+- Where: `SECTIONS` in `src/app/views/guide.js` (sections `project`, `base`); `rejected` and `unreadable` in `src/app/shared.js` (since ticket 4.10 a refused read of a shared list — 403 — also says to paste fresh rules into Firebase).
 - What's wrong: the NAS copy has the section «Домашний сервер», but other guide lines still describe «Ссылка для подключения», «Своя база» (Firebase) and publishing rules; a refused write of a shared list says the rules must be updated in Firebase; «Где хранятся данные» says Google Drive access covers only the app's own files, while on the NAS copy the app asks for the whole Drive and Sheets (ticket 4.9).
 - How to reproduce: NAS build → ☰ → «📖 Как пользоваться приложением» → «Проект: создать, пригласить коллег» → «Подробнее» names the connect link, which this copy does not have.
 - Likelihood / impact: always for the guide lines, rare for the toast; a colleague may look for a button that is not there.

@@ -1,6 +1,6 @@
 // App entry point: starts the language, theme and device helpers, decides what to show (the first-launch screens, the on-device mode or the Firebase sign-in) and starts the shell.
 // The NAS build (isPocketBase()) starts through src/app/pbstart.js instead: no first-launch screen, wizard or Firebase; `?mem=1` works in both builds.
-// Builds the repo on the right backend (Firestore, on-device IndexedDB or memory for `?mem=1` test mode; `&memPlan=1` also creates the test drawing project), resolves the database administrator and offers the project migration.
+// Builds the repo on the right backend (Firestore, on-device IndexedDB or memory for `?mem=1` test mode; `&memPlan=1` also creates the test drawing project, `&memPoolDenied=1` refuses the pool read), resolves the database administrator and offers the project migration.
 // Loads the heavy screens (start.js, setup.js, firebase.js, localdb.js, migrate.js) lazily; keeps `pz.deviceId` and `pm.admin.<projectId>` in localStorage.
 import './style.css';
 import './app/theme.js';
@@ -75,7 +75,8 @@ function showLogin(message = '', busy = false) {
 }
 
 async function startSession(user) {
-  const backend = memoryMode ? createMemoryBackend() : createFirestoreBackend(fb.db, user.uid);
+  // `&memPoolDenied=1` (test mode): the shared pool cannot be read, as with old database rules
+  const backend = memoryMode ? createMemoryBackend({ poolDenied: new URLSearchParams(location.search).has('memPoolDenied') }) : createFirestoreBackend(fb.db, user.uid);
   const repo = createRepo(backend, user);
   if (!memoryMode) {
     // The database administrator is remembered on the device: start-up does not wait for the network. The check runs in the background and refreshes the screen on a mismatch.

@@ -57,7 +57,8 @@ const strip = (obj) => { const c = clean(obj); delete c._pending; return c; };
 
 // ---------- storage: memory ----------
 // persist (optional) — on-device storage (localdb.js): initial — what is already saved, put/putProject/putSettings — writing the changes
-export function createMemoryBackend({ initial = null, persist = null, kind = 'memory' } = {}) {
+// poolDenied (test mode `&memPoolDenied=1`) — every pool listener ends with `permission-denied`, as in a database whose rules do not let the app read it
+export function createMemoryBackend({ initial = null, persist = null, kind = 'memory', poolDenied = false } = {}) {
   const projects = new Map(); // pid -> doc
   const colls = new Map();    // `${pid}/${name}` -> Map(key -> doc)
   const listeners = new Set();
@@ -108,7 +109,13 @@ export function createMemoryBackend({ initial = null, persist = null, kind = 'me
     async loadSettings() { return { ...settings }; },
     async saveSettings(patch) { settings = { ...settings, ...patch }; saveSettings(); },
     // shared pool and inbox (in memory — for tests and on-device storage); every pool document is passed, deleted ones too (consumers filter `deleted`)
-    listenPool(kind, cb) { const run = () => cb([...bucket('_pool', kind).values()].map((d) => ({ ...d }))); listeners.add(run); run(); return () => listeners.delete(run); },
+    listenPool(kind, cb, { onError = null } = {}) {
+      if (poolDenied) {   // later, as a server's refusal arrives
+        const timer = setTimeout(() => onError?.(Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' })), 0);
+        return () => clearTimeout(timer);
+      }
+      const run = () => cb([...bucket('_pool', kind).values()].map((d) => ({ ...d }))); listeners.add(run); run(); return () => listeners.delete(run);
+    },
     // a pool deletion is soft, as in Firestore: the document stays with `deleted: true`
     async commitPool(writes) { writes.forEach((w) => { const b = bucket('_pool', w.coll); const key = docKey(w.id); const d = { ...(b.get(key) || {}), ...(w.remove ? { deleted: true } : w.data) }; b.set(key, d); persist?.put('_pool', w.coll, key, d); }); notify(); },
     // one-off reads «from the server» (here: the buckets themselves), for the shared-list merge
@@ -198,7 +205,8 @@ const addReads = (n) => {
 };
 
 // A collection listener that saves reads: after the first full load — the cache + only changed documents.
-function deltaListen(col, key, shape, label, cb, retryDenied = false) {
+// onError(e) — a server listener ended with an error that is not retried.
+function deltaListen(col, key, shape, label, cb, { retryDenied = false, onError = null } = {}) {
   let unsub = () => {}; let stopped = false; let tries = 0; let timer = null;
   const tr = readTrack(label);
   const onErr = (restart) => (e) => {
@@ -206,6 +214,7 @@ function deltaListen(col, key, shape, label, cb, retryDenied = false) {
     if (!(retryDenied && e.code === 'permission-denied' && tries < 15)) tr.fail(e);
     if (retryDenied && e.code === 'permission-denied' && tries < 15) { tries++; timer = setTimeout(() => { if (!stopped) restart(); }, 1500); return; }
     error(label, `${e.code || ''} ${e.message || e}`);
+    onError?.(e);
   };
   // as before: listen to the whole collection (first start, once a week, when the cache is incomplete)
   const startFull = () => {
@@ -290,7 +299,7 @@ export function createFirestoreBackend(db, uid) {
     },
     listenColl(pid, name, cb) {
       // If the project has not reached the server yet, the read is rejected — retry
-      return deltaListen(collection(db, 'projects', pid, name), `pz.sync.${uid}.${pid}.${name}`, (d) => ({ ...d.data(), _pending: d.metadata.hasPendingWrites }), `Чтение ${name}`, cb, true);
+      return deltaListen(collection(db, 'projects', pid, name), `pz.sync.${uid}.${pid}.${name}`, (d) => ({ ...d.data(), _pending: d.metadata.hasPendingWrites }), `Чтение ${name}`, cb, { retryDenied: true });
     },
     // Writing in batches (up to 500 operations per batch). We do not wait for the server: offline the write stays in the queue.
     commit(pid, writes) {
@@ -314,9 +323,9 @@ export function createFirestoreBackend(db, uid) {
     },
     // The shared pool: collections pool_types, pool_devices, pool_cables, pool_catalog (everyone reads, only the pool administrator writes),
     // and the shared lists pool_delayReasons, pool_culprits, pool_problems (any member writes, only the administrator deletes)
-    listenPool(kind, cb, { withDeleted = false } = {}) {
+    listenPool(kind, cb, { withDeleted = false, onError = null } = {}) {
       // a deletion in the pool is marked deleted:true (not erased), so the delta read sees it; withDeleted passes those documents on too
-      return deltaListen(collection(db, `pool_${kind}`), `pz.sync.${uid}.pool.${kind}`, (d) => d.data(), `Чтение общего пула (${kind})`, (list) => cb(withDeleted ? list : list.filter((x) => !x.deleted)));
+      return deltaListen(collection(db, `pool_${kind}`), `pz.sync.${uid}.pool.${kind}`, (d) => d.data(), `Чтение общего пула (${kind})`, (list) => cb(withDeleted ? list : list.filter((x) => !x.deleted)), { onError });
     },
     // One-off reads straight from the server (not the cache), counted in `pz.reads`: the shared-list merge must see what is really there. Offline they reject.
     async readColl(pid, coll) { const s = await getDocsFromServer(collection(db, 'projects', pid, coll)); addReads(s.size); return s.docs.map((d) => d.data()); },

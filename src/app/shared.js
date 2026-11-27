@@ -1,6 +1,6 @@
 // The shared lists inside the app (ADR 0016): listens to pool_delayReasons, pool_culprits and pool_problems, merges the projects' old lists into the pool once and seeds empty lists with their defaults.
 // Reads and writes through the repo (`listenPool` with deleted documents, `readColl`, `readPool`, `savePool`, `saveProject`), hands the documents to store.js (`setShared`);
-// the merge plan comes from src/domain/shared.js. Started by shell.js next to the shared pool.
+// the merge plan comes from src/domain/shared.js. Started by shell.js next to the shared pool; a database that refuses the read gets one «rules out of date» toast.
 import { state, getRepo, subscribe, liveProjects, setShared, demo } from './store.js';
 import { SHARED_KINDS, LEGACY_KINDS, mergePlan, applyMerge, DELAY_REASONS, CULPRITS, EXAMPLE_PROBLEMS } from '../domain/index.js';
 import { toast } from './ui.js';
@@ -15,7 +15,7 @@ let repo = null;          // the real repo, taken at start (the tour's demo swap
 let running = false;      // a merge run is going on
 let halted = false;       // a read or a write failed: no more tries until the next start
 let seeded = false;       // the empty-list check has been done in this start
-let warned = false;       // the «rules out of date» toast is shown once per start
+let warned = false;       // a «rules out of date» toast (read or write) is shown once per start
 const merged = new Set(); // projects merged in this start (their `sharedLists` mark may not have come back yet)
 
 export function startShared() {
@@ -24,7 +24,7 @@ export function startShared() {
   SHARED_KINDS.forEach((k) => repo.listenPool(k, (docs) => {
     sharedPool[k] = new Map(docs.filter((x) => x?.id != null).map((x) => [x.id, x]));
     loaded.add(k); setShared(k, docs); kick();
-  }, { withDeleted: true }));
+  }, { withDeleted: true, onError: unreadable }));
   subscribe(kick);
   window.addEventListener('online', kick);
 }
@@ -43,9 +43,18 @@ function kick() {
 }
 
 function halt(what, e) { halted = true; error('Общие списки', `${what}: ${e?.code || ''} ${e?.message || e}`); }
+function warnRules(message) { if (!warned) { warned = true; toast(message, 12000); } }
 function rejected(e) {
   halt('запись отклонена', e);
-  if (!warned) { warned = true; toast('Общий список не записался: правила базы устарели — их нужно обновить в Firebase.'); }
+  warnRules('Общий список не записался: правила базы устарели — их нужно обновить в Firebase.');
+}
+// A shared list's listener ended with an error. Refused (rules older than the shared lists, KI-8): no merge and no seeding in this start.
+// Other errors show on the «⬇» badge only; the repo has logged them.
+function unreadable(e) {
+  if (e?.code !== 'permission-denied') return;
+  if (!halted) info(`Общие списки: нет прав на чтение (${e.code}) — правила базы устарели`);
+  halted = true;
+  warnRules('Общие списки не читаются: правила базы устарели — вставьте свежие правила в Firebase («🔌 Подключение к базе» → «📋 Скопировать правила»).');
 }
 const byId = (docs) => new Map(docs.filter((x) => x?.id != null).map((x) => [x.id, x]));
 // pool writes, waited for; a rejection throws
