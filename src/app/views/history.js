@@ -106,7 +106,7 @@ export function historyView(ui) {
       todo.forEach((x) => { repo.revertTo(pid, x.coll, x.docId, x.before); fixJournal(x.coll, x.docId, x.before); });
       toast(`Откачено записей: ${todo.length}`); setTimeout(reload, 600);
     } }, '↩ Откатить все правки участника за период')) : null;
-    box.replaceChildren(bulk, h('div', { class: 'mut', style: { margin: '8px 2px' } }, `Событий: ${shown.length}${shown.length > 300 ? ' · показаны первые 300' : ''}`),
+    box.replaceChildren(bulk || '', h('div', { class: 'mut', style: { margin: '8px 2px' } }, `Событий: ${shown.length}${shown.length > 300 ? ' · показаны первые 300' : ''}`),
       shown.length ? h('div', { class: 'card', style: { padding: 0 } }, items) : h('div', { class: 'empty' }, 'За этот период изменений нет.'));
   }
 

@@ -7,7 +7,7 @@
 // Checked by tests/pb-server.test.js against a real PocketBase.
 
 // The server's schema version (CONTEXT.md «Schema version»); equals PB_SCHEMA of src/domain/pbwrite.js
-const PM_SCHEMA = 1;
+const PM_SCHEMA = 2;
 
 // Users write only here (coding-standards rule 14). Body { schema, ops }: at most 500 ops (runSave) and 4 MB (413 above).
 // A refused op rolls back the whole request: runSave's answer is kept, the transaction is aborted by a throw, the answer is sent.

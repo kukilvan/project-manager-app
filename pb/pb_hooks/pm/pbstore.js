@@ -80,7 +80,7 @@ function createStore(app) {
       const p = projectRecord(app, pid);
       if (!p) throw new Error('project not found');
       const want = {};
-      list.forEach(function (i) { want[i.email] = { name: i.name, object: i.object, from: i.from }; });
+      list.forEach(function (i) { want[i.email] = { key: i.key, name: i.name, object: i.object, from: i.from }; });
       const have = app.findRecordsByFilter('invites', 'project = {:p}', '', 0, 0, { p: p.id });
       have.forEach(function (r) {
         const em = r.getString('email');

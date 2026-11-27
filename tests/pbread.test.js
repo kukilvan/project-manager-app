@@ -1,11 +1,12 @@
 // Tests of the NAS copy's reading (spec 4 § 3.5, § 10 cases 3, 7, 9, 12, 13, 24, 25, § 11; ticket 4.6): the pure rules of src/domain/pbread.js (record → document,
 // marks, the delta and page filters, the rollback check, full-read replacement keeping queued documents, the event-apply order, a server version with queued ops on top)
-// and the reader of src/app/pb/reader.js over the real local copy (memory only) with a small fake of the SDK client. The real server: tests/pb-read.test.js.
+// and the reader of src/app/pb/reader.js over the real local copy (memory only) with a small fake of the SDK client; ticket 4.7 adds the invitation filter,
+// the history merge, orphaned records, the 403 → onRefused rule and the full read of a project accepted on this phone. The real server: tests/pb-read.test.js.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   recordToDoc, projectKeyMap, pbTime, pbMs, newestOf, pageFilter, nextAfter, deltaSince, readMode, rolledBack, shouldApply,
-  serverVersion, fullReadRemovals, dropsEveryProject, queuedIds, PAGE_SIZE, PREFIX, recordsPrefix,
+  serverVersion, fullReadRemovals, dropsEveryProject, queuedIds, PAGE_SIZE, PREFIX, recordsPrefix, invitationsOf, mergeHistory, orphanRecords,
 } from '../src/domain/pbread.js';
 import { DELTA_MARGIN, lastSaturday } from '../src/domain/sync.js';
 import { toOps } from '../src/domain/pbwrite.js';
@@ -420,4 +421,73 @@ test('reader: history and one-off reads go to the server; history falls back to 
   db.fail = { history: { status: 0 } };
   assert.deepEqual((await backend.loadHistory('P1', 0, 100)).map((e) => e.id), ['e1'], 'no answer: the phone\'s history');
   reader.stop();
+});
+
+// ---------- ticket 4.7: invitations, history merge, orphans, refusals ----------
+
+test('invitations: shaped as the banner reads a project; accepted, declined, keyless and repeated ones are not shown (edge case 18)', () => {
+  const inv = (rid, key) => ({ key, name: 'Школа', object: 'Б', from: 'a@pm.test', _pb: { id: rid, updated: T('00:01'), project: `pb_${key}`, email: 'b@pm.test' } });
+  const none = () => null;
+  assert.deepEqual(invitationsOf([inv('i1', 'P1')], none, 'B@pm.test', 'u2'),
+    [{ id: 'P1', name: 'Школа', object: 'Б', memberEmails: ['a@pm.test'], invitedEmails: ['b@pm.test'], memberUids: [] }]);
+  assert.equal(invitationsOf([inv('i1', 'P1'), inv('i2', 'P1')], none, 'b@pm.test', 'u2').length, 1, 'one banner per project');
+  assert.deepEqual(invitationsOf([{ name: 'old', _pb: { id: 'i3' } }], none, 'b@pm.test', 'u2'), [], 'no key: written by a server older than schema 2');
+  assert.deepEqual(invitationsOf([inv('i1', 'P1')], () => ({ memberUids: ['u2'], invitedEmails: [] }), 'b@pm.test', 'u2'), [], 'accepted');
+  assert.deepEqual(invitationsOf([inv('i1', 'P1')], () => ({ invitedEmails: [] }), 'b@pm.test', 'u2'), [], 'declined');
+  assert.equal(invitationsOf([inv('i1', 'P1')], () => ({ memberUids: ['u1'], invitedEmails: ['B@pm.test'] }), 'b@pm.test', 'u2').length, 1, 'still invited (capital letters)');
+});
+
+test('history merge: the server and the phone, each entry once (the server wins), newest first, at most max', () => {
+  const server = [{ id: 'h3', at: 30, byName: 'A' }, { id: 'h1', at: 10, byName: 'A (сервер)' }];
+  const local = [{ id: 'h4', at: 40, byName: 'B' }, { id: 'h1', at: 10, byName: 'A (телефон)' }];
+  assert.deepEqual(mergeHistory(server, local).map((e) => [e.id, e.byName]), [['h4', 'B'], ['h3', 'A'], ['h1', 'A (сервер)']]);
+  assert.deepEqual(mergeHistory(server, local, 2).map((e) => e.id), ['h4', 'h3']);
+  assert.deepEqual(mergeHistory(null, undefined), []);
+});
+
+test('orphan records: records of projects not in the copy go, unless a queued item touches them', () => {
+  const list = ['r|P1|points|a', 'r|P2|points|b', 'r|P2|days|c'];
+  assert.deepEqual(orphanRecords(list, new Set(['P1']), new Set(['r|P2|days|c'])), ['r|P2|points|b']);
+  assert.deepEqual(orphanRecords(list, new Set(['P1', 'P2']), new Set()), []);
+});
+
+test('error kinds: 403 is a refusal', () => {
+  assert.equal(errorKind({ status: 403 }), 'refused');
+});
+
+test('reader: a 403 of the pool read reaches onRefused (spec 4 § 3.10); a 404 reads as empty and does not', async () => {
+  const run = async (fail) => {
+    const db = { projects: [], records: [], invites: [], prefs: [], pool: [], fail: { pool: fail } };
+    const { copy } = await openLocalCopy({ uid: 'u1', idb: null, win: null, doc: null });
+    const pb = fakePb(db); const refused = [];
+    const timers = { setTimeout: (f, ms) => (ms >= 1000 ? 0 : setTimeout(f, ms)), clearTimeout: (t) => { if (t) clearTimeout(t); }, setInterval: () => 0, clearInterval: () => {} };
+    const reader = createReader({ pb, copy, uid: () => 'u1', timers, onRefused: (part, e) => refused.push([part, e.status]), win: null, doc: null });
+    await reader.start(); pb.connect(); await reader.idle();
+    reader.stop();
+    return refused;
+  };
+  assert.deepEqual(await run({ status: 403 }), [['pool', 403]]);
+  assert.deepEqual(await run({ status: 404 }), []);
+});
+
+test('reader: a project accepted on this phone (queued, no server version yet) is read in full when its server version arrives by realtime', async () => {
+  const db = { projects: [], records: [rec('pb1', 'points', 'a', T('00:05')), rec('pb1', 'days', 'd', T('00:05'))], invites: [], prefs: [], pool: [] };
+  const s = await setup(db, { uid: 'u2' });
+  s.pb.connect(); await s.reader.idle();
+  s.copy.setDocs([['p|||P1', { id: 'P1', memberUids: ['u2'], memberEmails: ['b@pm.test'], invitedEmails: [] }]], { grouped: false });   // the accept, applied here
+  db.projects.push(proj('P1', 'pb1', T('00:06'), { memberUids: ['u1', 'u2'] }));
+  s.pb.handlers.projects({ action: 'update', record: db.projects[0] });
+  await sleep(150); await s.reader.idle();
+  assert.deepEqual(ids(s.copy, 'r|P1|'), ['r|P1|days|d', 'r|P1|points|a']);
+  assert.equal(s.copy.get('p|||P1').name, 'P1');
+  s.reader.stop();
+});
+
+test('reader: records of a project no longer in the copy are swept at the project read', async () => {
+  const db = { projects: [], records: [], invites: [], prefs: [], pool: [] };
+  const s = await setup(db);
+  s.copy.setDocs([['r|P9|points|x', { id: 'x' }]], { grouped: false });
+  s.pb.connect(); await s.reader.idle();
+  assert.deepEqual(ids(s.copy, 'r|'), []);
+  s.reader.stop();
 });

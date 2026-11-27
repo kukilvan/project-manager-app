@@ -15,7 +15,8 @@
 // ---------- constants ----------
 
 // The server's schema version (CONTEXT.md «Schema version»); equals PM_SCHEMA of pb/pb_hooks/pm.pb.js and `schema` of nas-site.json
-const PB_SCHEMA = 1;
+// 2: an invitation (`invites.data`) carries the project's key, so the invited user can accept it (ticket 4.7)
+const PB_SCHEMA = 2;
 // The oldest app schema the server still serves; an older app gets 426 `app_old`
 const MIN_CLIENT_SCHEMA = 1;
 // Kinds of the `pool` collection (spec § 2.1); a new kind needs a rule below and a schema step
@@ -277,15 +278,16 @@ function checkProject(env, uid, email, oldDoc, newDoc) {
   return refuse('forbidden', 'not a member of the project');
 }
 
-// The `invites` index of a project (spec § 2.4, step 5): one entry per invited e-mail in lower case
-function invitesOf(project) {
+// The `invites` index of a project (spec § 2.4, step 5): one entry per invited e-mail in lower case, with the project key
+// (the invited user cannot read the project, and accepting writes to it by that key)
+function invitesOf(project, key) {
   const p = project || {}; const seen = []; const out = [];
   const from = Array.isArray(p.memberEmails) && p.memberEmails.length ? lower(p.memberEmails[0]) : '';
   (Array.isArray(p.invitedEmails) ? p.invitedEmails : []).forEach(function (e) {
     const em = lower(e).trim();
     if (!em || has(seen, em)) return;
     seen.push(em);
-    out.push({ email: em, name: String(p.name || ''), object: String(p.object || ''), from: from });
+    out.push({ email: em, key: String(key || p.id || ''), name: String(p.name || ''), object: String(p.object || ''), from: from });
   });
   return out;
 }
@@ -360,7 +362,7 @@ function runSave(store, env, request) {
     seen[idOf(target)] = doc;
     const derived = op.t === 'project' ? { members: membersOf(doc) } : op.t === 'history' ? { at: Number(doc.at) || 0 } : {};
     writes.push({ index: i, target: target, data: doc, derived: derived });
-    if (op.t === 'project') writes.push({ index: i, invites: true, pid: op.key, list: invitesOf(doc) });
+    if (op.t === 'project') writes.push({ index: i, invites: true, pid: op.key, list: invitesOf(doc, op.key) });
   }
 
   if (store.begin) store.begin();

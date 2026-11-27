@@ -15,7 +15,7 @@ import { openLocalCopy } from './pb/localcopy.js';
 import { createPocketBaseBackend } from './pb/backend.js';
 import { createSender } from './pb/sender.js';
 import { createReader } from './pb/reader.js';
-import { isAdminEmail, setAdminEmail } from '../edition.js';
+import { isAdminEmail, setAdminEmail, adminEmail } from '../edition.js';
 import { SEND_DELAY_MS } from '../domain/pbqueue.js';
 import { otherAccountNotice } from '../domain/pbauth.js';
 
@@ -35,18 +35,24 @@ async function enter(app, diag, message = '') {
   await resolveAdmin();
   const user = auth.user;
   const { copy, switched } = await openLocalCopy({ uid: user.uid });
-  let sender = null;
+  let sender = null; let backend = null;
   const reader = createReader({
     pb: getPb(), copy, uid: () => user.uid, isAdmin: () => isAdminEmail(user.email),
     auth: { isExpired: () => auth.expired, isRefreshed: () => auth.refreshed, refresh: authRefresh, markExpired, onChange },
     sender: { wake: () => sender?.wake() },
+    onRefused: (part, e) => { if (part === 'pool') backend?.poolRefused(e); },
     onAdmin: (email) => { setAdminEmail(email); try { localStorage.setItem('pm.admin.pb', String(email).toLowerCase()); } catch { /* ok */ } },
   });
-  const backend = createPocketBaseBackend({ copy, user, onQueued: () => sender?.kick(SEND_DELAY_MS), server: reader });
+  backend = createPocketBaseBackend({
+    copy, user, onQueued: () => sender?.kick(SEND_DELAY_MS), server: reader, isAdmin: () => isAdminEmail(user.email),
+    admin: { load: () => adminEmail() || null, claim: async () => { await resolveAdmin(); return adminEmail() || null; } },
+  });
   sender = createSender({
     copy, uid: () => user.uid, token: () => getPb().authStore.token,
     isExpired: () => auth.expired, onExpired: markExpired,
-    onDone: backend.itemDone, onRejected: backend.itemRejected, onProgress: backend.itemProgress,
+    onDone: backend.itemDone, onProgress: backend.itemProgress,
+    // a refused change may mean the user was removed from the project: the project list is read again at once (spec 4 § 10 case 3)
+    onRejected: (seq, code, message) => { backend.itemRejected(seq, code, message); if (code === 'forbidden') reader.readNow('light'); },
   });
   setUnsentCounter(() => backend.queueCount());
   // a sign-in after «Вход истёк»: the same user — sending resumes; another user — the start replaces the local copy (spec 4 § 3.3)

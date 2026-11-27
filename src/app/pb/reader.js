@@ -6,7 +6,7 @@ import { PB_SCHEMA } from '../../domain/pbwrite.js';
 import { backoffDelay } from '../../domain/pbqueue.js';
 import {
   PAGE_SIZE, READ_PARTS, PREFIX, recordsPrefix, newestOf, recordToDoc, projectKeyMap, pageFilter, nextAfter, deltaSince,
-  readMode, rolledBack, shouldApply, serverVersion, fullReadRemovals, dropsEveryProject, queuedIds,
+  readMode, rolledBack, shouldApply, serverVersion, fullReadRemovals, dropsEveryProject, queuedIds, orphanRecords,
 } from '../../domain/pbread.js';
 import { info, warn, error } from '../../log.js';
 
@@ -22,20 +22,22 @@ const FIELDS = {
   inbox: 'id,updated,key,data', prefs: 'id,updated,data', invites: 'id,updated,project,email,data', history: 'id,at,key,data',
 };
 
-// network: no answer; expired: 401; missing: 404 (the route or the collection is not on the server yet); server: any other answer
+// network: no answer; expired: 401; refused: 403 (the only answer the pool listeners' onError hears, spec 4 § 3.10); missing: 404 (the route or the collection
+// is not on the server yet); server: any other answer
 export function errorKind(e) {
   const s = Number(e && e.status) || 0;
   if (!s || (e && e.isAbort)) return 'network';
   if (s === 401) return 'expired';
+  if (s === 403) return 'refused';
   if (s === 404) return 'missing';
   return 'server';
 }
 
 // opts: { pb — the signed-in SDK client, copy, uid(), isAdmin(), auth: { isExpired(), isRefreshed(), refresh() → 'ok'|…, markExpired(), onChange(fn) },
-//   sender: { wake() }, onAdmin(email), online(), now(), timers: { setTimeout, clearTimeout, setInterval, clearInterval }, win, doc }
+//   sender: { wake() }, onAdmin(email), onRefused(part, e) — a read part refused with 403, online(), now(), timers: { setTimeout, clearTimeout, setInterval, clearInterval }, win, doc }
 export function createReader(opts) {
   const {
-    pb, copy, uid, isAdmin = () => false, sender = { wake() {} }, onAdmin = () => {},
+    pb, copy, uid, isAdmin = () => false, sender = { wake() {} }, onAdmin = () => {}, onRefused = () => {},
     online = () => (typeof navigator === 'undefined' ? true : navigator.onLine !== false),
     now = () => Date.now(), win = globalThis.window, doc = globalThis.document,
   } = opts;
@@ -173,6 +175,10 @@ export function createReader(opts) {
       if (o !== 'ok') { warn(`Чтение (PocketBase): сервер не показал ни одного проекта, а токен не обновлён (${o}) — проекты на телефоне оставлены`); gone = []; }
     }
     dropProjects(gone);
+    // records left by an earlier drop because a queued change touched them: gone once that change is answered
+    const keys = new Set(copy.entries(PREFIX.projects).map(([id]) => id.slice(PREFIX.projects.length + 1)));
+    const orphans = orphanRecords(copy.entries('r|').map(([id]) => id), keys, queuedIds(mine()));
+    if (orphans.length) { copy.setDocs(orphans.map((id) => [id, null]), { grouped: false }); info(`Чтение (PocketBase): убраны записи проектов, которых больше нет: ${orphans.length}`); }
   }
 
   // Records of one project, full or delta (a project never read before: full)
@@ -222,6 +228,7 @@ export function createReader(opts) {
       if (k === 'expired') { auth.markExpired(); throw e; }
       error(`Чтение (PocketBase): ${part || 'сервер'}`, `${e?.status || ''} ${e?.message || e}`);
       if (part) partFailed(part, e);
+      if (k === 'refused') onRefused(part, e);
       return false;
     }
   }
@@ -283,7 +290,9 @@ export function createReader(opts) {
         const key = `${PREFIX.projects}|${rec.key}`;
         if (e.action === 'delete') { dropped.push(key); map.delete(rec.id); return; }
         map.set(rec.id, rec.key);
-        if (!copy.get(key) && !batch.has(key)) fresh.add(key);
+        // a project the phone has never had from the server (new, or accepted here and only queued so far): its records are read in full
+        const loc = copy.get(key);
+        if ((!loc || !loc._pb) && !batch.has(key)) fresh.add(key);
       }
       const m = recordToDoc(coll, rec, (id) => map.get(id) || '');
       if (!m) { if (coll === 'records') unknown = true; return; }

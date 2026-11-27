@@ -321,10 +321,11 @@ test('validateOp: bad ops, collection names, keys, modes and array ops', () => {
 });
 
 test('invitesOf and membersOf: lower case, once each, from = the first member e-mail', () => {
-  assert.deepEqual(invitesOf({ name: 'Школа', object: 'Б', memberEmails: ['Ann@X.com', 'b@x'], invitedEmails: ['Cat@X.com', 'cat@x.com', '', 'd@x'] }), [
-    { email: 'cat@x.com', name: 'Школа', object: 'Б', from: 'ann@x.com' },
-    { email: 'd@x', name: 'Школа', object: 'Б', from: 'ann@x.com' },
+  assert.deepEqual(invitesOf({ name: 'Школа', object: 'Б', memberEmails: ['Ann@X.com', 'b@x'], invitedEmails: ['Cat@X.com', 'cat@x.com', '', 'd@x'] }, 'p1'), [
+    { email: 'cat@x.com', key: 'p1', name: 'Школа', object: 'Б', from: 'ann@x.com' },
+    { email: 'd@x', key: 'p1', name: 'Школа', object: 'Б', from: 'ann@x.com' },
   ]);
+  assert.equal(invitesOf({ id: 'p2', invitedEmails: ['a@x'] })[0].key, 'p2', 'without the op key: the document id');
   assert.deepEqual(invitesOf({}), []);
   assert.deepEqual(membersOf({ memberUids: ['a', 'b', 'a', null, ''] }), ['a', 'b']);
 });
@@ -342,7 +343,7 @@ test('runSave: a new project and its records in one request; members and invites
   assert.equal(s.get({ c: 'records', pid: 'P9', coll: 'points', key: 'p1' }).label, 'p1');
   assert.deepEqual(s.derived.get(P('P9')), { members: ['uAnn'] });
   assert.deepEqual(s.derived.get(JSON.stringify({ c: 'history', pid: 'P9', key: 'h1' })), { at: 7 });
-  assert.deepEqual(s.invites.get('P9'), [{ email: 'cat@x.com', name: 'Новый', object: '', from: 'ann@x.com' }]);
+  assert.deepEqual(s.invites.get('P9'), [{ email: 'cat@x.com', key: 'P9', name: 'Новый', object: '', from: 'ann@x.com' }]);
 });
 
 test('runSave: a refused second op leaves the first not saved, with the right code and index', () => {

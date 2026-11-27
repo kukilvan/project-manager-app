@@ -7,7 +7,8 @@
 // - server time — pbTime, pbMs, newestOf
 // - record → document — recordToDoc, projectKeyMap
 // - filters — quote, pageFilter, deltaSince, nextAfter
-// - decisions — readMode, rolledBack, shouldApply, serverVersion, fullReadRemovals, dropsEveryProject, queuedIds
+// - decisions — readMode, rolledBack, shouldApply, serverVersion, fullReadRemovals, dropsEveryProject, queuedIds, orphanRecords
+// - invitations and history — invitationsOf, mergeHistory
 import { docId, opTarget, replayOps } from './pbqueue.js';
 import { DELTA_MARGIN, decideMode } from './sync.js';
 
@@ -132,3 +133,45 @@ export function fullReadRemovals(rows, serverIds, queued, readMark = '') {
 
 // The guard of spec 4 § 3.2: a full read of `projects` that would leave no project of those the phone had
 export const dropsEveryProject = (localCount, removedCount) => localCount > 0 && removedCount >= localCount;
+
+// Records of projects the copy no longer holds (left behind when a project was dropped while a queued change touched them): removed once no queued item
+// touches them. recordIds: local ids `r|<pid>|…`; projectKeys: the app's ids of the projects in the copy.
+export function orphanRecords(recordIds, projectKeys, queued) {
+  return (recordIds || []).filter((id) => {
+    const pid = String(id).split('|')[1] || '';
+    return !projectKeys.has(pid) && !(queued && queued.has(id));
+  });
+}
+
+// ---------- invitations and history ----------
+
+const lower = (s) => String(s || '').trim().toLowerCase();
+
+// The invitation banner's projects (spec 4 § 3.7) from the `invites` documents of the copy, shaped as the Firestore listener gives them:
+// { id: <project key>, name, object, memberEmails: [from], invitedEmails: [e-mail], memberUids: [] }. Filtered as that listener is: an invitation whose project
+// the copy already holds with the user among `memberUids` (accepted, also while the answer is queued) or without the user's e-mail among `invitedEmails`
+// (declined) is not shown. An invitation without a key (written by a server older than schema 2) cannot be accepted and is left out.
+// projectOf(key) → the project document of the copy or null.
+export function invitationsOf(invites, projectOf, email, uid) {
+  const out = []; const seen = new Set();
+  (invites || []).forEach((d) => {
+    const key = d && typeof d.key === 'string' ? d.key : '';
+    if (!key || seen.has(key)) return;
+    const em = lower((d._pb && d._pb.email) || email);
+    const p = projectOf(key);
+    if (p && ((p.memberUids || []).includes(uid) || (Array.isArray(p.invitedEmails) && !p.invitedEmails.map(lower).includes(em)))) return;
+    seen.add(key);
+    out.push({ id: key, name: String(d.name || ''), object: String(d.object || ''), memberEmails: d.from ? [d.from] : [], invitedEmails: [em], memberUids: [] });
+  });
+  return out;
+}
+
+// History for the screens: the server's entries and the phone's own (written here and not sent yet, or kept from earlier reads), each entry once by id
+// (the server's version wins), newest first, at most `max`
+export function mergeHistory(server, local, max = Infinity) {
+  const by = new Map(); let n = 0;
+  const put = (e) => { if (e && typeof e === 'object') by.set(e.id != null ? `id:${e.id}` : `n:${n++}`, e); };
+  (local || []).forEach(put);
+  (server || []).forEach(put);
+  return [...by.values()].sort((a, b) => (Number(b.at) || 0) - (Number(a.at) || 0)).slice(0, max);
+}

@@ -7,7 +7,7 @@ import {
   planRequest, classify, settle, backoffDelay, replayOps, applyOp, queueCount, opTarget, docId, scopeOf, jsonBytes,
   MAX_REQ_OPS, MAX_REQ_BYTES, BACKOFF_MS, HISTORY_KEEP_MS,
 } from '../src/domain/pbqueue.js';
-import { toOps } from '../src/domain/pbwrite.js';
+import { toOps, PB_SCHEMA } from '../src/domain/pbwrite.js';
 import { otherAccountNotice } from '../src/domain/pbauth.js';
 
 const ls = new Map();
@@ -298,7 +298,7 @@ test('sender: a write goes out 300 ms later with PB_SCHEMA and the token; the pr
   const { body, auth, url } = s.f.calls[0];
   assert.equal(url, '/api/pm/save');
   assert.equal(auth, 'tok');
-  assert.equal(body.schema, 1);
+  assert.equal(body.schema, PB_SCHEMA);
   assert.deepEqual(body.ops.map((o) => o.t), ['rec', 'history']);
   assert.equal(s.copy.queueItems().length, 0);
   assert.equal(s.copy.get('r|p1|points|a')._pending, undefined);

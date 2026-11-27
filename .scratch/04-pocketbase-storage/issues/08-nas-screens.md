@@ -44,3 +44,8 @@ Needs the NAS (the screens also show on the PC, but the values are real only the
 3. ☰ → «👥 Участники»: «Как подключить коллегу» and «💬 WhatsApp» open WhatsApp with the text and the address.
 4. ☰ → «📖 Как пользоваться приложением» (the guide): the section «Домашний сервер».
 5. Wrong: a text in the wrong language, a card that overlaps another, or Hebrew not right to left — send a screenshot.
+
+## Notes from ticket 07
+
+- KI-9: the «⚠» list (`pz.rejected`) is one per phone, not per user, on both editions; ticket 07 kept that. When this ticket reworks «⚠», consider storing each item's `uid` and showing and retrying only the signed-in user's items.
+- PB_SCHEMA is 2 since ticket 07 (an invitation carries the project key); a server with schema 1 shows the «server older» banner of this ticket.

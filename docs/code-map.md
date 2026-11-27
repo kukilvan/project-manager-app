@@ -71,7 +71,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/app/migrate.js` — Moves projects from the «на устройстве» mode into the Firebase database (after setting up one's own database or joining by invitation).
 - `src/app/nodoubletap.js` — Stops a double tap from zooming the screen on iPhone (app opened from the home-screen icon).
 - `src/app/pb/auth.js` — Sign-in on the NAS copy: the three-way start, both Google flows, the password sign-in for local tests, the token refresh, the administrator and sign-out.
-- `src/app/pb/backend.js` — The PocketBase backend of the repo on the NAS copy: the interface of createFirestoreBackend (src/app/repo.js) over the local copy and the write queue.
+- `src/app/pb/backend.js` — The PocketBase backend of the repo on the NAS copy: every method of createFirestoreBackend (src/app/repo.js) over the local copy, the write queue and the server.
 - `src/app/pb/client.js` — The PocketBase clients of the NAS copy: the one signed-in client for the page's own origin (sign-in kept under the SDK's own key `pocketbase_auth`) and a guest client for sign-in requests.
 - `src/app/pb/localcopy.js` — The local copy of the NAS copy: IndexedDB `pm-pb` with the stores docs, queue, meta and history, held in memory with listeners per scope.
 - `src/app/pb/reader.js` — The reader of the NAS copy: one realtime connection with the keep-alive, the reads after every (re)connect (full, delta, Saturday, rollback check), new and removed projects, history and one-off reads.

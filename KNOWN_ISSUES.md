@@ -21,6 +21,7 @@ Bugs decided not to fix now, and rare cases where the app can go wrong (source d
 | KI-6 | a conflicting Hebrew name merged into a shared list on two devices at once keeps the last write | `src/app/shared.js` (merge), `src/domain/shared.js` (`mergePlan`) | open | — |
 | KI-7 | the translation coverage test sees string literals, not sentences built from parts (the half «catalog names show Russian in English» is fixed) | `tests/i18n-coverage.test.js` | open (catalog names fixed) | stage 7, ticket 7.7 (catalog names) |
 | KI-8 | a database with rules older than stage 6 cannot read the shared lists: no merge, no seeding, no «rules out of date» toast, empty lists in a new project | `src/app/shared.js`, `listenPool` in `src/app/repo.js`, `firestore.rules` | open | — |
+| KI-9 | the «⚠» list is one per phone, not per user: after another sign-in the previous account's refused writes show and «Повторить» sends them as the new user | `pz.rejected` in `src/app/repo.js` | open | stage 4, ticket 08 (proposed) |
 
 ## Entries
 
@@ -105,3 +106,13 @@ Entry format:
 - Why not fixed now: the fix (an error callback from `listenPool` that shows the same toast on `permission-denied`) changes the sync core and cannot be checked in `?mem=1`; it is rare and has a plain remedy.
 - Status: open
 - Found: 2026-11-19, review 6.
+
+## KI-9. The «⚠» list is one per phone, not per user
+
+- Where: `pz.rejected` in `src/app/repo.js` (`addRejected`, `noteRejected`, `retryRejected`), shown by the «⚠» badge; both the Firebase and the NAS copy.
+- What's wrong: refused writes are kept per device. After another account signs in on the same phone, the previous account's refused writes still show in «⚠», and «🔁 Повторить» sends them with the new account's sign-in (the documents keep the first person's `updatedBy` stamps).
+- How to reproduce: user A has a write in «⚠» (for example after being removed from a project); A signs out, B signs in on the same phone; «⚠» shows A's write; «Повторить» sends it as B.
+- Likelihood / impact: only a phone shared by two accounts with a refused write left; a wrong author stamp or a second refusal, nothing is lost.
+- Why not fixed now: ticket 4.7 decided to keep the Firestore behaviour; the fix (each item keeps its `uid`, the list and «Повторить» show only the signed-in user's) touches the «⚠» screen that ticket 4.8 owns.
+- Status: open
+- Found: 2026-11-27, ticket 4.5 (note), decided in ticket 4.7.

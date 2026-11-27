@@ -146,7 +146,7 @@ describe('PocketBase server', { skip: missing ? missing : false }, () => {
 
   test('invites follow invitedEmails in lower case; the invitee alone sees theirs (edge case 18)', async () => {
     let inv = await srv.all('invites');
-    assert.deepEqual(inv.map((r) => [r.email, r.data]), [['b@pm.test', { name: 'Obj', object: 'Site', from: 'a@pm.test' }]]);
+    assert.deepEqual(inv.map((r) => [r.email, r.data]), [['b@pm.test', { key: 'p1', name: 'Obj', object: 'Site', from: 'a@pm.test' }]], 'the project key lets the invitee accept');
     const r1 = await srv.save(A.token, [{ t: 'project', key: 'p1', data: { invitedEmails: ['B@pm.test', 'X@pm.test'] }, mode: 'deep' }]);
     assert.equal(r1.status, 200, r1.text);
     inv = await srv.all('invites');

@@ -17,6 +17,7 @@ const { default: PocketBase } = await import('pocketbase');
 const { openLocalCopy } = await import('../src/app/pb/localcopy.js');
 const { createReader } = await import('../src/app/pb/reader.js');
 const { deltaSince } = await import('../src/domain/pbread.js');
+const { PB_SCHEMA } = await import('../src/domain/pbwrite.js');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function until(fn, ms = 10000) { const end = Date.now() + ms; while (Date.now() < end) { if (await fn()) return true; await sleep(25); } return false; }
@@ -82,7 +83,7 @@ describe('reader against PocketBase', { skip: missing ? missing : false }, () =>
     assert.equal(b.copy.get('r|P1|points|pt2').label, 'C2');
     assert.equal(b.copy.get('r|P1|days|2026-11-27').note, 'день');
     assert.ok(b.copy.getMeta('mark|r|P1'));
-    assert.equal(b.reader.readState().serverSchema, 1);
+    assert.equal(b.reader.readState().serverSchema, PB_SCHEMA);
     c = await phone(C);
     assert.ok(await c.ready());
     assert.equal(c.copy.entries('p||').length, 0, 'a non-member sees no project');
