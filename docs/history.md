@@ -10,6 +10,7 @@ Dated details of every accepted step, newest first. Read only when a session nee
 - No new UI texts, no guide line; the «only its own files» guide line is wrong on the NAS copy (added to KI-10). KI-11 (waiting Drive action with an expired token), KI-12 (shared-client fallback on the NAS address), KI-13 filed.
 - Tests: `tests/googleauth.test.js`; 532 tests.
 - Self-check on `pb-dev` at 420 px (`127.0.0.1:8090`; `localhost` did not open in the pane) with `auth-methods` faked in the page and Google's window stubbed: both client cases, both returns, the user switch; `?mem=1` and no PocketBase code in `dist/`. The owner accepted: Drive and the management sheet work as before on the Firebase site; the NAS icon on the phone showed a placeholder, so nothing was checked there. Next: «Тикет 4.10».
+- Later the same day the owner found the real app on the NAS copy and walked the NAS check on the phone (update, Drive drawings, opening one, the management sheet): all works as in the old app.
 
 ## 2026-11-27 — The NAS installs our builds, taken in («Записка NAS: сборки на NAS»)
 
