@@ -2,6 +2,15 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-27 — Ticket 4.9: Google Drive and Sheets on the NAS copy («Тикет 4.9»)
+
+- `src/domain/googleauth.js` (client and scopes, authorization and return addresses, `driveReturn`, the Client ID from `auth-methods`) now serves both editions; `src/app/google.js` takes the NAS client through `setNasGoogle`; `src/app/pb/drive.js` reads the ID at every start and, with none kept, at the first use (4 s at most, so the tap can still open Google's window) and keeps it as `pm.pbGoogleClient`; a server without a Google provider forgets it.
+- `startDecision` (`pbauth.js`) ignores a return with the Drive flow's state.
+- Decided in the session: the NAS return address is always the root of the host; a different user's sign-in on the phone forgets the Google token (not in the spec; on Firebase it stays, KI-13).
+- No new UI texts, no guide line; the «only its own files» guide line is wrong on the NAS copy (added to KI-10). KI-11 (waiting Drive action with an expired token), KI-12 (shared-client fallback on the NAS address), KI-13 filed.
+- Tests: `tests/googleauth.test.js`; 532 tests.
+- Self-check on `pb-dev` at 420 px (`127.0.0.1:8090`; `localhost` did not open in the pane) with `auth-methods` faked in the page and Google's window stubbed: both client cases, both returns, the user switch; `?mem=1` and no PocketBase code in `dist/`. The owner accepted: Drive and the management sheet work as before on the Firebase site; the NAS icon on the phone showed a placeholder, so nothing was checked there. Next: «Тикет 4.10».
+
 ## 2026-11-27 — The NAS installs our builds, taken in («Записка NAS: сборки на NAS»)
 
 - The NAS project's updater (R-SITE-2) and migrations install (R-PB-8) are live: build `577592e` (schema 2) installed on `<host>`, ≈ 3 s downtime; `nas-check` at `8ae88cb` there: 11 pass, 0 fail, 0 skip (A8, A9, A15 now pass); idle realtime cut after 125 s again. It reads `nas-site.json` every minute, keeps the previous 2 builds, rolls back a migration that keeps PocketBase from starting and never retries that release. `4b6b66d` was never installed. The owner can now do A14 and the phone checks of stage 4. Kept as received: `.scratch/04-pocketbase-storage/nas-report-2.md`.
