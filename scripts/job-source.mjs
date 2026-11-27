@@ -13,9 +13,9 @@ export class SetupError extends Error {}
 
 export const isPocketBase = (env = process.env) => env.PM_SOURCE === 'pocketbase';
 
-// A secret: the variable when set, else the file of that name in PM_SECRETS, else ''
-function secret(env, variable, file) {
-  if (env[variable]) return env[variable];
+// A secret: the variable when one is named and set, else the file of that name in PM_SECRETS, else ''
+export function secret(env, variable, file) {
+  if (variable && env[variable]) return env[variable];
   const p = path.join(env.PM_SECRETS || '/run/secrets', file);
   try { return fs.readFileSync(p, 'utf8').trim(); } catch { return ''; }
 }
@@ -25,7 +25,7 @@ export async function openSource(env = process.env) {
     const { openPocketBase } = await import('./pb-source.mjs');
     try {
       return await openPocketBase({ url: env.PB_URL || 'http://pocketbase:8090', email: env.PB_JOBS_EMAIL, password: secret(env, 'PB_JOBS_PASSWORD', 'pb_jobs_password') });
-    } catch (e) { throw new SetupError(e.message); }
+    } catch (e) { throw new SetupError(e.message, { cause: e.cause }); }
   }
   const key = env.FIREBASE_SERVICE_ACCOUNT;
   if (!key) throw new SetupError('Нет секрета FIREBASE_SERVICE_ACCOUNT');
@@ -37,5 +37,6 @@ export async function openSource(env = process.env) {
 export function googleCredentials(env = process.env) {
   const text = isPocketBase(env) ? secret(env, 'GOOGLE_SERVICE_ACCOUNT', 'google_service_account.json') : env.FIREBASE_SERVICE_ACCOUNT;
   if (!text) throw new SetupError(isPocketBase(env) ? 'Нет сервисного аккаунта Google (google_service_account.json)' : 'Нет секрета FIREBASE_SERVICE_ACCOUNT');
-  return JSON.parse(text);
+  // the parser's own message quotes the text, which here is a key: it must not reach a log
+  try { return JSON.parse(text); } catch { throw new SetupError('Сервисный аккаунт Google не читается: это не JSON'); }
 }

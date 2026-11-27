@@ -27,6 +27,7 @@ Bugs decided not to fix now, and rare cases where the app can go wrong (source d
 | KI-12 | on the NAS copy without a Client ID from the server, the shared client is used, and Google likely refuses the NAS address (`redirect_uri_mismatch`) | `getToken` in `src/app/google.js`, `src/app/pb/drive.js` | open | — |
 | KI-13 | on the Firebase and on-device copies the Google token stays after sign-out: another account within the hour uses the previous account's Drive | `logout` in `src/firebase.js`, `pz_gtoken` | open | — |
 | KI-14 | in winter the 07:20 UTC retry of the night sheets runs before the Firestore quota resets (08:00 UTC), so a night run that failed on the quota fails again | `.github/workflows/server-tables.yml` (cron `20 7 * * *`) | open | — |
+| KI-15 | NAS jobs run before the switch-over write over the live files: management sheets, the Drive zip and the backup repository, with the NAS's test data | `scripts/nas-jobs.mjs`, `docs/nas-requirements.md` (R-JOB-1) | open | stage 4, tickets 14–15 (proposed) |
 
 ## Entries
 
@@ -167,3 +168,12 @@ Entry format:
 - Likelihood / impact: only on days the read quota runs out (heavy use, extra hand runs); the sheets and «PDF с номерами» are a day late. No data is lost. Fix: retry at 08:20 UTC all year (also after the summer reset), or move to the NAS (stage 5) where there is no quota.
 - Status: open
 - Found: 2026-11-27, ticket 4.11 (owner-approved hand runs of «Server backup» and «Server tables»).
+
+## KI-15. NAS jobs before the switch-over write over the live files
+
+- Where: `scripts/nas-jobs.mjs` (`tables`, `backup`, `catch-up`) run on the NAS while the Firebase copy is still the main one; R-JOB-1 of `docs/nas-requirements.md` does not say from when.
+- What's wrong: a NAS loaded with a copy of the owner's data holds the same sheet and drawing file ids and uses the same service account, so `tables` writes the NAS data into the real management sheets, rack tables and «PDF с номерами». `backup` replaces the contents of the owner's Drive zip and adds folders to `polevoy-backups`, where the newest folder feeds the weekly starter pool and the GitHub Drive step, and daily folders push Firebase ones out of the 15 kept. The Firestore delta backup passes NAS copies over (ticket 4.12).
+- How to reproduce: restore a backup into the NAS, change a point there, run `nas-jobs.mjs tables`: the management sheet shows the NAS value until the next night run on Firebase.
+- Likelihood / impact: only if the jobs are switched on or tried before the switch-over with the real secrets; management sees wrong data, the off-site copies hold test data (Drive keeps earlier versions ≈ 30 days). Until then: do not run the jobs with the real data and Google key; for a trial use a separate `BACKUP_REPO` and a test project.
+- Status: open
+- Found: 2026-11-27, ticket 4.12 (reading the job code).

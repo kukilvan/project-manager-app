@@ -31,3 +31,8 @@ None beyond the guard tests that already cover the NAS document and the translat
 ## Owner check
 
 The owner reads `ПЕРЕЕЗД.md` through once, as if they were a helper: is every step clear, is anything missing for their own phone and the helpers' phones; and reads the message for the NAS project.
+
+## Notes from ticket 12
+
+- KI-15: the NAS document and the message must say that the jobs run with the real data, the Google key and `polevoy-backups` only from the switch-over on; before it, a trial uses a separate `BACKUP_REPO` and a test project.
+- R-JOB-1: `state.json` is `{backup, tables}`, each `{ok, at, error, okAt}` (`okAt` — the last success); `tables` exits 1 when any table or drawing failed; the runner takes `FULL=1` and `DRY_RUN=1`.

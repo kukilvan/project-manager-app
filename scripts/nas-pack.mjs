@@ -21,8 +21,8 @@ import { PB_VERSION } from '../tools/pb-dev.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const NAS_FILES = { site: 'nas-site.zip', pb: 'nas-pb.zip', jobs: 'nas-jobs.zip', manifest: 'nas-site.json' };
-// What the job scripts import outside Node: google-auth-library (Drive and Sheets) as server-backup.yml installs it, mupdf (drawing pages) in the version package.json locks.
-// Ticket 12 completes the list when the job runner exists.
+// What the job runner (scripts/nas-jobs.mjs) imports outside Node: google-auth-library (Drive and Sheets) as server-backup.yml installs it, mupdf (drawing
+// pages) in the version package.json locks. Both are loaded only when a job reaches Google or a drawing; `git` is the NAS container's own.
 export const JOB_DEPS = ['google-auth-library', 'mupdf'];
 const GOOGLE_AUTH_SPEC = 'google-auth-library@9';
 export const MODULES_DIR = '.cache/nas-jobs';
@@ -43,7 +43,7 @@ export function pbFiles(root = ROOT) {
   return { ...filesOf(path.join(root, 'pb', 'pb_migrations'), 'pb_migrations/'), ...filesOf(path.join(root, 'pb', 'pb_hooks'), 'pb_hooks/') };
 }
 
-// nas-jobs.zip: scripts/, src/, package.json and node_modules/ (the jobs' production dependencies only), run as node scripts/<job>.mjs
+// nas-jobs.zip: scripts/, src/, package.json and node_modules/ (the jobs' production dependencies only), run as node scripts/nas-jobs.mjs <command>
 // npm's own bookkeeping (.bin links, .package-lock.json, .cache) is left out: the jobs do not need it and it would change the checksum
 export function jobsFiles({ root = ROOT, modulesDir }) {
   if (!modulesDir || !fs.existsSync(modulesDir)) throw new Error(`nas-pack: no node_modules folder for the jobs at ${modulesDir}`);

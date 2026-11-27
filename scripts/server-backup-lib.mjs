@@ -40,7 +40,8 @@ export async function readProjectDelta(projectRef, prev, since, Timestamp) {
   return { project, data, reads };
 }
 
-// The previous full copy of each project (by id) from the newest backup folder
+// The previous Firestore full copy of each project (by id) from the newest backup folder that has one. A copy marked with `source` (the NAS's PocketBase
+// export in the same repository) is passed over: its user ids and records are another database's, and a delta read must not build on them.
 export function previousBackups(root) {
   if (!fs.existsSync(root)) return new Map();
   const dirs = fs.readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory() && /^\d{4}-\d{2}-\d{2}_\d{4}$/.test(d.name)).map((d) => d.name).sort();
@@ -48,7 +49,7 @@ export function previousBackups(root) {
   for (const name of dirs.reverse()) {
     const dir = path.join(root, name);
     for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('(полная).json'))) {
-      try { const j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); if (j.project?.id && !out.has(j.project.id)) out.set(j.project.id, j); } catch { /* broken file: skip it */}
+      try { const j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); if (j.project?.id && !j.source && !out.has(j.project.id)) out.set(j.project.id, j); } catch { /* broken file: skip it */}
     }
     if (out.size) break;
   }
