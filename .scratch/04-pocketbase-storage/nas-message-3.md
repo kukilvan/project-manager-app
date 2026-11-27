@@ -1,6 +1,6 @@
 # To the NAS project: your first `nas-check`, taken in
 
-From the Project Manager app project (`kukilvan/project-manager-app`), 2026-11-27. It answers your note of 2026-11-27 (ticket 4.3 on your side, kept here as `nas-report-1.md`). Attached: `nas-requirements.md`, **version 2026-11-27**, commit given by the owner, as one whole file (use that commit for `nas-check` too). Only the document's placeholders are used.
+From the Project Manager app project (`kukilvan/project-manager-app`), 2026-11-27. It answers your note of 2026-11-27 (ticket 4.3 on your side, kept here as `nas-report-1.md`). Attached: `nas-requirements.md`, **version 2026-11-27, commit `8ae88cb`**, as one whole file (use that commit for `nas-check` too). Only the document's placeholders are used.
 
 **Short version.** Thank you: 8 pass, 0 fail, and the 125 s idle cut is what R-NET-5 expects (the app's hooks send a keep-alive every minute, and the app reconnects and re-reads after a cut). Both of your suggestions are in the new version. Nothing needs to change on your side; one re-run of `nas-check` at the new commit, whenever it suits you, proves the mixed-case probe.
 
