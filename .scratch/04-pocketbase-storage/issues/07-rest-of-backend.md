@@ -44,3 +44,8 @@ Needs the NAS and a helper with a Google account. Kept for the stage list:
 3. ☰ → «🕘 Откат записей»: the last entries have names; roll one back and see it come back.
 4. As the pool administrator: «🗂 Общий пул» / the inbox show what the helper's project brought.
 5. Wrong: the helper sees no project after accepting, or «⚠» appears — send a screenshot.
+
+## Notes from ticket 05
+
+- Until reading exists (ticket 06), `readPool` and `listenPool` answer from the local copy only, so a user with an empty copy sees an empty pool: `startShared` then seeds the shared lists, and a user not in `allowed` gets «⚠ forbidden» for that seed (seen with `b@pm.test` on pb-dev). Check that this is gone once `readPool` reads the server.
+- `pz.rejected` («⚠») is one list per device, not per user, as on Firestore: after another account signs in, the previous account's refused writes still show in «⚠» and their «Повторить» would be sent as the new user. Decide whether to keep it or filter by uid (ticket 08 owns the «⚠» texts).

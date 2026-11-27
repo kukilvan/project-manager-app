@@ -118,13 +118,13 @@ The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. 
 
 **NAS check** (code: `tools/nas-check.mjs`) — the automated acceptance checks of the NAS copy.
 
-**NAS build** (code: `npm run build:nas` → `dist-nas/`, `VITE_BACKEND=pocketbase`, `isPocketBase()`; release by `scripts/nas-pack.mjs`) — the app built for the NAS copy: base `/`, PocketBase storage, no setup wizard or Firebase; published with the migrations, hooks and job scripts to the GitHub release `nas-build` on every push to `main` (stage 4; after the sign-in a placeholder with the user's e-mail until the local copy ticket).
+**NAS build** (code: `npm run build:nas` → `dist-nas/`, `VITE_BACKEND=pocketbase`, `isPocketBase()`; release by `scripts/nas-pack.mjs`) — the app built for the NAS copy: base `/`, PocketBase storage, no setup wizard or Firebase; published with the migrations, hooks and job scripts to the GitHub release `nas-build` on every push to `main` (stage 4; after the sign-in the real app on the local copy and the write queue).
 
 **Write route** (code: `POST /api/pm/save` in `pb/pb_hooks/pm.pb.js`, logic in `src/domain/pbwrite.js`, the PocketBase store in `pb/pb_hooks/pm/pbstore.js`) — the one way a user writes to PocketBase: ops merged like Firestore and checked against a copy of the Firestore rules in one transaction (ADR 0020).
 
-**Local copy** (code: IndexedDB `pm-pb`) — the NAS copy's data on the phone: every project the user is a member of, the pool, settings and invitations; screens read only it (ADR 0021). _Avoid_: cache (that is Firestore's).
+**Local copy** (code: IndexedDB `pm-pb` with the stores `docs`, `queue`, `meta`, `history`; `src/app/pb/localcopy.js`, backend `src/app/pb/backend.js`) — the NAS copy's data on the phone: every project the user is a member of, the pool, settings and invitations; screens read only it (ADR 0021). _Avoid_: cache (that is Firestore's).
 
-**Write queue** (code: the `queue` store of `pm-pb`) — changes waiting on the phone to be sent to PocketBase, counted by «⬆ N»; sent in chunks one after another, kept across restarts.
+**Write queue** (code: the `queue` store of `pm-pb`; rules in `src/domain/pbqueue.js`, sending in `src/app/pb/sender.js`) — changes waiting on the phone to be sent to PocketBase, counted by «⬆ N»; sent in chunks one after another, kept across restarts. One item per write call; a refused item goes to «⚠»; the items of another account that signed in on the phone wait for it.
 
 **Schema version** (code: `PB_SCHEMA` in `src/domain/pbwrite.js`, `PM_SCHEMA` in the hook, `schema` in `nas-site.json`, `GET /api/pm/info`) — the version of the PocketBase database description (migrations and hooks); goes up by one when the app needs a migration or hook change. The write route answers 409 `schema_old` to an app with a higher one («server older»: the app shows a banner and holds the write queue, ticket 08) and 426 `app_old` to one below `MIN_CLIENT_SCHEMA`.
 

@@ -40,6 +40,8 @@ export function newId(len = 12) {
 let ownPending = 0; const pendingSubs = new Set();
 export const ownPendingCount = () => ownPending;
 export const onPendingChange = (fn) => { pendingSubs.add(fn); return () => pendingSubs.delete(fn); };
+// A backend whose own queue changed (the PocketBase write queue) repaints «⬆»
+export const notifyPending = () => pendingSubs.forEach((f) => f());
 const track = (promise, n) => {
   if (!promise?.then) return promise;
   ownPending += n; pendingSubs.forEach((f) => f());
@@ -162,6 +164,11 @@ export const rejectedList = () => rejected.slice();
 export const onRejectedChange = (fn) => { rejSubs.add(fn); return () => rejSubs.delete(fn); };
 export const dropRejected = (id) => { rejected = rejected.filter((x) => x.id !== id); rejEmit(); };
 const addRejected = (item) => { rejected = [...rejected, item].slice(-50); rejEmit(); };
+// A refused write with no live promise (the PocketBase queue item was queued before a restart): straight to «⚠», as createRepo's onReject does
+export const noteRejected = (kind, pid, writes, e) => {
+  error('Запись отклонена', `${e?.code || ''} ${e?.message || e}`);
+  addRejected({ id: newId(), kind, pid, writes, code: e?.code || '', msg: String(e?.message || e), at: Date.now() });
+};
 
 // ---------- the state of reading from the server (the «⬇» badge at the top) ----------
 // Each listener waits for the server's first answer; until it gets it, it is «queued for reading». An error (e.g. the limit) is remembered.

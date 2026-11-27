@@ -50,7 +50,8 @@ const TABS = [
 ];
 const SCREEN_TITLES = { projects: 'Все проекты', month: 'Отчёт за месяц', journal: 'История', history: 'Откат записей', import: 'Импорт', ref: 'Справочник', members: 'Участники', tables: 'Для руководства', racks: 'Шкафы и шильют', sheets: 'Таблицы', guide: 'Как пользоваться', log: 'Журнал событий' };
 
-export function createShell({ user, onLogout, diag }) {
+// banner (optional): an element shown under the top bar on every screen (the NAS copy's «Вход истёк»)
+export function createShell({ user, onLogout, diag, banner = null }) {
   const root = document.getElementById('app');
   const ui = { tab: 'project', screen: null, go, open, back: () => { ui.screen = null; render(); }, render };
   nav.ui = ui;
@@ -229,7 +230,7 @@ export function createShell({ user, onLogout, diag }) {
         pendingBadge(),
         h('span', { class: `pill ${state.online ? 'ok' : 'warn'}` }, state.online ? 'онлайн' : 'офлайн'),
         ui.screen ? null : h('button', { class: 'sec', onclick: menu }, '⋯')),
-      h('div', { class: ui.screen === 'racks' ? 'wrap wide' : 'wrap' }, invitesBanner(), content()),
+      h('div', { class: ui.screen === 'racks' ? 'wrap wide' : 'wrap' }, banner, invitesBanner(), content()),
       h('nav', {}, TABS.map(([id, label, icon]) => h('button', { class: !ui.screen && ui.tab === id ? 'on' : '', onclick: () => go(id) }, icon, h('br'), h('small', {}, label)))));
   }
 

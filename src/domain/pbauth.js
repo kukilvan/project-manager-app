@@ -65,6 +65,12 @@ export function signOutQuestion(unsent) {
   return n > 0 ? `Есть неотправленные записи: ${n}. Если выйти, они останутся на телефоне и уйдут, когда вы снова войдёте этим же аккаунтом. Выйти?` : null;
 }
 
+// Another user signed in on this phone (spec 4 § 3.3): the local copy was replaced; the previous user's unsent items wait for them. null — nothing to say.
+export function otherAccountNotice(unsent) {
+  const n = Number(unsent) || 0;
+  return n > 0 ? `Вы вошли другим аккаунтом. Неотправленные записи прошлого аккаунта (${n}) ждут, пока он снова войдёт на этом телефоне.` : null;
+}
+
 // After a sign-in: is it the same user as before (the write queue of ticket 05 decides by it, spec 4 § 3.3)
 export function signInEvent(previousId, userId) {
   return { previousId: previousId || null, userId: userId || null, sameUser: !!previousId && previousId === userId };

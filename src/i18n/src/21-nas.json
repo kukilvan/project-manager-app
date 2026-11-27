@@ -1,5 +1,4 @@
 {
-"Хранилище на домашнем сервере появится в следующих версиях.": ["Storage on the home server will come in the next versions.", "האחסון בשרת הביתי יתווסף בגרסאות הבאות."],
 "База: домашний сервер · {}": ["Database: home server · {}", "מסד נתונים: שרת ביתי · {}"],
 "Сервер недоступен — проверьте интернет и попробуйте ещё раз.": ["The server cannot be reached — check the internet connection and try again.", "אין חיבור לשרת — בדקו את החיבור לאינטרנט ונסו שוב."],
 "Вход через Google на этом сервере не настроен.": ["Google sign-in is not set up on this server.", "הכניסה עם Google לא הוגדרה בשרת הזה."],
@@ -9,5 +8,6 @@
 "Войти по паролю": ["Sign in with password", "כניסה עם סיסמה"],
 "Вход истёк. Записи ждут на телефоне и уйдут после входа.": ["Your sign-in has expired. Changes are waiting on the phone and will be sent after you sign in.", "תוקף הכניסה פג. השינויים ממתינים בטלפון ויישלחו אחרי הכניסה."],
 "Войти снова": ["Sign in again", "להיכנס שוב"],
-"Есть неотправленные записи: {}. Если выйти, они останутся на телефоне и уйдут, когда вы снова войдёте этим же аккаунтом. Выйти?": ["There are unsent changes: {}. If you sign out, they stay on the phone and are sent when you sign in again with the same account. Sign out?", "יש שינויים שלא נשלחו: {}. אם תצאו, הם יישארו בטלפון ויישלחו כשתיכנסו שוב עם אותו חשבון. לצאת?"]
+"Есть неотправленные записи: {}. Если выйти, они останутся на телефоне и уйдут, когда вы снова войдёте этим же аккаунтом. Выйти?": ["There are unsent changes: {}. If you sign out, they stay on the phone and are sent when you sign in again with the same account. Sign out?", "יש שינויים שלא נשלחו: {}. אם תצאו, הם יישארו בטלפון ויישלחו כשתיכנסו שוב עם אותו חשבון. לצאת?"],
+"Вы вошли другим аккаунтом. Неотправленные записи прошлого аккаунта ({}) ждут, пока он снова войдёт на этом телефоне.": ["You signed in with another account. The unsent changes of the previous account ({}) wait until it signs in on this phone again.", "נכנסתם עם חשבון אחר. השינויים שלא נשלחו של החשבון הקודם ({}) ממתינים עד שהוא ייכנס שוב בטלפון הזה."]
 }

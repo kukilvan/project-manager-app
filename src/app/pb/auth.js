@@ -94,6 +94,9 @@ export async function authRefresh() {
   }
 }
 
+// The write route answered 401 (src/app/pb/sender.js): the sign-in is expired, the banner shows, the queue waits for a sign-in
+export function markExpired() { if (!auth.expired) set({ expired: true }); }
+
 // The sign-in methods of the server (public, asked without the saved token): Google's address, state and code verifier; whether password sign-in is on
 export const loadMethods = () => guestPb().collection('users').listAuthMethods();
 
@@ -145,7 +148,7 @@ export async function resolveAdmin() {
   await Promise.race([ask(), new Promise((r) => setTimeout(r, ADMIN_WAIT_MS))]);
 }
 
-// Unsent changes: the write queue of ticket 05 plugs its counter in here; until then 0
+// Unsent changes: src/app/pbstart.js plugs in the write queue's count (src/app/pb/backend.js); 0 until the session starts
 let unsentCounter = () => 0;
 export function setUnsentCounter(fn) { unsentCounter = typeof fn === 'function' ? fn : () => 0; }
 export const unsentCount = () => Number(unsentCounter()) || 0;

@@ -42,9 +42,11 @@ function rebuild() {
 // A shared list of the pool changed (shared.js): keep its documents and rebuild the context
 export function setShared(kind, docs) { state.shared = { ...state.shared, [kind]: docs }; rebuild(); }
 
-// How many records are not sent to the server yet (Firestore marks them hasPendingWrites)
+// How many records are not sent to the server yet: the largest of the live writes, the documents marked `_pending` (Firestore's hasPendingWrites)
+// and the backend's own queue (the PocketBase write queue, which survives a restart; spec 4 § 3.6)
 export const pendingCount = () => Math.max(ownPendingCount(),
-  Object.values(state.data).reduce((n, arr) => n + arr.filter((d) => d._pending).length, 0) + (currentProject()?._pending ? 1 : 0));
+  Object.values(state.data).reduce((n, arr) => n + arr.filter((d) => d._pending).length, 0) + (currentProject()?._pending ? 1 : 0),
+  Number(repo?.backend?.queueCount?.()) || 0);
 
 export const liveProjects = () => state.projects.filter((p) => !p.deleted && !p.archived);
 export const archivedProjects = () => state.projects.filter((p) => !p.deleted && p.archived);

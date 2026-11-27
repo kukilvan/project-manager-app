@@ -172,7 +172,7 @@ async function resolveAdmin(repo, user, quiet = false) {
 async function boot() {
   if (!memoryMode && isPocketBase()) {
     const { startPocketBase } = await import('./app/pbstart.js');
-    startPocketBase(app);
+    startPocketBase(app, { build: BUILD, device: DEVICE, standalone });
     return;
   }
   if (!memoryMode) {
