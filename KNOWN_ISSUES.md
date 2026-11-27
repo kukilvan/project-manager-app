@@ -22,7 +22,10 @@ Bugs decided not to fix now, and rare cases where the app can go wrong (source d
 | KI-7 | the translation coverage test sees string literals, not sentences built from parts (the half «catalog names show Russian in English» is fixed) | `tests/i18n-coverage.test.js` | open (catalog names fixed) | stage 7, ticket 7.7 (catalog names) |
 | KI-8 | a database with rules older than stage 6 cannot read the shared lists: no merge, no seeding, no «rules out of date» toast, empty lists in a new project | `src/app/shared.js`, `listenPool` in `src/app/repo.js`, `firestore.rules` | open | — |
 | KI-9 | the «⚠» list is one per phone, not per user: after another sign-in the previous account's refused writes show and «Повторить» sends them as the new user | `pz.rejected` in `src/app/repo.js` | fixed | stage 4, ticket 4.8 |
-| KI-10 | on the NAS copy some texts still speak of Firebase: guide lines (connect link, «Где хранятся данные», publishing rules) and the toast after a refused shared-list write | `src/app/views/guide.js`, `rejected` in `src/app/shared.js` | open | stage 4, ticket 15 (proposed) |
+| KI-10 | on the NAS copy some texts still speak of Firebase: guide lines (connect link, «Где хранятся данные», publishing rules, Drive «only its own files») and the toast after a refused shared-list write | `src/app/views/guide.js`, `rejected` in `src/app/shared.js` | open | stage 4, ticket 15 (proposed) |
+| KI-11 | after an abandoned Google redirect on iPhone, a later start runs the waiting Drive action with an expired token and goes to Google unasked | `createShell` in `src/app/shell.js` (`pz_gsync_pending`) | open | — |
+| KI-12 | on the NAS copy without a Client ID from the server, the shared client is used, and Google likely refuses the NAS address (`redirect_uri_mismatch`) | `getToken` in `src/app/google.js`, `src/app/pb/drive.js` | open | — |
+| KI-13 | on the Firebase and on-device copies the Google token stays after sign-out: another account within the hour uses the previous account's Drive | `logout` in `src/firebase.js`, `pz_gtoken` | open | — |
 
 ## Entries
 
@@ -120,9 +123,37 @@ Entry format:
 ## KI-10. Firebase texts on the NAS copy
 
 - Where: `SECTIONS` in `src/app/views/guide.js` (sections `project`, `base`); `rejected` in `src/app/shared.js`.
-- What's wrong: the NAS copy has the section «Домашний сервер», but other guide lines still describe «Ссылка для подключения», «Своя база» (Firebase) and publishing rules; a refused write of a shared list says the rules must be updated in Firebase.
+- What's wrong: the NAS copy has the section «Домашний сервер», but other guide lines still describe «Ссылка для подключения», «Своя база» (Firebase) and publishing rules; a refused write of a shared list says the rules must be updated in Firebase; «Где хранятся данные» says Google Drive access covers only the app's own files, while on the NAS copy the app asks for the whole Drive and Sheets (ticket 4.9).
 - How to reproduce: NAS build → ☰ → «📖 Как пользоваться приложением» → «Проект: создать, пригласить коллег» → «Подробнее» names the connect link, which this copy does not have.
 - Likelihood / impact: always for the guide lines, rare for the toast; a colleague may look for a button that is not there.
 - Why not fixed now: spec 4 asks for one new section only; the other lines need new texts the owner has not seen. Ticket 4.15 writes the switch-over texts.
 - Status: open
 - Found: 2026-11-27, ticket 4.8.
+
+## KI-11. A waiting Drive action runs with an expired Google token
+
+- Where: `createShell` in `src/app/shell.js`, the block that resumes `pz_gsync_pending`.
+- What's wrong: it checks that `pz_gtoken` exists, not that it is still valid. If the user left Google's page without finishing, `pz_gsync_pending` stays; the next start with an old token runs the action, `getToken` finds the token expired and sends the page to Google again.
+- How to reproduce: iPhone, at least one earlier Drive access; after an hour press a Drive button, leave Google's page without agreeing (close it and open the app from the icon). The app goes to Google by itself once its project is loaded.
+- Likelihood / impact: rare; one unexpected Google page, nothing is lost.
+- Why not fixed now: found while reading the flow in ticket 4.9, which keeps the Google flows as they are; the likely fix is `storedTokenValid()` in that check.
+- Status: open
+- Found: 2026-11-27, ticket 4.9 (reading the code, not reproduced).
+
+## KI-12. The shared-client fallback on the NAS address
+
+- Where: `getToken` in `src/app/google.js`, `createNasGoogle` in `src/app/pb/drive.js`.
+- What's wrong: without a Client ID from the server the NAS copy uses the app's shared client (spec 4 § 3.8). Its Google settings were not given the NAS address, so Google would show `redirect_uri_mismatch` instead of asking for access.
+- How to reproduce: NAS copy on a phone with no `pm.pbGoogleClient` while `auth-methods` does not answer (or has no Google provider), then a Drive button.
+- Likelihood / impact: very rare (the ID is read at every start, and signing in needs the server); Drive fails until the app is opened with the server reachable. Not checked against Google.
+- Status: open
+- Found: 2026-11-27, ticket 4.9.
+
+## KI-13. The Google token stays after sign-out
+
+- Where: `logout` in `src/firebase.js` and the on-device mode; `pz_gtoken` in `localStorage`.
+- What's wrong: signing out does not forget the Google Drive token. Another account signing in on the same device within the token's hour uses the previous account's Drive and Sheets. The NAS copy forgets it when another user signs in (ticket 4.9).
+- How to reproduce: Firebase copy: user A makes a management sheet, signs out, user B signs in and presses a Drive button within an hour: no Google question, A's Drive is used.
+- Likelihood / impact: only a device shared by two accounts; files land in or are read from the other person's Drive.
+- Status: open
+- Found: 2026-11-27, ticket 4.9 (reading the code, not reproduced).

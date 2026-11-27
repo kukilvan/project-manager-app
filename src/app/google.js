@@ -1,19 +1,20 @@
 // Access to Google Drive and Sheets on the user's behalf (on a button press, a separate consent is needed): tokens, sign-in flows and the Drive/Sheets api object.
 // Tokens live in localStorage (`pz_gtoken`, `pz_gtoken_err`, `pz_gsync_pending`); folders come from drivefolders.js; used by drawings.js, manuals.js and the screens that sync sheets and backups.
+// Client, scopes and addresses follow src/domain/googleauth.js; the NAS copy plugs in its client and user with setNasGoogle (src/app/pb/drive.js).
 import { GoogleAuthProvider, reauthenticateWithPopup, browserPopupRedirectResolver } from 'firebase/auth';
 import * as fbm from '../firebase.js';
 const auth = { get currentUser() { return fbm.auth?.currentUser || null; } };
 
 import { clientId, connection, DEFAULT_CLIENT_ID } from '../edition.js';
-// Two ways to get access to Drive:
+import { FULL_SCOPES, REDIRECT_STATE, POPUP_STATE, googleSetup, googleAuthUrl, returnAddress, driveReturn } from '../domain/googleauth.js';
+// Three ways to get access to Drive:
 //  - a database with its own OAuth client (the connection has a clientId, e.g. Ivan's database): Firebase sign-in + full access to Drive and Sheets;
+//  - the NAS copy: the owner's client from the server with the same full access, through Google's own window or redirect (no Firebase);
 //  - everything else («на устройстве» mode, new databases): the app's shared client and the narrow drive.file scope —
 //    only files created by the app. Google requires no app verification for it and shows no warnings.
-const FULL = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets'];
-const NARROW = ['https://www.googleapis.com/auth/drive.file'];
-const viaFirebase = () => !!connection()?.clientId && !!auth.currentUser;
-const scopes = () => (connection()?.clientId ? FULL : NARROW);
-const oauthClient = () => clientId() || DEFAULT_CLIENT_ID;
+let nas = null;   // the NAS copy only: { email(), clientId(), load() }
+export function setNasGoogle(account) { nas = account; }
+const viaFirebase = () => !nas && !!connection()?.clientId && !!auth.currentUser;
 let cached = { token: '', exp: 0 };
 
 export const useRedirect = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
@@ -22,14 +23,12 @@ export const useRedirect = () => /iPhone|iPad|iPod/.test(navigator.userAgent) ||
 // The sign-in window (popup) then closes itself: the token is already in the shared storage and the main window picks it up.
 export function captureTokenFromUrl() {
   try {
-    const p = new URLSearchParams(location.hash.replace(/^#/, ''));
-    const state = p.get('state');
-    if (state !== 'pz_gsync' && state !== 'pz_gpopup') return;
-    const token = p.get('access_token');
-    if (token) localStorage.setItem('pz_gtoken', JSON.stringify({ token, exp: Date.now() + (Number(p.get('expires_in')) || 3000) * 920 }));
-    else if (p.get('error')) localStorage.setItem('pz_gtoken_err', p.get('error'));
+    const back = driveReturn(location.hash);
+    if (!back) return;
+    if (back.token) localStorage.setItem('pz_gtoken', JSON.stringify({ token: back.token, exp: Date.now() + back.expiresIn * 920 }));
+    else if (back.error) localStorage.setItem('pz_gtoken_err', back.error);
     history.replaceState(null, '', location.pathname + location.search);
-    if (state === 'pz_gpopup') { try { window.close(); } catch { /* ok */ } return 'popup'; }
+    if (back.popup) { try { window.close(); } catch { /* ok */ } return 'popup'; }
   } catch { /* ok */ }
   return null;
 }
@@ -40,24 +39,25 @@ function stored() {
 }
 
 function authUrl(state) {
-  const q = new URLSearchParams({
-    client_id: oauthClient(), redirect_uri: location.origin + location.pathname, response_type: 'token', scope: scopes().join(' '),
-    include_granted_scopes: 'true', state, ...(auth.currentUser?.email ? { login_hint: auth.currentUser.email } : {}),
+  return googleAuthUrl({
+    ...googleSetup(nas ? nas.clientId() : clientId(), DEFAULT_CLIENT_ID), redirect: returnAddress(location, !!nas), state,
+    email: nas ? nas.email() : auth.currentUser?.email,
   });
-  return `https://accounts.google.com/o/oauth2/v2/auth?${q}`;
 }
 
 export async function getToken(action = 'managers') {
   if (cached.token && Date.now() < cached.exp) return cached.token;
   const st = stored(); if (st) { cached = st; return st.token; }
+  // the NAS copy's first use with no Client ID kept yet: ask the server (without an answer the shared client is used)
+  if (nas && !nas.clientId()) await nas.load();
   if (useRedirect()) { // iPhone and the app from the icon: Google windows get closed — go to Google and read the token from the address on return
     try { localStorage.setItem(PENDING, action); } catch { /* ok */ }
-    location.href = authUrl('pz_gsync');
+    location.href = authUrl(REDIRECT_STATE);
     return new Promise(() => {}); // the page goes to Google; it continues after the return
   }
   if (!viaFirebase()) return popupToken();
   const provider = new GoogleAuthProvider();
-  FULL.forEach((s) => provider.addScope(s));
+  FULL_SCOPES.forEach((s) => provider.addScope(s));
   // no prompt: 'consent' — if access is already given, Google shows no consent screen and the window closes itself
   provider.setCustomParameters({ login_hint: auth.currentUser?.email || '' });
   // the Google sign-in resolver is passed explicitly: on a fast start (no network at start) it is not attached in advance,
@@ -73,8 +73,8 @@ export async function getToken(action = 'managers') {
 // Google sign-in window without Firebase: it returns to the site with the token in the address, captureTokenFromUrl puts it into storage
 function popupToken() {
   try { localStorage.removeItem('pz_gtoken_err'); } catch { /* ok */ }
-  const w = window.open(authUrl('pz_gpopup'), 'pz_google', 'width=520,height=640');
-  if (!w) { location.href = authUrl('pz_gsync'); return new Promise(() => {}); }  // popups are blocked — go by navigation instead
+  const w = window.open(authUrl(POPUP_STATE), 'pz_google', 'width=520,height=640');
+  if (!w) { location.href = authUrl(REDIRECT_STATE); return new Promise(() => {}); }  // popups are blocked — go by navigation instead
   return new Promise((resolve, reject) => {
     const started = Date.now();
     const t = setInterval(() => {

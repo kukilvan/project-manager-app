@@ -1,14 +1,17 @@
 // NAS build start: the sign-in (src/app/pb/auth.js, src/app/pb/signin.js), then the real app on the PocketBase backend with the local copy, the write queue and the reader.
 // Loaded lazily by src/main.js only when isPocketBase() (the NAS build); absent from the GitHub Pages build (tests/pb-import.test.js). Spec 4 § 3.1–3.4.
 // Opens the local copy (src/app/pb/localcopy.js) for the signed-in user, builds the reader (src/app/pb/reader.js), the backend (src/app/pb/backend.js) and the sender
-// (src/app/pb/sender.js), then starts store.js and the shell as main.js does for Firestore, with the server screens of src/app/pb/screens.js.
+// (src/app/pb/sender.js), then starts store.js and the shell as main.js does for Firestore, with the server screens of src/app/pb/screens.js;
+// plugs the NAS client of Google Drive (src/app/pb/drive.js) into src/app/google.js.
 // `window.__pmPb` gives browser checks the sign-in state, the copy, the sender, the reader and the backend.
 import { h, toast, confirmDialog, openModal } from './ui.js';
 import { info, error } from '../log.js';
 import { createRepo } from './repo.js';
 import * as store from './store.js';
 import { createShell } from './shell.js';
-import { auth, onChange, onSignIn, startSession, resolveAdmin, signOut, setUnsentCounter, authRefresh, markExpired } from './pb/auth.js';
+import { auth, onChange, onSignIn, startSession, resolveAdmin, signOut, setUnsentCounter, authRefresh, markExpired, loadMethods } from './pb/auth.js';
+import { setNasGoogle, clearToken } from './google.js';
+import { createNasGoogle } from './pb/drive.js';
 import { getPb } from './pb/client.js';
 import { signInScreen } from './pb/signin.js';
 import { createNasScreens } from './pb/screens.js';
@@ -36,6 +39,11 @@ async function enter(app, diag, message = '') {
   await resolveAdmin();
   const user = auth.user;
   const { copy, switched } = await openLocalCopy({ uid: user.uid });
+  // Google Drive: the owner's client from the server, the user's e-mail as the hint; another user's Google access does not carry over
+  if (switched) clearToken();
+  const google = createNasGoogle({ loadMethods, email: () => auth.user?.email });
+  setNasGoogle(google);
+  google.load();
   let sender = null; let backend = null;
   const reader = createReader({
     pb: getPb(), copy, uid: () => user.uid, isAdmin: () => isAdminEmail(user.email),
@@ -66,7 +74,7 @@ async function enter(app, diag, message = '') {
   reader.onReadState((s) => { if (wasOlder && !s.serverOlder) sender.wake(); wasOlder = s.serverOlder; });
 
   const repo = createRepo(backend, user);
-  window.__pmPb = { ...window.__pmPb, copy, sender, reader, backend, repo };
+  window.__pmPb = { ...window.__pmPb, copy, sender, reader, backend, repo, google };
   store.start(repo);
   createShell({
     user,

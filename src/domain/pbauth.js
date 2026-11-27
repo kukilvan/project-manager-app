@@ -1,14 +1,16 @@
 // Sign-in rules of the NAS copy (PocketBase): the three-way start, the outcome of a token refresh, the manual code flow's address and state check, error texts and the sign-out question.
 // Pure: no browser and no SDK; src/app/pb/auth.js and src/app/pb/signin.js call it (spec 4 § 3.1, § 3.2). Errors are read in the shape of the SDK's
 // ClientResponseError: { status, isAbort, response: { message }, originalError: { name, message } }; `kind: 'no-google'` marks the app's own "no Google provider".
+import { isDriveState } from './googleauth.js';
 
 // Where the start goes: a return from Google (`?code=&state=`, or `?error=`) is finished only when its state matches the one kept in `pz.pbOauth`;
 // otherwise a saved sign-in starts at once, or the sign-in screen opens. `then` says where a failed return goes: the saved sign-in or the screen.
+// A return of the Drive flow (its own state, src/domain/googleauth.js) is not a sign-in return.
 export function startDecision({ search = '', saved = null, hasAuth = false } = {}) {
   const q = new URLSearchParams(search);
   const code = q.get('code'); const state = q.get('state'); const err = q.get('error');
   const then = hasAuth ? 'saved' : 'login';
-  if (code || err || state) {
+  if ((code || err || state) && !isDriveState(state)) {
     if (!saved || !saved.state || !state || state !== saved.state) return { kind: 'bad-state', then };
     if (err || !code) return { kind: 'oauth-error', error: err || 'code', then };
     return { kind: 'code', code, codeVerifier: saved.codeVerifier || '', redirect: saved.redirect || '', then };
