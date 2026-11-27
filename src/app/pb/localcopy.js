@@ -1,7 +1,7 @@
 // The local copy of the NAS copy: IndexedDB `pm-pb` with the stores docs, queue, meta and history, held in memory with listeners per scope.
 // Start: every store read into memory, history over 60 days dropped, another user's documents cleared, every queued item of this user replayed over the documents.
 // A queue item is written to IndexedDB in the same call that accepts it; documents, history and meta are batched (150 ms, and at `pagehide` / hidden), as in localdb.js.
-// Rules (keys, replay, counts) are pure in src/domain/pbqueue.js; src/app/pb/backend.js and src/app/pb/sender.js use it (spec 4 § 3.3, ADR 0021).
+// Rules (keys, replay, counts) are pure in src/domain/pbqueue.js; src/app/pb/backend.js and src/app/pb/sender.js use it, src/app/pb/reader.js feeds it from the server (spec 4 § 3.3, ADR 0021).
 // Without IndexedDB (or when it refuses to open) the copy lives in memory only. Tests give it a small in-memory fake of the IndexedDB calls it makes.
 import { applyOp, opTarget, scopeOf, queueCount, HISTORY_KEEP_MS } from '../../domain/pbqueue.js';
 import { info, warn, error } from '../../log.js';
@@ -183,9 +183,24 @@ export async function openLocalCopy({ uid, idb = globalThis.indexedDB, name = DB
       return [...history.entries()].filter(([k, v]) => k.startsWith(pre) && Number(v?.at) >= since).map(([, v]) => ({ ...v }))
         .sort((a, b) => b.at - a.at).slice(0, max);
     },
+    // History entries read from the server (src/app/pb/reader.js loadHistory): kept like the phone's own, within the 60 days
+    putHistory(pid, entries) {
+      const cut = now() - HISTORY_KEEP_MS;
+      (entries || []).forEach((e) => {
+        if (!e || !e.id || !(Number(e.at) >= cut)) return;
+        const id = `${pid}|${e.id}`;
+        history.set(id, json(e)); later('history', id, e);
+      });
+    },
+    // [[id, doc]] of every document whose id starts with `prefix` (a scope, or `r|<pid>|` for all records of a project)
+    entries(prefix) {
+      const out = [];
+      docs.forEach((d, id) => { if (id.startsWith(prefix)) out.push([id, { ...d }]); });
+      return out;
+    },
     getMeta: (k) => meta.get(k),
     setMeta,
-    // For the reader of ticket 06: documents from the server, grouped for 100 ms before the listeners run
+    // For the reader (src/app/pb/reader.js): documents from the server (null = removed); grouped for 100 ms before the listeners run unless `grouped: false`
     setDocs(rows, { grouped: group = true } = {}) {
       const scopes = [];
       rows.forEach(([id, d]) => { if (d === null) delDoc(id); else setDoc(id, d); scopes.push(scopeOf(id)); });

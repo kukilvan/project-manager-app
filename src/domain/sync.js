@@ -1,5 +1,6 @@
 // Pure decisions about reading from and writing to Firestore, made without touching the network: delta or full read, retention of deleted records, rejected writes, the daily write limit.
-// Used by src/app/repo.js and scripts/server-cleanup.mjs; checked by tests/domain.test.js.
+// Used by src/app/repo.js, scripts/server-cleanup.mjs and, for the delta margin and the Saturday full read of the NAS copy, src/domain/pbread.js
+// (the Firestore read and write counters stay in repo.js, Firestore only); checked by tests/domain.test.js.
 export const DELTA_MARGIN = 10 * 60 * 1000;     // margin back from the last mark, so that a record is not lost to a commit race
 // A full check once a week, on Saturday: the first app start from Saturday 00:00 re-reads everything (it also catches hard-deleted documents)
 export const lastSaturday = (now) => { const d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 1) % 7)); return d.getTime(); };

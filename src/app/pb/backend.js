@@ -1,7 +1,8 @@
 // The PocketBase backend of the repo on the NAS copy: the interface of createFirestoreBackend (src/app/repo.js) over the local copy and the write queue.
 // A write: ops from toOps (src/domain/pbwrite.js) applied to the local copy (`_pending: true`), one queue item, a promise that resolves when the item is on the server
 // and rejects when it is refused, so `track` and `onReject` of createRepo work unchanged; a refused item with no live promise (queued before a restart) goes to «⚠» here.
-// Listeners and one-off reads answer from src/app/pb/localcopy.js only; ticket 06 feeds the copy from the server, ticket 07 completes the rest (spec 4 § 3.3, § 3.4).
+// Listeners answer from src/app/pb/localcopy.js, which src/app/pb/reader.js feeds from the server; one-off reads and history go to the server through the reader
+// (`server`; without it — tests of the queue — the copy answers). Ticket 07 completes the rest (spec 4 § 3.3–3.5).
 import { toOps } from '../../domain/pbwrite.js';
 import { queueCount, PROJECTS_SCOPE, recordsScope, poolScope, INBOX_SCOPE, PREFS_SCOPE, INVITES_SCOPE } from '../../domain/pbqueue.js';
 import { noteRejected, notifyPending } from '../repo.js';
@@ -12,8 +13,8 @@ const LOCAL_KEYS = ['_pb', '_pending'];
 const bare = (d) => { if (!d || typeof d !== 'object') return d; const c = { ...d }; LOCAL_KEYS.forEach((k) => delete c[k]); return c; };
 const bareWrites = (writes) => (writes || []).map((w) => (w && w.data ? { ...w, data: bare(w.data) } : w));
 
-// opts: { copy, user, onQueued() — the sender's kick after a write }
-export function createPocketBaseBackend({ copy, user, onQueued = () => {} }) {
+// opts: { copy, user, onQueued() — the sender's kick after a write, server — { readColl, readPool, loadHistory } of src/app/pb/reader.js }
+export function createPocketBaseBackend({ copy, user, onQueued = () => {}, server = null }) {
   const live = new Map();   // seq → { resolve, reject } of the write calls of this run
 
   // One write call → one queue item; the promise settles when the sender hears from the server
@@ -33,15 +34,18 @@ export function createPocketBaseBackend({ copy, user, onQueued = () => {} }) {
     allowEmails(list) { return enqueue('allowEmails', null, list, toOps('allowEmails', null, list)); },
     saveUserPrefs(_uid, patch, replace = false) { const w = [{ data: bare(patch), replace }]; return enqueue('saveUserPrefs', null, w, toOps('saveUserPrefs', null, w)); },
     // ---- listeners: the local copy ----
+    // any scope of the copy (src/domain/pbqueue.js docId): the generic listener the specific ones below are built on
+    listenScope(scope, cb) { return copy.listen(scope, cb); },
     listenProjects(uid, cb) { return copy.listen(PROJECTS_SCOPE, (docs) => cb(docs.filter((p) => (p.memberUids || []).includes(uid)))); },
     listenColl(pid, name, cb) { return copy.listen(recordsScope(pid, name), cb); },
     listenUserPrefs(_uid, cb) { return copy.listen(PREFS_SCOPE, (docs) => cb(bare(docs[0]) || {})); },
     listenPool(kind, cb, { withDeleted = false } = {}) { return copy.listen(poolScope(kind), (docs) => cb(withDeleted ? docs : docs.filter((x) => !x.deleted))); },
     listenInbox(cb) { return copy.listen(INBOX_SCOPE, cb); },
     listenInvitations(_email, uid, cb) { return copy.listen(INVITES_SCOPE, (docs) => cb(docs.filter((p) => !(p.memberUids || []).includes(uid)))); },
-    async loadHistory(pid, since, max) { return copy.history(pid, since, max); },
-    async readColl(pid, coll) { return copy.list(recordsScope(pid, coll)); },
-    async readPool(kind) { return copy.list(poolScope(kind)); },
+    // ---- the server: history and one-off reads ----
+    async loadHistory(pid, since, max) { return server ? server.loadHistory(pid, since, max) : copy.history(pid, since, max); },
+    async readColl(pid, coll) { return server ? server.readColl(pid, coll) : copy.list(recordsScope(pid, coll)).map(bare); },
+    async readPool(kind) { return server ? server.readPool(kind) : copy.list(poolScope(kind)).map(bare); },
     // ---- the queue ----
     // «⬆ N» and the sign-out question: the non-history writes of this user in the queue
     queueCount: () => queueCount(copy.queueItems(), user.uid),

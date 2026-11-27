@@ -97,3 +97,42 @@ export async function realtime(url, token, topics) {
     close() { ctl.abort(); },
   };
 }
+
+// A minimal EventSource over fetch for Node (the SDK's realtime needs one; Node has none without a flag): named events with `data` and `lastEventId`,
+// `onerror` when the stream ends or fails, `close()`. Enough for PocketBase's SSE; tests/pb-read.test.js runs the app's reader on it.
+export class TestEventSource {
+  constructor(url) {
+    this.url = url; this.listeners = new Map(); this.onerror = null; this.closed = false;
+    this.ctl = new AbortController();
+    this.run();
+  }
+  addEventListener(name, fn) { if (!this.listeners.has(name)) this.listeners.set(name, new Set()); this.listeners.get(name).add(fn); }
+  removeEventListener(name, fn) { this.listeners.get(name)?.delete(fn); }
+  close() { this.closed = true; this.ctl.abort(); }
+  async run() {
+    try {
+      const res = await fetch(this.url, { signal: this.ctl.signal, headers: { Accept: 'text/event-stream' } });
+      if (!res.ok) throw new Error(`SSE ${res.status}`);
+      const dec = new TextDecoder();
+      let buf = '';
+      for await (const chunk of res.body) {
+        buf += dec.decode(chunk, { stream: true }).replace(/\r/g, '');
+        let i;
+        while ((i = buf.indexOf('\n\n')) >= 0) {
+          const block = buf.slice(0, i); buf = buf.slice(i + 2);
+          let event = 'message'; let data = ''; let id = '';
+          for (const line of block.split('\n')) {
+            if (line.startsWith('event:')) event = line.slice(6).trim();
+            else if (line.startsWith('data:')) data += line.slice(5).trim();
+            else if (line.startsWith('id:')) id = line.slice(3).trim();
+          }
+          const ev = { type: event, data, lastEventId: id };
+          [...(this.listeners.get(event) || [])].forEach((fn) => { try { fn(ev); } catch { /* the listener's problem */ } });
+        }
+      }
+      throw new Error('SSE stream ended');
+    } catch (e) {
+      if (!this.closed) { this.closed = true; this.onerror?.(e); }
+    }
+  }
+}
