@@ -2,6 +2,13 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-27 — Ticket 4.10: KI-8, the shared lists with old Firebase rules («Тикет 4.10»)
+
+- `deltaListen` (`src/app/repo.js`) calls `onError` for an error it does not retry; the Firestore `listenPool` passes it on; `createMemoryBackend({ poolDenied })` refuses every pool listener (`?mem=1&memPoolDenied=1`). `startShared` (`src/app/shared.js`): on `permission-denied` no merge and no seeding in this start, one toast «Общие списки не читаются…»; the PocketBase backend's `onError` (403) takes the same path.
+- Decided in the session: both «rules out of date» toasts stay 12 s (`toast(message, ms)`, one per start for the two); every toast is as wide as its text up to 90 % of the screen, a rounded box that lets taps through. The labels inside the English and Hebrew toast are the dictionaries' «📋 Copy rules» / «📋 העתק כללים» (the ticket), not the wording of the spec's text table.
+- No guide line (the toast explains itself). KI-8 fixed; KI-10 now covers the new toast on the NAS copy.
+- Tests: `tests/shared.test.js` (five `startShared` cases); 537 tests. Self-check at 420 px in test mode, Russian, English and Hebrew; the toast seen on the live site. Not checked against a real database with old rules. The owner accepted. Next: «Тикет 4.11».
+
 ## 2026-11-27 — Ticket 4.9: Google Drive and Sheets on the NAS copy («Тикет 4.9»)
 
 - `src/domain/googleauth.js` (client and scopes, authorization and return addresses, `driveReturn`, the Client ID from `auth-methods`) now serves both editions; `src/app/google.js` takes the NAS client through `setNasGoogle`; `src/app/pb/drive.js` reads the ID at every start and, with none kept, at the first use (4 s at most, so the tap can still open Google's window) and keeps it as `pm.pbGoogleClient`; a server without a Google provider forgets it.
