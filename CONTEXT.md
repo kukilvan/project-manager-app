@@ -118,7 +118,7 @@ The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. 
 
 **NAS check** (code: `tools/nas-check.mjs`) — the automated acceptance checks of the NAS copy.
 
-**NAS build** (code: `npm run build:nas` → `dist-nas/`, `VITE_BACKEND=pocketbase`, `isPocketBase()`; release by `scripts/nas-pack.mjs`) — the app built for the NAS copy: base `/`, PocketBase storage, no setup wizard or Firebase; published with the migrations, hooks and job scripts to the GitHub release `nas-build` on every push to `main` (stage 4; until the sign-in ticket its start screen is a placeholder).
+**NAS build** (code: `npm run build:nas` → `dist-nas/`, `VITE_BACKEND=pocketbase`, `isPocketBase()`; release by `scripts/nas-pack.mjs`) — the app built for the NAS copy: base `/`, PocketBase storage, no setup wizard or Firebase; published with the migrations, hooks and job scripts to the GitHub release `nas-build` on every push to `main` (stage 4; after the sign-in a placeholder with the user's e-mail until the local copy ticket).
 
 **Write route** (code: `POST /api/pm/save` in `pb/pb_hooks/pm.pb.js`, logic in `src/domain/pbwrite.js`, the PocketBase store in `pb/pb_hooks/pm/pbstore.js`) — the one way a user writes to PocketBase: ops merged like Firestore and checked against a copy of the Firestore rules in one transaction (ADR 0020).
 
