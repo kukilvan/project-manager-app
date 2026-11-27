@@ -1,0 +1,22 @@
+{
+  "at": "2026-11-18T08:30:00.000Z",
+  "projects": [
+    {
+      "id": "p1",
+      "name": "Alpha / Тест",
+      "counts": {
+        "catalog": 2,
+        "days": 1,
+        "history": 2,
+        "points": 3
+      }
+    },
+    {
+      "id": "p3",
+      "name": "Beta",
+      "counts": {
+        "points": 1
+      }
+    }
+  ]
+}

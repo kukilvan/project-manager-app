@@ -1,5 +1,7 @@
 // Server-side logic of the nightly auto-update of the management sheets, the rack table and the «PDF с номерами» drawings (GitHub Actions).
-// It makes no network calls itself: Drive and Sheets go through the `api` object, so tests can check it. `shared` — the pool's shared lists read once per run (ADR 0016). Called by server-tables.mjs; uses src/domain, src/app/managers.js, src/app/racktablecore.js and src/tohnit/numbered.js.
+// It makes no network calls itself: Drive and Sheets go through the `api` object and the project data through a job source (scripts/fs-source.mjs, scripts/pb-source.mjs),
+// so tests can check it. `shared` — the pool's shared lists read once per run (ADR 0016). Called by server-tables.mjs (runTables) and the job sources (the list patches);
+// uses src/domain, src/app/managers.js, src/app/racktablecore.js and src/tohnit/numbered.js.
 import { buildContext, tablesOf, numberedInput, numberedHash } from '../src/domain/index.js';
 import { numberedPdf } from '../src/tohnit/numbered.js';
 import { syncTable } from '../src/app/managers.js';
@@ -85,5 +87,65 @@ export const applyDrawingPatches = (project, patches) => (project.drawings || []
 
 // Applies the patches to the fresh version of the table list (the app may have changed it while the job ran)
 export const applyPatches = (project, patches) => tablesOf(project).map((t) => (patches[t.id] ? { ...t, ...patches[t.id] } : t));
+
+// ---------- the night run over a job source (scripts/fs-source.mjs or scripts/pb-source.mjs) ----------
+// the tables need `problemMarks` (red rows, the «Проблема» column) but not the change history (history), to-dos or notes: those are not read, to save the read quota
+export const NEED = ['points', 'days', 'entries', 'journal', 'catalog', 'types', 'cables', 'devices', 'configs', 'units', 'culprits', 'delayReasons', 'cabinetSettings', 'problemMarks'];
+// shared lists of the pool read once per run (ADR 0016); a missing collection is empty, so the sheets show names from the old project lists
+export const SHARED = ['delayReasons', 'problems'];
+
+// Every active project: «PDF с номерами», the rack table, the management sheets; the results written back into the project through the source.
+// api: Drive and Sheets (server-tables.mjs); serverEmail: the Google service account the app shares the table files with; loadMupdf() → MuPDF, loaded
+// only when a drawing needs it. Returns the number of failures (each printed as a GitHub annotation).
+export async function runTables(source, api, { now = new Date(), full = false, serverEmail = '', loadMupdf, log = console.log } = {}) {
+  let failed = 0; let mupdf = null;
+  // errors are printed as GitHub annotations (visible in the run summary and through the API)
+  const fail = (m, e) => { log(`::error::${m}: ${String(e?.stack || e).replace(/\n/g, ' | ')}`); failed += 1; };
+  const say = (project, report) => report.forEach((l) => log(l.includes('ОШИБКА') ? `::warning::${project.name}: ${l}` : `  - ${l}`));
+  try {
+    // Whether to read the project at all: if nothing changed since the last successful update and there are no errors, skip it
+    // (one «anything changed» query per collection instead of reading every document). Every 3 days a full update runs, for reliability.
+    const changedSince = async (id, p) => {
+      const since = p.serverTablesAt ? Date.parse(p.serverTablesAt) : 0;
+      if (full || !since || now - since > 3 * 864e5) return true;
+      if (Number(p.updatedAt) > since - 60e3) return true;
+      if ((p.tables || []).some((t) => t.serverError) || p.rackTable?.serverError || (p.drawings || []).some((d) => d.numberedError)) return true;
+      if (Object.values(p.managers?.drawings || {}).some((m) => m?.error)) return true;
+      // a fixed Hebrew name in a shared list reaches the sheets the same night
+      return source.changedSince(id, NEED, SHARED, since - 30 * 60e3);
+    };
+    const shared = {};
+    for (const kind of SHARED) shared[kind] = await source.readPool(kind);
+    for (const id of await source.projectIds()) {
+      const head = (await source.head(id)) || {};
+      if (isDeleted(head) || head.archived) continue;
+      if (!(await changedSince(id, head))) { log(`  - ${head.name}: без изменений с прошлого раза — пропущен`); continue; }
+      const { project, data } = await source.readProject(id, NEED);
+      if (isDeleted(project) || project.archived) continue; // archived projects are not updated
+      // the server's address goes into the project: the app will share the table files with it
+      await source.setProject(id, { serverEmail });
+      // «PDF с номерами» on Drive
+      if ((project.drawings || []).some((d) => (d.numberedFileId || project.managers?.drawings?.[d.id]?.fileId) && !d.deleted)) {
+        mupdf ??= await loadMupdf();
+        const { patches, mgrPatches, report } = await updateProjectNumbered(api, mupdf, project, data, now, shared);
+        if (Object.keys(patches).length || Object.keys(mgrPatches).length) await source.patchProject(id, { drawings: patches, managers: mgrPatches });
+        say(project, report);
+      }
+      // the racks and labels table for management
+      {
+        const { patch, report } = await updateProjectRackTable(api, project, data, now, shared);
+        if (patch) await source.patchProject(id, { rackTable: patch });
+        say(project, report);
+      }
+      if (!autoTables(project).length) { await source.setProject(id, { serverTablesAt: now.toISOString() }); log(`${project.name}: нет таблиц для автообновления`); continue; }
+      const { patches, report } = await updateProjectTables(api, project, data, now, shared);
+      await source.patchProject(id, { tables: patches });
+      await source.setProject(id, { serverTablesAt: now.toISOString() });
+      log(`${project.name}:`);
+      say(project, report);
+    }
+  } catch (e) { fail('Общий сбой', e); }
+  return failed;
+}
 
 export { isDeleted };

@@ -1,0 +1,6 @@
+exit 0
+Пропущен удалённый проект: Old
+::notice::Общее: allowed 2, meta 1, pool_delayReasons 1, pool_inbox 1, pool_problems 1, pool_types 1, настройки 1
+::notice::Скопировано проектов: 2. Прочитано документов из базы: 21. Удалено старых копий: 0.
+::notice::Alpha / Тест: catalog 2, days 1, history 2, points 3
+::notice::Beta: points 1

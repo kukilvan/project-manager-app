@@ -1,5 +1,5 @@
-// Reading rules of the NAS copy: a PocketBase record → the app's document in the local copy, read marks, the delta and page filters, the rollback check, full-read replacement and the event-apply rule.
-// Pure: no browser, no network; src/app/pb/reader.js calls it (spec 4 § 3.5, ADR 0021). Keys and the replay of queued ops come from src/domain/pbqueue.js,
+// Reading rules of the NAS copy: record → document, read marks, delta and page filters, the rollback check, full-read replacement, event-apply, and the export to the backup format.
+// Pure: no browser, no network; src/app/pb/reader.js calls it (spec 4 § 3.5, ADR 0021), the job source scripts/pb-source.mjs its export part (§ 5.2). Keys and the replay of queued ops come from src/domain/pbqueue.js,
 // the delta margin and the Saturday decision from src/domain/sync.js. Checked by tests/pbread.test.js.
 //
 // Contents:
@@ -9,6 +9,7 @@
 // - filters — quote, pageFilter, deltaSince, nextAfter
 // - decisions — readMode, rolledBack, shouldApply, serverVersion, fullReadRemovals, dropsEveryProject, queuedIds, orphanRecords
 // - invitations and history — invitationsOf, mergeHistory
+// - export to the backup format — EXPORT_SOURCE, serverStamp, exportDoc, exportProject, exportCommon
 import { docId, opTarget, replayOps } from './pbqueue.js';
 import { DELTA_MARGIN, decideMode } from './sync.js';
 
@@ -174,4 +175,56 @@ export function mergeHistory(server, local, max = Infinity) {
   (local || []).forEach(put);
   (server || []).forEach(put);
   return [...by.values()].sort((a, b) => (Number(b.at) || 0) - (Number(a.at) || 0)).slice(0, max);
+}
+
+// ---------- export to the backup format (the jobs, spec 4 § 5.2) ----------
+
+// The marker of a PocketBase export in a project's full copy file; a Firestore export has no `source`
+export const EXPORT_SOURCE = 'pocketbase';
+// Firestore's document id for an app id (`docKey` of src/app/repo.js): the order of a Firestore read, which the export keeps
+const fsKey = (key) => String(key).replace(/\//g, '_');
+const byFsKey = (a, b) => { const x = fsKey(a.key); const y = fsKey(b.key); return x < y ? -1 : x > y ? 1 : 0; };
+
+// `updated` of a record → Firestore's timestamp as a backup stores it ({_seconds, _nanoseconds}); null without a time
+export function serverStamp(updated) {
+  const ms = pbMs(updated);
+  if (!ms) return null;
+  return { _seconds: Math.floor(ms / 1000), _nanoseconds: (ms % 1000) * 1e6 };
+}
+// One exported document: `{id: key, ...data}` as a Firestore read gives `{id: d.id, ...d.data()}` (an `id` inside the data wins), with
+// `updatedAtServer` from `updated` as the last key
+export function exportDoc(key, data, updated) {
+  const out = Object.assign({ id: key }, isObj(data) ? data : {});
+  delete out.updatedAtServer;
+  const ts = serverStamp(updated);
+  if (ts) out.updatedAtServer = ts;
+  return out;
+}
+// A project of the export: { project, data } from its `projects` record, its `records` and `history` records (each as the server lists them).
+// `data[coll]` is ordered as a Firestore read orders documents; collections by name; history is the collection `history`.
+export function exportProject(projectRec, records, history) {
+  const project = exportDoc(projectRec.key, projectRec.data, projectRec.updated);
+  const groups = {};
+  (records || []).forEach((r) => { if (r && r.coll && r.key) (groups[r.coll] = groups[r.coll] || []).push(r); });
+  if ((history || []).length) groups.history = history.filter((h) => h && h.key);
+  const data = {};
+  Object.keys(groups).sort().forEach((c) => { data[c] = groups[c].slice().sort(byFsKey).map((r) => exportDoc(r.key, r.data, r.updated)); });
+  return { project, data };
+}
+// The common file of the export (`polevoy-common-1`) from the server's common collections, as server-backup-lib.mjs readCommon() gives it from Firestore:
+// `pool_<kind>` and `pool_inbox` documents with `updatedAtServer`, `allowed` as {id: email, email, at}, `meta` with `admin` ({id: 'admin', email, at}),
+// prefs as {uid, id: 'main', data}. Empty collections are left out (Firestore lists only collections that hold documents); keys sorted by name.
+// c = { pool: [records], inbox: [records], allowed: [records], admin: [records], prefs: [records] }
+export function exportCommon(c) {
+  const colls = {};
+  const put = (name, doc) => { (colls[name] = colls[name] || []).push(doc); };
+  (c.pool || []).slice().sort(byFsKey).forEach((r) => { if (r.kind && r.key) put(`pool_${r.kind}`, exportDoc(r.key, r.data, r.updated)); });
+  (c.inbox || []).slice().sort(byFsKey).forEach((r) => { if (r.key) put('pool_inbox', exportDoc(r.key, r.data, r.updated)); });
+  (c.allowed || []).slice().sort((a, b) => (a.email < b.email ? -1 : a.email > b.email ? 1 : 0))
+    .forEach((r) => { if (r.email) put('allowed', { id: r.email, email: r.email, at: pbMs(r.created) }); });
+  (c.admin || []).forEach((r) => { if (r.email) put('meta', { id: 'admin', email: r.email, at: pbMs(r.created) }); });
+  const collections = {};
+  Object.keys(colls).sort().forEach((k) => { collections[k] = colls[k]; });
+  const prefs = (c.prefs || []).filter((r) => r && r.user).map((r) => ({ uid: r.user, id: 'main', data: isObj(r.data) ? r.data : {} }));
+  return { format: 'polevoy-common-1', collections, prefs };
 }

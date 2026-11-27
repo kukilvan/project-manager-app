@@ -33,3 +33,9 @@ One program for the NAS agent: the daily backup (export, git push, cleanup, the 
 ## Owner check
 
 Nothing on the site changes. The NAS project runs the runner at its stage 13 (when the owner says); until then the session's report states what was proven locally and what only the NAS shows (GitHub and Google calls with the real files).
+
+## Notes from ticket 11
+
+- The three job scripts already run on PocketBase with `PM_SOURCE=pocketbase`: `scripts/job-source.mjs` reads `PB_URL` (default `http://pocketbase:8090`), `PB_JOBS_EMAIL`, the password from `PB_JOBS_PASSWORD` or `<PM_SECRETS>/pb_jobs_password`, and the Google account from `GOOGLE_SERVICE_ACCOUNT` or `<PM_SECRETS>/google_service_account.json` (`PM_SECRETS` default `/run/secrets`); a missing one is a `SetupError` with a one-line Russian reason. The runner can call `runServerBackup`, `runCleanup` (`scripts/server-backup-lib.mjs`) and `runTables` (`scripts/server-tables-lib.mjs`) in-process with the source of `openSource()` instead of spawning the scripts.
+- `server-tables.mjs` still imports `google-auth-library` statically and `mupdf` on demand: both must be in `nas-jobs.zip` (point 4). `server-backup.mjs` and `server-cleanup.mjs` on PocketBase need no package at all.
+- `server-drive-backup.mjs` still takes the key from `FIREBASE_SERVICE_ACCOUNT` and zips with the `zip` command; the runner's Drive step needs the Google account from the secrets file and a zip without the command (`scripts/zip-lib.mjs`).

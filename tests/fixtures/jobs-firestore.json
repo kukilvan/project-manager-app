@@ -1,0 +1,311 @@
+{
+ "runs": [
+  "2026-11-18T08:30:00.000Z",
+  "2026-11-20T08:30:00.000Z"
+ ],
+ "state": {
+  "projects": {
+   "p1": {
+    "data": {
+     "id": "p1",
+     "name": "Alpha / Тест",
+     "object": "Mega Or",
+     "memberUids": [
+      "u1"
+     ],
+     "memberEmails": [
+      "a@x.com"
+     ],
+     "createdBy": "u1",
+     "updatedAt": 1794817800000,
+     "updatedAtServer": {
+      "_seconds": 1794817800,
+      "_nanoseconds": 123000000
+     },
+     "tables": [
+      {
+       "id": "t1",
+       "name": "Main",
+       "main": true,
+       "fileId": "F1",
+       "auto": true
+      }
+     ],
+     "drawings": [
+      {
+       "id": "d1",
+       "name": "A.pdf"
+      }
+     ]
+    },
+    "subs": {
+     "points": {
+      "a": {
+       "data": {
+        "id": "a",
+        "label": "1A-01",
+        "type": "Камера",
+        "updatedAtServer": {
+         "_seconds": 1794731400,
+         "_nanoseconds": 0
+        }
+       }
+      },
+      "b": {
+       "data": {
+        "id": "b",
+        "label": "1A-02",
+        "deleted": true,
+        "deletedAt": 1760430600000,
+        "updatedAtServer": {
+         "_seconds": 1760430600,
+         "_nanoseconds": 0
+        }
+       }
+      },
+      "c": {
+       "data": {
+        "id": "c",
+        "label": "1A-03",
+        "deleted": true,
+        "deletedAt": 1794126600000,
+        "updatedAtServer": {
+         "_seconds": 1794126600,
+         "_nanoseconds": 0
+        }
+       }
+      }
+     },
+     "history": {
+      "h0": {
+       "data": {
+        "id": "h0",
+        "at": 1751790600000,
+        "action": "edit",
+        "by": "u1",
+        "updatedAtServer": {
+         "_seconds": 1751790600,
+         "_nanoseconds": 0
+        }
+       }
+      },
+      "h1": {
+       "data": {
+        "id": "h1",
+        "at": 1794817800000,
+        "action": "edit",
+        "by": "u1",
+        "updatedAtServer": {
+         "_seconds": 1794817800,
+         "_nanoseconds": 0
+        }
+       }
+      }
+     },
+     "catalog": {
+      "PR_PTS": {
+       "data": {
+        "id": "PR_PTS",
+        "name": "Протяжка",
+        "updatedAtServer": {
+         "_seconds": 1794558600,
+         "_nanoseconds": 0
+        }
+       }
+      },
+      "К_2": {
+       "data": {
+        "id": "К/2",
+        "name": "Кабель 2",
+        "updatedAtServer": {
+         "_seconds": 1794558600,
+         "_nanoseconds": 0
+        }
+       }
+      }
+     },
+     "days": {
+      "2026-11-16": {
+       "data": {
+        "id": "2026-11-16",
+        "note": "ok",
+        "updatedAtServer": {
+         "_seconds": 1794817800,
+         "_nanoseconds": 0
+        }
+       }
+      }
+     }
+    }
+   },
+   "p2": {
+    "data": {
+     "id": "p2",
+     "name": "Old",
+     "memberUids": [
+      "u1"
+     ],
+     "deleted": true,
+     "deletedAt": 1760430600000,
+     "updatedAtServer": {
+      "_seconds": 1760430600,
+      "_nanoseconds": 0
+     }
+    },
+    "subs": {
+     "points": {
+      "x": {
+       "data": {
+        "id": "x",
+        "label": "X-1",
+        "updatedAtServer": {
+         "_seconds": 1760344200,
+         "_nanoseconds": 0
+        }
+       }
+      }
+     }
+    }
+   },
+   "p3": {
+    "data": {
+     "id": "p3",
+     "name": "Beta",
+     "memberUids": [
+      "u1",
+      "u2"
+     ],
+     "archived": true,
+     "updatedAt": 1793262600000,
+     "updatedAtServer": {
+      "_seconds": 1793262600,
+      "_nanoseconds": 0
+     }
+    },
+    "subs": {
+     "points": {
+      "y": {
+       "data": {
+        "id": "y",
+        "label": "Y-1",
+        "updatedAtServer": {
+         "_seconds": 1793262600,
+         "_nanoseconds": 0
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "pool_types": {
+   "Камера": {
+    "data": {
+     "id": "Камера",
+     "nameHe": "מצלמה",
+     "updatedAtServer": {
+      "_seconds": 1794213000,
+      "_nanoseconds": 0
+     }
+    }
+   }
+  },
+  "pool_delayReasons": {
+   "r1": {
+    "data": {
+     "id": "r1",
+     "name": "Дождь",
+     "nameHe": "גשם",
+     "updatedAtServer": {
+      "_seconds": 1794213000,
+      "_nanoseconds": 0
+     }
+    }
+   }
+  },
+  "pool_problems": {
+   "q1": {
+    "data": {
+     "id": "q1",
+     "name": "Нет доступа",
+     "updatedAtServer": {
+      "_seconds": 1794213000,
+      "_nanoseconds": 0
+     }
+    }
+   }
+  },
+  "pool_inbox": {
+   "types|Камера": {
+    "data": {
+     "status": "new",
+     "kind": "types",
+     "updatedAtServer": {
+      "_seconds": 1794299400,
+      "_nanoseconds": 0
+     }
+    }
+   }
+  },
+  "allowed": {
+   "a@x.com": {
+    "data": {
+     "email": "a@x.com",
+     "at": 1792398600000
+    }
+   },
+   "b@x.com": {
+    "data": {
+     "email": "b@x.com",
+     "at": 1792485000000
+    }
+   }
+  },
+  "meta": {
+   "admin": {
+    "data": {
+     "email": "a@x.com",
+     "at": 1789806600000
+    }
+   }
+  },
+  "users": {
+   "u1": {
+    "subs": {
+     "prefs": {
+      "main": {
+       "data": {
+        "dictWords": [
+         "кабель"
+        ]
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "changes": [
+  {
+   "path": "projects/p1/points/a",
+   "data": {
+    "label": "1A-01b",
+    "updatedAtServer": {
+     "_seconds": 1795077000,
+     "_nanoseconds": 0
+    }
+   }
+  },
+  {
+   "path": "projects/p1/points/d",
+   "data": {
+    "id": "d",
+    "label": "1A-04",
+    "updatedAtServer": {
+     "_seconds": 1795077000,
+     "_nanoseconds": 0
+    }
+   }
+  }
+ ]
+}

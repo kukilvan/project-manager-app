@@ -1,12 +1,14 @@
 // Tests of the NAS copy's reading (spec 4 § 3.5, § 10 cases 3, 7, 9, 12, 13, 24, 25, § 11; ticket 4.6): the pure rules of src/domain/pbread.js (record → document,
 // marks, the delta and page filters, the rollback check, full-read replacement keeping queued documents, the event-apply order, a server version with queued ops on top)
 // and the reader of src/app/pb/reader.js over the real local copy (memory only) with a small fake of the SDK client; ticket 4.7 adds the invitation filter,
-// the history merge, orphaned records, the 403 → onRefused rule and the full read of a project accepted on this phone. The real server: tests/pb-read.test.js.
+// the history merge, orphaned records, the 403 → onRefused rule and the full read of a project accepted on this phone; ticket 4.11 the export shape of the jobs
+// (`updatedAtServer` timestamps, `source`, `allowed`, `meta` and `prefs`). The real server: tests/pb-read.test.js, tests/pb-jobs.test.js.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   recordToDoc, projectKeyMap, pbTime, pbMs, newestOf, pageFilter, nextAfter, deltaSince, readMode, rolledBack, shouldApply,
   serverVersion, fullReadRemovals, dropsEveryProject, queuedIds, PAGE_SIZE, PREFIX, recordsPrefix, invitationsOf, mergeHistory, orphanRecords,
+  serverStamp, exportDoc, exportProject, exportCommon, EXPORT_SOURCE,
 } from '../src/domain/pbread.js';
 import { DELTA_MARGIN, lastSaturday } from '../src/domain/sync.js';
 import { toOps } from '../src/domain/pbwrite.js';
@@ -518,4 +520,52 @@ test('reader: records of a project no longer in the copy are swept at the projec
   s.pb.connect(); await s.reader.idle();
   assert.deepEqual(ids(s.copy, 'r|'), []);
   s.reader.stop();
+});
+
+// ---------- export to the backup format (ticket 4.11, spec 4 § 5.2) ----------
+
+test('export: updated → Firestore timestamp {_seconds, _nanoseconds}; no time → no updatedAtServer', () => {
+  assert.deepEqual(serverStamp('2026-11-27 10:20:30.123Z'), { _seconds: Date.parse('2026-11-27T10:20:30Z') / 1000, _nanoseconds: 123000000 });
+  assert.equal(serverStamp(''), null);
+  assert.deepEqual(exportDoc('k', { a: 1, updatedAtServer: { x: 1 } }, ''), { id: 'k', a: 1 });
+  assert.equal(EXPORT_SOURCE, 'pocketbase');
+});
+
+test('export: a document is {id: key, ...data} — an id inside the data wins, as a Firestore read gives it — with updatedAtServer last', () => {
+  const d = exportDoc('К_2', { id: 'К/2', name: 'Кабель' }, '2026-11-27 10:20:30.000Z');
+  assert.equal(d.id, 'К/2');
+  assert.deepEqual(Object.keys(d), ['id', 'name', 'updatedAtServer']);
+  assert.deepEqual(exportDoc('types|Камера', { status: 'new' }, '2026-11-27 10:20:30.000Z').id, 'types|Камера');
+});
+
+test('export: a project groups records by collection in Firestore id order, history among them; the project carries its own stamp', () => {
+  const u = '2026-11-27 10:00:00.000Z';
+  const p = exportProject({ key: 'p1', data: { id: 'p1', name: 'X' }, updated: u },
+    [{ coll: 'points', key: 'b', data: { id: 'b' }, updated: u }, { coll: 'catalog', key: 'К/2', data: { id: 'К/2' }, updated: u },
+      { coll: 'catalog', key: 'PR_PTS', data: { id: 'PR_PTS' }, updated: u }, { coll: 'points', key: 'a', data: { id: 'a' }, updated: u }],
+    [{ key: 'h2', data: { id: 'h2', at: 2 }, updated: u }, { key: 'h1', data: { id: 'h1', at: 1 }, updated: u }]);
+  assert.deepEqual(p.project, { id: 'p1', name: 'X', updatedAtServer: serverStamp(u) });
+  assert.deepEqual(Object.keys(p.data), ['catalog', 'history', 'points']);
+  assert.deepEqual(p.data.catalog.map((d) => d.id), ['PR_PTS', 'К/2']);
+  assert.deepEqual(p.data.points.map((d) => d.id), ['a', 'b']);
+  assert.deepEqual(p.data.history.map((d) => d.id), ['h1', 'h2']);
+  assert.deepEqual(exportProject({ key: 'p2', data: {}, updated: u }, [], []).data, {});
+});
+
+test('export: the common file — pool_<kind>, pool_inbox, allowed {id: email, email, at}, meta admin, prefs {uid, id: main, data}; empty lists left out', () => {
+  const u = '2026-11-27 10:00:00.000Z'; const c = '2026-11-01 08:00:00.000Z';
+  const out = exportCommon({
+    pool: [{ kind: 'types', key: 'Камера', data: { id: 'Камера' }, updated: u }, { kind: 'delayReasons', key: 'r1', data: { id: 'r1' }, updated: u }],
+    inbox: [{ key: 'types|Камера', data: { status: 'new' }, updated: u }],
+    allowed: [{ email: 'b@x.com', created: c }, { email: 'a@x.com', created: c }],
+    admin: [{ slot: 'admin', email: 'a@x.com', created: c }],
+    prefs: [{ user: 'u1', data: { dictWords: ['x'] } }],
+  });
+  assert.equal(out.format, 'polevoy-common-1');
+  assert.deepEqual(Object.keys(out.collections), ['allowed', 'meta', 'pool_delayReasons', 'pool_inbox', 'pool_types']);
+  assert.deepEqual(out.collections.allowed, [{ id: 'a@x.com', email: 'a@x.com', at: Date.parse('2026-11-01T08:00:00Z') }, { id: 'b@x.com', email: 'b@x.com', at: Date.parse('2026-11-01T08:00:00Z') }]);
+  assert.deepEqual(out.collections.meta, [{ id: 'admin', email: 'a@x.com', at: Date.parse('2026-11-01T08:00:00Z') }]);
+  assert.deepEqual(out.collections.pool_inbox, [{ id: 'types|Камера', status: 'new', updatedAtServer: serverStamp(u) }]);
+  assert.deepEqual(out.prefs, [{ uid: 'u1', id: 'main', data: { dictWords: ['x'] } }]);
+  assert.deepEqual(exportCommon({}), { format: 'polevoy-common-1', collections: {}, prefs: [] });
 });

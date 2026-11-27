@@ -1,0 +1,210 @@
+{
+ "projects/p1": {
+  "id": "p1",
+  "name": "Alpha / Тест",
+  "object": "Mega Or",
+  "memberUids": [
+   "u1"
+  ],
+  "memberEmails": [
+   "a@x.com"
+  ],
+  "createdBy": "u1",
+  "updatedAt": 1794817800000,
+  "updatedAtServer": {
+   "_seconds": 1794817800,
+   "_nanoseconds": 123000000
+  },
+  "tables": [
+   {
+    "id": "t1",
+    "name": "Main",
+    "main": true,
+    "fileId": "F1",
+    "auto": true
+   }
+  ],
+  "drawings": [
+   {
+    "id": "d1",
+    "name": "A.pdf"
+   }
+  ],
+  "serverBackupAt": "2026-11-20T08:30:00.000Z"
+ },
+ "projects/p1/points/a": {
+  "id": "a",
+  "label": "1A-01b",
+  "type": "Камера",
+  "updatedAtServer": {
+   "_seconds": 1795077000,
+   "_nanoseconds": 0
+  }
+ },
+ "projects/p1/points/b": {
+  "id": "b",
+  "label": "1A-02",
+  "deleted": true,
+  "deletedAt": 1760430600000,
+  "updatedAtServer": {
+   "_seconds": 1760430600,
+   "_nanoseconds": 0
+  }
+ },
+ "projects/p1/points/c": {
+  "id": "c",
+  "label": "1A-03",
+  "deleted": true,
+  "deletedAt": 1794126600000,
+  "updatedAtServer": {
+   "_seconds": 1794126600,
+   "_nanoseconds": 0
+  }
+ },
+ "projects/p1/points/d": {
+  "id": "d",
+  "label": "1A-04",
+  "updatedAtServer": {
+   "_seconds": 1795077000,
+   "_nanoseconds": 0
+  }
+ },
+ "projects/p1/history/h0": {
+  "id": "h0",
+  "at": 1751790600000,
+  "action": "edit",
+  "by": "u1",
+  "updatedAtServer": {
+   "_seconds": 1751790600,
+   "_nanoseconds": 0
+  }
+ },
+ "projects/p1/history/h1": {
+  "id": "h1",
+  "at": 1794817800000,
+  "action": "edit",
+  "by": "u1",
+  "updatedAtServer": {
+   "_seconds": 1794817800,
+   "_nanoseconds": 0
+  }
+ },
+ "projects/p1/catalog/PR_PTS": {
+  "id": "PR_PTS",
+  "name": "Протяжка",
+  "updatedAtServer": {
+   "_seconds": 1794558600,
+   "_nanoseconds": 0
+  }
+ },
+ "projects/p1/catalog/К_2": {
+  "id": "К/2",
+  "name": "Кабель 2",
+  "updatedAtServer": {
+   "_seconds": 1794558600,
+   "_nanoseconds": 0
+  }
+ },
+ "projects/p1/days/2026-11-16": {
+  "id": "2026-11-16",
+  "note": "ok",
+  "updatedAtServer": {
+   "_seconds": 1794817800,
+   "_nanoseconds": 0
+  }
+ },
+ "projects/p2": {
+  "id": "p2",
+  "name": "Old",
+  "memberUids": [
+   "u1"
+  ],
+  "deleted": true,
+  "deletedAt": 1760430600000,
+  "updatedAtServer": {
+   "_seconds": 1760430600,
+   "_nanoseconds": 0
+  }
+ },
+ "projects/p2/points/x": {
+  "id": "x",
+  "label": "X-1",
+  "updatedAtServer": {
+   "_seconds": 1760344200,
+   "_nanoseconds": 0
+  }
+ },
+ "projects/p3": {
+  "id": "p3",
+  "name": "Beta",
+  "memberUids": [
+   "u1",
+   "u2"
+  ],
+  "archived": true,
+  "updatedAt": 1793262600000,
+  "updatedAtServer": {
+   "_seconds": 1793262600,
+   "_nanoseconds": 0
+  },
+  "serverBackupAt": "2026-11-20T08:30:00.000Z"
+ },
+ "projects/p3/points/y": {
+  "id": "y",
+  "label": "Y-1",
+  "updatedAtServer": {
+   "_seconds": 1793262600,
+   "_nanoseconds": 0
+  }
+ },
+ "pool_types/Камера": {
+  "id": "Камера",
+  "nameHe": "מצלמה",
+  "updatedAtServer": {
+   "_seconds": 1794213000,
+   "_nanoseconds": 0
+  }
+ },
+ "pool_delayReasons/r1": {
+  "id": "r1",
+  "name": "Дождь",
+  "nameHe": "גשם",
+  "updatedAtServer": {
+   "_seconds": 1794213000,
+   "_nanoseconds": 0
+  }
+ },
+ "pool_problems/q1": {
+  "id": "q1",
+  "name": "Нет доступа",
+  "updatedAtServer": {
+   "_seconds": 1794213000,
+   "_nanoseconds": 0
+  }
+ },
+ "pool_inbox/types|Камера": {
+  "status": "new",
+  "kind": "types",
+  "updatedAtServer": {
+   "_seconds": 1794299400,
+   "_nanoseconds": 0
+  }
+ },
+ "allowed/a@x.com": {
+  "email": "a@x.com",
+  "at": 1792398600000
+ },
+ "allowed/b@x.com": {
+  "email": "b@x.com",
+  "at": 1792485000000
+ },
+ "meta/admin": {
+  "email": "a@x.com",
+  "at": 1789806600000
+ },
+ "users/u1/prefs/main": {
+  "dictWords": [
+   "кабель"
+  ]
+ }
+}

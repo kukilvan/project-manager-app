@@ -43,17 +43,20 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 <!-- code-map:start (built by tools/code-map.mjs from the header comments; do not edit by hand) -->
 - `scripts/build-nas.mjs` — NAS build: runs Vite for the NAS copy with base `/` and `VITE_BACKEND=pocketbase` into dist-nas/ (`npm run build:nas`).
 - `scripts/export-pool.mjs` — Starter set for the open edition: a copy of the shared pool (types, devices, cables, works, door configurations, shared lists) without service fields.
+- `scripts/fs-source.mjs` — The Firestore job source: today's reads and writes of the server jobs (backup, cleanup, night sheets) behind the source interface that scripts/pb-source.mjs also implements (spec 4 § 5.2).
 - `scripts/i18n-build.mjs` — Builds the translation dictionaries: src/i18n/src/*.json ({ "<Russian text>": ["English", "Hebrew"] }) → src/i18n/en.json and he.json.
 - `scripts/i18n-extract.mjs` — Collects every Russian UI string (strings and `…${x}…` templates in src) for the translation dictionaries and the coverage test.
+- `scripts/job-source.mjs` — Picks the data source of the server jobs (spec 4 § 5.2): PM_SOURCE=pocketbase → scripts/pb-source.mjs (the NAS), anything else → scripts/fs-source.mjs (Firestore, GitHub Actions, as before).
 - `scripts/nas-pack.mjs` — NAS release packer: makes the four files of the GitHub release `nas-build` — nas-site.zip, nas-pb.zip, nas-jobs.zip and the manifest nas-site.json.
 - `scripts/pb-hooks-build.mjs` — Generates PocketBase's copy of the write semantics: src/domain/pbwrite.js → pb/pb_hooks/pm/pbwrite.js (ESM `export` turned into `module.exports`).
-- `scripts/server-backup-lib.mjs` — Server backup logic: reading projects from Firestore, writing the backup folders and planning a restore.
-- `scripts/server-backup.mjs` — Server backup run by GitHub Actions every 2 days: copies all projects from Firestore into a folder that the workflow then commits to the private backup repo.
+- `scripts/pb-source.mjs` — The PocketBase job source: the server jobs' reads and writes on the NAS over HTTP as the `jobs` superuser.
+- `scripts/server-backup-lib.mjs` — Server backup logic: the backup run and the cleanup run over a job source, reading projects from Firestore, writing the backup folders and planning a restore.
+- `scripts/server-backup.mjs` — Server backup: copies all projects into a new folder that the caller then commits to the private backup repo.
 - `scripts/server-cleanup.mjs` — Server cleanup: permanently deletes what has been marked deleted for over a year (records, whole projects) and change-history entries older than a year.
 - `scripts/server-drive-backup.mjs` — Backup copy outside GitHub: zips the newest auto-backup folder and uploads it to the owner's Google Drive.
 - `scripts/server-restore.mjs` — Restores a database from a server backup (a folder like 2026-10-23_0830 from the polevoy-backups repo) into an EMPTY Firebase project.
 - `scripts/server-tables-lib.mjs` — Server-side logic of the nightly auto-update of the management sheets, the rack table and the «PDF с номерами» drawings (GitHub Actions).
-- `scripts/server-tables.mjs` — Nightly server run (GitHub Actions) that refreshes the management sheets, the rack table and the «PDF с номерами» drawings of every active project.
+- `scripts/server-tables.mjs` — Nightly server run that refreshes the management sheets, the rack table and the «PDF с номерами» drawings of every active project.
 - `scripts/starter-from-backup.mjs` — Starter set built from the latest server backup (the database is not read, so no Firestore daily quota is spent).
 - `scripts/tohnit-eval.mjs` — Checks the app's drawing parsing (JS) against reference data.
 - `scripts/zip-lib.mjs` — Zip writer and reader over Node's zlib: deterministic archives (entries sorted by name, fixed timestamps), no `zip` program needed.
@@ -165,7 +168,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/domain/ownworks.js` — The own set of works on selected points (the point's or a group's «Изменить» window): what is required now and what to write into the point.
 - `src/domain/pbauth.js` — Sign-in rules of the NAS copy (PocketBase): the three-way start, the outcome of a token refresh, the manual code flow's address and state check, error texts and the sign-out question.
 - `src/domain/pbqueue.js` — Write-queue rules of the NAS copy: where an op lands in the local copy, replaying queued ops, the chunking of queue items into requests and what each answer of the write route means.
-- `src/domain/pbread.js` — Reading rules of the NAS copy: a PocketBase record → the app's document in the local copy, read marks, the delta and page filters, the rollback check, full-read replacement and the event-apply rule.
+- `src/domain/pbread.js` — Reading rules of the NAS copy: record → document, read marks, delta and page filters, the rollback check, full-read replacement, event-apply, and the export to the backup format.
 - `src/domain/pbstate.js` — What the NAS copy's screens show about the server: which one banner is under the top bar, the «Сейчас» line of «Подключение к базе», the last update and the «⬇» parts.
 - `src/domain/pbwrite.js` — Write semantics and rules of the NAS copy's write route: app writes → ops, Firestore-like merges, a copy of the Firestore rules, and the whole route logic over a small store.
 - `src/domain/plan.js` — Drawing plan, the part shared by the app and the server: the color of a point (planColor), the plan legend, the drawing's points for the «PDF с номерами» and its fingerprint.

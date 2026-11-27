@@ -132,6 +132,8 @@ The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. 
 
 **Job runner** (code: `scripts/nas-jobs.mjs`) — the NAS copy's server jobs (`backup`, `tables`, `catch-up`), run by the NAS project's agent.
 
+**Job source** (code: `scripts/job-source.mjs`, `fs-source.mjs`, `pb-source.mjs`; `PM_SOURCE=pocketbase|firestore`) — where the server jobs (backup, cleanup, night sheets) read and write: Firestore in GitHub Actions, PocketBase on the NAS. The backup folder format is the same either way; a PocketBase full copy carries `"source": "pocketbase"`.
+
 **Rehearsal of the move** (code: `docs/nas-move-rehearsal.md`) — the move done once on the PC with a copy of the owner's backup; its steps, times and checks go to the NAS project.
 
 ## Development
