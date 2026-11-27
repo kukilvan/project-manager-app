@@ -2,6 +2,14 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-27 — Ticket 4.12: the NAS job runner («Тикет 4.12»)
+
+- `scripts/nas-jobs.mjs backup | tables | catch-up` (spec 4 § 5.1), run from `nas-jobs.zip`: PocketBase export into a clone of `polevoy-backups`, commit and push, cleanup, the zip (`scripts/zip-lib.mjs`) into the owner's Drive file; the night sheets through `runTables`; `catch-up` when the last successful backup is over 24 h old. Settings and secret files as in R-JOB-1; the GitHub token reaches git only through an environment variable and a credential helper scoped to github.com.
+- New modules: `nas-git.mjs`, `drive-backup-lib.mjs` (also used by `server-drive-backup.mjs`, which keeps the `zip` command), `google-api.mjs` (also used by `server-tables.mjs`).
+- Decisions: the cleanup runs only after a successful push; the Drive copy is made even when the push or the cleanup failed; any table or drawing error makes `tables` exit 1 (GitHub Actions only warns); `state.json` is `{backup, tables}`, each `{ok, at, error, okAt}`; one backup at a time (a lock file with a heartbeat); `catch-up` waits up to 2 minutes for PocketBase.
+- Found on the way: `previousBackups` would have let the Firestore delta backup build on a NAS copy in the same repository (now skipped by `source`); a Google key that is not JSON would have been quoted by the parser's error; KI-15 (jobs on the live files before the switch-over), notes added to ticket 15.
+- Proof: `tests/nas-jobs.test.js` (offline with a bare repository, and against a real PocketBase; the unpacked zip starts alone); 572 tests on the PC and in the deploy; the packed zip with the real packages ran `catch-up` and `tables` against `pb-dev`; `server-drive-backup.mjs` run with fakes. Not run against real GitHub or Google. The push to `main` was first refused by the app's permission check and went out after the owner's yes.
+
 ## 2026-11-27 — Ticket 4.11: job sources and the export («Тикет 4.11»)
 
 - The server jobs read and write through a job source picked by `PM_SOURCE` (`scripts/job-source.mjs`; secrets from the environment or `PM_SECRETS` files): `scripts/fs-source.mjs` wraps every Firestore call of the jobs (firebase-admin imported only there, dynamically), `scripts/pb-source.mjs` talks to PocketBase over HTTP as the jobs superuser (keyset pages of 1,000, project fields through `/api/pm/save`, the night sheets' list patches as `itemPatches`, a project without a `tables` list gets the whole list, cleanup through the record API).
