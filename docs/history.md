@@ -2,6 +2,11 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-27 — The NAS installs our builds, taken in («Записка NAS: сборки на NAS»)
+
+- The NAS project's updater (R-SITE-2) and migrations install (R-PB-8) are live: build `577592e` (schema 2) installed on `<host>`, ≈ 3 s downtime; `nas-check` at `8ae88cb` there: 11 pass, 0 fail, 0 skip (A8, A9, A15 now pass); idle realtime cut after 125 s again. It reads `nas-site.json` every minute, keeps the previous 2 builds, rolls back a migration that keeps PocketBase from starting and never retries that release. `4b6b66d` was never installed. The owner can now do A14 and the phone checks of stage 4. Kept as received: `.scratch/04-pocketbase-storage/nas-report-2.md`.
+- Its remark «schema 2 but only the schema-1 migration in `nas-pb.zip`»: on purpose — schema 2 (ticket 4.7) changed only the hooks (the project key inside `invites.data`). Reply: `.scratch/04-pocketbase-storage/nas-message-4.md`. Nothing in the code or the NAS document changed.
+
 ## 2026-11-27 — Ticket 4.8: the NAS screens («Тикет 4.8»)
 
 - `createShell` takes `server` (from `src/app/pb/screens.js`: `banner`, `openConnection`, `readStatus`, `onReadChange`) in place of `banner`; without it the Firebase texts, counters and read state are used. Pure rules in `src/domain/pbstate.js`. `signin.js` exports `expiredCard()`.
