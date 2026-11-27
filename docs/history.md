@@ -2,6 +2,13 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-27 — Quick fix: NAS Google sign-in, one button («Правка: вход через Google на NAS»)
+
+- The NAS project's note (`.scratch/04-pocketbase-storage/nas-report-3.md`): on the iPhone «Войти через Google» ended on Cloudflare's block page — PocketBase's window flow answers `307` to its dashboard page `/_/#/auth/oauth2-redirect-success|failure`, which R-NET-4 rule 1 blocks; only «Войти (запасной способ)» worked.
+- Decided in the session: its option A — `signInGoogle` (the SDK's window flow) removed from `src/app/pb/auth.js`; the NAS sign-in panel (`src/app/pb/signin.js`, also in «Войти снова») has one «Войти через Google» running the manual code flow back to `https://<host>/`. No new UI texts; the Firebase sign-in screen is unchanged.
+- NAS document version 2026-11-27 (2), commit `d58903a`: R-NET-4 says rule 1 stops the window flow and stays; R-GOOG-2 needs only `https://<host>/` (`/api/oauth2-redirect` unused, removal optional). `docs/project-spec.md` stage 4 facts and the stage 4 spec § 3.2 note updated. Reply: `nas-message-5.md`.
+- Self-check on `pb-dev` at 420 px: one button; «не настроен» without Google; with a fake Google provider the button left for Google with `pz.pbOauth.redirect` = the site root; password sign-in. The pane refuses `?code=` addresses, so the return was not walked here. 537 tests. The owner checked the sign-in on the iPhone NAS copy: works.
+
 ## 2026-11-27 — Ticket 4.10: KI-8, the shared lists with old Firebase rules («Тикет 4.10»)
 
 - `deltaListen` (`src/app/repo.js`) calls `onError` for an error it does not retry; the Firestore `listenPool` passes it on; `createMemoryBackend({ poolDenied })` refuses every pool listener (`?mem=1&memPoolDenied=1`). `startShared` (`src/app/shared.js`): on `permission-denied` no merge and no seeding in this start, one toast «Общие списки не читаются…»; the PocketBase backend's `onError` (403) takes the same path.
