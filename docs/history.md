@@ -2,6 +2,15 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-27 — Ticket 4.11: job sources and the export («Тикет 4.11»)
+
+- The server jobs read and write through a job source picked by `PM_SOURCE` (`scripts/job-source.mjs`; secrets from the environment or `PM_SECRETS` files): `scripts/fs-source.mjs` wraps every Firestore call of the jobs (firebase-admin imported only there, dynamically), `scripts/pb-source.mjs` talks to PocketBase over HTTP as the jobs superuser (keyset pages of 1,000, project fields through `/api/pm/save`, the night sheets' list patches as `itemPatches`, a project without a `tables` list gets the whole list, cleanup through the record API).
+- The runs moved into `runServerBackup`, `runCleanup` (`scripts/server-backup-lib.mjs`) and `runTables` (`scripts/server-tables-lib.mjs`); `server-backup.mjs`, `server-cleanup.mjs`, `server-tables.mjs` keep names, arguments, messages and Firestore behaviour. Workflows unchanged. The Firestore places of the jobs are listed in commit `08ed9d1`.
+- The PocketBase export (`src/domain/pbread.js`: `serverStamp`, `exportDoc`, `exportProject`, `exportCommon`) is the old folder format: documents `{id: key, ...data}` with `updatedAtServer` from `updated` (the project too, as Firestore stores it), Firestore id order, `allowed` `{id, email, at}`, `meta` admin, prefs `{uid, id: 'main', data}`, plus `"source": "pocketbase"` in full copies. Always a full read on PocketBase; cleanup on PocketBase at most 5,000 per server collection (`records`, `history`) per run.
+- Proof: `tests/server-jobs.test.js` runs the real scripts on a fake Firestore (`tests/fake-firestore.js`, `tests/jobs-harness/`) and compares files, log lines and the database with a golden run recorded from commit `307a0f9`; `tests/pb-jobs.test.js` (real PocketBase) — export equals the Firestore export of the same data apart from `source`, `itemPatches`, the night run, cleanup with DRY_RUN and the budget; export shapes in `tests/pbread.test.js`. 551 tests; the built site byte-identical; `PM_SOURCE=pocketbase` scripts run against `pb-dev`.
+- Owner-approved hand runs: «Server tables» green on the new code (real projects, drawings rebuilt); «Server backup» stopped with `RESOURCE_EXHAUSTED: Quota exceeded` after the day's scheduled backup and the tables run had used the reads — KI-14 filed (the winter retry at 07:20 UTC comes before the 08:00 UTC quota reset). The owner accepted without waiting and checks the scheduled backup of 2026-11-29 and the night sheets later.
+- `CONTEXT.md`: term «Job source». Ticket 12 got notes (secrets already read, `google-auth-library` and `mupdf` for `tables`, the Drive step still Firestore-keyed and using the `zip` command).
+
 ## 2026-11-27 — Quick fix: NAS Google sign-in, one button («Правка: вход через Google на NAS»)
 
 - The NAS project's note (`.scratch/04-pocketbase-storage/nas-report-3.md`): on the iPhone «Войти через Google» ended on Cloudflare's block page — PocketBase's window flow answers `307` to its dashboard page `/_/#/auth/oauth2-redirect-success|failure`, which R-NET-4 rule 1 blocks; only «Войти (запасной способ)» worked.
