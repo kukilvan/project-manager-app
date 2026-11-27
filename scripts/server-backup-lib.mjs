@@ -3,9 +3,12 @@
 // Uses buildBackup from src/app/backup.js and the retention rules of src/domain/sync.js.
 import { buildBackup } from '../src/app/backup.js';
 import { isExpiredDeleted, historyCutoff, RETENTION_DAYS } from '../src/domain/sync.js';
+import { mapIds, mapInboxKey, usersOf } from '../src/domain/pbrestore.js';
+import { EXPORT_SOURCE } from '../src/domain/pbread.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
+const docKey = (id) => String(id).replace(/\//g, '_');   // src/app/repo.js docKey: a Firestore id has no `/`
 const safe = (s) => String(s || 'проект').replace(/[\\/:*?"<>|]/g, '_').trim() || 'проект';
 
 // Reads a whole project: the document and all its subcollections (the subcollection list comes from the database, so none is missed)
@@ -178,24 +181,86 @@ export function revive(v, Timestamp) {
   return v;
 }
 
-// The list of writes to restore from a backup folder: [{ path: 'projects/ID/points/X', data }]
-export function restorePlan(dir) {
+// The list of writes to restore from a backup folder: [{ path: 'projects/ID/points/X', data }]. A document id with `/` (catalog items) goes to the
+// Firestore id `docKey(id)` as the app writes it, keeping its `id` in the data. map (the way back from a PocketBase export): Map(PocketBase id → Firebase
+// uid) applied to ids, values and keys (src/domain/pbrestore.js mapIds, inbox keys by their uid prefix); stamp: a document's `updatedAtServer` is dropped
+// and the write marked `stamp: true` (the caller writes the server time there).
+export function restorePlan(dir, { map = null, stamp = false } = {}) {
   const writes = [];
+  const put = (p, data) => {
+    const w = { path: p, data };
+    if (stamp && 'updatedAtServer' in data) { delete data.updatedAtServer; w.stamp = true; }
+    writes.push(w);
+  };
+  const fix = (data) => (map ? mapIds(data, map) : data);
+  const docWrite = (coll, d, inbox = false) => {
+    const { id: raw, ...rest } = d;
+    const id = map ? (inbox ? mapInboxKey(raw, map) : mapIds(raw, map)) : raw;
+    const data = fix(rest);
+    put(`${coll}/${docKey(id)}`, docKey(id) !== String(id) ? { id, ...data } : data);
+  };
   for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('(полная).json'))) {
     const j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
     if (j.format !== 'polevoy-full-1' || !j.project?.id) continue;
     const { id, ...project } = j.project;
-    writes.push({ path: `projects/${id}`, data: project });
-    for (const [coll, docs] of Object.entries(j.data || {})) {
-      for (const d of docs) { const { id: did, ...rest } = d; writes.push({ path: `projects/${id}/${coll}/${did}`, data: rest }); }
-    }
+    put(`projects/${id}`, fix(project));
+    for (const [coll, docs] of Object.entries(j.data || {})) for (const d of docs) docWrite(`projects/${id}/${coll}`, d);
   }
   const common = path.join(dir, COMMON_FILE);
   if (fs.existsSync(common)) {
     const c = JSON.parse(fs.readFileSync(common, 'utf8'));
-    for (const [coll, docs] of Object.entries(c.collections || {})) for (const d of docs) { const { id, ...rest } = d; writes.push({ path: `${coll}/${id}`, data: rest }); }
-    for (const p of c.prefs || []) writes.push({ path: `users/${p.uid}/prefs/${p.id}`, data: p.data });
+    for (const [coll, docs] of Object.entries(c.collections || {})) for (const d of docs) docWrite(coll, d, coll === 'pool_inbox');
+    for (const p of c.prefs || []) put(`users/${map && map.has(p.uid) ? map.get(p.uid) : p.uid}/prefs/${p.id}`, fix(p.data));
   }
   return writes;
+}
+
+// The way back from a PocketBase export (spec 4 § 6, R-MOVE-2): PocketBase user id → Firebase uid by e-mail, from the export's member pairs and removed
+// members (src/domain/pbrestore.js usersOf), then auth.getUserByEmail. Ids without a Firebase user stay as they are. Returns { map, missing: [{id, email}], unpaired }.
+export async function firebaseUidMap(dir, auth) {
+  const projects = fs.readdirSync(dir).filter((x) => x.endsWith('(полная).json')).map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')))
+    .filter((j) => j.format === 'polevoy-full-1' && j.project?.id).map((j) => ({ project: j.project, data: j.data || {} }));
+  const { uidEmail } = usersOf(projects);
+  const map = new Map(); const missing = []; const byEmail = new Map();
+  for (const [id, email] of uidEmail) {
+    if (!byEmail.has(email)) {
+      try { byEmail.set(email, (await auth.getUserByEmail(email)).uid); } catch (e) { if (e?.code !== 'auth/user-not-found') throw e; byEmail.set(email, null); }
+    }
+    const uid = byEmail.get(email);
+    if (uid) map.set(id, uid); else missing.push({ id, email });
+  }
+  return { map, missing };
+}
+
+// True when the folder holds a PocketBase export (its full copies carry `"source": "pocketbase"`)
+export function isPocketBaseExport(dir) {
+  return fs.readdirSync(dir).filter((x) => x.endsWith('(полная).json')).some((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')).source === EXPORT_SOURCE);
+}
+
+// The restore into Firestore of scripts/server-restore.mjs: { db, auth, Timestamp, serverTimestamp } of firebase-admin (or the test fakes).
+// A Firebase backup is written as it was (timestamps revived); a PocketBase export gets Firebase uids (firebaseUidMap) and `updatedAtServer` = the server
+// time, so the phones' delta reads see every document. Only the plan without write; a database with projects only with force. Returns the exit code.
+export async function runFirestoreRestore({ db, auth, Timestamp, serverTimestamp }, dir, { write = false, force = false, log = console.log, error = console.error } = {}) {
+  let opts = {};
+  if (isPocketBaseExport(dir)) {
+    const { map, missing } = await firebaseUidMap(dir, auth);
+    log(`Выгрузка PocketBase: пользователей по почте сопоставлено с Firebase: ${map.size}`);
+    missing.forEach((m) => log(`  нет пользователя Firebase с почтой ${m.email}: id ${m.id} остаётся как есть (войдёт заново — станет новым участником)`));
+    opts = { map, stamp: true };
+  }
+  const plan = restorePlan(dir, opts);
+  const byTop = {}; plan.forEach((w) => { const k = w.path.split('/').length === 2 ? w.path.split('/')[0] : w.path.split('/').slice(0, 1).join('/') + '/…/' + w.path.split('/').slice(-2, -1)[0]; byTop[k] = (byTop[k] || 0) + 1; });
+  log(`Записей к восстановлению: ${plan.length}`); Object.entries(byTop).forEach(([k, n]) => log(`  ${k}: ${n}`));
+  if (!write) { log('Это проверка. Чтобы записать, добавьте --write'); return 0; }
+  const existing = await db.collection('projects').limit(1).get();
+  if (!existing.empty && !force) { error('В базе уже есть проекты. Восстановление пишется только в пустую базу (или добавьте --force, если понимаете, что делаете)'); return 1; }
+  for (let i = 0; i < plan.length; i += 400) {
+    const batch = db.batch();
+    plan.slice(i, i + 400).forEach((w) => { const data = revive(w.data, Timestamp); if (w.stamp) data.updatedAtServer = serverTimestamp(); batch.set(db.doc(w.path), data); });
+    await batch.commit();
+    log(`Записано: ${Math.min(i + 400, plan.length)} из ${plan.length}`);
+  }
+  log('Готово. Залейте правила firestore.rules и войдите в приложение.');
+  return 0;
 }
 export const COMMON_FILE = 'ОБЩЕЕ (пул, разрешённые почты, настройки).json';

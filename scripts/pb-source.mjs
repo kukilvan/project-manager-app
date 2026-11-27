@@ -3,22 +3,24 @@
 // src/domain/pbread.js; project fields are written through the write route POST /api/pm/save (superuser: no rules, nothing stamped), the night sheets'
 // list patches as `itemPatches` (src/domain/pbwrite.js), so the read-then-write transaction of Firestore is one request. Every read is a full read
 // (no read quota on PocketBase). Cleanup deletes through the record API: a project with its records, history and invitations (cascade), single records.
-// Used by scripts/job-source.mjs when PM_SOURCE=pocketbase; checked against a real PocketBase by tests/pb-jobs.test.js.
+// Used by scripts/job-source.mjs when PM_SOURCE=pocketbase; its HTTP client and superuser sign-in also by the restore tool scripts/pb-restore.mjs.
+// Checked against a real PocketBase by tests/pb-jobs.test.js and tests/pb-restore-live.test.js.
 import { PAGE_SIZE, pageFilter, nextAfter, quote, pbTime, exportProject, exportCommon, EXPORT_SOURCE } from '../src/domain/pbread.js';
 import { PB_SCHEMA } from '../src/domain/pbwrite.js';
 import { applyPatches } from './server-tables-lib.mjs';
 
 const anyOf = (field, values) => `(${values.map((v) => `${field} = ${quote(v)}`).join(' || ')})`;
 
-// The source over a PocketBase at `url` with a superuser `token`
-export function createPocketBaseSource({ url, token }) {
+// A small HTTP client of PocketBase as a superuser (`token`): JSON calls, every record of a collection page by page, a record count.
+// Shared by the source below and the restore tool scripts/pb-restore.mjs.
+export function createPocketBaseClient({ url, token }) {
   const base = String(url).replace(/\/+$/, '');
   async function call(path, { method = 'GET', body } = {}) {
     const res = await fetch(base + path, { method, headers: { Authorization: token, ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) }, body: body !== undefined ? JSON.stringify(body) : undefined });
     const text = await res.text();
     let json = null;
     try { json = text ? JSON.parse(text) : null; } catch { /* not JSON */ }
-    if (!res.ok) { const e = new Error(`PocketBase ${method} ${path.split('?')[0]}: HTTP ${res.status} ${(json && (json.message || json.code)) || text.slice(0, 200)}`); e.status = res.status; throw e; }
+    if (!res.ok) { const e = new Error(`PocketBase ${method} ${path.split('?')[0]}: HTTP ${res.status} ${(json && (json.message || json.code)) || text.slice(0, 200)}`); e.status = res.status; e.json = json; throw e; }
     return json;
   }
   // every record of a collection matching `filter`, page by page in `updated,id` order with a keyset (a record changed during the read cannot shift a page)
@@ -37,6 +39,18 @@ export function createPocketBaseSource({ url, token }) {
       if (!after) return out;
     }
   }
+  // the number of records of a collection matching `filter`
+  async function count(coll, filter = '') {
+    const q = new URLSearchParams({ page: '1', perPage: '1', fields: 'id' });
+    if (filter) q.set('filter', filter);
+    return (await call(`/api/collections/${coll}/records?${q}`)).totalItems;
+  }
+  return { url: base, token, call, listAll, count };
+}
+
+// The source over a PocketBase at `url` with a superuser `token`
+export function createPocketBaseSource({ url, token }) {
+  const { call, listAll } = createPocketBaseClient({ url, token });
   const projectRec = async (id) => (await listAll('projects', `key = ${quote(id)}`, { max: 1 }))[0] || null;
   const save = (ops) => call('/api/pm/save', { method: 'POST', body: { schema: PB_SCHEMA, ops } });
   const isEmpty = (o) => !o || !Object.keys(o).length;
@@ -111,12 +125,17 @@ export function createPocketBaseSource({ url, token }) {
   };
 }
 
-// Signs in as the jobs superuser and returns the source; the password never leaves this function
-export async function openPocketBase({ url, email, password }) {
-  if (!email || !password) throw new Error('Нет входа для заданий PocketBase (PB_JOBS_EMAIL и пароль pb_jobs_password)');
+// Signs in as a superuser and returns the token; the password never leaves this function. what = whose sign-in, for the error text
+export async function superuserToken({ url, email, password }, what = 'Вход заданий в PocketBase') {
   const base = String(url).replace(/\/+$/, '');
   const res = await fetch(`${base}/api/collections/_superusers/auth-with-password`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identity: email, password }) });
-  if (!res.ok) throw new Error(`Вход заданий в PocketBase не удался: HTTP ${res.status}`);
-  const { token } = await res.json();
-  return createPocketBaseSource({ url: base, token });
+  if (!res.ok) throw new Error(`${what} не удался: HTTP ${res.status}`);
+  return (await res.json()).token;
+}
+
+// Signs in as the jobs superuser and returns the source
+export async function openPocketBase({ url, email, password }) {
+  if (!email || !password) throw new Error('Нет входа для заданий PocketBase (PB_JOBS_EMAIL и пароль pb_jobs_password)');
+  const token = await superuserToken({ url, email, password });
+  return createPocketBaseSource({ url: String(url).replace(/\/+$/, ''), token });
 }

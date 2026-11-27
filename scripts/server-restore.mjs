@@ -1,29 +1,21 @@
 // Restores a database from a server backup (a folder like 2026-10-23_0830 from the polevoy-backups repo) into an EMPTY Firebase project.
-// Needed only if the old Firebase project is lost; rolling back one project is done in the app («Импорт данных»). Talks to Firestore through firebase-admin; uses server-backup-lib.mjs.
+// Needed if the old Firebase project is lost, and as the way back from the NAS: a PocketBase export («"source": "pocketbase"») gets Firebase uids by e-mail and
+// the server time in `updatedAtServer` (spec 4 § 6, R-MOVE-2). Rolling back one project is done in the app («Импорт данных»). Talks to Firestore and
+// Firebase Authentication through firebase-admin; the logic is runFirestoreRestore of server-backup-lib.mjs (checked by tests/pb-restore.test.js).
 // Run:
 //   npm i --no-save firebase-admin@13
 //   FIREBASE_SERVICE_ACCOUNT="$(cat key.json)" node scripts/server-restore.mjs <backup folder>          — only show what would be written
-//   FIREBASE_SERVICE_ACCOUNT="$(cat key.json)" node scripts/server-restore.mjs <backup folder> --write  — write it
+//   FIREBASE_SERVICE_ACCOUNT="$(cat key.json)" node scripts/server-restore.mjs <backup folder> --write  — write it (--force: also into a database with projects)
 import admin from 'firebase-admin';
-import { restorePlan, revive } from './server-backup-lib.mjs';
+import { runFirestoreRestore } from './server-backup-lib.mjs';
 
 const dir = process.argv[2]; const write = process.argv.includes('--write'); const force = process.argv.includes('--force');
 if (!dir) { console.error('Укажите папку копии'); process.exit(1); }
 const key = process.env.FIREBASE_SERVICE_ACCOUNT;
 if (!key) { console.error('Нет FIREBASE_SERVICE_ACCOUNT (содержимое JSON-ключа сервисного аккаунта)'); process.exit(1); }
 admin.initializeApp({ credential: admin.credential.cert(JSON.parse(key)) });
-const db = admin.firestore();
 
-const plan = restorePlan(dir);
-const byTop = {}; plan.forEach((w) => { const k = w.path.split('/').length === 2 ? w.path.split('/')[0] : w.path.split('/').slice(0, 1).join('/') + '/…/' + w.path.split('/').slice(-2, -1)[0]; byTop[k] = (byTop[k] || 0) + 1; });
-console.log(`Записей к восстановлению: ${plan.length}`); Object.entries(byTop).forEach(([k, n]) => console.log(`  ${k}: ${n}`));
-if (!write) { console.log('Это проверка. Чтобы записать, добавьте --write'); process.exit(0); }
-const existing = await db.collection('projects').limit(1).get();
-if (!existing.empty && !force) { console.error('В базе уже есть проекты. Восстановление пишется только в пустую базу (или добавьте --force, если понимаете, что делаете)'); process.exit(1); }
-for (let i = 0; i < plan.length; i += 400) {
-  const batch = db.batch();
-  plan.slice(i, i + 400).forEach((w) => batch.set(db.doc(w.path), revive(w.data, admin.firestore.Timestamp)));
-  await batch.commit();
-  console.log(`Записано: ${Math.min(i + 400, plan.length)} из ${plan.length}`);
-}
-console.log('Готово. Залейте правила firestore.rules и войдите в приложение.');
+process.exitCode = await runFirestoreRestore({
+  db: admin.firestore(), auth: admin.auth(), Timestamp: admin.firestore.Timestamp,
+  serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+}, dir, { write, force });

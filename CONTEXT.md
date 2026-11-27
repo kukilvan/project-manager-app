@@ -128,7 +128,7 @@ The day's report in Russian with Hebrew text, sent to the employer on WhatsApp. 
 
 **Schema version** (code: `PB_SCHEMA` in `src/domain/pbwrite.js`, `PM_SCHEMA` in the hook, `schema` in `nas-site.json`, `GET /api/pm/info`) — the version of the PocketBase database description (migrations and hooks); goes up by one when the app needs a migration or hook change. The write route answers 409 `schema_old` to an app with a higher one («server older»: the app shows a banner and holds the write queue, ticket 08) and 426 `app_old` to one below `MIN_CLIENT_SCHEMA`.
 
-**Restore tool** (code: `scripts/pb-restore.mjs`) — loads a full server backup (Firebase or PocketBase export) into PocketBase: users by e-mail, ids mapped, a count check and a full compare.
+**Restore tool** (code: `scripts/pb-restore.mjs`, rules in `src/domain/pbrestore.js`) — loads a full server backup (Firebase or PocketBase export) into an empty PocketBase: users by e-mail, ids mapped, a count check and a full compare; `--resume` continues a cut run. The way back, a PocketBase export into Firebase, is `scripts/server-restore.mjs` (users mapped by e-mail). How to run both: `ВОССТАНОВЛЕНИЕ.md` § 7.
 
 **Job runner** (code: `scripts/nas-jobs.mjs`) — the NAS copy's server jobs (`backup`, `tables`, `catch-up`), run by the NAS project's agent; each job's last result is in `state.json`.
 

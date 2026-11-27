@@ -1,6 +1,6 @@
 // An in-memory Firestore fake with the firebase-admin calls the server jobs use: collections, documents, subcollections, where/limit queries,
-// set with merge, transactions, bulk writer, recursive delete, the prefs collection group and Timestamp.
-// Shared by tests/server-jobs.test.js (the Firestore source) and the golden run that recorded tests/fixtures/jobs-golden/; not a test itself.
+// set with merge, write batches, transactions, bulk writer, recursive delete, the prefs collection group and Timestamp.
+// Shared by tests/server-jobs.test.js (the Firestore source), tests/pb-restore.test.js (the way back) and the golden run that recorded tests/fixtures/jobs-golden/; not a test itself.
 // Data comes in as a tree: { '<root coll>': { '<doc id>': { data: {...}, subs: { '<coll>': { '<id>': { data, subs } } } } } };
 // values shaped {_seconds, _nanoseconds} become Timestamp instances (as server-backup-lib.mjs revive() does).
 
@@ -131,6 +131,8 @@ export function createFakeFirestore(tree = {}) {
         return { docs, size: docs.length };
       },
     }),
+    // a write batch: the sets are applied on commit, in order
+    batch: () => { const ops = []; return { set: (ref, data, opts) => { ops.push([ref, data, opts]); }, commit: async () => { ops.forEach(([r, d, o]) => setDoc(r.parts, d, o)); } }; },
     runTransaction: async (fn) => {
       log.transactions += 1;
       return fn({ get: async (ref) => snapOf(ref), set: (ref, data, opts) => setDoc(ref.parts, data, opts) });

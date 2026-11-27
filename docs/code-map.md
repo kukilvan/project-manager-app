@@ -53,6 +53,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `scripts/nas-jobs.mjs` — The job runner of the NAS copy: `backup` (export, git push, cleanup, the zip on the owner's Drive), `tables` (the night sheets) and `catch-up`.
 - `scripts/nas-pack.mjs` — NAS release packer: makes the four files of the GitHub release `nas-build` — nas-site.zip, nas-pb.zip, nas-jobs.zip and the manifest nas-site.json.
 - `scripts/pb-hooks-build.mjs` — Generates PocketBase's copy of the write semantics: src/domain/pbwrite.js → pb/pb_hooks/pm/pbwrite.js (ESM `export` turned into `module.exports`).
+- `scripts/pb-restore.mjs` — The restore tool: loads a full server backup folder (from Firebase or a PocketBase export) into an empty PocketBase with the same ids, then checks counts and contents.
 - `scripts/pb-source.mjs` — The PocketBase job source: the server jobs' reads and writes on the NAS over HTTP as the `jobs` superuser.
 - `scripts/server-backup-lib.mjs` — Server backup logic: the backup run and the cleanup run over a job source, reading projects from Firestore, writing the backup folders and planning a restore.
 - `scripts/server-backup.mjs` — Server backup: copies all projects into a new folder that the caller then commits to the private backup repo.
@@ -173,6 +174,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/domain/pbauth.js` — Sign-in rules of the NAS copy (PocketBase): the three-way start, the outcome of a token refresh, the manual code flow's address and state check, error texts and the sign-out question.
 - `src/domain/pbqueue.js` — Write-queue rules of the NAS copy: where an op lands in the local copy, replaying queued ops, the chunking of queue items into requests and what each answer of the write route means.
 - `src/domain/pbread.js` — Reading rules of the NAS copy: record → document, read marks, delta and page filters, the rollback check, full-read replacement, event-apply, and the export to the backup format.
+- `src/domain/pbrestore.js` — Restore rules of the NAS copy: a full server backup (Firebase or a PocketBase export) → the users, records and checks of a restore into PocketBase.
 - `src/domain/pbstate.js` — What the NAS copy's screens show about the server: which one banner is under the top bar, the «Сейчас» line of «Подключение к базе», the last update and the «⬇» parts.
 - `src/domain/pbwrite.js` — Write semantics and rules of the NAS copy's write route: app writes → ops, Firestore-like merges, a copy of the Firestore rules, and the whole route logic over a small store.
 - `src/domain/plan.js` — Drawing plan, the part shared by the app and the server: the color of a point (planColor), the plan legend, the drawing's points for the «PDF с номерами» and its fingerprint.

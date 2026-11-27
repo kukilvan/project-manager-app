@@ -155,7 +155,8 @@ export async function startPocketBase(opts = {}) {
   const up = spawnSync(bin, ['superuser', 'upsert', SUPERUSER.email, SUPERUSER.password, `--dir=${dataDir}`], { encoding: 'utf8' });
   if (up.status !== 0) throw new Error(`pb-dev: superuser upsert failed: ${(up.stderr || up.stdout || '').trim()}`);
 
-  const args = ['serve', `--http=127.0.0.1:${port}`, `--dir=${dataDir}`, `--hooksDir=${hooksDir}`, `--migrationsDir=${migrationsDir}`, '--hooksWatch=false'];
+  // --automigrate=false: a collection change through the API (the tests' OAuth2 setup, the dashboard) must never write a migration file into pb/pb_migrations/
+  const args = ['serve', `--http=127.0.0.1:${port}`, `--dir=${dataDir}`, `--hooksDir=${hooksDir}`, `--migrationsDir=${migrationsDir}`, '--hooksWatch=false', '--automigrate=false'];
   if (opts.serve) args.push(`--publicDir=${path.resolve(root, opts.serve)}`);
   let child;
   if (opts.detached) {

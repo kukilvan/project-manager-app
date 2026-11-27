@@ -1,0 +1,53 @@
+{
+ "format": "polevoy-full-1",
+ "createdAt": "2026-11-20T01:30:00.000Z",
+ "fullAt": "2026-11-20T01:30:00.000Z",
+ "project": {
+  "id": "p2",
+  "name": "Beta",
+  "object": "Site B",
+  "memberUids": [
+   "FbAlphaUid0000000000000001aa"
+  ],
+  "memberEmails": [
+   "tester.a@example.test"
+  ],
+  "invitedEmails": [],
+  "createdBy": "FbAlphaUid0000000000000001aa",
+  "createdByName": "Tester A",
+  "updatedAt": 1794000000000,
+  "updatedAtServer": {
+   "_seconds": 1794000000,
+   "_nanoseconds": 0
+  }
+ },
+ "data": {
+  "history": [
+   {
+    "id": "h4",
+    "at": 1794000000000,
+    "by": "FbAlphaUid0000000000000001aa",
+    "byName": "Tester A",
+    "coll": "points",
+    "docId": "z",
+    "action": "create",
+    "updatedAtServer": {
+     "_seconds": 1794000001,
+     "_nanoseconds": 0
+    }
+   }
+  ],
+  "points": [
+   {
+    "id": "z",
+    "label": "Z-1",
+    "type": "Камера",
+    "updatedBy": "FbAlphaUid0000000000000001aa",
+    "updatedAtServer": {
+     "_seconds": 1794000000,
+     "_nanoseconds": 0
+    }
+   }
+  ]
+ }
+}

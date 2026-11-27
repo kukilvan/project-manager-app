@@ -1,0 +1,107 @@
+{
+ "format": "polevoy-common-1",
+ "collections": {
+  "allowed": [
+   {
+    "id": "tester.b@example.test",
+    "email": "tester.b@example.test",
+    "at": 1790000000000
+   }
+  ],
+  "meta": [
+   {
+    "id": "admin",
+    "email": "tester.a@example.test",
+    "at": 1780000000000
+   }
+  ],
+  "pool_catalog": [
+   {
+    "id": "К/1",
+    "name": "Кабель",
+    "updatedAtServer": {
+     "_seconds": 1790000000,
+     "_nanoseconds": 0
+    }
+   }
+  ],
+  "pool_delayReasons": [
+   {
+    "id": "r1",
+    "name": "Дождь",
+    "nameHe": "גשם",
+    "updatedAtServer": {
+     "_seconds": 1790000001,
+     "_nanoseconds": 0
+    }
+   }
+  ],
+  "pool_inbox": [
+   {
+    "id": "FbBravoUid0000000000000002bb_types_Камера",
+    "kind": "types",
+    "itemId": "Камера",
+    "item": {
+     "id": "Камера",
+     "nameHe": "מצלמה"
+    },
+    "hash": "x1",
+    "owner": {
+     "uid": "FbBravoUid0000000000000002bb",
+     "email": "tester.b@example.test",
+     "name": "Тестер Б"
+    },
+    "project": {
+     "id": "p1",
+     "name": "Alpha / Тест"
+    },
+    "at": 1794900000000,
+    "updatedAtServer": {
+     "_seconds": 1794900002,
+     "_nanoseconds": 0
+    }
+   }
+  ],
+  "pool_problems": [
+   {
+    "id": "q1",
+    "name": "Нет доступа",
+    "deleted": true,
+    "updatedAtServer": {
+     "_seconds": 1790000002,
+     "_nanoseconds": 0
+    }
+   }
+  ],
+  "pool_types": [
+   {
+    "id": "Камера",
+    "nameHe": "מצלמה",
+    "updatedAtServer": {
+     "_seconds": 1790000003,
+     "_nanoseconds": 0
+    }
+   }
+  ]
+ },
+ "prefs": [
+  {
+   "uid": "FbAlphaUid0000000000000001aa",
+   "id": "main",
+   "data": {
+    "dictWords": [
+     "кабель"
+    ]
+   }
+  },
+  {
+   "uid": "FbBravoUid0000000000000002bb",
+   "id": "main",
+   "data": {
+    "lang": "he",
+    "seenBy": "FbBravoUid0000000000000002bb"
+   }
+  }
+ ],
+ "createdAt": "2026-11-20T01:30:00.000Z"
+}

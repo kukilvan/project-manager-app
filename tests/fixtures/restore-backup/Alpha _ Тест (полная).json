@@ -1,0 +1,149 @@
+{
+ "format": "polevoy-full-1",
+ "createdAt": "2026-11-20T01:30:00.000Z",
+ "fullAt": "2026-11-20T01:30:00.000Z",
+ "project": {
+  "id": "p1",
+  "name": "Alpha / Тест",
+  "object": "מגדל אלפא",
+  "memberUids": [
+   "FbAlphaUid0000000000000001aa",
+   "FbBravoUid0000000000000002bb"
+  ],
+  "memberEmails": [
+   "tester.a@example.test",
+   "tester.b@example.test"
+  ],
+  "invitedEmails": [
+   "Helper.D@example.test"
+  ],
+  "removedMembers": {
+   "FbCharlieUid00000000000003cc": "tester.c@example.test"
+  },
+  "memberNames": {
+   "tester_a@example_test": "Tester A",
+   "tester_b@example_test": "Тестер Б"
+  },
+  "createdBy": "FbAlphaUid0000000000000001aa",
+  "createdByName": "Tester A",
+  "updatedBy": "FbBravoUid0000000000000002bb",
+  "updatedByName": "Тестер Б",
+  "updatedAt": 1795000000000,
+  "drawings": [
+   {
+    "id": "d1",
+    "name": "A.pdf",
+    "fileId": "FAKE-FILE-1"
+   }
+  ],
+  "managers": {
+   "drawings": {
+    "d1": {
+     "on": true
+    }
+   }
+  },
+  "updatedAtServer": {
+   "_seconds": 1795000000,
+   "_nanoseconds": 0
+  }
+ },
+ "data": {
+  "catalog": [
+   {
+    "id": "К/2",
+    "name": "Кабель 2",
+    "updatedBy": "FbAlphaUid0000000000000001aa",
+    "updatedAtServer": {
+     "_seconds": 1794900000,
+     "_nanoseconds": 0
+    }
+   }
+  ],
+  "days": [
+   {
+    "id": "2026-11-16",
+    "note": "גשם, עבודה הופסקה",
+    "updatedBy": "FbCharlieUid00000000000003cc",
+    "updatedAtServer": {
+     "_seconds": 1794800000,
+     "_nanoseconds": 0
+    }
+   }
+  ],
+  "history": [
+   {
+    "id": "h1",
+    "at": 1794900000000,
+    "by": "FbAlphaUid0000000000000001aa",
+    "byName": "Tester A",
+    "coll": "points",
+    "docId": "a",
+    "action": "edit",
+    "before": {
+     "label": "1A-00",
+     "updatedBy": "FbBravoUid0000000000000002bb"
+    },
+    "after": {
+     "label": "1A-01",
+     "updatedBy": "FbAlphaUid0000000000000001aa"
+    },
+    "updatedAtServer": {
+     "_seconds": 1794900001,
+     "_nanoseconds": 0
+    }
+   },
+   {
+    "id": "h2",
+    "at": 1700000000000,
+    "by": "FbOldHelperUid000000000009xx",
+    "byName": "Old helper",
+    "coll": "points",
+    "docId": "b",
+    "action": "create",
+    "updatedAtServer": {
+     "_seconds": 1700000001,
+     "_nanoseconds": 0
+    }
+   },
+   {
+    "id": "h3",
+    "at": 1794800000000,
+    "by": "FbCharlieUid00000000000003cc",
+    "byName": "Tester C",
+    "coll": "days",
+    "docId": "2026-11-16",
+    "action": "edit",
+    "updatedAtServer": {
+     "_seconds": 1794800001,
+     "_nanoseconds": 0
+    }
+   }
+  ],
+  "points": [
+   {
+    "id": "a",
+    "label": "1A-01",
+    "type": "Камера",
+    "rack": "R1",
+    "updatedBy": "FbAlphaUid0000000000000001aa",
+    "updatedAtServer": {
+     "_seconds": 1794900000,
+     "_nanoseconds": 0
+    }
+   },
+   {
+    "id": "b",
+    "label": "1A-02",
+    "type": "Датчик",
+    "deleted": true,
+    "deletedAt": 1794000000000,
+    "deletedBy": "FbBravoUid0000000000000002bb",
+    "updatedAtServer": {
+     "_seconds": 1794000000,
+     "_nanoseconds": 0
+    }
+   }
+  ]
+ }
+}
