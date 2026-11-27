@@ -2,6 +2,17 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-27 — Ticket 4.8: the NAS screens («Тикет 4.8»)
+
+- `createShell` takes `server` (from `src/app/pb/screens.js`: `banner`, `openConnection`, `readStatus`, `onReadChange`) in place of `banner`; without it the Firebase texts, counters and read state are used. Pure rules in `src/domain/pbstate.js`. `signin.js` exports `expiredCard()`.
+- Decided in the session: one banner with the priority sign-in expired → app older → server older; «Сейчас» shows «нет связи» before «сервер не обновлён» (offline the last known schema says nothing about now); «Последнее обновление» is the later of the reader's and the sender's time, saved on every keep-alive too; «Перечитать всё» (`reader.rereadAll()`) removes the stamps of the last full reads, so it still happens at the next connect when there is no answer now; the colleague message is sent in the screen's language; `rejectReason(code, backend)` maps `invalid` to Firestore's `invalid-argument` text.
+- Fixed on the way, `src/app/pb/sender.js`: a probe of an updated server answered with a refusal left the queue held; a 5xx (the tunnel with the server down) counted as the last server answer.
+- KI-9 fixed on both editions: each «⚠» item keeps its `uid` (`ownRejected` in `sync.js`); older items without one show to everyone.
+- KI-10 filed: guide lines about the connect link and Firebase, and the shared-list refusal toast, still show on the NAS copy (proposed for ticket 15).
+- `tools/pb-dev.mjs`: `PM_DEV_SCHEMA` serves a copy of the hooks with another schema.
+- Tests: `tests/pbstate.test.js`, additions to `tests/pbqueue.test.js` and `tests/pbread.test.js`; 523 tests.
+- Self-check on `pb-dev` at 420 px (`127.0.0.1:8090`), Russian, English, Hebrew; two accounts one after the other; `?mem=1` and the Pages build unchanged. «App older» and «⬇ ошибка» are checked by tests only. The first push command (commit and both pushes at once) was refused by the session's permission check; the owner allowed it in chat. The owner accepted («Работает»: the site is as before); the NAS screens' phone checks need the NAS (gathered by «Ревью 4»). Next: «Тикет 4.9».
+
 ## 2026-11-27 — Ticket 4.7: the rest of the backend on the NAS copy («Тикет 4.7»)
 
 - Every method of `createFirestoreBackend` is answered by `src/app/pb/backend.js`; its header lists method → scope. `loadAdmin` / `claimAdmin` answer from `POST /api/pm/admin` (`resolveAdmin`); `loadSettings` / `saveSettings` left out on purpose (Firestore has none, nothing calls them).
