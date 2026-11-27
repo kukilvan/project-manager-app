@@ -2,6 +2,12 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-27 — The NAS project's first `nas-check`, taken in («Ответ NAS: первый nas-check»)
+
+- The NAS project ran `tools/nas-check.mjs` at `b3dba35` on the NAS, from outside through Cloudflare and the tunnel: 8 pass, 0 fail, 3 skip (A8, A9, A15: no build installed yet); idle realtime cut after 125 s, as R-NET-5 says. Done there: R-PB-5/6/9, R-BAK-1, R-AUTH-1/2, R-NET-2/3/4, R-SITE-3, R-GOOG-1/2; next there: the site updater and the migrations install. Kept as received: `.scratch/04-pocketbase-storage/nas-report-1.md`.
+- Its finding, reproduced on PocketBase 0.42.3: a collection name matches in any letter case (`_SUPERUSERS`, `_SuperUsers` → 400 at the login), the id only exactly (`PBC_…` → 404). `tools/nas-check.mjs` A3b makes a third probe by `_SuperUsers` (`SUPERUSERS_MIXED_CASE`); tests updated, the document test asks for `lower()` in R-NET-4.
+- `docs/nas-requirements.md` version 2026-11-27: R-NET-4 rule 2 with `lower(http.request.uri.path)`; R-NET-3 names Web Analytics with automatic setup; R-GOOG-1: a second client secret is fine, the previous one stays enabled while the Firebase copy lives (Firebase Authentication may use the same client), this repo uses no client secret; A3 row; § 12. Reply: `.scratch/04-pocketbase-storage/nas-message-3.md`. The site did not change.
+
 ## 2026-11-27 — Quick fix: pulled points are brown («Правка: коричневый цвет протянутых»)
 
 - The owner: the pink of a pulled point (`#E0609F`, idea 006) looked too much like the problem red. `PLAN_PALETTE.pink` → `PLAN_PALETTE.pulled` = `#79443B` in `src/domain/plan.js`: the plan, its legend and «PDF с номерами»; the pull circles (`PULL_DOT` in `src/app/views/planmodal.js`) take the same brown instead of `#A8285F` — the owner's choice. `NUMBERED_V` 4 → 5, so the nightly job re-renders every numbered PDF once, also those with no pulled point (their legend changes). Guide line and its English and Hebrew updated; `CONTEXT.md` «Progress colour». Checked by the owner on the phone («Работает»).

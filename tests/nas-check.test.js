@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   parseArgs, judgeA1, judgeA2, judgeA3a, judgeA3b, judgeA4, judgeA5, judgeA6, judgeA8, judgeA9, judgeA15,
-  checkRealtime, runChecks, formatResult, summaryLine, exitCode, main, USAGE, USER_AGENT, DEFAULT_HOLD_S, SUPERUSERS_ID,
+  checkRealtime, runChecks, formatResult, summaryLine, exitCode, main, USAGE, USER_AGENT, DEFAULT_HOLD_S, SUPERUSERS_ID, SUPERUSERS_MIXED_CASE,
 } from '../tools/nas-check.mjs';
 
 // A response snapshot as the tool's judges expect it
@@ -77,16 +77,21 @@ test('A3: the dashboard and the superuser login are blocked', () => {
   assert.equal(judgeA3a(res(404)).status, 'FAIL');
   const blocked = res(403, 'blocked');
   const answered = json(400, { message: 'Failed to authenticate.' });
-  assert.equal(judgeA3b(blocked, blocked).status, 'PASS');
-  const open = judgeA3b(answered, blocked);
+  assert.equal(judgeA3b(blocked, blocked, blocked).status, 'PASS');
+  const open = judgeA3b(answered, blocked, blocked);
   assert.equal(open.status, 'FAIL');
   assert.match(open.text, /by name: it is not blocked/);
   // the Cloudflare rule covers the name but not the collection id
-  const byId = judgeA3b(blocked, answered);
+  const byId = judgeA3b(blocked, answered, blocked);
   assert.equal(byId.status, 'FAIL');
   assert.match(byId.text, new RegExp(`by id ${SUPERUSERS_ID}: it is not blocked`));
-  assert.equal(judgeA3b(res(500), blocked).status, 'FAIL');
-  assert.equal(judgeA3b(blocked, { error: 'timeout after 15 s' }).status, 'FAIL');
+  // the rule compares the path without lower(): PocketBase still finds _SuperUsers (the NAS project, 2026-11-27)
+  const mixed = judgeA3b(blocked, blocked, answered);
+  assert.equal(mixed.status, 'FAIL');
+  assert.match(mixed.text, new RegExp(`by the mixed-case name ${SUPERUSERS_MIXED_CASE}: it is not blocked`));
+  assert.equal(judgeA3b(res(500), blocked, blocked).status, 'FAIL');
+  assert.equal(judgeA3b(blocked, { error: 'timeout after 15 s' }, blocked).status, 'FAIL');
+  assert.equal(judgeA3b(blocked, blocked, { error: 'timeout after 15 s' }).status, 'FAIL');
 });
 
 test('A4: batch is on', () => {
@@ -278,6 +283,7 @@ function nasFetch({ site = false, overrides = {} } = {}) {
     'GET https://pm.example.com/_/': () => new Response('blocked', { status: 403 }),
     'POST https://pm.example.com/api/collections/_superusers/auth-with-password': () => new Response('blocked', { status: 403 }),
     [`POST https://pm.example.com/api/collections/${SUPERUSERS_ID}/auth-with-password`]: () => new Response('blocked', { status: 403 }),
+    [`POST https://pm.example.com/api/collections/${SUPERUSERS_MIXED_CASE}/auth-with-password`]: () => new Response('blocked', { status: 403 }),
     'POST https://pm.example.com/api/batch': () => jsonRes(400, { data: { requests: { code: 'validation_required' } } }),
     'GET https://pm.example.com/api/collections/users/auth-methods': () => jsonRes(200, { password: { enabled: false }, oauth2: { enabled: true, providers: [{ name: 'google' }] } }),
     'OPTIONS https://pm.example.com/api/health': () => new Response(null, { status: 204 }),
@@ -333,7 +339,7 @@ test('runChecks: a local address skips A2, A3, A8 and makes no Cloudflare reques
   };
   const { results } = await runChecks({ base: 'http://127.0.0.1:8090', local: true, quick: true, fetch: fetchFn });
   assert.deepEqual(ids(results), ['PASS:A1', 'SKIP:A2', 'SKIP:A3a', 'SKIP:A3b', 'PASS:A4', 'PASS:A5', 'PASS:A6', 'PASS:A7', 'SKIP:A8', 'SKIP:A9', 'SKIP:A15']);
-  assert.ok(!urls.some((u) => u.includes('http://127.0.0.1/') || u.includes('_superusers') || u.includes(SUPERUSERS_ID) || u.includes('/_/') || u.includes('sw.js')));
+  assert.ok(!urls.some((u) => u.includes('http://127.0.0.1/') || u.includes('_superusers') || u.includes(SUPERUSERS_ID) || u.includes(SUPERUSERS_MIXED_CASE) || u.includes('/_/') || u.includes('sw.js')));
 });
 
 test('runChecks: a hanging request is a FAIL of that check (timeout)', async () => {
@@ -419,11 +425,11 @@ test('NAS document: every requirement id is defined once; the acceptance table h
   assert.deepEqual(rows, Array.from({ length: 15 }, (_, i) => `A${i + 1}`));
 });
 
-test('NAS document: the WAF rule blocks the superuser collection by name and by the id A3b probes', () => {
+test('NAS document: the WAF rule blocks the superuser collection by name in any case and by the id A3b probes', () => {
   const text = fs.readFileSync(DOC, 'utf8');
   const rule = text.slice(text.indexOf('**R-NET-4'), text.indexOf('**R-NET-5'));
-  assert.ok(rule.includes('"/api/collections/_superusers/"'));
-  assert.ok(rule.includes(`"/api/collections/${SUPERUSERS_ID}/"`));
+  assert.ok(rule.includes('starts_with(lower(http.request.uri.path), "/api/collections/_superusers/")'));
+  assert.ok(rule.includes(`starts_with(lower(http.request.uri.path), "/api/collections/${SUPERUSERS_ID}/")`));
 });
 
 test('NAS document: only placeholders — no real e-mail, IPv4 address or host', () => {

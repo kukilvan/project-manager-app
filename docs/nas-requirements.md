@@ -1,6 +1,6 @@
 # What the Project Manager app needs from the NAS
 
-Version: 2026-11-26, commit `b3dba35`. Previous version: 2026-11-25 (2), commit `626a548`. Owned by this repo (`kukilvan/project-manager-app`); the NAS project proposes changes through the owner.
+Version: 2026-11-27, commit — (set when the owner accepts it). Previous version: 2026-11-26, commit `b3dba35`. Owned by this repo (`kukilvan/project-manager-app`); the NAS project proposes changes through the owner.
 
 This document tells the NAS project exactly what to set up so the owner's copy of the app (the **NAS copy**) can run on the home NAS, how to move the owner's data there, and how to check it. The decisions behind it are in ADR 0013, ADR 0014 and ADR 0019 of this repo.
 
@@ -157,10 +157,10 @@ Why: phones must reach the NAS from anywhere over HTTPS, without a VPN app and w
 
 - **R-NET-1 (now)** A remotely managed Cloudflare Tunnel (Zero Trust → Networks → Tunnels). `cloudflared` runs in Docker with the tunnel token (kept by the NAS project), with `--no-autoupdate`, its version pinned by the NAS project. The NAS project may raise the version on its own, for example in its monthly update sessions, if `nas-check` (A1–A7, with the realtime hold) passes on the new version. Public hostname `<host>` → service `http://pocketbase:8090`. No port is opened on the home router; this works behind the provider's NAT.
 - **R-NET-2 (now)** SSL/TLS: "Always Use HTTPS" on, so `http://` redirects to `https://`.
-- **R-NET-3 (now)** Off for `<host>`: Cloudflare Access, Rocket Loader, Email Address Obfuscation, Bot Fight Mode. They rewrite pages or challenge the app's requests; an expiring Access cookie breaks an installed iPhone app. A zone-wide switch on the Free plan is fine while the zone's other names stay DNS-only.
+- **R-NET-3 (now)** Off for `<host>`: Cloudflare Access, Rocket Loader, Email Address Obfuscation, Bot Fight Mode, Web Analytics with automatic setup (it adds its script to every HTML page). They rewrite pages or challenge the app's requests; an expiring Access cookie breaks an installed iPhone app. A zone-wide switch on the Free plan is fine while the zone's other names stay DNS-only.
 - **R-NET-4 (now)** Two WAF custom rules on `<host>`, action **Block**:
   1. `starts_with(http.request.uri.path, "/_/")` — the dashboard;
-  2. `starts_with(http.request.uri.path, "/api/collections/_superusers/") or starts_with(http.request.uri.path, "/api/collections/pbc_3142635823/")` — superuser sign-in and records, by the collection's name and by its id (PocketBase accepts both; the id is fixed in PocketBase's code).
+  2. `starts_with(lower(http.request.uri.path), "/api/collections/_superusers/") or starts_with(lower(http.request.uri.path), "/api/collections/pbc_3142635823/")` — superuser sign-in and records, by the collection's name and by its id (PocketBase accepts both; the id is fixed in PocketBase's code). `lower()` because PocketBase finds a collection by name in any letter case (`_SuperUsers` reaches the login; the NAS project found it, 2026-11-27).
 
   The outer layer; R-PB-5 is what really holds. The id is there because PocketBase answers a wrong password with 400 and a right one with 403, which would tell an outsider a guess is right.
 - **R-NET-5 (now)** Limits (explanation): request body up to 100 MB on the free plan (the app sends 1–2 MB per batch); an idle realtime stream is cut after ≈ **125 s** (PocketBase itself: 300 s); the app reconnects and re-reads changes (stage 4).
@@ -176,7 +176,7 @@ Why: users sign in with their Google accounts, and the app talks to Google Drive
 
 - **R-AUTH-1 (now)** PocketBase `users` collection: password sign-in **off** (by default it is on); OAuth2 **on** with the Google provider (Client ID and secret of R-GOOG-1); field mapping: name → `name`, avatar URL → `avatar`. Google sign-in may create users; who sees which project is decided by the collection rules (stage 4). Password sign-in off does not stop the records API from creating users; stage 4's migrations set the `users` rules (R-PB-8) so users come only from Google sign-in.
 - **R-AUTH-2 (now)** Auth token duration for users: **30 days** (2,592,000 s; the default is 5 days). The app refreshes it at every online start (stage 4). Reason: a helper's phone may stay offline or unused for weeks, and 5 days would force a new Google sign-in.
-- **R-GOOG-1 (now)** The OAuth client is the owner's existing Google Cloud web client — the one whose Client ID the owner's connect link carries (it already has the Drive and Sheets scopes). Its client secret is typed into PocketBase settings only by the owner (encrypted by `PB_ENCRYPTION_KEY`). If the client's consent screen is in "Testing" status, every helper's Google account should be on its test-user list, otherwise their sign-in is refused.
+- **R-GOOG-1 (now)** The OAuth client is the owner's existing Google Cloud web client — the one whose Client ID the owner's connect link carries (it already has the Drive and Sheets scopes). Its client secret is typed into PocketBase settings only by the owner (encrypted by `PB_ENCRYPTION_KEY`). Google shows an existing secret only masked, so the owner may add a second one for PocketBase; the previous secret must stay enabled while the Firebase copy lives (Firebase Authentication's Google sign-in may use the same client and its secret); this repo's code and jobs use no client secret. If the client's consent screen is in "Testing" status, every helper's Google account should be on its test-user list, otherwise their sign-in is refused.
 - **R-GOOG-2 (now)** On that client (Google Cloud Console → APIs & Services → Credentials) add:
   - authorized JavaScript origin `https://<host>`;
   - authorized redirect URIs `https://<host>/api/oauth2-redirect` (PocketBase popup sign-in) and `https://<host>/` (the manual code flow, and the app's Drive sign-in on iPhone, which redirects back to the app's own address).
@@ -250,7 +250,7 @@ The tool is `tools/nas-check.mjs` in this repo: Node 22, no dependencies, no cre
 |---|---|---|---|
 | A1 | `https://<host>/api/health` answers 200 through the tunnel | `nas-check` | now |
 | A2 | `http://` redirects to `https://` | `nas-check` | now |
-| A3 | `/_/` and the superuser login are blocked from the internet | `nas-check` | now |
+| A3 | `/_/` and the superuser login (by name, by id, by the name in mixed case) are blocked from the internet | `nas-check` | now |
 | A4 | batch on | `nas-check` | now |
 | A5 | password sign-in off, Google provider on | `nas-check` | now |
 | A6 | no CORS for a foreign origin | `nas-check` | now |
@@ -281,7 +281,7 @@ None open. Relied on: `pb_data` on the Btrfs mirror; the domain and DNS at Cloud
 
 ## 12. What changes in later stages, and the move
 
-- **Stage 4** (now): version 2026-11-25 (2) fixed the names (R-PB-8, R-SITE-2, R-JOB-1, R-MOVE-1) and moved PocketBase to 0.42.3. Version 2026-11-26: the release `nas-build` exists (its site is a placeholder until the sign-in ticket) and `nas-check` has A15. Next: the rehearsal result.
+- **Stage 4** (now): version 2026-11-25 (2) fixed the names (R-PB-8, R-SITE-2, R-JOB-1, R-MOVE-1) and moved PocketBase to 0.42.3. Version 2026-11-26: the release `nas-build` exists (its site is a placeholder until the sign-in ticket) and `nas-check` has A15. The first full `nas-check` through the tunnel passed on 2026-11-27 (8 pass, 3 skip; idle realtime cut after 125 s). Version 2026-11-27: the NAS project's two suggestions — `lower()` in R-NET-4 with a mixed-case probe in A3b, Web Analytics in R-NET-3. Next: the rehearsal result.
 - **Stage 5** (the move, by the NAS project): the requirements below; this repo changes the document only if the NAS project's work shows something missing.
 
 Each stage of this repo that changes the NAS side updates this document in the same session, with a new version line on top.

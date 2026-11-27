@@ -21,6 +21,8 @@ export const DEFAULT_HOLD_S = 150;
 export const BODY_CUT = 120;
 // The id of PocketBase's _superusers collection, fixed in its code (checked in 0.40.6): the API accepts it in place of the name.
 export const SUPERUSERS_ID = 'pbc_3142635823';
+// PocketBase finds a collection by name in any letter case (checked in 0.42.3; the id must match exactly), so A3b also probes this spelling.
+export const SUPERUSERS_MIXED_CASE = '_SuperUsers';
 const FOREIGN_ORIGIN = 'https://example.com';
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost']);
 
@@ -106,15 +108,15 @@ export function judgeA3a(res) {
   return fail('A3a', 'the dashboard /_/ did not answer 403', expected, res);
 }
 
-// Two probes: the login by the collection's name and by its id. PocketBase answers a wrong password with 400, so 400 means not blocked.
-export function judgeA3b(byName, byId) {
-  const expected = '403 (blocked by the Cloudflare rule) for the login by name and by id';
-  for (const [res, how] of [[byName, 'by name'], [byId, `by id ${SUPERUSERS_ID}`]]) {
+// Three probes: the login by the collection's name, by its id and by the name in mixed case. PocketBase answers a wrong password with 400, so 400 means not blocked.
+export function judgeA3b(byName, byId, byMixedCase) {
+  const expected = '403 (blocked by the Cloudflare rule) for the login by name, by id and by the name in mixed case';
+  for (const [res, how] of [[byName, 'by name'], [byId, `by id ${SUPERUSERS_ID}`], [byMixedCase, `by the mixed-case name ${SUPERUSERS_MIXED_CASE}`]]) {
     if (!res.error && res.status === 403) continue;
     if (!res.error && res.status === 400) return fail('A3b', `PocketBase answered the superuser login ${how}: it is not blocked`, expected, res);
     return fail('A3b', `the superuser login ${how} did not answer 403`, expected, res);
   }
-  return pass('A3b', 'the superuser login is blocked by name and by id (403)');
+  return pass('A3b', 'the superuser login is blocked by name, by id and by the name in mixed case (403)');
 }
 
 export function judgeA4(res) {
@@ -294,6 +296,7 @@ export async function runChecks({ base, local, quick = false, hold = DEFAULT_HOL
     emit(judgeA3b(
       await post('/api/collections/_superusers/auth-with-password', probe),
       await post(`/api/collections/${SUPERUSERS_ID}/auth-with-password`, probe),
+      await post(`/api/collections/${SUPERUSERS_MIXED_CASE}/auth-with-password`, probe),
     ));
   }
 
