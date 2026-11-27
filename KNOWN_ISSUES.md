@@ -26,6 +26,7 @@ Bugs decided not to fix now, and rare cases where the app can go wrong (source d
 | KI-11 | after an abandoned Google redirect on iPhone, a later start runs the waiting Drive action with an expired token and goes to Google unasked | `createShell` in `src/app/shell.js` (`pz_gsync_pending`) | open | — |
 | KI-12 | on the NAS copy without a Client ID from the server, the shared client is used, and Google likely refuses the NAS address (`redirect_uri_mismatch`) | `getToken` in `src/app/google.js`, `src/app/pb/drive.js` | open | — |
 | KI-13 | on the Firebase and on-device copies the Google token stays after sign-out: another account within the hour uses the previous account's Drive | `logout` in `src/firebase.js`, `pz_gtoken` | open | — |
+| KI-14 | in winter the 07:20 UTC retry of the night sheets runs before the Firestore quota resets (08:00 UTC), so a night run that failed on the quota fails again | `.github/workflows/server-tables.yml` (cron `20 7 * * *`) | open | — |
 
 ## Entries
 
@@ -157,3 +158,12 @@ Entry format:
 - Likelihood / impact: only a device shared by two accounts; files land in or are read from the other person's Drive.
 - Status: open
 - Found: 2026-11-27, ticket 4.9 (reading the code, not reproduced).
+
+## KI-14. The winter retry of the night sheets comes before the quota reset
+
+- Where: `.github/workflows/server-tables.yml`, the retry cron `20 7 * * *` and its comment «right after the daily Firebase quota reset (midnight Pacific time)».
+- What's wrong: the Spark read quota resets at midnight Pacific time: 07:00 UTC in summer (PDT), 08:00 UTC in winter (PST). In winter the retry at 07:20 UTC runs with the old day's quota, so when the 00:00 UTC run failed because the quota was used up, the retry fails too and the sheets wait a whole day. The server backup at 08:30 UTC is after the reset in both seasons.
+- How to reproduce: seen 2026-11-27: a hand-started «Server backup» at 21:14 UTC stopped with `8 RESOURCE_EXHAUSTED: Quota exceeded` after the scheduled backup (18:20 UTC) and a hand-started «Server tables» (21:13 UTC) had used the day's reads; a night run before 08:00 UTC on that quota fails the same way.
+- Likelihood / impact: only on days the read quota runs out (heavy use, extra hand runs); the sheets and «PDF с номерами» are a day late. No data is lost. Fix: retry at 08:20 UTC all year (also after the summer reset), or move to the NAS (stage 5) where there is no quota.
+- Status: open
+- Found: 2026-11-27, ticket 4.11 (owner-approved hand runs of «Server backup» and «Server tables»).
