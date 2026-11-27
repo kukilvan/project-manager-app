@@ -68,15 +68,15 @@ test('test plan data: captions do not overlap (the shared mark is one caption)',
   }
 });
 
-test('test plan look: default frames, blue for the measured length, pink, gradient early and later, dark green, red', () => {
+test('test plan look: default frames, blue for the measured length, brown, gradient early and later, dark green, red', () => {
   ['FA/C-01', 'FA/B-01-02', 'FB/D-02', 'G-02'].forEach((l) => assert.equal(look(l).color, PLAN_PALETTE.gray, l));
   assert.equal(look('FA/C-02').color, PLAN_PALETTE.blue, 'a length only');
-  assert.equal(look('FA/C-03').color, PLAN_PALETTE.pink);
-  assert.equal(look('FB/D-01').color, PLAN_PALETTE.pink);
+  assert.equal(look('FA/C-03').color, PLAN_PALETTE.pulled);
+  assert.equal(look('FB/D-01').color, PLAN_PALETTE.pulled);
   const early = look('FA/C-04'); const later = look('FB/G-01');
   assert.equal(early.color, gradientColor(0)); assert.ok(early.j >= 1 && early.j < early.M);
   assert.ok(later.j > early.j && later.j < later.M, 'more works done than the early one, not all');
-  assert.ok(later.color !== early.color && later.color !== PLAN_PALETTE.pink && later.color !== PLAN_PALETTE.full);
+  assert.ok(later.color !== early.color && later.color !== PLAN_PALETTE.pulled && later.color !== PLAN_PALETTE.full);
   const full = look('FA/C-05');
   assert.equal(full.color, PLAN_PALETTE.full); assert.equal(full.full, true); assert.ok(full.width > 1);
   const red = look('FA/W-01'); assert.equal(red.color, PLAN_PALETTE.red); assert.equal(red.red, true);
@@ -85,7 +85,7 @@ test('test plan look: default frames, blue for the measured length, pink, gradie
 test('test plan look: the pull circles of a point with one cable of two pulled', () => {
   const k = look('FB/K-01');
   assert.deepEqual(k.pull, { done: 1, total: 2 });
-  assert.equal(k.color, PLAN_PALETTE.pink);
+  assert.equal(k.color, PLAN_PALETTE.pulled);
   assert.equal(look('FA/C-03').pull, null, 'a finished pull has no circles');
 });
 
@@ -99,7 +99,7 @@ test('test plan look: the standard «ЭМ» door configuration and its 6005 pull
 test('test plan look: FB/C-10 and FB/C-11 share one mark, in the color of the least finished', () => {
   const a = point('FB/C-10'); const b = point('FB/C-11');
   assert.deepEqual(a.pos, b.pos);
-  assert.equal(planColor(a, ctx).color, PLAN_PALETTE.pink);
+  assert.equal(planColor(a, ctx).color, PLAN_PALETTE.pulled);
   assert.equal(planColor(b, ctx).color, PLAN_PALETTE.gray);
   assert.equal(markColor([a, b].sort(comparePoints), ctx).color, PLAN_PALETTE.gray);
 });

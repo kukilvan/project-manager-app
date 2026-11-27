@@ -117,7 +117,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `src/app/views/pdfpick.js` — Modal picker for a drawing PDF: from this project, from Google Drive (the «Чертежи» folders of the app's projects) or from the device.
 - `src/app/views/planassign.js` — «🗺 Распределить на плане»: a modal where the marks of a drawing whose rack is unclear (one number exists in several racks) are assigned to racks.
 - `src/app/views/planlink.js` — «🔗 Связать точки с чертежом»: parses a drawing by the caption catalog so that project points with the same labels get a place on the drawing.
-- `src/app/views/planmodal.js` — «🗺 План»: the project's drawing with points colored by progress (pink — pulled, then yellow → green); tapping a point opens its card, and «📍 На чертеже» on a card opens the plan there.
+- `src/app/views/planmodal.js` — «🗺 План»: the project's drawing with points colored by progress (brown — pulled, then yellow → green); tapping a point opens its card, and «📍 На чертеже» on a card opens the plan there.
 - `src/app/views/plannumbers.js` — Builds the «📄 PDF с номерами» file of a drawing: the plan as the app shows it, with frames in the plan's progress colors, non-overlapping captions, hidden marks in white and a legend.
 - `src/app/views/planpick.js` — «🔎 Значки без номеров»: a modal where icons on the drawing plan are found, numbered and turned into points.
 - `src/app/views/planversion.js` — «🔄 Новая версия чертежа»: moves the points of a drawing onto its updated version, with recalculated coordinates.

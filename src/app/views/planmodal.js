@@ -1,4 +1,4 @@
-// «🗺 План»: the project's drawing with points colored by progress (pink — pulled, then yellow → green); tapping a point opens its card, and «📍 На чертеже» on a card opens the plan there.
+// «🗺 План»: the project's drawing with points colored by progress (brown — pulled, then yellow → green); tapping a point opens its card, and «📍 На чертеже» on a card opens the plan there.
 // Draws the sheets with the planview.js viewer through the tohnit worker (MuPDF), reads and writes drawings with drawings.js, and saves points through repo.save;
 // the tools on the plan call planversion.js (new drawing version), planlink.js (link points), plannumbers.js (PDF with numbers), tohnitview.js (parse, icons) and pointmerge.js.
 // It remembers on this device the last drawing and each drawing's place and zoom (`pz.planView.<projectId>`, planmemory.js), so the plan opens where the owner left it.
@@ -50,7 +50,7 @@ export const shOf = (p) => { const c = doorCfgOf(p, state.ctx); const t = c ? do
 export const tagOf = (p) => { const c = doorCfgOf(p, state.ctx); const sh = c ? doorCfgShort(state.ctx, c) : ''; return sh ? `${p.label} ${sh}` : p.label; };
 import { typeOptions } from '../typegroups.js';
 
-import { markColor, gradientColor, PLAN_LEGEND, planFilterGroups, problemName } from '../../domain/index.js';
+import { markColor, gradientColor, PLAN_LEGEND, PLAN_PALETTE, planFilterGroups, problemName } from '../../domain/index.js';
 import { lang, tr } from '../../i18n/index.js';
 // a caption on the drawing — a frame around the text; an icon without a caption — a circle of its size
 export const isText = (pos) => { const w = pos.w || 0; const hh = pos.h || 0; return w && hh && Math.max(w, hh) / Math.min(w, hh) > 1.6; };
@@ -65,7 +65,7 @@ export function outline(g, api, pos, color, { width = 1.5, pad = 1.5, fill = nul
 // the font of the tags and the pull circles: they grow with the zoom
 const tagFont = (api) => Math.round(Math.min(26, Math.max(12, 5.5 * api.view.s)));
 // the circles of an unfinished pull: one per cable (at most 10 shown), filled for a pulled one
-const PULL_DOT = '#A8285F';
+const PULL_DOT = PLAN_PALETTE.pulled;
 const dotsRad = (fs) => Math.max(2.5, fs * 0.22);
 const dotsRow = (fs) => 2 * dotsRad(fs) + 3;
 const dotsCount = (pull) => Math.min(pull.total, 10);
@@ -442,7 +442,7 @@ export function planModal({ point = null, placeFor = null } = {}) {
       holder.replaceChildren(
         h('div', { class: 'mf-bar', style: { margin: '0 0 6px' } }, search, typeF.el, cfgF.el, cabF.el, stageF.el), reset.el, noneLine,
         h('div', { class: 'btns', style: { marginTop: 0 } }, revBtn, ...viewer.zoomBtns(), selBtn, doorBtn, addBtn, iconBtn, dimBtn, layersBtn), bar, tbar, viewer.el, doorBar,
-        // the legend: pink — pulled, yellow → green — the works after the pull, circles — the cables of an unfinished pull
+        // the legend: brown — pulled, yellow → green — the works after the pull, circles — the cables of an unfinished pull
         h('div', { style: { display: 'flex', gap: '6px 12px', flexWrap: 'wrap', alignItems: 'center', margin: '6px 2px', fontSize: '13px' } },
           h('span', {}, 'Цвет — протяжка и работы после неё:'),
           ...PLAN_LEGEND.map((x) => h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' } }, legendSwatch(x), x.ru))),

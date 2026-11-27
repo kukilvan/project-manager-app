@@ -1,5 +1,5 @@
 // Builds «PDF с номерами»: the drawing PDF marked like the plan in the app, with a legend page at the end (in Russian or in Hebrew through legendhe.js).
-// Captions on the drawing get a frame in the point's color (planColor of plan.js: pink — pulled, yellow → green by the works after the pull; thicker for a finished point; no pull circles here) and icons get a circle; a tag of its own (framed, white background) is placed where it does not cover icons, frames or other captions.
+// Captions on the drawing get a frame in the point's color (planColor of plan.js: brown — pulled, yellow → green by the works after the pull; thicker for a finished point; no pull circles here) and icons get a circle; a tag of its own (framed, white background) is placed where it does not cover icons, frames or other captions.
 // Several points on one mark share one tag («TV13-14» or stacked). Hidden items are painted over in white. The PDF marks are split into layers «Номера: <тип>»,
 // so a viewer can keep only the needed ones. Works on MuPDF objects passed in by the caller (worker.js and scripts/server-tables-lib.mjs); uses src/domain/points.js and plan.js.
 import { combineLabels } from '../domain/points.js';
