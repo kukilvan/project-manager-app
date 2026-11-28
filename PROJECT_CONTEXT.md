@@ -6,6 +6,8 @@ Current state only; budget 20,000 bytes (`wc -c`). Details of finished work live
 
 «Ревью 4» — the review of stage 4, PocketBase storage: all 15 tickets in `.scratch/04-pocketbase-storage/issues/` against the spec and `docs/coding-standards.md`; output `review.md` in the same folder. It gathers every «Needs the NAS» owner check into one phone list (spec § 13) and decides KI-10 (Firebase texts on the NAS copy, left by ticket 15). Opus 5.5, effort xhigh. Since 2026-11-27 the NAS installs our releases itself (R-SITE-2, R-PB-8; within ≈ 2 min of a push): build `577592e` (schema 2) was live on `<host>`, `nas-check` 11 pass, 0 fail (`.scratch/04-pocketbase-storage/nas-report-2.md`). On 2026-11-27 the owner's phone runs the real app on the NAS copy (after first reporting a placeholder there), and Drive and the management sheet work on it. Tickets list NAS checks as «Needs the NAS», the owner says «Работает» for what can be checked now, «Ревью 4» gathers the rest into one list (spec § 13, slicing notes).
 
+2026-11-28, owner's decision: the move to the NAS goes first, that day, and the review after it — it then checks the stage on the real NAS copy and takes in the NAS project's R-MOVE-3 report. Before the move the owner did `ПЕРЕЕЗД.md` section 1, § 7.1 and § 7.2 steps 1–2: «Server backup» by hand at 08:00 UTC, green, folder `2026-11-28_0801` (2 projects, 16,132 documents read). `nas-message-6.md` got section 0 (move day status) before it was sent.
+
 Quick fixes «Правка: …» may come at any time; they do not change this step.
 
 ## State
@@ -55,6 +57,7 @@ Status values: not started · description · spec · tickets k/n · review · fi
 - GitHub Actions secrets (names only): `FIREBASE_SERVICE_ACCOUNT` (service account JSON for server jobs), `BACKUP_REPO_TOKEN` (private `kukilvan/polevoy-backups`). `GH_TOKEN` in jobs is the built-in `github.token`.
 - Device `localStorage` keys: `pm.connection`, `pm.mode` (`local`), `pm.localUser`, `pm.authCached`, `pm.admin.<projectId>`, `pm.lang`; `pz.sync.*` sync marks; `pz.reads`, `pz.writes` daily counters; `pz.layers.<id>`, `pz.planView.<projectId>` (plan view memory, from stage 8), `pz.theme`, `pz.currentProject.*`, `pz_gtoken` (Google token); `pz.log.v1` event log. NAS copy (ticket 4.4): `pocketbase_auth` (the PocketBase SDK's saved sign-in), `pz.pbOauth` (the manual Google code flow until the return), `pm.admin.pb` (the administrator). NAS copy (ticket 4.5): IndexedDB `pm-pb` (local copy and write queue: stores `docs`, `queue`, `meta`, `history`). NAS copy (ticket 4.9): `pm.pbGoogleClient` (the owner's Google Client ID from `auth-methods`).
 - Known test failures on the owner's PC: none (KI-1 and KI-2 fixed in ticket 1.1). The PocketBase server tests are skipped there until `node tools/pb-dev.mjs fetch` has been run once.
+- Users (2026-11-28): the owner is the only user; no helpers yet. The owner's second, test Google address is a member but not needed — nobody signs in with it, no check covers it.
 - Owner's documents outside GitHub, in the claude.ai project «Менеджер проектов»: old plans, the AppSheet functional description, the old Apps Script, reference point files by drawings.
 
 ## Gotchas
