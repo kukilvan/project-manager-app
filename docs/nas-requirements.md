@@ -1,6 +1,6 @@
 # What the Project Manager app needs from the NAS
 
-Version: 2026-11-27 (2), commit `d58903a`. Previous version: 2026-11-27, commit `8ae88cb`. Owned by this repo (`kukilvan/project-manager-app`); the NAS project proposes changes through the owner.
+Version: 2026-11-28, commit `6052ab5`. Previous version: 2026-11-27 (2), commit `d58903a`. Owned by this repo (`kukilvan/project-manager-app`); the NAS project proposes changes through the owner.
 
 This document tells the NAS project exactly what to set up so the owner's copy of the app (the **NAS copy**) can run on the home NAS, how to move the owner's data there, and how to check it. The decisions behind it are in ADR 0013, ADR 0014 and ADR 0019 of this repo.
 
