@@ -2,6 +2,14 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-28 — Ticket 4.15: the switch-over instructions («Тикет 4.15»)
+
+- Commits `df550a7`, `26a8a9e`. `ПЕРЕЕЗД.md` (Russian): before the move (send everything from the old icon, drawings and manuals to Drive, delete the trial icon), the new icon, the check against the old one, the old icon, the way back, and the owner's own steps (connect link saved, «Server backup», the GitHub jobs disabled with no run in progress, the first off-site copies, the return). README, code map and `docs/workflow.md` point to it.
+- NAS document version 2026-11-28 (2), commit `df550a7`: R-JOB-1 (real secrets only from the switch-over on; `state.json`, `FULL`, `DRY_RUN`), R-BAK-2 and A10 (the off-site copies start on the switch-over day, seen before anyone records), R-MOVE-2 (the phone instructions), stage 4 history shortened to keep 34,000 bytes. `docs/nas-move-rehearsal.md` go / no-go got step 8. Message: `.scratch/04-pocketbase-storage/nas-message-6.md`.
+- Guide section «Домашний сервер»: wait for «⬇» to go after the first sign-in (KI-18), in three languages.
+- Decided: how A10 holds before the switch-over (KI-15, left by ticket 14) — it does not; only the PocketBase backups hold before, the owner accepted. Found while writing: the app's own Google buttons on a trial NAS copy with real data write over the live files (added to KI-15). KI-10 left for «Ревью 4».
+- Checked: 598 tests, both builds, the guide text and the instruction's app screens on the local NAS copy at 420 px; deploy green, `nas-site.json` names `26a8a9e`. Not checked: iPhone, Android and GitHub button names, the move itself.
+
 ## 2026-11-28 — Ticket 4.14: the rehearsal of the move («Тикет 4.14»)
 
 - The move done on the PC with the newest full backup (folder 2026-11-27_1820): `pb-restore` plan → `--write` → count check → `--verify` passed first time (17,151 records, ≈ 6 s), also from a standalone copy of the job scripts and with the rate limits of R-PB-6; the PocketBase export restored into a second server equals it. `docs/nas-move-rehearsal.md` (commands, times, counts, go / no-go) and R-MOVE-1 point to it; NAS document version 2026-11-28 (commit `6052ab5`).
