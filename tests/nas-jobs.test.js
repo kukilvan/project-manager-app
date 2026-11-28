@@ -228,13 +228,33 @@ test('a missing secret file: exit 1, a one-line reason, state.json written (the 
   } finally { box.done(); }
 });
 
-test('no GitHub token for the real repository: refused before anything is cloned', async () => {
-  const box = nas({ secrets: ['pb_jobs_password'] });
+test('no GitHub token for the real repository: nothing is cloned, the copy goes to Drive alone, the run fails (review 4, F2)', async () => {
+  const box = nas({ secrets: ['pb_jobs_password', 'google_service_account.json'] });
   try {
-    const r = await run(box, 'backup', { env: { BACKUP_REMOTE: '' }, deps: { openSource: async () => fakeSource() } });
+    const r = await run(box, 'backup', { env: { BACKUP_REMOTE: '' }, deps: { now: () => new Date('2026-11-27T01:30:00Z'), openSource: async () => fakeSource() } });
     assert.equal(r.code, 1);
     assert.match(box.state_().backup.error, /github_token/);
     assert.equal(fs.existsSync(path.join(box.state, 'polevoy-backups')), false);
+    assert.deepEqual(r.uploads.map((u) => u.folder), ['2026-11-27_0130'], r.text);
+    assert.ok(Object.keys(unzip(r.uploads[0].bytes)).some((f) => f.endsWith('(полная).json')));
+    assert.match(r.text, /Очистка пропущена/);
+  } finally { box.done(); }
+});
+
+test('backup with no clone and GitHub down (the first run): the Drive copy is still made from a folder of its own (review 4, F2)', async () => {
+  const box = nas();
+  try {
+    fs.renameSync(box.remote, `${box.remote}.away`);
+    const r = await run(box, 'backup', { deps: { now: () => new Date('2026-11-28T01:30:00Z'), openSource: async () => fakeSource() } });
+    assert.equal(r.code, 1, r.text);
+    assert.match(box.state_().backup.error, /^копии на GitHub: git clone: /);
+    assert.deepEqual(r.uploads.map((u) => u.folder), ['2026-11-28_0130']);
+    assert.ok(fs.existsSync(path.join(box.state, 'backups-local', '2026-11-28_0130')));
+    noSecrets(r.text + stateText(box), 'pm-jobs-password-1');
+    // GitHub back: the clone is made and the copy pushed
+    fs.renameSync(`${box.remote}.away`, box.remote);
+    assert.equal((await run(box, 'backup', { deps: { now: () => new Date('2026-11-29T01:30:00Z'), openSource: async () => fakeSource() } })).code, 0);
+    assert.ok(box.files().some((f) => f.startsWith('2026-11-29_0130/')));
   } finally { box.done(); }
 });
 

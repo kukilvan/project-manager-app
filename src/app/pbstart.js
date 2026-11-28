@@ -60,8 +60,9 @@ async function enter(app, diag, message = '') {
     copy, uid: () => user.uid, token: () => getPb().authStore.token,
     isExpired: () => auth.expired, onExpired: markExpired,
     onDone: backend.itemDone, onProgress: backend.itemProgress,
-    // a refused change may mean the user was removed from the project: the project list is read again at once (spec 4 § 10 case 3)
-    onRejected: (seq, code, message) => { backend.itemRejected(seq, code, message); if (code === 'forbidden') reader.readNow('light'); },
+    // a refused change: the copy dropped what it showed, so the server's versions are read again at once (review 4 F1); a refusal may also mean
+    // the user was removed from the project, which the project list of that read shows (spec 4 § 10 case 3)
+    onRejected: (seq, code, message) => { backend.itemRejected(seq, code, message); reader.readNow('full'); },
   });
   setUnsentCounter(() => backend.queueCount());
   // a sign-in after «Вход истёк»: the same user — sending resumes; another user — the start replaces the local copy (spec 4 § 3.3)

@@ -3,7 +3,8 @@
 // Reads the user prefs through the repo (the personal glossary words) and shows the manuals card of manualsview.js and the tour of src/app/tour.
 //
 // Contents:
-// - SECTIONS — the guide sections: id, icon, title, a short text and the full steps; sections() leaves out «Домашний сервер» off the NAS copy
+// - SECTIONS — the guide sections: id, icon, title, a short text and the full steps; sections() leaves out «Домашний сервер» off the NAS copy and the
+//   Firebase section on it, where a section's `nasMore` lines replace its `more`
 // - DICT — the built-in glossary: term, Hebrew spelling, meaning
 // - sectionCard(), body() — one section card and its text lines
 // - allWords(), wordForm(), dictCard() — the glossary with the user's own words and edits
@@ -65,6 +66,21 @@ const SECTIONS = [
       '• ☰ → Проект → «Участники» → «Пригласить коллегу», введите почту Google.',
       '• Там же внизу «🔗 Ссылка для подключения» — отправьте её коллеге (кнопка WhatsApp). По ней его приложение подключится к вашей базе, без настройки.',
       '• Коллега открывает ссылку, входит с этой почтой и принимает приглашение вверху экрана. Права у всех участников равные.',
+      '• Имя участника (видно всем в проекте) задаётся в его строке. Убрать участника может любой, приложение предложит заодно откатить его правки.',
+      '# Править проект',
+      '• ☰ → Проект → «Редактировать проект»: название, помощник, объект, примечание. Там же «В архив» (создатель проекта).',
+      '• ☰ → Проект → «Все проекты»: переключение между проектами.',
+    ],
+    // the NAS copy has no connect link: the colleague needs only the address (KI-10)
+    nasMore: [
+      '# Создать проект',
+      '• Мастер задаёт название, подрядчика, объект, помощника по умолчанию (для иврита заполните и ивритские поля).',
+      '• Дальше выбираются типы точек, устройства, кабели и работы из общего пула. То, что нужно выбранным типам, отмечается само (серые галочки). Добавить лишнее можно потом в «Ещё».',
+      '• После создания идут необязательные шаги: участники, чертежи (тохниты), точки, папка для руководства. Любой можно пропустить и вернуться позже.',
+      '# Пригласить коллегу',
+      '• ☰ → Проект → «Участники» → «Пригласить коллегу», введите почту Google.',
+      '• Там же внизу карточка «Как подключить коллегу»: «📋 Скопировать» или «💬 WhatsApp» отправит коллеге адрес домашнего сервера. Он откроет адрес на телефоне, установит значок на экран «Домой» и войдёт через Google.',
+      '• Коллега входит с той почтой, на которую пришло приглашение, и принимает его вверху экрана. Права у всех участников равные.',
       '• Имя участника (видно всем в проекте) задаётся в его строке. Убрать участника может любой, приложение предложит заодно откатить его правки.',
       '# Править проект',
       '• ☰ → Проект → «Редактировать проект»: название, помощник, объект, примечание. Там же «В архив» (создатель проекта).',
@@ -292,7 +308,7 @@ const SECTIONS = [
     ],
   },
   {
-    id: 'base', icon: '🔌', title: 'Где хранятся данные',
+    id: 'base', icon: '🔌', title: 'Где хранятся данные', firebase: true,   // not on the NAS copy: «Домашний сервер» says it there (KI-10)
     short: 'Два режима. «На устройстве» — всё в телефоне, без настройки, но без коллег. «Своя база» (Firebase, бесплатно, около 10 минут настройки) — работа вместе, одни данные на всех устройствах, хранение у Google.',
     more: [
       '# На устройстве',
@@ -312,6 +328,12 @@ const SECTIONS = [
   {
     id: 'nas', icon: '🏠', title: 'Домашний сервер', nas: true,   // shown on the NAS copy only
     short: 'На домашнем сервере приложение работает так же, как с Firebase. После первого входа на телефоне подождите, пока вверху пропадёт значок ⬇: до этого получены не все данные, и записывать ничего не нужно. Без интернета записи ждут на телефоне (значок ⬆) и уходят сами. Если вверху написано, что база на домашнем сервере ещё не обновлена, ничего делать не нужно: записи уйдут после обновления сервера. Если написано «Вход истёк» — нажмите «Войти снова».',
+    more: [
+      '# Где хранятся данные',
+      '• Данные проектов хранятся на домашнем сервере владельца. На телефоне — своя копия: приложение работает и без интернета, а записи уходят на сервер сами.',
+      '• Новый коллега: пригласите его в проект (☰ → Проект → «Участники»), затем отправьте ему адрес из карточки «Как подключить коллегу».',
+      '• Google Диск подключается кнопкой при первом обращении: приложение просит доступ к Google Диску и таблицам.',
+    ],
   },
   {
     id: 'data', icon: '💾', title: 'Копии и выгрузка данных',
@@ -474,8 +496,12 @@ export function openGuide(ui, id, part = null) {
   ui.open('guide');
 }
 
-// The sections of this build: the NAS copy has its own «Домашний сервер»
-const sections = () => SECTIONS.filter((s) => !s.nas || isPocketBase());
+// The sections of this build: the NAS copy has its own «Домашний сервер», no Firebase section, and a section's `nasMore` replaces its lines there (KI-10).
+// Built once, so the same section object is met on every call (the search compares them).
+let built = null;
+const sections = () => (built ??= isPocketBase()
+  ? SECTIONS.filter((s) => !s.firebase).map((s) => (s.nasMore ? { ...s, more: s.nasMore } : s))
+  : SECTIONS.filter((s) => !s.nas));
 
 // Search over the guide: section titles, button names in «…» and text lines
 function searchIndex() {

@@ -8,7 +8,7 @@
 // - record → document — recordToDoc, projectKeyMap
 // - filters — quote, pageFilter, deltaSince, nextAfter
 // - decisions — readMode, rolledBack, shouldApply, serverVersion, fullReadRemovals, dropsEveryProject, queuedIds, orphanRecords
-// - invitations and history — invitationsOf, mergeHistory
+// - invitations and history — invitationsOf, withInvitationNames, mergeHistory
 // - export to the backup format — EXPORT_SOURCE, serverStamp, exportDoc, exportProject, exportCommon
 import { docId, opTarget, replayOps } from './pbqueue.js';
 import { DELTA_MARGIN, decideMode } from './sync.js';
@@ -165,6 +165,19 @@ export function invitationsOf(invites, projectOf, email, uid) {
     out.push({ id: key, name: String(d.name || ''), object: String(d.object || ''), memberEmails: d.from ? [d.from] : [], invitedEmails: [em], memberUids: [] });
   });
   return out;
+}
+
+// The project list as the screens show it: a project accepted on this phone and not read from the server yet holds only what the acceptance wrote
+// (the invitee could not read it), so it takes its name and object from its invitation until the server's version comes (review 4, F3).
+// projects: documents of the copy; invites: the `invites` documents of the copy.
+export function withInvitationNames(projects, invites) {
+  const byKey = new Map();
+  (invites || []).forEach((d) => { if (d && typeof d.key === 'string' && d.key && !byKey.has(d.key)) byKey.set(d.key, d); });
+  return (projects || []).map((p) => {
+    if (!p || (p._pb && p._pb.id) || p.name) return p;
+    const inv = byKey.get(String(p.id || ''));
+    return inv ? { ...p, name: String(inv.name || ''), object: String(inv.object || '') } : p;
+  });
 }
 
 // History for the screens: the server's entries and the phone's own (written here and not sent yet, or kept from earlier reads), each entry once by id

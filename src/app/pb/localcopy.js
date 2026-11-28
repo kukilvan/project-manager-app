@@ -1,9 +1,10 @@
 // The local copy of the NAS copy: IndexedDB `pm-pb` with the stores docs, queue, meta and history, held in memory with listeners per scope.
 // Start: every store read into memory, history over 60 days dropped, another user's documents cleared, every queued item of this user replayed over the documents.
 // A queue item is written to IndexedDB in the same call that accepts it; documents, history and meta are batched (150 ms, and at `pagehide` / hidden), as in localdb.js.
+// An item the server refuses is undone (`refuse`): its documents are marked to take the server's version again and its history entries go.
 // Rules (keys, replay, counts) are pure in src/domain/pbqueue.js; src/app/pb/backend.js and src/app/pb/sender.js use it, src/app/pb/reader.js feeds it from the server (spec 4 § 3.3, ADR 0021).
 // Without IndexedDB (or when it refuses to open) the copy lives in memory only. Tests give it a small in-memory fake of the IndexedDB calls it makes.
-import { applyOp, opTarget, scopeOf, queueCount, HISTORY_KEEP_MS } from '../../domain/pbqueue.js';
+import { applyOp, opTarget, scopeOf, queueCount, refusedRepair, HISTORY_KEEP_MS } from '../../domain/pbqueue.js';
 import { info, warn, error } from '../../log.js';
 
 export const DB_NAME = 'pm-pb';
@@ -177,6 +178,27 @@ export async function openLocalCopy({ uid, idb = globalThis.indexedDB, name = DB
         const c = { ...d }; delete c._pending; setDoc(t.id, c); scopes.push(scopeOf(t.id));
       });
       notify(scopes);
+    },
+    // An item the server refused left the queue: what it showed is undone as refusedRepair (src/domain/pbqueue.js) says — its documents wait for the
+    // server's version (marked stale, their scopes read in full next time), its history entries go. Returns the item (null when it is not queued).
+    refuse(seq) {
+      const it = queue.find((x) => x.seq === seq);
+      if (!it) return null;
+      queue = queue.filter((x) => x.seq !== seq);
+      queueTx((st) => st.delete(seq));
+      const r = refusedRepair(it, queue);
+      const scopes = [];
+      r.docs.forEach((id) => {
+        const d = docs.get(id);
+        if (!d) return;
+        const c = { ...d }; delete c._pending;
+        if (c._pb) c._pb = { ...c._pb, updated: '' };
+        setDoc(id, c); scopes.push(scopeOf(id));
+      });
+      r.history.forEach((id) => { if (history.delete(id)) later('history', id, undefined); });
+      r.full.forEach((k) => setMeta(k, undefined));
+      notify(scopes);
+      return it;
     },
     // History entries of a project kept on the phone, newest first
     history(pid, since = 0, max = Infinity) {

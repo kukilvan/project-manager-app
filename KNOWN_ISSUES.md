@@ -22,7 +22,7 @@ Bugs decided not to fix now, and rare cases where the app can go wrong (source d
 | KI-7 | the translation coverage test sees string literals, not sentences built from parts (the half «catalog names show Russian in English» is fixed) | `tests/i18n-coverage.test.js` | open (catalog names fixed) | stage 7, ticket 7.7 (catalog names) |
 | KI-8 | a database with rules older than stage 6 cannot read the shared lists: no merge, no seeding, no «rules out of date» toast, empty lists in a new project | `src/app/shared.js`, `listenPool` in `src/app/repo.js`, `firestore.rules` | fixed | stage 4, ticket 4.10 |
 | KI-9 | the «⚠» list is one per phone, not per user: after another sign-in the previous account's refused writes show and «Повторить» sends them as the new user | `pz.rejected` in `src/app/repo.js` | fixed | stage 4, ticket 4.8 |
-| KI-10 | on the NAS copy some texts still speak of Firebase: guide lines (connect link, «Где хранятся данные», publishing rules, Drive «only its own files») and the toasts after a refused shared-list write or read | `src/app/views/guide.js`, `rejected` and `unreadable` in `src/app/shared.js` | open | stage 4, ticket 15 (proposed) |
+| KI-10 | on the NAS copy some texts still speak of Firebase: guide lines (connect link, «Где хранятся данные», publishing rules, Drive «only its own files») and the toasts after a refused shared-list write or read | `src/app/views/guide.js`, `rejected` and `unreadable` in `src/app/shared.js` | fixed | stage 4, «Ревью 4» |
 | KI-11 | after an abandoned Google redirect on iPhone, a later start runs the waiting Drive action with an expired token and goes to Google unasked | `createShell` in `src/app/shell.js` (`pz_gsync_pending`) | open | — |
 | KI-12 | on the NAS copy without a Client ID from the server, the shared client is used, and Google likely refuses the NAS address (`redirect_uri_mismatch`) | `getToken` in `src/app/google.js`, `src/app/pb/drive.js` | open | — |
 | KI-13 | on the Firebase and on-device copies the Google token stays after sign-out: another account within the hour uses the previous account's Drive | `logout` in `src/firebase.js`, `pz_gtoken` | open | — |
@@ -31,6 +31,9 @@ Bugs decided not to fix now, and rare cases where the app can go wrong (source d
 | KI-16 | the way back into Firebase is close to the free plan's 20,000 writes a day and a cut run starts over | `runFirestoreRestore` in `scripts/server-backup-lib.mjs` | open | — |
 | KI-17 | on Windows the `state.json` test of the job runner failed once: the rename over the file was refused (`EPERM`) | `recordState` in `scripts/nas-jobs.mjs`, `tests/nas-jobs.test.js` | open | — |
 | KI-18 | on a new device of the NAS copy the lists answer empty until the first read: a door configuration chosen in that moment can overwrite its shared-pool entry | `listenPool` in `src/app/pb/backend.js`, `useDoorCfg` in `src/app/doorpool.js` | open | — |
+| KI-19 | on the NAS copy a request whose answer was lost is sent again and can put back an older value over another phone's change made in between | `src/app/pb/sender.js`, `src/domain/pbqueue.js` (resend), `pb/pb_hooks/pm.pb.js` | open | — |
+| KI-20 | the administrator's pool inbox stays empty for the run when the administrator became known after the start (a new device, `/api/pm/admin` slower than 6 s) | `startPool` in `src/app/pool.js`, `listenInbox` in `src/app/pb/backend.js` | open | — |
+| KI-21 | without a project the guide does not open: ☰ → «📖 Как пользоваться приложением» shows «У вас пока нет проекта» | `content` in `src/app/shell.js` | open | — |
 
 ## Entries
 
@@ -132,7 +135,7 @@ Entry format:
 - How to reproduce: NAS build → ☰ → «📖 Как пользоваться приложением» → «Проект: создать, пригласить коллег» → «Подробнее» names the connect link, which this copy does not have.
 - Likelihood / impact: always for the guide lines, rare for the toast; a colleague may look for a button that is not there.
 - Why not fixed now: spec 4 asks for one new section only; the other lines need new texts the owner has not seen. Ticket 4.15 wrote the switch-over texts (`ПЕРЕЕЗД.md`) and changed only the section «Домашний сервер»; proposed for «Ревью 4».
-- Status: open
+- Status: fixed (test: `tests/i18n-coverage.test.js` covers the new texts; checked in the browser pane on the NAS build) — «Ревью 4», 2026-11-28: on the NAS copy the guide has no Firebase section «Где хранятся данные», «Проект» names the card «Как подключить коллегу», «Домашний сервер» got «Подробнее» (data, colleagues, Drive access); the two shared-list toasts point at «⚠» and the administrator.
 - Found: 2026-11-27, ticket 4.8.
 
 ## KI-11. A waiting Drive action runs with an expired Google token
@@ -207,3 +210,30 @@ Entry format:
 - Likelihood / impact: very rare (seconds, once per device); one pool entry changed.
 - Status: open
 - Found: 2026-11-28, ticket 4.14 (reading the code). Ticket 4.15: `ПЕРЕЕЗД.md` and the guide section «Домашний сервер» ask to wait until «⬇» is gone.
+
+## KI-19. A resend after a lost answer can undo another phone's change
+
+- Where: the sender `src/app/pb/sender.js` (no answer in 60 s or a cut connection → back-off and the same request again), `classify`/`settle` in `src/domain/pbqueue.js`, the write route `pb/pb_hooks/pm.pb.js` (no memory of requests already applied).
+- What's wrong: spec 4 counts every op as idempotent. That holds for one phone, but a `deep` or `fields` upsert sent again after another phone wrote the same field puts this phone's older value back: the request had reached the server, its answer was lost, and the resend comes after the other phone's write.
+- How to reproduce: phone A saves a point; the tunnel drops right after the server's commit, before the answer; within the back-off (2–60 s) phone B changes the same field of that point; A resends — the server holds A's older value again (not reproduced, found by reading the code).
+- Likelihood / impact: very rare (a lost answer and a change of the same field by another phone within a minute); one field of one record goes back to the earlier value on every phone. Firestore's write stream does not resend acknowledged writes. Fix: a request id the route remembers for a while (answered 200 without writing on a repeat).
+- Status: open
+- Found: 2026-11-28, «Ревью 4» (code review, F4).
+
+## KI-20. The administrator's pool inbox empty when the administrator is known late
+
+- Where: `startPool` in `src/app/pool.js` (subscribes to the inbox only when `isPoolAdmin()` at start, as on Firestore), `listenInbox` in `src/app/pb/backend.js` (decides `isAdmin()` once).
+- What's wrong: a new device waits at most 6 s for `/api/pm/admin`; if the answer comes later, the session starts without an administrator and the administrator's «Входящие пула» stay empty until the app is opened again.
+- How to reproduce: a new device of the owner (no `pm.admin.pb` yet) on a slow connection where `/api/pm/admin` takes over 6 s (not reproduced).
+- Likelihood / impact: rare, the administrator only, once per new device; nothing is lost, a restart shows the inbox. Older than stage 4 on Firestore (`resolveAdmin` there has the same 6 s).
+- Status: open
+- Found: 2026-11-28, «Ревью 4» (code review, F5).
+
+## KI-21. The guide does not open without a project
+
+- Where: `content()` in `src/app/shell.js`: the no-project screen is returned before the `guide` screen is looked at.
+- What's wrong: a user with no project yet (a new helper before accepting an invitation, a new database) taps ☰ → «Руководства» → «📖 Как пользоваться приложением» and sees «У вас пока нет проекта» with «Создать проект» instead of the guide; the screen title says «Как пользоваться приложением».
+- How to reproduce: `?mem=1` (no project), ☰ → «Руководства» → «📖 Как пользоваться приложением».
+- Likelihood / impact: every user without a project; the guide is out of reach exactly when a newcomer needs it (the tour still works). Older than stage 4. Fix: answer the `guide` screen (its general and glossary parts) before the no-project check; the manuals part may need the project's context.
+- Status: open
+- Found: 2026-11-28, «Ревью 4» (seen while checking the guide in the browser pane).

@@ -5,7 +5,7 @@
 // Contents:
 // - limits — ops and bytes per request, back-off steps, timeouts
 // - local copy keys — docId, scopeOf, opTarget
-// - replay — applyOp, replayOps, queueCount
+// - replay — applyOp, replayOps, refusedRepair, queueCount
 // - chunking — planRequest, jsonBytes
 // - answers — classify, settle, backoffDelay
 import { mergeDoc } from './pbwrite.js';
@@ -81,6 +81,28 @@ export function replayOps(doc, items, id) {
   }));
   if (touched && out) out._pending = true;
   return out;
+}
+
+// What the phone undoes when the server refuses a queue item (review 4, F1). The local copy shows the item's ops on its documents, and the server will
+// never send a newer version of a document it did not change, so: every document the item touched that no later queued item touches loses its server
+// version mark (`_pb.updated`), and the scope it lives in is read in full next time (its `full|…` stamp is dropped; projects, invitations and personal
+// settings are read in full anyway), so the server's version comes back and a document the server never had leaves; the item's history entries are dropped.
+// Returns { docs: [local doc ids], history: [history store ids], full: [meta keys of the last full reads to drop] }.
+export function refusedRepair(item, later = []) {
+  const busy = new Set();
+  (later || []).forEach((it) => (it.ops || []).forEach((op) => { const t = opTarget(op); if (t && t.store === 'docs') busy.add(t.id); }));
+  const docs = []; const history = []; const full = new Set();
+  ((item && item.ops) || []).forEach((op) => {
+    const t = opTarget(op);
+    if (!t) return;
+    if (t.store === 'history') { history.push(t.id); return; }
+    if (busy.has(t.id)) return;
+    if (!docs.includes(t.id)) docs.push(t.id);
+    if (op.t === 'rec') full.add(`full|r|${op.pid}`);
+    else if (op.t === 'pool') full.add('full|pool');
+    else if (op.t === 'inbox') full.add('full|inbox');
+  });
+  return { docs, history, full: [...full] };
 }
 
 // «⬆ N»: the non-history writes in the queue of this user (spec 4 § 3.6); ops of a chunked item the server already holds (`done`) are not counted,

@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   recordToDoc, projectKeyMap, pbTime, pbMs, newestOf, pageFilter, nextAfter, deltaSince, readMode, rolledBack, shouldApply,
-  serverVersion, fullReadRemovals, dropsEveryProject, queuedIds, PAGE_SIZE, PREFIX, recordsPrefix, invitationsOf, mergeHistory, orphanRecords,
+  serverVersion, fullReadRemovals, dropsEveryProject, queuedIds, PAGE_SIZE, PREFIX, recordsPrefix, invitationsOf, mergeHistory, orphanRecords, withInvitationNames,
   serverStamp, exportDoc, exportProject, exportCommon, EXPORT_SOURCE,
 } from '../src/domain/pbread.js';
 import { DELTA_MARGIN, lastSaturday } from '../src/domain/sync.js';
@@ -465,6 +465,18 @@ test('invitations: shaped as the banner reads a project; accepted, declined, key
   assert.deepEqual(invitationsOf([inv('i1', 'P1')], () => ({ memberUids: ['u2'], invitedEmails: [] }), 'b@pm.test', 'u2'), [], 'accepted');
   assert.deepEqual(invitationsOf([inv('i1', 'P1')], () => ({ invitedEmails: [] }), 'b@pm.test', 'u2'), [], 'declined');
   assert.equal(invitationsOf([inv('i1', 'P1')], () => ({ memberUids: ['u1'], invitedEmails: ['B@pm.test'] }), 'b@pm.test', 'u2').length, 1, 'still invited (capital letters)');
+});
+
+test('project list: a project accepted here and not read yet takes its invitation\'s name and object; any other project is as it is (review 4, F3)', () => {
+  const inv = { key: 'P1', name: 'Школа', object: 'Б', from: 'a@pm.test', _pb: { id: 'i1', updated: T('00:01') } };
+  const accepted = { id: 'P1', memberUids: ['u2'], memberEmails: ['b@pm.test'], invitedEmails: [], _pending: true };
+  const own = { id: 'P2', name: 'Своя', memberUids: ['u2'] };
+  const read = { id: 'P3', memberUids: ['u2'], _pb: { id: 'r3', updated: T('00:02') } };
+  const out = withInvitationNames([accepted, own, read], [inv]);
+  assert.deepEqual(out[0], { ...accepted, name: 'Школа', object: 'Б' });
+  assert.equal(out[1], own);
+  assert.equal(out[2], read, 'a server version is never renamed');
+  assert.deepEqual(withInvitationNames([accepted], []), [accepted], 'no invitation: as it is');
 });
 
 test('history merge: the server and the phone, each entry once (the server wins), newest first, at most max', () => {

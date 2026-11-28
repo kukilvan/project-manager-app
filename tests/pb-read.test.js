@@ -102,6 +102,31 @@ describe('reader against PocketBase', { skip: missing ? missing : false }, () =>
     assert.equal(c.copy.entries('r|').length, 0);
   });
 
+  test('a change the server refuses is undone on the phone: the server version comes back, its history entry goes (review 4, F1)', async () => {
+    const { createPocketBaseBackend } = await import('../src/app/pb/backend.js');
+    const { createSender } = await import('../src/app/pb/sender.js');
+    let sender = null;
+    const backend = createPocketBaseBackend({ copy: b.copy, user: { uid: B.id, email: B.email, displayName: 'B' }, onQueued: () => sender.kick(0) });
+    sender = createSender({
+      copy: b.copy, uid: () => B.id, token: () => B.token, fetchFn: (url, init) => fetch(srv.url + url, init),
+      onDone: backend.itemDone, onProgress: backend.itemProgress,
+      onRejected: (seq, code, message) => { backend.itemRejected(seq, code, message); b.reader.readNow('full'); },   // as src/app/pbstart.js
+    });
+    // B is a member, not the creator: archiving the project is refused, and with it the whole item (the point and the history entry too)
+    const done = backend.commit('P1', [
+      { coll: 'projects', id: 'P1', data: { id: 'P1', archived: true } },
+      { coll: 'points', id: 'pt1', data: { id: 'pt1', label: 'refused' } },
+      { coll: 'history', id: 'h-refused', data: { id: 'h-refused', at: Date.now(), coll: 'points', docId: 'pt1', by: B.id } },
+    ]);
+    assert.equal(b.copy.get('r|P1|points|pt1').label, 'refused', 'shown at once, as every write');
+    assert.equal(b.copy.history('P1').some((h) => h.id === 'h-refused'), true);
+    await assert.rejects(done, (e) => e.code === 'forbidden');
+    assert.equal(b.copy.history('P1').some((h) => h.id === 'h-refused'), false, 'the refused history entry is gone');
+    const back = await until(async () => { await b.reader.idle(); return b.copy.get('r|P1|points|pt1')?.label === 'C1-new' && b.copy.get('p|||P1')?.archived === undefined; });
+    assert.ok(back, JSON.stringify({ pt1: b.copy.get('r|P1|points|pt1'), p: b.copy.get('p|||P1') }));
+    assert.equal(b.copy.get('r|P1|points|pt1')._pending, undefined);
+  });
+
   test('a phone that was away catches up by a delta read from its mark minus 10 minutes', async () => {
     const mark = b.copy.getMeta('mark|r|P1');
     await b.reader.stop();

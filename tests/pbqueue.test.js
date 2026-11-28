@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  planRequest, classify, settle, backoffDelay, replayOps, applyOp, queueCount, opTarget, docId, scopeOf, jsonBytes,
+  planRequest, classify, settle, backoffDelay, replayOps, applyOp, queueCount, opTarget, docId, scopeOf, jsonBytes, refusedRepair,
   MAX_REQ_OPS, MAX_REQ_BYTES, BACKOFF_MS, HISTORY_KEEP_MS,
 } from '../src/domain/pbqueue.js';
 import { toOps, PB_SCHEMA } from '../src/domain/pbwrite.js';
@@ -373,6 +373,44 @@ test('sender: a 422 sends the refused item to «⚠» with its code; the other i
   s.repo.retryRejected();
   assert.equal(s.copy.queueItems().length, 1);
   assert.equal(rejectedList().length, 0);
+});
+
+test('refusedRepair: the documents a refused item touched (not those a later item touches), their full-read stamps and its history entries (review 4, F1)', () => {
+  const it = { seq: 1, ops: [
+    { t: 'project', key: 'p1', data: { archived: true }, mode: 'deep' }, rec(1), rec(2),
+    { t: 'history', pid: 'p1', key: 'h1', data: { id: 'h1', at: 1 } },
+    { t: 'pool', kind: 'doorcfg', key: 'd1', data: { deleted: true } }, { t: 'inbox', key: 'u_x', data: { a: 1 } }, { t: 'prefs', data: { a: 1 }, mode: 'deep' },
+    { t: 'allowed', email: 'x@y.z' },
+  ] };
+  const later = [{ seq: 2, ops: [rec(2)] }];
+  assert.deepEqual(refusedRepair(it, later), {
+    docs: ['p|||p1', 'r|p1|points|k1', 'pool||doorcfg|d1', 'inbox|||u_x', 'prefs|||main'],
+    history: ['p1|h1'],
+    full: ['full|r|p1', 'full|pool', 'full|inbox'],
+  });
+  assert.deepEqual(refusedRepair(null), { docs: [], history: [], full: [] });
+});
+
+test('local copy: a refused item is undone — its documents lose the server version mark and `_pending`, its history goes, the full read is due', async () => {
+  for (const x of rejectedList()) dropRejected(x.id);
+  const s = await setup({ answer: (b) => ({ status: 422, body: { code: 'forbidden', index: 0, message: 'no' } }) });
+  s.copy.setDocs([['r|p1|points|a', { id: 'a', label: 'server', _pb: { id: 'r1', updated: '2026-11-28 10:00:00.000Z' } }]], { grouped: false });
+  s.copy.setMeta('full|r|p1', { at: 1, n: 1 });
+  s.repo.save('p1', [{ coll: 'points', id: 'a', data: { label: 'mine' } }]);
+  s.repo.save('p1', [{ coll: 'points', id: 'b', data: { label: 'B' } }]);
+  assert.equal(s.copy.get('r|p1|points|a').label, 'mine');
+  assert.equal(s.copy.history('p1').length, 2);
+  await s.timers.run();
+  // the first item is refused; the second is refused too (the fake refuses everything) — both undone
+  await s.timers.run();
+  const a = s.copy.get('r|p1|points|a');
+  assert.equal(a._pb.updated, '', 'the next read takes the server version');
+  assert.equal(a._pb.id, 'r1');
+  assert.equal(a._pending, undefined);
+  assert.equal(s.copy.getMeta('full|r|p1'), undefined, 'the project\'s records are read in full next time');
+  assert.equal(s.copy.history('p1').length, 0, 'the refused history entries are gone');
+  assert.equal(s.copy.queueItems().length, 0);
+  assert.equal(rejectedList().length, 2);
 });
 
 test('sender: a large item rejected in its third chunk goes to «⚠» whole; «Повторить» sends it all again', async () => {

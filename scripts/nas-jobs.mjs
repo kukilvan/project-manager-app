@@ -5,7 +5,8 @@
 // state.json keeps {backup, tables}: {ok, at, error, okAt — the last success}, written after every run that did something. No secret is ever logged.
 //
 // Environment: PB_URL (default http://pocketbase:8090), PB_JOBS_EMAIL; secrets as files in PM_SECRETS (default /run/secrets): pb_jobs_password,
-// google_service_account.json, github_token; PM_STATE (default /data) for the clone of the backups and state.json; BACKUP_REPO (default
+// google_service_account.json, github_token; PM_STATE (default /data) for the clone of the backups, state.json and `backups-local` (the export when there is
+// no clone); BACKUP_REPO (default
 // kukilvan/polevoy-backups); FULL=1 — tables: every project, changed or not; DRY_RUN=1 — the cleanup only reports; BACKUP_REMOTE — another git
 // address instead of GitHub, no token needed (tests).
 //
@@ -46,6 +47,8 @@ export function config(env = process.env) {
     needsToken: !env.BACKUP_REMOTE,
     stateFile: path.join(state, 'state.json'),
     clone: path.join(state, 'polevoy-backups'),
+    // the export when there is no clone (review 4, F2): the same folder format, kept like the clone's last 15
+    local: path.join(state, 'backups-local'),
     lock: path.join(state, 'backup.lock'),
     full: env.FULL === '1',
     dry: env.DRY_RUN === '1',
@@ -148,26 +151,32 @@ async function waitForServer(url, ms) {
 }
 
 // Export → push → cleanup → Drive. The cleanup deletes for good, so it runs only after the new copy has left the NAS; the Drive copy is made even
-// when GitHub or the cleanup failed (it is the other copy outside the home). A failed export stops everything: there is no new copy to send.
+// when GitHub or the cleanup failed (it is the other copy outside the home). Without a clone of the backups (no token, GitHub down on the first run,
+// a broken clone that cannot be made again) the export goes into a folder of its own in PM_STATE, so the Drive copy is still made (review 4, F2).
+// A failed export stops everything: there is no new copy to send.
 async function runBackup({ cfg, deps, log }) {
   const source = await step('вход в PocketBase', () => deps.openSource(cfg.jobEnv));
-  const token = secret(cfg.jobEnv, '', 'github_token');
-  if (cfg.needsToken && !token) throw new Error('нет токена GitHub (файл github_token)');
-  if (cfg.needsToken && !/^[\w.-]+\/[\w.-]+$/.test(cfg.repo)) throw new Error('BACKUP_REPO должен быть вида «владелец/репозиторий»');
-  const { warning } = await step('копии на GitHub', () => syncClone(cfg.clone, cfg.remote, { token, log }));
-  if (warning) log(`Копии на GitHub не обновить: ${warning}`);
-  const made = await step('копия базы', () => runServerBackup(source, cfg.clone, { now: deps.now(), full: cfg.full, log }));
-  const folder = path.basename(made.dir);
   const problems = [];
   const attempt = (name, fn) => step(name, fn).then(() => true, (e) => { problems.push(e.message); log(`ERROR: ${e.message}`); return false; });
-  const pushed = await attempt('отправка на GitHub', () => publish(cfg.clone, `Копия ${folder} (NAS)`, { token }));
+  const token = secret(cfg.jobEnv, '', 'github_token');
+  let root = cfg.clone;
+  const cloned = await attempt('копии на GitHub', async () => {
+    if (cfg.needsToken && !token) throw new Error('нет токена GitHub (файл github_token)');
+    if (cfg.needsToken && !/^[\w.-]+\/[\w.-]+$/.test(cfg.repo)) throw new Error('BACKUP_REPO должен быть вида «владелец/репозиторий»');
+    const { warning } = await syncClone(cfg.clone, cfg.remote, { token, log });
+    if (warning) log(`Копии на GitHub не обновить: ${warning}`);
+  });
+  if (!cloned) { root = cfg.local; log(`Копия без GitHub: папка ${root}, только на Google Диск`); }
+  const made = await step('копия базы', () => runServerBackup(source, root, { now: deps.now(), full: cfg.full, log }));
+  const folder = path.basename(made.dir);
+  const pushed = cloned && await attempt('отправка на GitHub', () => publish(cfg.clone, `Копия ${folder} (NAS)`, { token }));
   if (pushed) {
     log(`Копия ${folder} отправлена на GitHub`);
     await attempt('очистка', () => runCleanup(source, { now: deps.now().getTime(), dry: cfg.dry, max: MAX_PER_COLLECTION, log }));
   } else log('Очистка пропущена: копия не отправлена на GitHub');
   await attempt('копия на Google Диск', async () => {
     const cred = googleCredentials(cfg.jobEnv);
-    const bytes = zipBackup(cfg.clone, folder);
+    const bytes = zipBackup(root, folder);
     await deps.uploadDrive(cred, bytes, folder);
     log(`Копия ${folder} (${Math.round(bytes.length / 1024)} КБ) сохранена на Google Диск: «${DRIVE_FILE_NAME}»`);
   });

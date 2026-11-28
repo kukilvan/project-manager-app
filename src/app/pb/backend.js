@@ -13,7 +13,7 @@
 //  - loadSettings, saveSettings are left out on purpose: createFirestoreBackend has none and nothing calls them (only the memory backend keeps them)
 import { toOps } from '../../domain/pbwrite.js';
 import { queueCount, docId, PROJECTS_SCOPE, recordsScope, poolScope, INBOX_SCOPE, PREFS_SCOPE, INVITES_SCOPE } from '../../domain/pbqueue.js';
-import { invitationsOf, mergeHistory } from '../../domain/pbread.js';
+import { invitationsOf, mergeHistory, withInvitationNames } from '../../domain/pbread.js';
 import { noteRejected, notifyPending } from '../repo.js';
 import { error } from '../../log.js';
 
@@ -53,7 +53,8 @@ export function createPocketBaseBackend({ copy, user, onQueued = () => {}, serve
     // ---- listeners: the local copy ----
     // any scope of the copy (src/domain/pbqueue.js docId): the generic listener the specific ones below are built on
     listenScope(scope, cb) { return copy.listen(scope, cb); },
-    listenProjects(uid, cb) { return copy.listen(PROJECTS_SCOPE, (docs) => cb(docs.filter((p) => (p.memberUids || []).includes(uid)).map(shown))); },
+    // a project accepted here and not read yet shows its invitation's name (review 4, F3)
+    listenProjects(uid, cb) { return copy.listen(PROJECTS_SCOPE, (docs) => cb(withInvitationNames(docs, copy.list(INVITES_SCOPE)).filter((p) => (p.memberUids || []).includes(uid)).map(shown))); },
     listenColl(pid, name, cb) { return copy.listen(recordsScope(pid, name), (docs) => cb(docs.map(shown))); },
     listenUserPrefs(_uid, cb) { return copy.listen(PREFS_SCOPE, (docs) => cb(bare(docs[0]) || {})); },
     // onError(e) only when the server refuses the pool (403, e.code 'permission-denied'); a pool the server does not have yet (404) reads as empty
@@ -97,9 +98,9 @@ export function createPocketBaseBackend({ copy, user, onQueued = () => {}, serve
       p?.resolve();
       notifyPending();
     },
+    // a refused item: the copy undoes what it showed (its documents wait for the server's version, review 4 F1); the reader then reads again (src/app/pbstart.js)
     itemRejected(seq, code, message) {
-      const it = copy.item(seq);
-      copy.finish(seq);
+      const it = copy.refuse(seq);
       const err = Object.assign(new Error(message || code), { code });
       const p = live.get(seq); live.delete(seq);
       if (p) p.reject(err);

@@ -5,6 +5,7 @@ import { state, getRepo, subscribe, liveProjects, setShared, demo } from './stor
 import { SHARED_KINDS, LEGACY_KINDS, mergePlan, applyMerge, DELAY_REASONS, CULPRITS, EXAMPLE_PROBLEMS } from '../domain/index.js';
 import { toast } from './ui.js';
 import { info, error } from '../log.js';
+import { isPocketBase } from '../edition.js';
 
 // Written into a pool collection that has no document at all (not even a deleted one)
 export const SHARED_DEFAULTS = { delayReasons: DELAY_REASONS, culprits: CULPRITS, problems: EXAMPLE_PROBLEMS };
@@ -44,9 +45,11 @@ function kick() {
 
 function halt(what, e) { halted = true; error('Общие списки', `${what}: ${e?.code || ''} ${e?.message || e}`); }
 function warnRules(message) { if (!warned) { warned = true; toast(message, 12000); } }
+// the NAS copy has no rules to paste: its texts point at «⚠» and the administrator (KI-10)
 function rejected(e) {
   halt('запись отклонена', e);
-  warnRules('Общий список не записался: правила базы устарели — их нужно обновить в Firebase.');
+  warnRules(isPocketBase() ? 'Общий список не записался: сервер не принял запись. Подробности — значок ⚠ вверху.'
+    : 'Общий список не записался: правила базы устарели — их нужно обновить в Firebase.');
 }
 // A shared list's listener ended with an error. Refused (rules older than the shared lists, KI-8): no merge and no seeding in this start.
 // Other errors show on the «⬇» badge only; the repo has logged them.
@@ -54,7 +57,8 @@ function unreadable(e) {
   if (e?.code !== 'permission-denied') return;
   if (!halted) info(`Общие списки: нет прав на чтение (${e.code}) — правила базы устарели`);
   halted = true;
-  warnRules('Общие списки не читаются: правила базы устарели — вставьте свежие правила в Firebase («🔌 Подключение к базе» → «📋 Скопировать правила»).');
+  warnRules(isPocketBase() ? 'Общие списки не читаются: сервер отказал в доступе. Сообщите администратору базы.'
+    : 'Общие списки не читаются: правила базы устарели — вставьте свежие правила в Firebase («🔌 Подключение к базе» → «📋 Скопировать правила»).');
 }
 const byId = (docs) => new Map(docs.filter((x) => x?.id != null).map((x) => [x.id, x]));
 // pool writes, waited for; a rejection throws

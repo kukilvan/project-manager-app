@@ -47,7 +47,7 @@ describe('the rest of the backend against PocketBase', { skip: missing ? missing
     sender = createSender({
       copy, uid: () => acc.id, token: () => acc.token, fetchFn: (url, init) => fetch(srv.url + url, init), online: () => true,
       onDone: backend.itemDone, onProgress: backend.itemProgress,
-      onRejected: (seq, code, message) => { backend.itemRejected(seq, code, message); if (code === 'forbidden') reader.readNow('light'); },
+      onRejected: (seq, code, message) => { backend.itemRejected(seq, code, message); reader.readNow('full'); },   // as src/app/pbstart.js
     });
     const repo = createRepo(backend, user);
     const seen = { projects: [], invitations: [], inbox: [] };
@@ -92,6 +92,7 @@ describe('the rest of the backend against PocketBase', { skip: missing ? missing
     assert.deepEqual({ id: inv.id, name: inv.name, object: inv.object, from: inv.memberEmails[0] }, { id: pid, name: 'Школа', object: 'Корпус Б', from: A.email });
     b.repo.acceptInvite(inv);
     assert.equal(b.seen.invitations.length, 0, 'hidden at once');
+    assert.deepEqual({ name: b.project()?.name, object: b.project()?.object }, { name: 'Школа', object: 'Корпус Б' }, 'named at once, before the server answers (review 4, F3)');
     assert.ok(await until(() => b.project()?.name === 'Школа'), 'the project with its name');
     assert.ok(await until(async () => (await b.coll('points')).length === 2), 'and its points');
     assert.ok(await b.sent());
