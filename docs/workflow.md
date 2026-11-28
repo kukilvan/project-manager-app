@@ -131,6 +131,6 @@ The owner is not a programmer. For anything they do by hand:
 | `docs/models.md` | model and effort per session | — |
 | `docs/ideas/` | one idea spec per file, with its stage and status | — |
 | `.scratch/NN-<slug>/` | a stage's description, spec, tickets, review, mockups | — |
-| `README.md`, `ВОССТАНОВЛЕНИЕ.md` | for people (Russian): what the app is; how to restore everything elsewhere | — |
+| `README.md`, `ВОССТАНОВЛЕНИЕ.md`, `ПЕРЕЕЗД.md` | for people (Russian): what the app is; how to restore everything elsewhere; what to do on the phones at the switch-over to the NAS copy | — |
 
 Budgets are in bytes (`wc -c`; in Git Bash `wc -m` counts bytes too), not lines: a few very long lines pass a line budget and still cost tens of thousands of tokens in every session (a token is about 4 bytes of English and about 2.7 bytes of Russian). Each fact has one home; other files point to it. Over budget → the oldest detail moves to `docs/history.md`.

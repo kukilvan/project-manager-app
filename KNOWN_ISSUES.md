@@ -131,7 +131,7 @@ Entry format:
 - What's wrong: the NAS copy has the section «Домашний сервер», but other guide lines still describe «Ссылка для подключения», «Своя база» (Firebase) and publishing rules; a refused write of a shared list says the rules must be updated in Firebase; «Где хранятся данные» says Google Drive access covers only the app's own files, while on the NAS copy the app asks for the whole Drive and Sheets (ticket 4.9).
 - How to reproduce: NAS build → ☰ → «📖 Как пользоваться приложением» → «Проект: создать, пригласить коллег» → «Подробнее» names the connect link, which this copy does not have.
 - Likelihood / impact: always for the guide lines, rare for the toast; a colleague may look for a button that is not there.
-- Why not fixed now: spec 4 asks for one new section only; the other lines need new texts the owner has not seen. Ticket 4.15 writes the switch-over texts.
+- Why not fixed now: spec 4 asks for one new section only; the other lines need new texts the owner has not seen. Ticket 4.15 wrote the switch-over texts (`ПЕРЕЕЗД.md`) and changed only the section «Домашний сервер»; proposed for «Ревью 4».
 - Status: open
 - Found: 2026-11-27, ticket 4.8.
 
@@ -179,7 +179,7 @@ Entry format:
 - How to reproduce: restore a backup into the NAS, change a point there, run `nas-jobs.mjs tables`: the management sheet shows the NAS value until the next night run on Firebase.
 - Likelihood / impact: only if the jobs are switched on or tried before the switch-over with the real secrets; management sees wrong data, the off-site copies hold test data (Drive keeps earlier versions ≈ 30 days). Until then: do not run the jobs with the real data and Google key; for a trial use a separate `BACKUP_REPO` and a test project.
 - Status: open
-- Found: 2026-11-27, ticket 4.12 (reading the job code). 2026-11-28, ticket 4.14: the go / no-go list of `docs/nas-move-rehearsal.md` keeps the jobs off until the switch-over; how the two off-site copies are proven before it is for ticket 4.15.
+- Found: 2026-11-27, ticket 4.12 (reading the job code). 2026-11-28, ticket 4.14: the go / no-go list of `docs/nas-move-rehearsal.md` keeps the jobs off until the switch-over; how the two off-site copies are proven before it is for ticket 4.15. 2026-11-28, ticket 4.15: decided — real secrets only from the switch-over on, the off-site copies are proven that day (R-JOB-1, R-BAK-2 of the NAS document); the app's own Google buttons on a trial NAS copy with real data write over the live files too, the owner is told in `ПЕРЕЕЗД.md` § 7.1. Nothing in code prevents either; closes when the move is done.
 
 ## KI-16. The way back into Firebase against the free write limit
 
@@ -206,4 +206,4 @@ Entry format:
 - How to reproduce: a new device of the NAS copy on a slow connection: choose a door configuration before the pool arrives (not reproduced).
 - Likelihood / impact: very rare (seconds, once per device); one pool entry changed.
 - Status: open
-- Found: 2026-11-28, ticket 4.14 (reading the code).
+- Found: 2026-11-28, ticket 4.14 (reading the code). Ticket 4.15: `ПЕРЕЕЗД.md` and the guide section «Домашний сервер» ask to wait until «⬇» is gone.

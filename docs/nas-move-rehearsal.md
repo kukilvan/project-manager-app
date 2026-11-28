@@ -116,7 +116,7 @@ Before the day, every line yes:
 1. `nas-site.json` names the commit that added this file, or a later one, and the NAS runs it.
 2. `nas-check` passes; Google sign-in works from the installed iPhone icon (A14).
 3. PocketBase backups appear daily (R-BAK-1); the restore drill is done (A11).
-4. `nas-jobs.mjs tables` and `backup` have **not** run with the owner's real data against the live Google files or `polevoy-backups` (KI-15 in `KNOWN_ISSUES.md`): until the switch-over use no Google key and a separate `BACKUP_REPO`. How A10 holds before the switch-over without touching the live files is settled in the final stage 4 version of the NAS document.
+4. `nas-jobs.mjs tables` and `backup` have **not** run with the owner's real data against the live Google files or `polevoy-backups` (KI-15 in `KNOWN_ISSUES.md`): until the switch-over use a separate `BACKUP_REPO` and no real Google key (R-JOB-1). Of A10 only the daily PocketBase backups hold before the move; the off-site copies start on the day (R-BAK-2).
 5. The way back is understood: Firebase stays untouched; `server-restore.mjs` loads a NAS export with `--force`. Today that is 17,148 writes, close to the free plan's 20,000 a day, and a cut run starts over (KI-16).
 
 On the day, stop at the first no:
@@ -127,6 +127,7 @@ On the day, stop at the first no:
 4. The plan matches `ИТОГ.json`; no warning, no conflict.
 5. `--write --verify` exits 0; a PocketBase backup is made.
 6. The owner signs in: no toast «Загружен стартовый набор», no «⚠»; projects, points per rack, the last report, «Откат записей», members and shared lists as on the old icon. Then the helpers.
-7. «Server tables» and «Server backup» of GitHub Actions are disabled before the NAS jobs run with the real key.
+7. «Server tables» and «Server backup» of GitHub Actions are disabled, with no run in progress (each re-enables itself at the end of a run), before the NAS jobs get the real secrets.
+8. `nas-jobs.mjs backup` by hand: both off-site copies appear (R-BAK-2). Only then do people record on the NAS copy.
 
-A no before step 6 changes nothing for the phones: they go on with Firebase.
+A no before step 6 changes nothing for the phones: they go on with Firebase. The owner's and the helpers' own steps are in `ПЕРЕЕЗД.md`.

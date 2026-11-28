@@ -36,7 +36,7 @@ Vanilla JS PWA, no framework, built by Vite; screens are built with `h()` of `sr
 - `pb/` — the NAS copy's PocketBase side: `pb_migrations/` (the collections and their rules, migration 1 = schema 1), `pb_hooks/pm.pb.js` (the write route `POST /api/pm/save`, `GET /api/pm/info`, `POST /api/pm/admin`, the keep-alive cron), `pb_hooks/pm/pbstore.js` (the route's store over PocketBase records), `pb_hooks/pm/pbwrite.js` (generated from `src/domain/pbwrite.js`, never edited).
 - `tools/pb-dev.mjs` — local PocketBase: `fetch` (0.42.3 with its SHA-256 into `.cache/pocketbase/`), `up` (migrations, hooks, password sign-in, test users; `--empty`, `--port`, `--serve dist-nas`), `down`; `startPocketBase` for the server tests (`tests/pb-helper.js`).
 - `tests/` — `node:test` suites. `.gitattributes` — keeps both rules files LF on every checkout (KI-2). `.gitignore`.
-- `README.md`, `ВОССТАНОВЛЕНИЕ.md` — for people, Russian. Docs for sessions: `docs/workflow.md`, "Documents".
+- `README.md`, `ВОССТАНОВЛЕНИЕ.md`, `ПЕРЕЕЗД.md` (the switch-over to the NAS copy: what each phone and the owner do) — for people, Russian. Docs for sessions: `docs/workflow.md`, "Documents".
 
 ## Modules (built)
 
