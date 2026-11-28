@@ -21,6 +21,9 @@ import { error } from '../../log.js';
 const LOCAL_KEYS = ['_pb', '_pending'];
 const bare = (d) => { if (!d || typeof d !== 'object') return d; const c = { ...d }; LOCAL_KEYS.forEach((k) => delete c[k]); return c; };
 const bareWrites = (writes) => (writes || []).map((w) => (w && w.data ? { ...w, data: bare(w.data) } : w));
+// A document of the copy as the app's listeners show it: without the server version `_pb`, which is the reader's and not data (inside a work or a cable it
+// would travel to the pool's inbox and make every project item differ from the pool); `_pending` stays for «⬆»
+const shown = (d) => { if (!d || !d._pb) return d; const c = { ...d }; delete c._pb; return c; };
 
 // opts: { copy, user, onQueued() — the sender's kick after a write, server — { readColl, readPool, loadHistory } of src/app/pb/reader.js,
 //   isAdmin() — the user is the database administrator, admin — { load() → e-mail or null, claim(email) → e-mail } }
@@ -50,12 +53,12 @@ export function createPocketBaseBackend({ copy, user, onQueued = () => {}, serve
     // ---- listeners: the local copy ----
     // any scope of the copy (src/domain/pbqueue.js docId): the generic listener the specific ones below are built on
     listenScope(scope, cb) { return copy.listen(scope, cb); },
-    listenProjects(uid, cb) { return copy.listen(PROJECTS_SCOPE, (docs) => cb(docs.filter((p) => (p.memberUids || []).includes(uid)))); },
-    listenColl(pid, name, cb) { return copy.listen(recordsScope(pid, name), cb); },
+    listenProjects(uid, cb) { return copy.listen(PROJECTS_SCOPE, (docs) => cb(docs.filter((p) => (p.memberUids || []).includes(uid)).map(shown))); },
+    listenColl(pid, name, cb) { return copy.listen(recordsScope(pid, name), (docs) => cb(docs.map(shown))); },
     listenUserPrefs(_uid, cb) { return copy.listen(PREFS_SCOPE, (docs) => cb(bare(docs[0]) || {})); },
     // onError(e) only when the server refuses the pool (403, e.code 'permission-denied'); a pool the server does not have yet (404) reads as empty
     listenPool(kind, cb, { withDeleted = false, onError = null } = {}) {
-      const off = copy.listen(poolScope(kind), (docs) => cb(withDeleted ? docs : docs.filter((x) => !x.deleted)));
+      const off = copy.listen(poolScope(kind), (docs) => cb((withDeleted ? docs : docs.filter((x) => !x.deleted)).map(shown)));
       if (typeof onError === 'function') poolErrors.add(onError);
       return () => { off(); poolErrors.delete(onError); };
     },
@@ -69,7 +72,7 @@ export function createPocketBaseBackend({ copy, user, onQueued = () => {}, serve
     listenInbox(cb) {
       if (!isAdmin()) { cb([]); return () => {}; }
       const cut = INBOX_SCOPE.length + 1;
-      return copy.listen(INBOX_SCOPE, () => cb(copy.entries(INBOX_SCOPE).map(([id, d]) => ({ ...d, key: d.key || id.slice(cut) }))));
+      return copy.listen(INBOX_SCOPE, () => cb(copy.entries(INBOX_SCOPE).map(([id, d]) => ({ ...shown(d), key: d.key || id.slice(cut) }))));
     },
     // the invitations of `invites`, without those the user has accepted or declined (also while the answer is queued)
     listenInvitations(email, uid, cb) {

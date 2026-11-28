@@ -168,13 +168,14 @@ export function invitationsOf(invites, projectOf, email, uid) {
 }
 
 // History for the screens: the server's entries and the phone's own (written here and not sent yet, or kept from earlier reads), each entry once by id
-// (the server's version wins), newest first, at most `max`
+// (the server's version wins), newest first — entries of the same moment by id, backwards, as Firestore orders them — at most `max`
 export function mergeHistory(server, local, max = Infinity) {
   const by = new Map(); let n = 0;
   const put = (e) => { if (e && typeof e === 'object') by.set(e.id != null ? `id:${e.id}` : `n:${n++}`, e); };
   (local || []).forEach(put);
   (server || []).forEach(put);
-  return [...by.values()].sort((a, b) => (Number(b.at) || 0) - (Number(a.at) || 0)).slice(0, max);
+  const id = (e) => String(e.id ?? '');
+  return [...by.values()].sort((a, b) => (Number(b.at) || 0) - (Number(a.at) || 0) || (id(a) < id(b) ? 1 : id(a) > id(b) ? -1 : 0)).slice(0, max);
 }
 
 // ---------- export to the backup format (the jobs, spec 4 § 5.2) ----------

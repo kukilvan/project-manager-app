@@ -18,6 +18,7 @@ const { createSender } = await import('../src/app/pb/sender.js');
 const { createPocketBaseBackend } = await import('../src/app/pb/backend.js');
 const { createRepo, rejectedList, dropRejected } = await import('../src/app/repo.js');
 const { setAdminEmail } = await import('../src/edition.js');
+const { poolEmptyOnServer, inboxCandidates, poolMaps } = await import('../src/domain/pool.js');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function until(fn, ms = 10000) { const end = Date.now() + ms; while (Date.now() < end) { if (await fn()) return true; await sleep(25); } return false; }
@@ -116,6 +117,20 @@ describe('the rest of the backend against PocketBase', { skip: missing ? missing
     assert.deepEqual(await b.repo.readPool('delayReasons').then((l) => l.map((x) => [x.id, x.deleted])), [['r1', true]], 'readPool reads the server');
   });
 
+  test('a new device: the pool listener is empty before the first read, but the server says the pool is not empty, so no starter set (ticket 4.14)', async () => {
+    a.repo.savePool([{ coll: 'types', id: 'own', data: { name: 'Своё' } }]);
+    assert.ok(await a.sent());
+    const pb = new PocketBase(srv.url);
+    pb.authStore.save(A.token, { id: A.id, email: A.email, collectionName: 'users' });
+    const { copy } = await openLocalCopy({ uid: A.id, idb: null, win: null, doc: null });
+    const user = { uid: A.id, email: A.email, displayName: A.name };
+    const reader = createReader({ pb, copy, uid: () => A.id, isAdmin: () => true, win: null, doc: null });   // not started: nothing read yet
+    const repo = createRepo(createPocketBaseBackend({ copy, user, server: reader, isAdmin: () => true }), user);
+    let shown = null; repo.listenPool('types', (l) => { shown = l; });
+    assert.deepEqual(shown, [], 'the listener answers at once, from the empty copy');
+    assert.equal(await poolEmptyOnServer((k) => repo.readPool(k)), false);
+  });
+
   test('the inbox: what B\'s project brings reaches the administrator; B gets no inbox events', async () => {
     const key = `${B.id}_${pid}_types_x`;
     b.repo.setInbox([{ key, data: { kind: 'types', status: 'new', from: B.email } }]);
@@ -123,6 +138,22 @@ describe('the rest of the backend against PocketBase', { skip: missing ? missing
     assert.ok(await until(() => a.seen.inbox.some((x) => x.key === key && x.status === 'new')), 'A\'s inbox');
     assert.deepEqual(b.seen.inbox, []);
     assert.equal(b.copy.entries('inbox||').filter(([, d]) => d._pb).length, 0, 'nothing of the inbox came from the server to B');
+  });
+
+  test('what the listeners show carries no server version `_pb`: a project work equal to the pool\'s is no inbox candidate (ticket 4.14)', async () => {
+    const work = { name: 'Проверка', unit: 'шт' };
+    a.repo.save(pid, [{ coll: 'catalog', id: 'w1', data: work }]);
+    a.repo.savePool([{ coll: 'catalog', id: 'w1', data: work }]);
+    assert.ok(await a.sent());
+    assert.ok(await until(() => a.copy.get(`r|${pid}|catalog|w1`)?._pb && a.copy.get('pool||catalog|w1')?._pb), 'both are back from the server');
+    let pooled = []; a.repo.listenPool('catalog', (l) => { pooled = l; });
+    const own = await a.coll('catalog');
+    const all = [...a.seen.projects, ...a.seen.inbox, ...pooled, ...own, ...(await a.coll('points'))];
+    assert.ok(a.seen.projects.length && a.seen.inbox.length && pooled.length && own.length);
+    assert.deepEqual(all.filter((d) => '_pb' in d), []);
+    const byId = (l) => new Map(l.map((x) => [x.id, x]));
+    const ctx = { types: new Map(), devices: new Map(), cables: new Map(), catalog: byId(own.filter((x) => x.id === 'w1')) };
+    assert.deepEqual(inboxCandidates(ctx, poolMaps({ catalog: pooled })), []);
   });
 
   test('history: entries with author names; a rollback restores the record and is itself in the history', async () => {

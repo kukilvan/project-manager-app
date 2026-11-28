@@ -8,6 +8,13 @@ import { isSystemType } from './pointsimport.js';
 export const POOL_KINDS = ['types', 'devices', 'cables', 'catalog'];
 export const POOL_TITLES = { types: 'Типы точек', devices: 'Устройства', cables: 'Кабели', catalog: 'Работы' };
 
+/** Whether the database's pool is really empty, asked of the server: readPool(kind) → every document of that collection, deleted ones too.
+ *  A listener can answer «empty» before the first read (a new device of the NAS copy), so it alone never allows the starter set. A failed read throws. */
+export async function poolEmptyOnServer(readPool) {
+  for (const k of POOL_KINDS) if ((await readPool(k)).length) return false;
+  return true;
+}
+
 const stable = (v) => (Array.isArray(v) ? `[${v.map(stable).join(',')}]` : v && typeof v === 'object'
   ? `{${Object.keys(v).filter((k) => v[k] !== undefined && v[k] !== null && v[k] !== '' && k !== 'id').sort().map((k) => `${k}:${stable(v[k])}`).join(',')}}` : JSON.stringify(v ?? null));
 /** Fingerprint of the content (without service fields) — to tell whether it changed */

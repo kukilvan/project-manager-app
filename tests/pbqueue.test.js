@@ -273,6 +273,12 @@ test('local copy: documents are batched, the queue is not; a cut-off document wr
   assert.equal(store(idb, 'docs').size, 1);
 });
 
+test('local copy: a scope is listed in document id order, whatever order the documents came in', async () => {
+  const { copy } = await openLocalCopy({ uid: 'u1', idb: null, win: null, doc: null });
+  copy.setDocs(['c', 'a', 'B', 'b'].map((k) => [`r|p1|points|${k}`, { id: k }]), { grouped: false });
+  assert.deepEqual(copy.list('r|p1|points').map((d) => d.id), ['B', 'a', 'b', 'c']);
+});
+
 test('local copy: history over 60 days is dropped at start; history of a project is read newest first', async () => {
   const idb = fakeIdb();
   const now = Date.UTC(2026, 10, 27);

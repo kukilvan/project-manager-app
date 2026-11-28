@@ -12,7 +12,7 @@ import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { missingBinary, REQUIRED, startServer, api } from './pb-helper.js';
-import { SUPERUSER, freePort } from '../tools/pb-dev.mjs';
+import { SUPERUSER, TEST_PASSWORD, freePort, setLocalPassword } from '../tools/pb-dev.mjs';
 import { runRestore, readBackupFolder } from '../scripts/pb-restore.mjs';
 import { openPocketBase } from '../scripts/pb-source.mjs';
 import { runServerBackup, runFirestoreRestore, stamp, COMMON_FILE } from '../scripts/server-backup-lib.mjs';
@@ -89,6 +89,15 @@ describe('restore tool against PocketBase', { skip: missing ? missing : false },
     assert.equal(again.code, 0, again.lines.join('\n'));
     assert.deepEqual(await counts(srv), before);
     assert.equal((await srv.all('users')).length, 3);
+  });
+
+  test('setLocalPassword (pb-dev) lets the rehearsal sign in as a restored user, and refuses an unknown e-mail', async () => {
+    const users = await usersByEmail(srv);
+    assert.equal(await setLocalPassword(srv.url, srv.superToken, A.toUpperCase()), users.get(A).id);
+    const r = await api(srv.url, '/api/collections/users/auth-with-password', { method: 'POST', body: { identity: A, password: TEST_PASSWORD } });
+    assert.equal(r.status, 200, r.text);
+    assert.equal(r.json.record.id, users.get(A).id);
+    await assert.rejects(setLocalPassword(srv.url, srv.superToken, 'nobody@example.test'), /no user/);
   });
 
   test('--verify finds a document changed on the server, and the count check a missing one', async () => {

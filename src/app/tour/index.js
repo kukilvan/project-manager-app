@@ -42,10 +42,13 @@ let offered = false;
 export function maybeOfferTour(ui) {
   if (offered || demo.on || !ready() || tourActive()) return;
   if (!liveProjects().length) return;
-  if (lsGet(uidKey('tourSeen')) || lsGet(uidKey('tourOffered')) || getRepo()?.prefs?.tourOffered) return;
+  const answered = () => lsGet(uidKey('tourSeen')) || lsGet(uidKey('tourOffered')) || getRepo()?.prefs?.tourOffered;
+  if (answered()) return;
   try { if (sessionStorage.getItem('pz.tourLater')) return; } catch { /* ok */ }
   offered = true;
   setTimeout(() => {
+    // asked again: on a new device the projects can be read a moment before the user's settings that say «Не напоминать»
+    if (answered()) return;
     if (document.querySelector('.backdrop') || demo.on) { offered = false; return; }
     const close = openModal('Хотите пройти обучение?', h('div', {},
       h('p', {}, 'Покажу на примере, как устроено приложение: от добавления точек до отчёта за день. Это займёт несколько минут, можно остановиться в любой момент.'),

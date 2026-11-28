@@ -83,7 +83,8 @@ export async function openLocalCopy({ uid, idb = globalThis.indexedDB, name = DB
 
   // ---------- listeners ----------
   const listeners = new Map();   // scope → Set(fn)
-  const list = (scope) => [...(byScope.get(scope)?.values() || [])].map((d) => ({ ...d }));
+  // in document id order, as a Firestore listener gives a collection: rows a screen sorts as equal then stand the same way on both copies
+  const list = (scope) => [...(byScope.get(scope) || [])].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([, d]) => ({ ...d }));
   const call = (scope) => (listeners.get(scope) || new Set()).forEach((fn) => { try { fn(list(scope)); } catch (e) { error('Локальная копия: подписчик', e); } });
   const notify = (scopes) => new Set(scopes).forEach(call);
   let grouped = new Set(); let groupTimer = null;

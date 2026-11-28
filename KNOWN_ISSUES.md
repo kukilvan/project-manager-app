@@ -27,7 +27,10 @@ Bugs decided not to fix now, and rare cases where the app can go wrong (source d
 | KI-12 | on the NAS copy without a Client ID from the server, the shared client is used, and Google likely refuses the NAS address (`redirect_uri_mismatch`) | `getToken` in `src/app/google.js`, `src/app/pb/drive.js` | open | — |
 | KI-13 | on the Firebase and on-device copies the Google token stays after sign-out: another account within the hour uses the previous account's Drive | `logout` in `src/firebase.js`, `pz_gtoken` | open | — |
 | KI-14 | in winter the 07:20 UTC retry of the night sheets runs before the Firestore quota resets (08:00 UTC), so a night run that failed on the quota fails again | `.github/workflows/server-tables.yml` (cron `20 7 * * *`) | open | — |
-| KI-15 | NAS jobs run before the switch-over write over the live files: management sheets, the Drive zip and the backup repository, with the NAS's test data | `scripts/nas-jobs.mjs`, `docs/nas-requirements.md` (R-JOB-1) | open | stage 4, tickets 14–15 (proposed) |
+| KI-15 | NAS jobs run before the switch-over write over the live files: management sheets, the Drive zip and the backup repository, with the NAS's test data | `scripts/nas-jobs.mjs`, `docs/nas-requirements.md` (R-JOB-1) | open | stage 4, ticket 15 (proposed) |
+| KI-16 | the way back into Firebase is close to the free plan's 20,000 writes a day and a cut run starts over | `runFirestoreRestore` in `scripts/server-backup-lib.mjs` | open | — |
+| KI-17 | on Windows the `state.json` test of the job runner failed once: the rename over the file was refused (`EPERM`) | `recordState` in `scripts/nas-jobs.mjs`, `tests/nas-jobs.test.js` | open | — |
+| KI-18 | on a new device of the NAS copy the lists answer empty until the first read: a door configuration chosen in that moment can overwrite its shared-pool entry | `listenPool` in `src/app/pb/backend.js`, `useDoorCfg` in `src/app/doorpool.js` | open | — |
 
 ## Entries
 
@@ -176,4 +179,31 @@ Entry format:
 - How to reproduce: restore a backup into the NAS, change a point there, run `nas-jobs.mjs tables`: the management sheet shows the NAS value until the next night run on Firebase.
 - Likelihood / impact: only if the jobs are switched on or tried before the switch-over with the real secrets; management sees wrong data, the off-site copies hold test data (Drive keeps earlier versions ≈ 30 days). Until then: do not run the jobs with the real data and Google key; for a trial use a separate `BACKUP_REPO` and a test project.
 - Status: open
-- Found: 2026-11-27, ticket 4.12 (reading the job code).
+- Found: 2026-11-27, ticket 4.12 (reading the job code). 2026-11-28, ticket 4.14: the go / no-go list of `docs/nas-move-rehearsal.md` keeps the jobs off until the switch-over; how the two off-site copies are proven before it is for ticket 4.15.
+
+## KI-16. The way back into Firebase against the free write limit
+
+- Where: `runFirestoreRestore` in `scripts/server-backup-lib.mjs` (`scripts/server-restore.mjs`), R-MOVE-2 of `docs/nas-requirements.md`.
+- What's wrong: the way back writes every document of the NAS export: 17,148 on the data of 2026-11-27, and history grows by thousands of entries a month. The Spark plan allows 20,000 writes a day. A run cut by the quota or the network starts again from the first document with `--force` and spends the same writes.
+- How to reproduce: restore an export of more than 20,000 documents into a Spark database: the batch over the limit fails with `RESOURCE_EXHAUSTED`; the next day's run begins at 1 (not reproduced against Firebase).
+- Likelihood / impact: only if the move is undone, more and more likely a few weeks after it; the return to Firebase takes more than a day or does not finish. Ways out: continue from a given position, write only what changed since the switch-over, or switch the project to the paid plan for that day.
+- Status: open
+- Found: 2026-11-28, ticket 4.14 (the rehearsal's export, counted).
+
+## KI-17. A refused rename of `state.json` on Windows
+
+- Where: `recordState` in `scripts/nas-jobs.mjs` (writes a temporary file and renames it over `state.json`), the test «state.json: …» of `tests/nas-jobs.test.js`.
+- What's wrong: `fs.renameSync` over an existing file threw `EPERM` once in a full run of `npm test`; the next run passed. Probably another program (an antivirus) held the file for a moment.
+- How to reproduce: not reproduced.
+- Likelihood / impact: seen once, on the owner's PC only; the jobs run on Linux (the NAS), where a rename over an open file works.
+- Status: open
+- Found: 2026-11-28, ticket 4.14.
+
+## KI-18. Lists that answer empty before the first read on a new device of the NAS copy
+
+- Where: `listenPool` in `src/app/pb/backend.js` (answers from the local copy at once; Firestore waits for the server while online), `useDoorCfg` in `src/app/doorpool.js`.
+- What's wrong: until the first read a shared list looks empty. The starter set no longer trusts that (ticket 4.14), but a door configuration chosen in that moment is written into the shared pool as new: an entry with the same composition gets the project's name, and a deleted one comes back.
+- How to reproduce: a new device of the NAS copy on a slow connection: choose a door configuration before the pool arrives (not reproduced).
+- Likelihood / impact: very rare (seconds, once per device); one pool entry changed.
+- Status: open
+- Found: 2026-11-28, ticket 4.14 (reading the code).

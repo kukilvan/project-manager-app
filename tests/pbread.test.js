@@ -473,6 +473,8 @@ test('history merge: the server and the phone, each entry once (the server wins)
   assert.deepEqual(mergeHistory(server, local).map((e) => [e.id, e.byName]), [['h4', 'B'], ['h3', 'A'], ['h1', 'A (сервер)']]);
   assert.deepEqual(mergeHistory(server, local, 2).map((e) => e.id), ['h4', 'h3']);
   assert.deepEqual(mergeHistory(null, undefined), []);
+  // one save writes many entries at one moment: by id backwards, whatever order the server's pages and the phone give them (ticket 4.14)
+  assert.deepEqual(mergeHistory([{ id: 'b', at: 5 }, { id: 'c', at: 5 }], [{ id: 'a', at: 5 }, { id: 'd', at: 6 }]).map((e) => e.id), ['d', 'c', 'b', 'a']);
 });
 
 test('orphan records: records of projects not in the copy go, unless a queued item touches them', () => {

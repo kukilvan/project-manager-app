@@ -12,7 +12,8 @@
 // - hooksWithSchema() — the test-only copy of the hooks with another schema version
 // - fetchPocketBase() — download, SHA-256 check, unzip (scripts/zip-lib.mjs)
 // - startPocketBase(), stopPocketBase() — an instance on a port with a data folder; superuser, settings, test users
-// - CLI: node tools/pb-dev.mjs fetch | up [--empty] [--port N] [--serve <dir>] | down
+// - setLocalPassword() — a local password for an existing (restored) user
+// - CLI: node tools/pb-dev.mjs fetch | up [--empty] [--port N] [--serve <dir>] | password <e-mail> | down
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -176,9 +177,7 @@ export async function startPocketBase(opts = {}) {
     throw new Error(`${e.message}\n${child.output || ''}`);
   }
 
-  const auth = await api(`${url}/api/collections/_superusers/auth-with-password`, { method: 'POST', body: { identity: SUPERUSER.email, password: SUPERUSER.password } });
-  if (auth.status !== 200) throw new Error(`pb-dev: superuser sign-in failed: ${auth.text}`);
-  const superToken = auth.json.token;
+  const superToken = await superSignIn(url);
   // Local instance only: batch on (A4 of tools/nas-check.mjs) and password sign-in for the test users
   const s = await api(`${url}/api/settings`, { method: 'PATCH', token: superToken, body: { batch: { enabled: true, maxRequests: 500, timeout: 10, maxBodySize: 0 } } });
   if (s.status !== 200) throw new Error(`pb-dev: settings failed: ${s.text}`);
@@ -202,6 +201,25 @@ export async function ensureUser(url, superToken, { email, name }) {
   const a = await api(`${url}/api/collections/users/auth-with-password`, { method: 'POST', body: { identity: email, password: TEST_PASSWORD } });
   if (a.status !== 200) throw new Error(`pb-dev: sign-in of ${email} failed: ${a.text}`);
   return { id: a.json.record.id, email, name, token: a.json.token };
+}
+
+// Gives an existing user of a local instance TEST_PASSWORD, so the app's password form can sign in as them: the users of a rehearsal restore have
+// random passwords nobody knows (docs/nas-move-rehearsal.md). Returns the user's id
+export async function setLocalPassword(url, superToken, email) {
+  const mail = String(email || '').trim().toLowerCase();
+  if (!/^[^\s"\\@]+@[^\s"\\@]+$/.test(mail)) throw new Error('pb-dev: password needs an e-mail');
+  const found = await api(`${url}/api/collections/users/records?filter=${encodeURIComponent(`email = "${mail}"`)}`, { token: superToken });
+  const user = found.json && found.json.items && found.json.items[0];
+  if (!user) throw new Error(`pb-dev: no user with the e-mail ${mail}`);
+  const p = await api(`${url}/api/collections/users/records/${user.id}`, { method: 'PATCH', token: superToken, body: { password: TEST_PASSWORD, passwordConfirm: TEST_PASSWORD } });
+  if (p.status !== 200) throw new Error(`pb-dev: setting the password of ${mail} failed: ${p.text}`);
+  return user.id;
+}
+
+async function superSignIn(url) {
+  const auth = await api(`${url}/api/collections/_superusers/auth-with-password`, { method: 'POST', body: { identity: SUPERUSER.email, password: SUPERUSER.password } });
+  if (auth.status !== 200) throw new Error(`pb-dev: superuser sign-in failed: ${auth.text}`);
+  return auth.json.token;
 }
 
 // Stops an instance started by startPocketBase (its child) and waits for the exit; removeData deletes its data folder
@@ -259,13 +277,23 @@ function cmdDown(root) {
   fs.rmSync(st, { force: true });
 }
 
+// Only the instance that `up` started (its address is in state.json, always 127.0.0.1)
+async function cmdPassword(email, root) {
+  const st = statePath(root);
+  if (!fs.existsSync(st)) throw new Error('pb-dev: nothing is running; start it: node tools/pb-dev.mjs up');
+  const { url } = JSON.parse(fs.readFileSync(st, 'utf8'));
+  await setLocalPassword(url, await superSignIn(url), email);
+  console.log(`${email} signs in at ${url} with the password ${TEST_PASSWORD} (local only)`);
+}
+
 export async function main(argv, root = ROOT) {
   const cmd = argv[0];
   if (cmd === 'fetch') await fetchPocketBase({ root });
   else if (cmd === 'up') await cmdUp(argv.slice(1), root);
   else if (cmd === 'down') cmdDown(root);
+  else if (cmd === 'password') await cmdPassword(argv[1], root);
   else {
-    console.log('Usage: node tools/pb-dev.mjs fetch | up [--empty] [--port N] [--serve <dir>] | down');
+    console.log('Usage: node tools/pb-dev.mjs fetch | up [--empty] [--port N] [--serve <dir>] | password <e-mail> | down');
     return cmd === undefined || cmd === '--help' ? 0 : 2;
   }
   return 0;
