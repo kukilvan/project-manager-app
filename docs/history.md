@@ -2,6 +2,14 @@
 
 Dated details of every accepted step, newest first. Read only when a session needs a past detail.
 
+## 2026-11-28 — Ticket 4.14: the rehearsal of the move («Тикет 4.14»)
+
+- The move done on the PC with the newest full backup (folder 2026-11-27_1820): `pb-restore` plan → `--write` → count check → `--verify` passed first time (17,151 records, ≈ 6 s), also from a standalone copy of the job scripts and with the rate limits of R-PB-6; the PocketBase export restored into a second server equals it. `docs/nas-move-rehearsal.md` (commands, times, counts, go / no-go) and R-MOVE-1 point to it; NAS document version 2026-11-28 (commit `6052ab5`).
+- The app compared with the backup in test mode: 106 computed comparisons (reports of every day and month in Russian and Hebrew, statuses, racks, sheet previews, history) and the screen texts of both projects; every difference explained.
+- Found and fixed (commit `6052ab5`, live): the administrator's first sign-in on an empty local copy wrote the starter set over the whole shared pool (now `poolEmptyOnServer` asks the server first); the server version `_pb` reached the screens and filled the pool inbox (listeners strip it); documents and same-moment history entries ordered unlike Firestore (document id order); the tour offer shown before the settings were read. `tools/pb-dev.mjs password <e-mail>` signs in as a restored user.
+- Decision: the empty app data before the restore includes `users` (a trial user would keep its id and send unsent trial changes into the restored data). Left open: KI-15 (A10 before the switch-over, ticket 15), KI-16 (the way back against 20,000 writes a day), KI-17 (a Windows test flake), KI-18 (lists empty before the first read).
+- Proof: 598 tests on the PC; deploy green (build, `nas-build`, deploy). Not checked: the NAS, the iPhone, real Google sign-in, Drive and Sheets, the way back into a real Firebase. The owner's backup stayed in the session scratchpad. The owner accepted: «Работает».
+
 ## 2026-11-28 — Ticket 4.13: the restore tool and the way back («Тикет 4.13»)
 
 - `scripts/pb-restore.mjs <folder> [--write] [--resume] [--admin <e-mail>] [--verify]` (spec 4 § 6): `PB_URL`, `PB_SUPERUSER_EMAIL`, the password from `PB_SUPERUSER_PASSWORD_FILE` (never printed). The plan needs no server; a write refuses a server with projects unless `--resume`, which skips every existing record; superuser batches of 500 through `/api/batch` (429 → 2 s and again; a refused batch names its record); the count check prints a ✓/✗ table per collection and project; `--verify` reads back through `pb-source` (the export of ticket 4.11), maps ids back and compares every document ignoring `updatedAtServer` (`allowed` and the administrator by e-mail). Each step prints its time. Test knobs `PM_RESTORE_BATCH`, `PM_RESTORE_PAUSE_MS`.

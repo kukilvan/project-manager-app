@@ -32,6 +32,13 @@ None beyond the guard tests that already cover the NAS document and the translat
 
 The owner reads `ПЕРЕЕЗД.md` through once, as if they were a helper: is every step clear, is anything missing for their own phone and the helpers' phones; and reads the message for the NAS project.
 
+## Notes from ticket 14
+
+- `docs/nas-move-rehearsal.md` is the order of the move day: `ПЕРЕЕЗД.md` and the message must agree with its go / no-go list — trial NAS icons removed from the phones, the NAS's app data emptied (`users` too), GitHub's «Server tables» and «Server backup» disabled before the NAS jobs run with the real key.
+- KI-15 leaves a question for this ticket: R-MOVE-2 wants A10 (two off-site copies daily) before the switch-over, and the jobs must not touch the live files before it.
+- KI-16 (the way back against 20,000 writes a day) and KI-10 (Firebase texts on the NAS copy, proposed here) are open.
+- `nas-message-3.md` to `nas-message-5.md` exist already: the new message is `nas-message-6.md`.
+
 ## Notes from ticket 12
 
 - KI-15: the NAS document and the message must say that the jobs run with the real data, the Google key and `polevoy-backups` only from the switch-over on; before it, a trial uses a separate `BACKUP_REPO` and a test project.
